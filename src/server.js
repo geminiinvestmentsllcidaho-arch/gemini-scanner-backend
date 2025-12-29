@@ -9,6 +9,16 @@ const { writeRunLog } = require("./utils/runlog");
 const { readRunLog } = require("./utils/runlog_read");
 const { listRuns } = require("./utils/runlog_index");
 const app = express();
+app.get("/runlog/:runId", (req, res) => {
+  const { runId } = req.params;
+  const result = readRunDetail(runId);
+
+  if (!result.ok) {
+    return res.status(404).json(result);
+  }
+
+  res.json(result);
+});
 
 app.use(helmet());
 app.use(cors());
