@@ -111,6 +111,11 @@ app.get("/health", (req, res) => {
 app.get("/rules", (req, res) => {
   res.json(getRules());
 });
+import { getDiagnostics } from './diagnostics/index.js';
+
+app.get('/diagnostics', (req, res) => {
+  res.json(getDiagnostics());
+});
 
 app.get("/health-fefb9b1cb37f6025a74db6599b783f12", (req, res) => {
   res.json({ ok: true, service: "GeminiScanner", ts: new Date().toISOString() });
