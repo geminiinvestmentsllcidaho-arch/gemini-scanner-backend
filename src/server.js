@@ -1,4 +1,5 @@
 require("dotenv").config();
+const { readRunDetail } = require("./utils/runlog_detail");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -170,6 +171,26 @@ app.get("/runlog", (req, res) => {
   const limit = Math.max(1, Math.min(200, limitRaw || 25));
   const runs = listRuns(limit);
   return res.json({ ok: true, limit, runs, ts: new Date().toISOString() });
+});
+app.get("/ops/run/:runId", (req, res) => {
+  const { runId } = req.params;
+  const result = readRunDetail(runId);
+app.get("/ops/run/:runId", (req, res) => {
+  const { runId } = req.params;
+  const result = readRunDetail(runId);
+
+  if (!result.ok) {
+    return res.status(404).json(result);
+  }
+
+  res.json(result);
+});
+
+  if (!result.ok) {
+    return res.status(404).json(result);
+  }
+
+  res.json(result);
 });
 
 app.get("/ops/replay/:runId", (req, res) => {
