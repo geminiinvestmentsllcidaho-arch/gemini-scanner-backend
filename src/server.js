@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { nextStep } from './next-step.js';
+import { writeRunlog } from './runlog-write.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,11 +27,18 @@ app.get('/health', (req, res) => {
 });
 
 // --------------------
-// Read-only NEXT STEP (dry run only)
+// NEXT (LCM / dry-run only)
 // --------------------
 app.get('/next', (req, res) => {
   try {
     const result = nextStep({ dryRun: true });
+
+    // Pillar 3: write runlog (read-only)
+    writeRunlog({
+      mode: 'next_dryrun',
+      inputs: {},
+      output: result,
+    });
 
     res.json({
       ok: true,
@@ -46,7 +54,7 @@ app.get('/next', (req, res) => {
 });
 
 // --------------------
-// Diagnostics: list run logs
+// Runlog listing (diagnostics)
 // --------------------
 app.get('/runlog', (req, res) => {
   try {
@@ -71,7 +79,6 @@ app.get('/runlog', (req, res) => {
 
     res.json({
       ok: true,
-      limit: files.length,
       runs: files,
       ts: new Date().toISOString(),
     });
@@ -90,6 +97,12 @@ app.get('/', (req, res) => {
   res.json({
     service: 'GeminiScanner',
     mode: 'decision-assist-only',
+    pillars: [
+      'Live Scanner (no execution)',
+      'Live Coaching Mode',
+      'Replay + Diagnostics',
+      'Manual Symbol Monitoring',
+    ],
     endpoints: ['/health', '/next', '/runlog'],
   });
 });
