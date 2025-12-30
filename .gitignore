@@ -3,3 +3,8 @@ node_modules/
 data/
 npm-debug.log
 .DS_Store
+
+# Local runtime / experiments
+runlogs/
+test-alpaca.mjs
+src/alpaca.js
