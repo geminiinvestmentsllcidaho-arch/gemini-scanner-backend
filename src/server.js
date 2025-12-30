@@ -5,7 +5,7 @@ import path from 'path';
 
 import { nextStep } from './next-step.js';
 import { writeRunlog } from './runlog-write.js';
-import { formatCoaching } from './pillar2_coaching.js';
+import { getCoaching } from './pillar2/coaching_engine.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,13 +33,53 @@ app.get('/health', (req, res) => {
 app.get('/next', (req, res) => {
   try {
     const result = nextStep({ dryRun: true });
+      const mockDecision = { action: 'buy', symbol: 'AAPL' };
+      result.decision = mockDecision;
+      const coaching = getCoaching({
+        symbol: mockDecision.symbol,
+        decision: mockDecision,
+        snapshot: result.snapshot || {},
+        rules: { lcmEnabled: true },
+      });
 
-    const coachingPreview = formatCoaching({
-      symbol: "AAPL",
-      price: null,
-      signal: "hold",
-      confidence: 0.5
-    });
+  // --------------------
+  // OPS RUN (dry-run only)
+  // --------------------
+  app.post('/ops/run', (req, res) => {
+    try {
+      const inputs = req.body || {};
+      const result = nextStep({ dryRun: true, ...inputs });
+result.snapshot = { rsi: 75 };
+result.decision = { action: 'buy', symbol: 'AAPL' };
+      /* mock snapshot for coaching test */
+      result.snapshot = { rsi: 75 };
+      result.action = 'buy';
+      result.symbol = 'AAPL';
+      const coaching = getCoaching({
+        symbol: result?.symbol,
+        decision: result,
+        snapshot: result?.snapshot || {},
+        rules: { lcmEnabled: true },
+      });
+
+      const record = writeRunlog({
+        mode: 'ops_run_dryrun',
+        inputs,
+        output: { result, coaching },
+      });
+
+      res.json({
+        ok: true,
+        runId: record.id,
+        result,
+        coaching,
+        ts: new Date().toISOString(),
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+  });
+
 
     // Pillar 3: write runlog (read-only)
     const record = writeRunlog({
@@ -51,7 +91,7 @@ app.get('/next', (req, res) => {
     res.json({
       ok: true,
       next: result,
-      coachingPreview,
+      coaching,
       runId: record.id,
       ts: new Date().toISOString(),
     });
@@ -159,7 +199,6 @@ app.listen(PORT, () => {
 // ===============================
 // Pillar 2: Dynamic Coaching
 // ===============================
-import { getCoaching } from './pillar2/coaching_engine.js';
 
 app.post('/coach', express.json(), (req, res) => {
   try {
@@ -168,5 +207,37 @@ app.post('/coach', express.json(), (req, res) => {
     return res.json(out);
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
+
+// --------------------
+// OPS RUN (dry-run only)
+// --------------------
+app.post('/ops/run', (req, res) => {
+  try {
+    const inputs = req.body || {};
+    const result = nextStep({ dryRun: true, ...inputs });
+    const coaching = getCoaching({
+      symbol: result?.symbol,
+      decision: result,
+      snapshot: result?.snapshot || {},
+      rules: { lcmEnabled: true },
+    });
+
+    const record = writeRunlog({
+      mode: 'ops_run_dryrun',
+      inputs,
+      output: { result, coaching },
+    });
+
+    res.json({
+      ok: true,
+      runId: record.id,
+      result,
+      coaching,
+      ts: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message || String(err) });
   }
 });
