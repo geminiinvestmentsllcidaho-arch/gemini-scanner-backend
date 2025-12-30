@@ -1,26 +1,32 @@
-import { alpaca } from './alpaca.js';
-
 /**
- * Fetches the latest trade price from Alpaca and returns a placeholder decision.
- * Works only for symbols supported in your paper account.
- * @param {string} symbol - Ticker symbol
+ * nextStep
+ * ----------
+ * Read-only, deterministic "what should happen next" planner.
+ * NO market data
+ * NO Alpaca
+ * NO side effects
+ *
+ * Safe for Live Coaching Mode (LCM).
  */
-export async function nextStep(symbol) {
-    try {
-        const latestTrade = await alpaca.getLatestTrade(symbol);
-        const price = latestTrade.Price;
 
-        console.log(`Latest trade price for ${symbol}: $${price}`);
+export function nextStep({ dryRun = true } = {}) {
+  if (!dryRun) {
+    throw new Error('nextStep may only be called in dryRun mode');
+  }
 
-        return {
-            symbol,
-            action: 'hold',       // placeholder action
-            price: price,
-            confidence: 0.5       // placeholder confidence
-        };
-    } catch (error) {
-        console.error(`Error fetching data for ${symbol}:`, error);
-        return { symbol, action: 'hold', price: null, confidence: 0 };
-    }
+  return {
+    stepId: 'validate-signal-flow',
+    title: 'Validate signal flow',
+    description:
+      'Confirm that scanner inputs, rules, and outputs are flowing end-to-end without executing trades.',
+    safe: true,
+    reason:
+      'System is in decision-assist mode. Next priority is confidence and observability, not execution.',
+    suggestedActions: [
+      'Review latest runlog entries',
+      'Confirm market-hours gate behavior',
+      'Verify symbol filters and price bounds'
+    ],
+    ts: new Date().toISOString()
+  };
 }
-
