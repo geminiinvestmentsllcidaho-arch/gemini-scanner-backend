@@ -2,30 +2,27 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { getDiagnostics } from './diagnostics/index.js';
 import { health, readiness } from './utils/health.js';
+import { nextStep } from './next-step.js';
+
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-app.get('/health', health);
-app.get('/readiness', readiness);
-
-
 app.use(express.json());
 
-/**
- * Health / diagnostics endpoint
- */
-app.get('/diagnostics', (req, res) => {
-  res.json(getDiagnostics());
+// Existing routes
+app.get('/health', health);
+app.get('/readiness', readiness);
+app.get('/diagnostics', getDiagnostics);
+
+// New route to test nextStep (async)
+app.get('/api/next-step', async (req, res) => {
+    const symbol = req.query.symbol || 'AAPL';
+    const decision = await nextStep(symbol);
+    res.json(decision);
 });
 
-/**
- * Root
- */
-app.get('/', (req, res) => {
-  res.json({ ok: true, service: 'GeminiScanner' });
-});
-
+// Server listen
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`GeminiScanner listening on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

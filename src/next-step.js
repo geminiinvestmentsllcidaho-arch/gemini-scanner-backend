@@ -1,25 +1,26 @@
-// src/next-step.js
+import { alpaca } from './alpaca.js';
 
 /**
- * Next step logic for GeminiScanner.
- * Accepts a symbol and returns a placeholder decision.
+ * Fetches the latest trade price from Alpaca and returns a placeholder decision.
+ * Works only for symbols supported in your paper account.
+ * @param {string} symbol - Ticker symbol
  */
+export async function nextStep(symbol) {
+    try {
+        const latestTrade = await alpaca.getLatestTrade(symbol);
+        const price = latestTrade.Price;
 
-/**
- * Processes a symbol and returns a placeholder decision.
- * @param {string} symbol - The ticker symbol to process
- * @returns {Object} decision - Placeholder decision object
- */
-export function nextStep(symbol) {
-    console.log(`Processing symbol: ${symbol}`);
+        console.log(`Latest trade price for ${symbol}: $${price}`);
 
-    // Placeholder decision
-    const decision = {
-        symbol,
-        action: "hold",      // can be "buy", "sell", "hold"
-        confidence: 0.5      // placeholder confidence (0.0 - 1.0)
-    };
-
-    console.log(`Decision:`, decision);
-    return decision;
+        return {
+            symbol,
+            action: 'hold',       // placeholder action
+            price: price,
+            confidence: 0.5       // placeholder confidence
+        };
+    } catch (error) {
+        console.error(`Error fetching data for ${symbol}:`, error);
+        return { symbol, action: 'hold', price: null, confidence: 0 };
+    }
 }
+
