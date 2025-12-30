@@ -155,3 +155,18 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`GeminiScanner listening on port ${PORT}`);
 });
+
+// ===============================
+// Pillar 2: Dynamic Coaching
+// ===============================
+import { getCoaching } from './pillar2/coaching_engine.js';
+
+app.post('/coach', express.json(), (req, res) => {
+  try {
+    const { symbol, snapshot, decision, rules } = req.body || {};
+    const out = getCoaching({ symbol, snapshot, decision, rules });
+    return res.json(out);
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
