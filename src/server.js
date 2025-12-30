@@ -5,6 +5,7 @@ import path from 'path';
 
 import { nextStep } from './next-step.js';
 import { writeRunlog } from './runlog-write.js';
+import { formatCoaching } from './pillar2_coaching.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,13 @@ app.get('/next', (req, res) => {
   try {
     const result = nextStep({ dryRun: true });
 
+    const coachingPreview = formatCoaching({
+      symbol: "AAPL",
+      price: null,
+      signal: "hold",
+      confidence: 0.5
+    });
+
     // Pillar 3: write runlog (read-only)
     const record = writeRunlog({
       mode: 'next_dryrun',
@@ -43,6 +51,7 @@ app.get('/next', (req, res) => {
     res.json({
       ok: true,
       next: result,
+      coachingPreview,
       runId: record.id,
       ts: new Date().toISOString(),
     });
