@@ -34,7 +34,7 @@ app.get('/next', (req, res) => {
     const result = nextStep({ dryRun: true });
 
     // Pillar 3: write runlog (read-only)
-    writeRunlog({
+    const record = writeRunlog({
       mode: 'next_dryrun',
       inputs: {},
       output: result,
@@ -43,6 +43,7 @@ app.get('/next', (req, res) => {
     res.json({
       ok: true,
       next: result,
+      runId: record.id,
       ts: new Date().toISOString(),
     });
   } catch (err) {
@@ -91,6 +92,38 @@ app.get('/runlog', (req, res) => {
 });
 
 // --------------------
+// Runlog detail by id (diagnostics / replay)
+// --------------------
+app.get('/runlog/:id', (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+
+    // basic sanity: only allow filename-safe run ids
+    if (!/^[0-9TZ\-]+$/.test(id)) {
+      return res.status(400).json({ ok: false, error: 'invalid_run_id' });
+    }
+
+    const file = path.resolve('./runlogs', `${id}.json`);
+    if (!fs.existsSync(file)) {
+      return res.status(404).json({ ok: false, error: 'run_not_found' });
+    }
+
+    const raw = fs.readFileSync(file, 'utf8');
+    const data = JSON.parse(raw);
+
+    res.json({
+      ok: true,
+      run: data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err?.message || String(err),
+    });
+  }
+});
+
+// --------------------
 // Root
 // --------------------
 app.get('/', (req, res) => {
@@ -103,7 +136,7 @@ app.get('/', (req, res) => {
       'Replay + Diagnostics',
       'Manual Symbol Monitoring',
     ],
-    endpoints: ['/health', '/next', '/runlog'],
+    endpoints: ['/health', '/next', '/runlog', '/runlog/:id'],
   });
 });
 
