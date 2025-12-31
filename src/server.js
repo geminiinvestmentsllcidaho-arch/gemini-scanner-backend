@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import { startMarketDataStream } from "./market_data_stream.js";
+import { marketDataDump } from "./utils/market_data_dump.js";
 import { getDiagnostics } from './diagnostics/index.js';
 import { health, readiness } from './utils/health.js';
 import { nextStep } from './next-step.js'; 
@@ -16,6 +17,7 @@ app.use(express.json());
 // Health / Readiness / Diagnostics
 // --------------------
 app.get('/health', health);
+app.get("/marketdata", marketDataDump);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
 
