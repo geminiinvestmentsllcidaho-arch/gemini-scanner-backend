@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { buildLiveSnapshot } from "./utils/live_snapshot.js";
 import express from 'express';
 import { startMarketDataStream } from "./market_data_stream.js";
 import { marketDataDump } from "./utils/market_data_dump.js";
@@ -56,20 +57,14 @@ app.post('/ops/run', (req, res) => {
     try {
         const inputs = req.body || {};
         const decision = inputs.decision;          // use real POST input
-        const snapshot = inputs.snapshot;          // use real snapshot
-        const symbol = decision?.symbol;
+        let snapshot = inputs.snapshot;        const symbol = decision?.symbol;
         const action = decision?.action;
 
         if (!decision || !snapshot || !symbol || !action) {
             return res.status(400).json({ ok: false, error: 'Missing decision or snapshot in request' });
         }
 
-        const coaching = getCoaching({
-            symbol,
-            decision,
-            snapshot,
-            rules: { lcmEnabled: true }
-        });
+        const coaching = getCoaching({ symbol, decision, snapshot, ctx: { rules: { lcmEnabled: true } } });
 
         const record = writeRunlog({
             mode: 'ops_run_dryrun',
