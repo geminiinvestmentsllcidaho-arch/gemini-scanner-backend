@@ -56,15 +56,26 @@ app.post('/coach', (req, res) => {
 app.post('/ops/run', (req, res) => {
     try {
         const inputs = req.body || {};
-        const decision = inputs.decision;          // use real POST input
-        let snapshot = inputs.snapshot;        const symbol = decision?.symbol;
+        const decision = inputs.decision; // required
+        const symbol = decision?.symbol;
         const action = decision?.action;
 
-        if (!decision || !snapshot || !symbol || !action) {
-            return res.status(400).json({ ok: false, error: 'Missing decision or snapshot in request' });
+        if (!decision || !symbol || !action) {
+            return res.status(400).json({
+                ok: false,
+                error: 'Missing decision (symbol/action) in request'
+            });
         }
 
-        const coaching = getCoaching({ symbol, decision, snapshot, ctx: { rules: { lcmEnabled: true } } });
+        // Live WS snapshot only (no REST history)
+        const snapshot = buildLiveSnapshot(symbol, {});
+
+        const coaching = getCoaching({
+            symbol,
+            decision,
+            snapshot,
+            ctx: { rules: { lcmEnabled: true } }
+        });
 
         const record = writeRunlog({
             mode: 'ops_run_dryrun',
@@ -76,6 +87,7 @@ app.post('/ops/run', (req, res) => {
             ok: true,
             runId: record.id,
             result: decision,
+            snapshot,
             coaching,
             ts: new Date().toISOString()
         });
@@ -85,10 +97,17 @@ app.post('/ops/run', (req, res) => {
 });
 
 // --------------------
-// Start server
+// Startup
 // --------------------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`GeminiScanner server running on port ${PORT}`);
-  startMarketDataStream().catch((e)=>console.error("[md] failed to start", e));
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(PORT, HOST, async () => {
+  console.log(`[server] listening on http://${HOST}:${PORT}`);
+  try {
+    await startMarketDataStream();
+    console.log('[server] market data stream started');
+  } catch (e) {
+    console.error('[server] market data stream failed to start:', e);
+  }
 });
