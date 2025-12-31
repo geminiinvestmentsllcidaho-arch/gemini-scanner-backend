@@ -23,7 +23,19 @@ async function isMarketOpen() {
   return !!j.is_open;
 }
 
+function parseSymbolsEnv(v) {
+  if (!v) return null;
+  const out = v
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+  return out.length ? Array.from(new Set(out)) : null;
+}
+
 export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
+  const envSymbols = parseSymbolsEnv(process.env.ALPACA_SYMBOLS);
+  if (envSymbols) symbols = envSymbols;
+
   const open = await isMarketOpen();
   const ws = new WebSocket(WS_URL);
 

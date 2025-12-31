@@ -90,5 +90,5 @@ app.post('/ops/run', (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`GeminiScanner server running on port ${PORT}`);
-  startMarketDataStream({ symbols: ["AAPL"] }).catch((e)=>console.error("[md] failed to start", e));
+  startMarketDataStream().catch((e)=>console.error("[md] failed to start", e));
 });
