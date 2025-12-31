@@ -10,65 +10,36 @@ if (!KEY || !SECRET) {
   process.exit(1);
 }
 
-const url = 'wss://stream.data.alpaca.markets/v2/' + FEED;
+const url = `wss://stream.data.alpaca.markets/v2/${FEED}`;
 const ws = new WebSocket(url);
 
 ws.on('open', () => {
   console.log('[ws] open', url);
-
-  ws.send(JSON.stringify({
-    action: 'auth',
-    key: KEY,
-    secret: SECRET
-  }));
+  ws.send(JSON.stringify({ action: 'auth', key: KEY, secret: SECRET }));
 });
 
 ws.on('message', (raw) => {
-  let msg;
-  try {
-    msg = JSON.parse(raw.toString());
-  } catch (e) {
-    console.log('[ws] non-json message:', raw.toString());
-    return;
-  }
+  let arr;
+  try { arr = JSON.parse(raw.toString()); }
+  catch { console.log('[ws] non-json:', raw.toString()); return; }
 
-  for (const m of msg) {
-    // auth + status messages
+  for (const m of arr) {
     if (m.T === 'success' || m.T === 'error' || m.T === 'subscription') {
       console.log('[ws]', m);
       if (m.T === 'success' && m.msg === 'authenticated') {
-        ws.send(JSON.stringify({
-          action: 'subscribe',
-          bars: ['AAPL']
-        }));
+        ws.send(JSON.stringify({ action: 'subscribe', quotes: ['AAPL'] }));
       }
       continue;
     }
 
-    // bar messages (v2)
-    if (m.T === 'b' && m.S === 'AAPL') {
-      console.log('[bar]', {
-        S: m.S,
-        t: m.t,
-        o: m.o,
-        h: m.h,
-        l: m.l,
-        c: m.c,
-        v: m.v,
-        vw: m.vw
-      });
+    if (m.T === 'q' && m.S === 'AAPL') {
+      console.log('[quote]', { t: m.t, bp: m.bp, bs: m.bs, ap: m.ap, as: m.as });
       continue;
     }
 
-    // anything else
     console.log('[ws]', m);
   }
 });
 
-ws.on('close', (code, reason) => {
-  console.log('[ws] closed', { code, reason: reason?.toString?.() });
-});
-
-ws.on('error', (err) => {
-  console.error('[ws] error', err);
-});
+ws.on('close', (code, reason) => console.log('[ws] closed', { code, reason: reason?.toString?.() }));
+ws.on('error', (err) => console.error('[ws] error', err));
