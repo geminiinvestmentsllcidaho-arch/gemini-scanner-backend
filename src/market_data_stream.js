@@ -11,6 +11,15 @@ if (!KEY || !SECRET) throw new Error('Missing ALPACA_KEY / ALPACA_SECRET in .env
 const WS_URL = `wss://stream.data.alpaca.markets/v2/${FEED}`;
 const CLOCK_URL = 'https://paper-api.alpaca.markets/v2/clock';
 
+function parseSymbolsEnv(v) {
+  if (!v) return null;
+  const out = v
+    .split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+  return out.length ? Array.from(new Set(out)) : null;
+}
+
 async function isMarketOpen() {
   const res = await fetch(CLOCK_URL, {
     headers: {
@@ -23,13 +32,52 @@ async function isMarketOpen() {
   return !!j.is_open;
 }
 
-function parseSymbolsEnv(v) {
-  if (!v) return null;
-  const out = v
-    .split(',')
-    .map(s => s.trim().toUpperCase())
-    .filter(Boolean);
-  return out.length ? Array.from(new Set(out)) : null;
+// Off-hours seed: fetch recent 1Min bars so RSI can compute.
+async function backfillBars({ symbol, limit = 200 }) {
+  // We use a wide window so holidays/weekends still return the most recent session if available.
+  // Alpaca requires explicit feed sometimes; we pass feed=${FEED}.
+  const end = new Date();
+  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+
+  const qs = new URLSearchParams({
+    timeframe: '1Min',
+    start: start.toISOString(),
+    end: end.toISOString(),
+    limit: String(limit),
+    feed: FEED,
+  });
+
+  const url = `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars?${qs.toString()}`;
+
+  const res = await fetch(url, {
+    headers: {
+      'APCA-API-KEY-ID': KEY,
+      'APCA-API-SECRET-KEY': SECRET,
+    },
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`bars HTTP ${res.status} ${txt.slice(0, 120)}`);
+  }
+
+  const j = await res.json();
+  const bars = Array.isArray(j?.bars) ? j.bars : [];
+
+  // Push into cache oldest->newest
+  for (const b of bars) {
+    updateBar(symbol, {
+      t: b.t,
+      o: b.o,
+      h: b.h,
+      l: b.l,
+      c: b.c,
+      v: b.v,
+      vw: b.vw,
+    });
+  }
+
+  return bars.length;
 }
 
 export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
@@ -37,6 +85,19 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
   if (envSymbols) symbols = envSymbols;
 
   const open = await isMarketOpen();
+
+  // If market is closed, seed bars via REST so RSI works off-hours
+  if (!open) {
+    try {
+      for (const s of symbols) {
+        const n = await backfillBars({ symbol: s, limit: 300 });
+        console.log('[md] backfilled bars', { symbol: s, count: n });
+      }
+    } catch (e) {
+      console.log('[md] backfill error', String(e?.message || e));
+    }
+  }
+
   const ws = new WebSocket(WS_URL);
 
   ws.on('open', () => {
@@ -53,8 +114,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
       if (m.T === 'success' || m.T === 'error' || m.T === 'subscription') {
         console.log('[md]', m);
         if (m.T === 'success' && m.msg === 'authenticated') {
-          const sub = { action: 'subscribe', quotes: symbols };
-          if (open) sub.bars = symbols;
+          const sub = { action: 'subscribe', quotes: symbols, bars: symbols };
           ws.send(JSON.stringify(sub));
           console.log('[md] subscribed', sub);
         }

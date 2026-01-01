@@ -4,33 +4,23 @@
 export function getCoaching({ symbol, snapshot = {}, decision = {}, ctx = {} }) {
   const coaching = [];
 
+  // Run rules (LCM enabled)
+  const rsiOut = rsiRule({ symbol, snapshot, decision, ctx });
+  if (rsiOut) coaching.push(rsiOut);
+
+  // Debug fields
   const action = String(decision?.action || '').toLowerCase();
-  const rsiRaw = snapshot?.rsi;
-  const rsi = rsiRaw == null ? null : Number(rsiRaw);
-
-  if (action === 'buy' && Number.isFinite(rsi) && rsi > 70) {
-    coaching.push({
-      level: 'caution',
-      code: 'RSI_OVERBOUGHT',
-      message: 'RSI is overbought (>70). Consider waiting for a pullback or scaling in.',
-      data: { rsi },
-    });
-  }
-
-  if (action === 'sell' && Number.isFinite(rsi) && rsi < 30) {
-    coaching.push({
-      level: 'caution',
-      code: 'RSI_OVERSOLD',
-      message: 'RSI is oversold (<30). Selling may be late; consider a tighter plan.',
-      data: { rsi },
-    });
-  }
+  const rsiComputed = snapshot?.indicators?.rsi ?? null;
 
   return {
     ok: true,
     symbol,
     coaching,
-    debug: { action, rsi, rsiRaw, rsiComputed: (snapshot?.indicators?.rsi ?? null), lcmEnabled: !!ctx?.rules?.lcmEnabled },
+    debug: {
+      action,
+      rsiComputed,
+      lcmEnabled: !!ctx?.rules?.lcmEnabled
+    },
     ts: new Date().toISOString(),
   };
 }
@@ -38,11 +28,8 @@ export function getCoaching({ symbol, snapshot = {}, decision = {}, ctx = {} }) 
 /**
  * RSI overbought / oversold coaching rule
  */
-function rsiRule({ symbol, snapshot, decision, ctx }) {
+function rsiRule({ snapshot, decision, ctx }) {
   if (!ctx?.rules?.lcmEnabled) return null;
-
-  // Prefer precomputed RSI, otherwise compute from bars closes (no fake defaults)
-  let rsi = snapshot?.indicators?.rsi;
 
   function computeRSI(closes, period = 14) {
     if (!Array.isArray(closes) || closes.length < period + 1) return null;
@@ -74,44 +61,40 @@ function rsiRule({ symbol, snapshot, decision, ctx }) {
     return 100 - (100 / (1 + rs));
   }
 
-  if (typeof rsi !== "number") {
-    const bars = snapshot?.bars;
-    const closes =
-      Array.isArray(bars)
-        ? bars
-            .map(b => (typeof b?.c === "number" ? b.c : (typeof b?.close === "number" ? b.close : null)))
-            .filter(v => typeof v === "number")
-        : null;
+  const bars = snapshot?.bars;
+  const closes =
+    Array.isArray(bars)
+      ? bars
+          .map(b => (typeof b?.c === 'number' ? b.c : (typeof b?.close === 'number' ? b.close : null)))
+          .filter(v => typeof v === 'number')
+      : null;
 
-    const computed = closes ? computeRSI(closes, 14) : null;
-    if (typeof computed === "number") {
-      rsi = computed;
-      snapshot.indicators = snapshot.indicators || {};
-      snapshot.indicators.rsi = rsi;
-    }
-  }
+  const rsi = closes ? computeRSI(closes, 14) : null;
 
-  if (typeof rsi !== "number") return null;
+  if (typeof rsi !== 'number') return null;
 
-  if (rsi > 70) {
+  snapshot.indicators = snapshot.indicators || {};
+  snapshot.indicators.rsi = rsi;
 
+  const action = String(decision?.action || '').toLowerCase();
+
+  if (action === 'buy' && rsi > 70) {
     return {
-      level: "caution",
-      code: "RSI_OVERBOUGHT",
+      level: 'caution',
+      code: 'RSI_OVERBOUGHT',
       message: `RSI is overbought (${rsi.toFixed(1)}). Consider waiting for a pullback or scaling in.`,
-      data: { rsi }
+      data: { rsi },
     };
   }
 
-  if (rsi < 30) {
+  if (action === 'sell' && rsi < 30) {
     return {
-      level: "caution",
-      code: "RSI_OVERSOLD",
+      level: 'caution',
+      code: 'RSI_OVERSOLD',
       message: `RSI is oversold (${rsi.toFixed(1)}). A bounce is possible, but confirm with volume or trend.`,
-      data: { rsi }
+      data: { rsi },
     };
   }
 
   return null;
 }
-

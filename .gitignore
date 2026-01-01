@@ -8,3 +8,13 @@ npm-debug.log
 runlogs/
 test-alpaca.mjs
 src/alpaca.js
+
+# Runtime artifacts
+runs/
+payload.json
+*.bak
+*.bak.*
+*.tgz
+
+# PM2
+ecosystem.config.cjs

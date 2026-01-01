@@ -1,4 +1,10 @@
-import { marketData, getLatestQuote, getLatestBar, fillClosedMarketHeartbeat } from './market_data_cache.js';
+import {
+  marketData,
+  getLatestQuote,
+  getLatestBar,
+  getBars,
+  fillClosedMarketHeartbeat
+} from '../market_data_cache.js';
 
 // Helper: parse symbols from environment
 function parseSymbolsEnv(v) {
@@ -22,7 +28,9 @@ export function marketDataDump(req, res) {
     // ------------------------
     // Fill heartbeat for off-hours
     // ------------------------
-    const heartbeatSymbols = parseSymbolsEnv(process.env.ALPACA_SYMBOLS) || [];
+    const heartbeatSymbols =
+      parseSymbolsEnv(process.env.ALPACA_SYMBOLS) || [];
+
     fillClosedMarketHeartbeat(heartbeatSymbols);
 
     // auto-enumerate from cache
@@ -31,11 +39,20 @@ export function marketDataDump(req, res) {
     symbols = Array.from(new Set([...q, ...b])).sort();
   }
 
-  const out = symbols.map(S => ({
-    symbol: S,
-    quote: getLatestQuote(S),
-    bar: getLatestBar(S),
-  }));
+  const out = symbols.map(S => {
+    const bars = getBars(S);
+    return {
+      symbol: S,
+      quote: getLatestQuote(S),
+      bar: getLatestBar(S),
+      barsCount: bars.length,
+    };
+  });
 
-  res.json({ ok: true, symbols, data: out, ts: new Date().toISOString() });
+  res.json({
+    ok: true,
+    symbols,
+    data: out,
+    ts: new Date().toISOString(),
+  });
 }
