@@ -5,6 +5,10 @@ export function getCoaching({ symbol, snapshot = {}, decision = {}, ctx = {} }) 
   const coaching = [];
 
   // Run rules (LCM enabled)
+  const priceOut = noLivePriceRule({ symbol, snapshot, decision, ctx });
+  if (priceOut) coaching.push(priceOut);
+
+  // Run rules (LCM enabled)
   const rsiOut = rsiRule({ symbol, snapshot, decision, ctx });
   if (rsiOut) coaching.push(rsiOut);
 
@@ -22,6 +26,28 @@ export function getCoaching({ symbol, snapshot = {}, decision = {}, ctx = {} }) 
       lcmEnabled: !!ctx?.rules?.lcmEnabled
     },
     ts: new Date().toISOString(),
+  };
+}
+
+/**
+ * Missing live price coaching rule
+ * - High-signal: warns when snapshot has no usable price during buy/sell actions
+ * - Deterministic + low-noise: only triggers for buy/sell when LCM enabled
+ */
+function noLivePriceRule({ snapshot, decision, ctx }) {
+  if (!ctx?.rules?.lcmEnabled) return null;
+
+  const action = String(decision?.action || '').toLowerCase();
+  if (action !== 'buy' && action !== 'sell') return null;
+
+  const price = snapshot?.price;
+  if (typeof price === 'number' && Number.isFinite(price)) return null;
+
+  return {
+    level: 'caution',
+    code: 'NO_LIVE_PRICE',
+    message: 'Live price is unavailable in the snapshot. Verify the current quote before acting.',
+    data: { price: price ?? null },
   };
 }
 
