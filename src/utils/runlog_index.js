@@ -4,9 +4,10 @@ import { RUNS_DIR, ensureRunsDir } from './runlog.js';
 
 ensureRunsDir();
 
-// List recent runs
-export function listRuns(limit = 25) {
+// List recent runs with optional cursor pagination
+export function listRuns(limit = 25, before = null) {
   const n = Math.max(1, Math.min(200, Number(limit) || 25));
+  const cursor = before == null ? null : Number(before);
 
   let files = [];
   try {
@@ -15,15 +16,25 @@ export function listRuns(limit = 25) {
     return [];
   }
 
-  return files
+  const sorted = files
     .map((f) => {
       const filePath = path.join(RUNS_DIR, f);
       const stat = fs.statSync(filePath);
       const runId = f.replace(/\.json$/, '');
-      return { runId, file: f, mtimeMs: stat.mtimeMs, size: stat.size };
+      return {
+        runId,
+        file: f,
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+      };
     })
-    .sort((a, b) => b.mtimeMs - a.mtimeMs)
-    .slice(0, n);
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  const filtered = cursor
+    ? sorted.filter((r) => r.mtimeMs < cursor)
+    : sorted;
+
+  return filtered.slice(0, n);
 }
 
 // Read a specific run
@@ -38,10 +49,21 @@ export function readRun(runId) {
   }
 }
 
-// Express handler: GET /runlog?limit=25
+// Express handler: GET /runlog?limit=25&before=<mtimeMs>
 export function runlogIndex(req, res) {
   const limit = req.query.limit ?? 25;
-  const runs = listRuns(limit);
-  res.json({ ok: true, limit: Number(limit) || 25, runs, ts: new Date().toISOString() });
+  const before = req.query.before ?? null;
+
+  const runs = listRuns(limit, before);
+  const nextBefore = runs.length ? runs[runs.length - 1].mtimeMs : null;
+
+  res.json({
+    ok: true,
+    limit: Number(limit) || 25,
+    before: before == null ? null : Number(before),
+    nextBefore,
+    runs,
+    ts: new Date().toISOString(),
+  });
 }
 
