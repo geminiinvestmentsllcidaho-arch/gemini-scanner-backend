@@ -7,6 +7,8 @@ import { health, readiness } from './utils/health.js';
 import { nextStep } from './next-step.js';
 
 import { buildLiveSnapshot } from './utils/live_snapshot.js';
+import { buildBarsByTfFrom1m } from './pillar3/aggregate_bars.mjs';
+
 import { getCoaching } from './pillar2/coaching_engine.js';
 import { computeContextV3 } from './pillar3/context_engine.mjs';
 import { writeRunlog } from './runlog-write.js';
@@ -110,12 +112,7 @@ app.post('/ops/run', (req, res) => {
       const nowMs = Date.now();
       const session = snapshot?.session || 'unknown';
 
-      const barsByTf = {
-        "1m": snapshot?.bars || [],
-        "5m": [],
-        "15m": [],
-        "1h": [],
-      };
+      const barsByTf = buildBarsByTfFrom1m(snapshot?.bars || []);
 
       context_v3 = computeContextV3({
         symbol,
