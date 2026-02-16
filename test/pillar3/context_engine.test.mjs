@@ -75,3 +75,34 @@ test("contextEngine: quality + penalties are present and deterministic", () => {
   // quality should be within [0,1]
   assert.ok(a.quality.overall >= 0 && a.quality.overall <= 1);
 });
+
+test("contextEngine: output schema is stable (top-level + nested keys)", () => {
+  const snapshot = { bars: [] };
+  const out = computeContext(snapshot);
+
+  // Top-level keys
+  assert.deepEqual(
+    Object.keys(out).sort(),
+    [
+      "context",
+      "freshness",
+      "inputs",
+      "integrity",
+      "penalties",
+      "quality",
+      "version"
+    ].sort()
+  );
+
+  // Nested context keys
+  assert.deepEqual(
+    Object.keys(out.context).sort(),
+    ["labels", "regimeKnown", "volKnown"].sort()
+  );
+
+  // Nested quality keys
+  assert.deepEqual(
+    Object.keys(out.quality).sort(),
+    ["overall", "penaltyTotal"].sort()
+  );
+});
