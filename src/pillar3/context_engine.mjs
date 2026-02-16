@@ -111,20 +111,20 @@ function num(x) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function computeFreshness(tf, bars, nowMs, session) {
-  if (!bars.length) return { status: "missing", ageSec: null, lastBar: null };
+  function computeFreshness(tf, bars, nowMs, session) {
+    if (!bars.length) return { status: "missing", ageSec: null, lastBar: null, dataLooksHistorical: false };
 
-  const lastT = Date.parse(bars[bars.length - 1].t);
-  const ageSec = Math.max(0, Math.floor((nowMs - lastT) / 1000));
+    const lastT = Date.parse(bars[bars.length - 1].t);
+    const ageSec = Math.max(0, Math.floor((nowMs - lastT) / 1000));
 
-  const base = tf === "1m" ? 150 : tf === "5m" ? 480 : tf === "15m" ? 1200 : 7200;
-  const relax = (session === "rth" || session === "pre" || session === "post") ? 1 : 3;
-  const staleSec = base * relax;
+    const base = tf === "1m" ? 150 : tf === "5m" ? 480 : tf === "15m" ? 1200 : 7200;
+    const relax = (session === "rth" || session === "pre" || session === "post") ? 1 : 3;
+    const staleSec = base * relax;
 
-  const status = ageSec <= staleSec ? "ok" : "stale";
-  return { status, ageSec, lastBar: new Date(lastT).toISOString(), staleSec };
-}
-
+    const status = ageSec <= staleSec ? "ok" : "stale";
+    const dataLooksHistorical = ageSec > 86400; // > 24h old
+    return { status, ageSec, lastBar: new Date(lastT).toISOString(), staleSec, dataLooksHistorical };
+  }
 function summarizeFreshness(freshnessByTf) {
   const statuses = Object.values(freshnessByTf).map(x => x.status);
   if (statuses.every(s => s === "ok")) return "ok";
