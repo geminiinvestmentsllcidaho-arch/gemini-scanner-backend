@@ -8,6 +8,7 @@ import { nextStep } from './next-step.js';
 
 import { buildLiveSnapshot } from './utils/live_snapshot.js';
 import { getCoaching } from './pillar2/coaching_engine.js';
+import { computeContextV3 } from './pillar3/context_engine.mjs';
 import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 
@@ -15,6 +16,8 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+const P3_ENABLED = process.env.P3_ENABLED === '1';
 
 // --------------------
 // Health / Readiness / Diagnostics / Marketdata / Runlog
@@ -37,7 +40,7 @@ app.get('/runlog/:id', (req, res) => {
 });
 
 // --------------------
-// /next-step endpoint
+// /api/next-step endpoint
 // --------------------
 app.get('/api/next-step', (req, res) => {
   const symbol = req.query.symbol || 'AAPL';
@@ -93,9 +96,45 @@ app.post('/ops/run', (req, res) => {
     }
 
     const snapshot = buildLiveSnapshot(symbol, {});
-    const coaching = getCoaching({ symbol, decision, snapshot, ctx: { rules: { lcmEnabled: true } } });
+    const coaching = getCoaching({
+      symbol,
+      decision,
+      snapshot,
+      ctx: { rules: { lcmEnabled: true } },
+    });
 
-    const record = writeRunlog({ mode: 'ops_run_dryrun', inputs, output: { result: decision, coaching } });
+    // -------- Pillar 3 Compute-Only --------
+    let context_v3 = null;
+
+    if (P3_ENABLED) {
+      const nowMs = Date.now();
+      const session = snapshot?.session || 'unknown';
+
+      const barsByTf = {
+        "1m": snapshot?.bars || [],
+        "5m": [],
+        "15m": [],
+        "1h": [],
+      };
+
+      context_v3 = computeContextV3({
+        symbol,
+        barsByTf,
+        nowMs,
+        session,
+        provider: "live_snapshot",
+      });
+    }
+
+    const record = writeRunlog({
+      mode: 'ops_run_dryrun',
+      inputs,
+      output: {
+        result: decision,
+        coaching,
+      },
+      context_v3,
+    });
 
     const snapshotOut = {
       ...snapshot,
@@ -105,7 +144,9 @@ app.post('/ops/run', (req, res) => {
     const coachingOut = {
       ...coaching,
       rsi: coaching?.debug?.rsiComputed ?? null,
-      coachingCount: Array.isArray(coaching?.coaching) ? coaching.coaching.length : 0,
+      coachingCount: Array.isArray(coaching?.coaching)
+        ? coaching.coaching.length
+        : 0,
     };
 
     res.json({
@@ -114,6 +155,7 @@ app.post('/ops/run', (req, res) => {
       result: decision,
       snapshot: snapshotOut,
       coaching: coachingOut,
+      context_v3: P3_ENABLED ? context_v3 : undefined,
       ts: new Date().toISOString(),
     });
   } catch (err) {
