@@ -248,7 +248,8 @@ function summarizeQualityFlags(byTf) {
 }
 
 function summarizeRegime(byTf) {
-  const trends = Object.values(byTf).map(x => x.trend);
+  const trends = Object.values(byTf).map(x => x.trend).filter(x => x && x !== "unknown");
+  if (!trends.length) return "unknown";
   const counts = count(trends);
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   if (entries.length >= 2 && entries[0][1] === entries[1][1]) return "mixed";
@@ -256,7 +257,8 @@ function summarizeRegime(byTf) {
 }
 
 function summarizeVolatility(byTf) {
-  const vols = Object.values(byTf).map(x => x.volatility);
+  const vols = Object.values(byTf).map(x => x.volatility).filter(x => x && x !== "unknown");
+  if (!vols.length) return "unknown";
   const counts = count(vols);
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   if (entries.length >= 2 && entries[0][1] === entries[1][1]) return "mixed";
@@ -264,7 +266,14 @@ function summarizeVolatility(byTf) {
 }
 
 function computeConsensus(byTf) {
-  const trends = Object.entries(byTf).map(([tf, x]) => ({ tf, trend: x.trend }));
+  const trends = Object.entries(byTf)
+    .map(([tf, x]) => ({ tf, trend: x?.trend }))
+    .filter(x => x.trend && x.trend !== "unknown");
+
+  if (!trends.length) {
+    return { dimension: "trend", top: "unknown", score: 0, out_of: 0, agreeing_tfs: [] };
+  }
+
   const counts = count(trends.map(x => x.trend));
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const top = entries[0] ?? ["unknown", 0];
