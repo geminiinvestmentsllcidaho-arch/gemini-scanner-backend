@@ -105,8 +105,9 @@ app.post('/ops/run', (req, res) => {
       ctx: { rules: { lcmEnabled: true } },
     });
 
-    // -------- Pillar 3 Compute-Only --------
+    // -------- Pillar 3 Compute-Only (Guarded) --------
     let context_v3 = null;
+    let p3_gate = { ok: true };
 
     if (P3_ENABLED) {
       const nowMs = Date.now();
@@ -114,13 +115,55 @@ app.post('/ops/run', (req, res) => {
 
       const barsByTf = buildBarsByTfFrom1m(snapshot?.bars || []);
 
-      context_v3 = computeContextV3({
-        symbol,
-        barsByTf,
-        nowMs,
-        session,
-        provider: "live_snapshot",
-      });
+      // Compute lastBar + ageSec (prefer snapshot.bar.t, else last bars[] entry)
+      const lastBarIso =
+        snapshot?.bar?.t ||
+        (Array.isArray(snapshot?.bars) && snapshot.bars.length
+          ? snapshot.bars[snapshot.bars.length - 1]?.t
+          : null);
+
+      const lastBarMs = lastBarIso ? Date.parse(lastBarIso) : NaN;
+      const ageSec = Number.isFinite(lastBarMs) ? Math.floor((nowMs - lastBarMs) / 1000) : null;
+
+      // Lookback sufficiency thresholds (tuneable later)
+      const minLookback = { '1m': 60, '5m': 60, '15m': 40, '1h': 30 };
+      const lookbackHave = Object.fromEntries(
+        Object.entries(minLookback).map(([tf]) => [tf, Array.isArray(barsByTf?.[tf]) ? barsByTf[tf].length : 0])
+      );
+
+      const insufficientLookback = Object.entries(minLookback).some(([tf, min]) => (lookbackHave[tf] || 0) < min);
+
+      // Freshness gate: stricter during regular session/unknown; relaxed when closed/off-hours
+      const maxFreshSecRegular = Number(process.env.P3_MAX_FRESH_SEC_REGULAR || 600);      // 10 min
+      const maxFreshSecClosed  = Number(process.env.P3_MAX_FRESH_SEC_CLOSED  || 604800);  // 7 days
+      const maxFreshSec = (session === 'regular' || session === 'unknown') ? maxFreshSecRegular : maxFreshSecClosed;
+
+      const staleHard = (ageSec === null)
+        ? true
+        : ((session === 'regular' || session === 'unknown') ? (ageSec > maxFreshSec) : false);
+
+      if (staleHard || insufficientLookback) {
+        p3_gate = {
+          ok: false,
+          reason: staleHard ? 'STALE_SNAPSHOT' : 'INSUFFICIENT_LOOKBACK',
+          session,
+          lastBar: lastBarIso,
+          ageSec,
+          maxFreshSec,
+          minLookback,
+          lookbackHave,
+        };
+        context_v3 = null; // hard skip
+      } else {
+        context_v3 = computeContextV3({
+          symbol,
+          barsByTf,
+          nowMs,
+          session,
+          provider: "live_snapshot",
+        });
+        p3_gate = { ok: true, session, lastBar: lastBarIso, ageSec, minLookback, lookbackHave };
+      }
     }
 
     const record = writeRunlog({
@@ -131,6 +174,7 @@ app.post('/ops/run', (req, res) => {
         coaching,
       },
       context_v3,
+      p3_gate,
     });
 
     const snapshotOut = {
@@ -153,6 +197,7 @@ app.post('/ops/run', (req, res) => {
       snapshot: snapshotOut,
       coaching: coachingOut,
       context_v3: P3_ENABLED ? context_v3 : undefined,
+      p3_gate: P3_ENABLED ? p3_gate : undefined,
       ts: new Date().toISOString(),
     });
   } catch (err) {

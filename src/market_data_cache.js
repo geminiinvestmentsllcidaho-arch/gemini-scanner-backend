@@ -3,7 +3,7 @@
  * Used by scanner + live coaching
  */
 
-const MAX_BARS_PER_SYMBOL = Number(process.env.MAX_BARS_PER_SYMBOL || 500);
+const MAX_BARS_PER_SYMBOL = Number(process.env.MAX_BARS_PER_SYMBOL || 3000);
 
 export const marketData = {
   quotes: new Map(), // symbol -> { t, bp, bs, ap, as }
