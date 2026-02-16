@@ -52,3 +52,26 @@ test("contextEngine: invalid timestamps and non-finite closes are filtered deter
   // should exclude the 3 invalid bars from "used"
   assert.ok(out.inputs.barsUsed <= 60);
 });
+
+test("contextEngine: quality + penalties are present and deterministic", () => {
+  const bars = [
+    { t: "2026-02-09T14:00:00Z", c: 100 },
+    { t: "bad-date", c: 101 },                 // filtered
+    { t: "2026-02-09T14:02:00Z", c: 100.1 },
+    { t: "2026-02-09T14:03:00Z", c: 100.2 }
+  ];
+  const a = computeContext({ bars }, { lookbackBars: 10 });
+  const b = computeContext({ bars }, { lookbackBars: 10 });
+
+  assert.ok(a.penalties && typeof a.penalties === "object");
+  assert.ok(a.quality && typeof a.quality === "object");
+  assert.equal(typeof a.quality.overall, "number");
+  assert.equal(typeof a.quality.penaltyTotal, "number");
+  assert.equal(typeof a.penalties.invalidBarsFiltered, "number");
+
+  // deterministic
+  assert.deepEqual(a, b);
+
+  // quality should be within [0,1]
+  assert.ok(a.quality.overall >= 0 && a.quality.overall <= 1);
+});

@@ -112,6 +112,36 @@ export function computeContext(snapshot, opts = {}) {
   // Quality signals (deterministic and purely derived)
   const presentCount = closes.length;
   const lookbackRatio = lookbackBars > 0 ? presentCount / lookbackBars : 0;
+  const lookbackRatioR = roundN(lookbackRatio, 4);
+  const invalidBarsFiltered =
+    (Array.isArray(snapshot?.bars) ? snapshot.bars.length : 0) - bars.length;
+
+  // Penalties are small, additive, deterministic. Quality is clamped to [0, 1].
+  const penalties = {
+    invalidBarsFiltered:
+      invalidBarsFiltered > 0
+        ? roundN(Math.min(0.25, invalidBarsFiltered * 0.01), 4)
+        : 0,
+    lowLookbackRatio:
+      lookbackRatioR < 0.5
+        ? roundN(Math.min(0.5, (0.5 - lookbackRatioR)), 4)
+        : 0,
+    unknownRegime: regimeKnown ? 0 : 0.1,
+    unknownVolatility: volKnown ? 0 : 0.1
+  };
+
+  const penaltyTotal = roundN(
+    penalties.invalidBarsFiltered +
+      penalties.lowLookbackRatio +
+      penalties.unknownRegime +
+      penalties.unknownVolatility,
+    4
+  );
+
+  const quality = {
+    overall: roundN(Math.max(0, Math.min(1, 1 - penaltyTotal)), 4),
+    penaltyTotal
+  };
 
   // overall freshness here is compute-only; we just say "allHistorical" if timestamps exist
   const allHistorical = used.length > 0;
@@ -133,8 +163,10 @@ export function computeContext(snapshot, opts = {}) {
     },
     integrity: {
       presentCount,
-      lookbackRatio: roundN(lookbackRatio, 4)
+      lookbackRatio: lookbackRatioR
     },
+    penalties,
+    quality,
     freshness: {
       overall: allHistorical ? "historical" : "missing",
       allHistorical
