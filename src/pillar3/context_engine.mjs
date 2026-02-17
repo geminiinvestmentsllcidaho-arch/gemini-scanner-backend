@@ -57,6 +57,188 @@ function stdev(xs) {
   return Math.sqrt(v);
 }
 
+
+// ------------------------------
+// Context Engine v2: multi-timeframe fusion wrapper (compute-only, deterministic)
+// Schema stability:
+// - Do NOT add new top-level keys.
+// - Do NOT add keys under out.context (locked by tests).
+// - Extensions are allowed under out.context.labels and out.integrity.
+// ------------------------------
+
+const TF_WEIGHTS = Object.freeze({ "1m": 4, "5m": 3, "15m": 2, "1h": 1 });
+const TF_ORDER_FAST_TO_SLOW = Object.freeze(["1m", "5m", "15m", "1h"]);
+const TF_ORDER_SLOW_TO_FAST = Object.freeze(["1h", "15m", "5m", "1m"]);
+
+function pickPrimaryTf(barsByTf) {
+  for (const tf of TF_ORDER_FAST_TO_SLOW) {
+    if (Array.isArray(barsByTf?.[tf]) && barsByTf[tf].length) return tf;
+  }
+  const extra = Object.keys(barsByTf || {}).sort();
+  for (const tf of extra) {
+    if (Array.isArray(barsByTf?.[tf]) && barsByTf[tf].length) return tf;
+  }
+  return null;
+}
+
+function fuseLabel(perTf, dim /* 'regime' | 'volatility' */) {
+  const scores = new Map(); // label -> weightSum
+  const labelSupportTfs = new Map(); // label -> Set(tfs)
+
+  let totalWeight = 0;
+  let participatingTfs = 0;
+
+  for (const tf of TF_ORDER_FAST_TO_SLOW) {
+    const out = perTf[tf];
+    if (!out) continue;
+
+    const known = dim === "regime" ? out.context?.regimeKnown : out.context?.volKnown;
+    if (!known) continue;
+
+    const label = dim === "regime"
+      ? out.context?.labels?.regime
+      : out.context?.labels?.volatility;
+
+    if (typeof label !== "string" || !label.length || label === "unknown") continue;
+
+    const w = TF_WEIGHTS[tf] ?? 0;
+    totalWeight += w;
+    participatingTfs += 1;
+
+    scores.set(label, (scores.get(label) ?? 0) + w);
+
+    if (!labelSupportTfs.has(label)) labelSupportTfs.set(label, new Set());
+    labelSupportTfs.get(label).add(tf);
+  }
+
+  if (!scores.size || totalWeight <= 0) {
+    return { label: "unknown", known: 0, agreeRatio: 0, agreeCount: 0, participatingTfs };
+  }
+
+  // find max weight
+  let maxW = -Infinity;
+  for (const w of scores.values()) maxW = Math.max(maxW, w);
+
+  const tied = [];
+  for (const [label, w] of scores.entries()) {
+    if (w === maxW) tied.push(label);
+  }
+
+  let winner = tied[0];
+
+  // deterministic tie-break: choose label supported by the slowest TF (1h > 15m > 5m > 1m)
+  if (tied.length > 1) {
+    const rank = (tf) => TF_ORDER_SLOW_TO_FAST.indexOf(tf); // 0 is slowest
+    let bestRank = Infinity;
+    for (const label of tied) {
+      const tfs = Array.from(labelSupportTfs.get(label) || []);
+      for (const tf of tfs) {
+        const r = rank(tf);
+        if (r !== -1 && r < bestRank) {
+          bestRank = r;
+          winner = label;
+        }
+      }
+    }
+  }
+
+  const winW = scores.get(winner) ?? 0;
+  const agreeRatio = roundN(totalWeight > 0 ? (winW / totalWeight) : 0, 4);
+
+  // agreeCount: number of TFs (not weights) that match winner among participating TFs
+  let agreeCount = 0;
+  for (const tf of TF_ORDER_FAST_TO_SLOW) {
+    const out = perTf[tf];
+    if (!out) continue;
+    const known = dim === "regime" ? out.context?.regimeKnown : out.context?.volKnown;
+    if (!known) continue;
+    const label = dim === "regime"
+      ? out.context?.labels?.regime
+      : out.context?.labels?.volatility;
+    if (label === winner) agreeCount += 1;
+  }
+
+  return { label: winner, known: 1, agreeRatio, agreeCount, participatingTfs };
+}
+
+function computeFusion(snapshot, opts = {}) {
+  const barsByTf = snapshot?.barsByTf && typeof snapshot.barsByTf === "object" ? snapshot.barsByTf : null;
+  if (!barsByTf) return null;
+
+  const perTf = {};
+  for (const tf of TF_ORDER_FAST_TO_SLOW) {
+    const bars = barsByTf[tf];
+    if (!Array.isArray(bars)) continue;
+    perTf[tf] = computeContextV1({ bars }, opts);
+  }
+
+  const primaryTf = pickPrimaryTf(barsByTf);
+  const primary = primaryTf
+    ? (perTf[primaryTf] || computeContextV1({ bars: barsByTf[primaryTf] || [] }, opts))
+    : computeContextV1({ bars: [] }, opts);
+
+  const fusedReg = fuseLabel(perTf, "regime");
+  const fusedVol = fuseLabel(perTf, "volatility");
+
+  // Build output by extending primary output ONLY within allowed nested containers
+  const out = primary;
+
+  // version bump only for multi-tf input (schema-safe)
+  out.version = "p3-context-v2";
+
+  // Extend labels (safe)
+  out.context.labels = {
+    ...out.context.labels,
+    fusedRegime: fusedReg.label,
+    fusedVolatility: fusedVol.label
+  };
+
+  // Update known flags to reflect fused knowledge (keep deterministic)
+  out.context.regimeKnown = fusedReg.known ? 1 : out.context.regimeKnown;
+  out.context.volKnown = fusedVol.known ? 1 : out.context.volKnown;
+
+  // Extend integrity with fusion metadata (safe)
+  const tfsPresent = TF_ORDER_FAST_TO_SLOW.filter(tf => Array.isArray(barsByTf?.[tf]));
+  out.integrity = {
+    ...out.integrity,
+    fusion: {
+      tfsPresent,
+      regime: {
+        participatingTfs: fusedReg.participatingTfs,
+        agreeCount: fusedReg.agreeCount,
+        agreeRatio: fusedReg.agreeRatio
+      },
+      volatility: {
+        participatingTfs: fusedVol.participatingTfs,
+        agreeCount: fusedVol.agreeCount,
+        agreeRatio: fusedVol.agreeRatio
+      }
+    }
+  };
+
+  // Extend inputs with multi-tf bookkeeping (safe)
+  const barsInByTf = {};
+  for (const tf of tfsPresent) barsInByTf[tf] = Array.isArray(barsByTf[tf]) ? barsByTf[tf].length : 0;
+
+  out.inputs = {
+    ...out.inputs,
+    barsByTfIn: barsInByTf,
+    primaryTf: primaryTf || null
+  };
+
+  return out;
+}
+
+/**
+ * Public entrypoint: v1 behavior for {bars}, v2 fusion for {barsByTf}.
+ * Deterministic, compute-only, and no mutation of inputs.
+ */
+export function computeContext(snapshot, opts = {}) {
+  const fused = computeFusion(snapshot, opts);
+  if (fused) return fused;
+  return computeContextV1(snapshot, opts);
+}
+
 /**
  * Compute a deterministic market context label set from 1m-ish bars.
  * This is compute-only: does not read time, network, disk, env, caches.
@@ -64,7 +246,7 @@ function stdev(xs) {
  * @param {{bars?: Bar[]}} snapshot
  * @param {{lookbackBars?: number}} [opts]
  */
-export function computeContext(snapshot, opts = {}) {
+function computeContextV1(snapshot, opts = {}) {
   const lookbackBars = Number.isFinite(opts.lookbackBars) ? opts.lookbackBars : 120;
 
   const bars = normalizeBars(snapshot?.bars || []);
