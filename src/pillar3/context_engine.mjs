@@ -314,6 +314,9 @@ function computeFusion(snapshot, opts = {}) {
  * Deterministic, compute-only, and no mutation of inputs.
  */
 export function computeContext(snapshot, opts = {}) {
+
+// Backwards/compat alias (v3 naming)
+
   const fused = computeFusion(snapshot, opts);
   if (fused) return fused;
   return computeContextV1(snapshot, opts);
@@ -435,3 +438,6 @@ function computeContextV1(snapshot, opts = {}) {
     }
   };
 }
+
+// Backwards/compat alias (v3 naming)
+export { computeContext as computeContextV3 };

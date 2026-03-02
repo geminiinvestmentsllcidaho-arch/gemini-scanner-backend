@@ -10,7 +10,7 @@ import { buildLiveSnapshot } from './utils/live_snapshot.js';
 import { buildBarsByTfFrom1m } from './pillar3/aggregate_bars.mjs';
 
 import { getCoaching } from './pillar2/coaching_engine.js';
-import { computeContextV3 } from './pillar3/context_engine.mjs';
+import { computeContext as computeContextV3 } from './pillar3/context_engine.mjs';
 import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 
