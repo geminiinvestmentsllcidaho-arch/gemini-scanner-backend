@@ -2,6 +2,13 @@ import 'dotenv/config';
 import WebSocket from 'ws';
 import { updateQuote, updateBar } from './market_data_cache.js';
 
+import {
+  markStreamConnected,
+  markStreamEvent,
+  incrementReconnectAttempts,
+  resetReconnectAttempts,
+} from './utils/stream_telemetry.js';
+
 const KEY = process.env.ALPACA_KEY;
 const SECRET = process.env.ALPACA_SECRET;
 const FEED = (process.env.ALPACA_DATA_FEED || 'iex').toLowerCase();
@@ -32,12 +39,9 @@ async function isMarketOpen() {
   return !!j.is_open;
 }
 
-// Off-hours seed: fetch recent 1Min bars so RSI can compute.
 async function backfillBars({ symbol, limit = 200 }) {
-  // We use a wide window so holidays/weekends still return the most recent session if available.
-  // Alpaca requires explicit feed sometimes; we pass feed=${FEED}.
   const end = new Date();
-  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const qs = new URLSearchParams({
     timeframe: '1Min',
@@ -64,7 +68,6 @@ async function backfillBars({ symbol, limit = 200 }) {
   const j = await res.json();
   const bars = Array.isArray(j?.bars) ? j.bars : [];
 
-  // Push into cache oldest->newest
   for (const b of bars) {
     updateBar(symbol, {
       t: b.t,
@@ -86,7 +89,6 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
   const open = await isMarketOpen();
 
-  // If market is closed, seed bars via REST so RSI works off-hours
   if (!open) {
     try {
       for (const s of symbols) {
@@ -98,43 +100,138 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
     }
   }
 
-  const ws = new WebSocket(WS_URL);
+  let ws = null;
+  let reconnectTimer = null;
+  let watchdogTimer = null;
+  let closedManually = false;
 
-  ws.on('open', () => {
-    console.log('[md] ws open', WS_URL);
-    ws.send(JSON.stringify({ action: 'auth', key: KEY, secret: SECRET }));
-  });
+  // Internal rx clock (NOT exposed, no schema changes). Used only for watchdog.
+  let lastRxTsMs = null;
 
-  ws.on('message', (raw) => {
-    let arr;
-    try { arr = JSON.parse(raw.toString()); }
-    catch { console.log('[md] non-json:', raw.toString()); return; }
+  const staleThresholdSec = Number(process.env.STREAM_STALE_THRESHOLD_SEC || 30);
+  const watchdogEveryMs = 5000;
 
-    for (const m of arr) {
-      if (m.T === 'success' || m.T === 'error' || m.T === 'subscription') {
-        console.log('[md]', m);
-        if (m.T === 'success' && m.msg === 'authenticated') {
-          const sub = { action: 'subscribe', quotes: symbols, bars: symbols };
-          ws.send(JSON.stringify(sub));
-          console.log('[md] subscribed', sub);
-        }
-        continue;
-      }
+  function computeBackoffDelay(attempt) {
+    const base = 1000;
+    const max = 30000;
+    const delay = base * Math.pow(2, attempt - 1);
+    return Math.min(delay, max);
+  }
 
-      if (m.T === 'q' && m.S) {
-        updateQuote(m.S, { t: m.t, bp: m.bp, bs: m.bs, ap: m.ap, as: m.as });
-        continue;
-      }
+  function scheduleReconnect() {
+    if (closedManually) return;
+    if (reconnectTimer) return; // ensure single scheduled reconnect
 
-      if (m.T === 'b' && m.S) {
-        updateBar(m.S, { t: m.t, o: m.o, h: m.h, l: m.l, c: m.c, v: m.v, vw: m.vw });
-        continue;
-      }
+    const attempt = incrementReconnectAttempts();
+    const delay = computeBackoffDelay(attempt);
+
+    console.log('[md] reconnect scheduled', { attempt, delay });
+
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, delay);
+  }
+
+  function connect() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
     }
-  });
 
-  ws.on('close', (code, reason) => console.log('[md] ws closed', { code, reason: reason?.toString?.() }));
-  ws.on('error', (err) => console.error('[md] ws error', err));
+    ws = new WebSocket(WS_URL);
 
-  return { ws, open };
+    ws.on('open', () => {
+      console.log('[md] ws open', WS_URL);
+      markStreamConnected(true);
+      resetReconnectAttempts();
+
+      // Start watchdog clock at connect time so "no data after connect" is detectable
+      lastRxTsMs = Date.now();
+
+      ws.send(JSON.stringify({ action: 'auth', key: KEY, secret: SECRET }));
+    });
+
+    ws.on('message', (raw) => {
+      let arr;
+      try { arr = JSON.parse(raw.toString()); }
+      catch { console.log('[md] non-json:', raw.toString()); return; }
+
+      for (const m of arr) {
+        if (m.T === 'success' || m.T === 'error' || m.T === 'subscription') {
+          console.log('[md]', m);
+          if (m.T === 'success' && m.msg === 'authenticated') {
+            const sub = { action: 'subscribe', quotes: symbols, bars: symbols };
+            ws.send(JSON.stringify(sub));
+            console.log('[md] subscribed', sub);
+          }
+          continue;
+        }
+
+        if (m.T === 'q' && m.S) {
+          const ts = Date.parse(m.t);
+          lastRxTsMs = Number.isFinite(ts) ? ts : Date.now();
+          markStreamEvent(ts);
+
+          updateQuote(m.S, { t: m.t, bp: m.bp, bs: m.bs, ap: m.ap, as: m.as });
+          continue;
+        }
+
+        if (m.T === 'b' && m.S) {
+          const ts = Date.parse(m.t);
+          lastRxTsMs = Number.isFinite(ts) ? ts : Date.now();
+          markStreamEvent(ts);
+
+          updateBar(m.S, { t: m.t, o: m.o, h: m.h, l: m.l, c: m.c, v: m.v, vw: m.vw });
+          continue;
+        }
+      }
+    });
+
+    ws.on('close', (code, reason) => {
+      markStreamConnected(false);
+      console.log('[md] ws closed', { code, reason: reason?.toString?.() });
+      scheduleReconnect();
+    });
+
+    ws.on('error', (err) => {
+      console.error('[md] ws error', err);
+      try { ws.close(); } catch {}
+      // close handler will schedule reconnect
+    });
+  }
+
+  // Start connection
+  connect();
+
+  // Stale watchdog: if socket is OPEN but no rx for threshold, force reconnect.
+  watchdogTimer = setInterval(() => {
+    if (closedManually) return;
+    if (!ws) return;
+    if (ws.readyState !== WebSocket.OPEN) return;
+    if (!Number.isFinite(lastRxTsMs)) return;
+    if (!Number.isFinite(staleThresholdSec)) return;
+
+    const ageSec = Math.floor((Date.now() - lastRxTsMs) / 1000);
+    if (ageSec > staleThresholdSec) {
+      console.log('[md] watchdog stale -> reconnect', { ageSec, staleThresholdSec });
+      try { ws.terminate(); } catch {
+        try { ws.close(); } catch {}
+      }
+      // close handler schedules reconnect
+    }
+  }, watchdogEveryMs);
+
+  return {
+    get ws() {
+      return ws;
+    },
+    open,
+    stop() {
+      closedManually = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (watchdogTimer) clearInterval(watchdogTimer);
+      if (ws) ws.close();
+    },
+  };
 }
