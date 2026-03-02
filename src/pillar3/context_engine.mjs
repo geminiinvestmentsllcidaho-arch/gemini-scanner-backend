@@ -161,6 +161,73 @@ function fuseLabel(perTf, dim /* 'regime' | 'volatility' */) {
   return { label: winner, known: 1, agreeRatio, agreeCount, participatingTfs };
 }
 
+
+/**
+ * Deterministic vote statistics from per-TF context outputs.
+ * Produces:
+ * - voteMargin: (topW - secondW) / totalW, in [0,1]
+ * - entropy: normalized Shannon entropy of label distribution, in [0,1]
+ * - confidence: composite in [0,1] (fixed formula, deterministic)
+ */
+function computeVoteQuality(perTf, dim /* 'regime' | 'volatility' */) {
+  const scores = new Map(); // label -> weightSum
+  let totalW = 0;
+
+  for (const tf of TF_ORDER_FAST_TO_SLOW) {
+    const out = perTf[tf];
+    if (!out) continue;
+
+    const known = dim === "regime" ? out.context?.regimeKnown : out.context?.volKnown;
+    if (!known) continue;
+
+    const label = dim === "regime"
+      ? out.context?.labels?.regime
+      : out.context?.labels?.volatility;
+
+    if (typeof label !== "string" || !label.length || label === "unknown") continue;
+
+    const w = TF_WEIGHTS[tf] ?? 0;
+    if (w <= 0) continue;
+
+    totalW += w;
+    scores.set(label, (scores.get(label) ?? 0) + w);
+  }
+
+  if (totalW <= 0 || scores.size <= 0) {
+    return { voteMargin: 0, entropy: 1, confidence: 0 };
+  }
+
+  // Determine top and runner-up weights deterministically (stable ordering by weight then label)
+  const entries = Array.from(scores.entries());
+  entries.sort((a, b) => {
+    const dw = (b[1] - a[1]);
+    if (dw) return dw;
+    return String(a[0]).localeCompare(String(b[0])); // deterministic label tie-break
+  });
+
+  const topW = entries[0]?.[1] ?? 0;
+  const secondW = entries[1]?.[1] ?? 0;
+
+  const voteMargin = roundN(Math.max(0, Math.min(1, (topW - secondW) / totalW)), 4);
+
+  // Normalized Shannon entropy: H / log(K)
+  const K = scores.size;
+  let H = 0;
+  for (const w of scores.values()) {
+    const p = w / totalW;
+    if (p > 0) H += -p * Math.log(p);
+  }
+  const Hmax = K > 1 ? Math.log(K) : 0;
+  const entropy = roundN(Hmax > 0 ? Math.max(0, Math.min(1, H / Hmax)) : 0, 4);
+
+  // Composite confidence (fixed deterministic formula)
+  // Lower entropy + higher margin => higher confidence
+  const raw = 1 - (0.6 * entropy) - (0.4 * (1 - voteMargin));
+  const confidence = roundN(Math.max(0, Math.min(1, raw)), 4);
+
+  return { voteMargin, entropy, confidence };
+}
+
 function computeFusion(snapshot, opts = {}) {
   const barsByTf = snapshot?.barsByTf && typeof snapshot.barsByTf === "object" ? snapshot.barsByTf : null;
   if (!barsByTf) return null;
@@ -196,7 +263,6 @@ function computeFusion(snapshot, opts = {}) {
   // Update known flags to reflect fused knowledge (keep deterministic)
   out.context.regimeKnown = fusedReg.known ? 1 : out.context.regimeKnown;
   out.context.volKnown = fusedVol.known ? 1 : out.context.volKnown;
-
   // Extend integrity with fusion metadata (safe)
   const tfsPresent = TF_ORDER_FAST_TO_SLOW.filter(tf => Array.isArray(barsByTf?.[tf]));
   out.integrity = {
@@ -215,6 +281,20 @@ function computeFusion(snapshot, opts = {}) {
       }
     }
   };
+
+  // Extend integrity with deterministic quality signals (schema extension)
+  // Derived ONLY from per-TF votes already computed; no clocks, no IO.
+  const qReg = computeVoteQuality(perTf, "regime");
+  const qVol = computeVoteQuality(perTf, "volatility");
+  out.integrity = {
+    ...out.integrity,
+    quality: {
+      voteMargin: roundN((qReg.voteMargin + qVol.voteMargin) / 2, 4),
+      entropy: roundN((qReg.entropy + qVol.entropy) / 2, 4),
+      confidence: roundN((qReg.confidence + qVol.confidence) / 2, 4)
+    }
+  };
+
 
   // Extend inputs with multi-tf bookkeeping (safe)
   const barsInByTf = {};
