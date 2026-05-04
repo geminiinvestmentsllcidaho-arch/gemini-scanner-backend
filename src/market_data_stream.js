@@ -7,6 +7,7 @@ import {
   markStreamEvent,
   incrementReconnectAttempts,
   resetReconnectAttempts,
+  incrementWatchdogTriggers,
 } from './utils/stream_telemetry.js';
 
 const KEY = process.env.ALPACA_KEY;
@@ -214,6 +215,8 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
     const ageSec = Math.floor((Date.now() - lastRxTsMs) / 1000);
     if (ageSec > staleThresholdSec) {
+      incrementWatchdogTriggers();
+
       console.log('[md] watchdog stale -> reconnect', { ageSec, staleThresholdSec });
       try { ws.terminate(); } catch {
         try { ws.close(); } catch {}
