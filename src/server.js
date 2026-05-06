@@ -4,6 +4,7 @@ import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
 import { health, readiness } from './utils/health.js';
+import { getStreamTelemetry } from './utils/stream_telemetry.js';
 import { nextStep } from './next-step.js';
 
 import { buildLiveSnapshot } from './utils/live_snapshot.js';
@@ -161,6 +162,8 @@ app.post('/ops/run', (req, res) => {
           nowMs,
           session,
           provider: "live_snapshot",
+        }, {
+          telemetry: getStreamTelemetry({ nowMs }),
         });
         p3_gate = { ok: true, session, lastBar: lastBarIso, ageSec, minLookback, lookbackHave };
       }

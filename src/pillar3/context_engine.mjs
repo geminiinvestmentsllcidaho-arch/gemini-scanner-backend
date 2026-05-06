@@ -331,6 +331,9 @@ export function computeContext(snapshot, opts = {}) {
  */
 function computeContextV1(snapshot, opts = {}) {
   const lookbackBars = Number.isFinite(opts.lookbackBars) ? opts.lookbackBars : 120;
+  const telemetry = (opts && typeof opts.telemetry === "object" && opts.telemetry !== null) ? opts.telemetry : {};
+  const telemetryLastEventAgeSec = Number.isFinite(telemetry.lastEventAgeSec) ? telemetry.lastEventAgeSec : null;
+  const telemetryStaleThresholdSec = Number.isFinite(telemetry.staleThresholdSec) ? telemetry.staleThresholdSec : null;
 
   const bars = normalizeBars(snapshot?.bars || []);
   const used = bars.slice(Math.max(0, bars.length - lookbackBars));
@@ -392,14 +395,35 @@ function computeContextV1(snapshot, opts = {}) {
         ? roundN(Math.min(0.5, (0.5 - lookbackRatioR)), 4)
         : 0,
     unknownRegime: regimeKnown ? 0 : 0.1,
-    unknownVolatility: volKnown ? 0 : 0.1
+    unknownVolatility: volKnown ? 0 : 0.1,
+
+    // Reliability penalties are deterministic and caller-supplied only.
+    streamDisconnected: telemetry.streamConnected === false ? 0.05 : 0,
+    streamStale: telemetry.streamStale === true ? 0.15 : 0,
+    streamEventAge:
+      telemetryLastEventAgeSec !== null && telemetryStaleThresholdSec !== null && telemetryStaleThresholdSec > 0
+        ? roundN(Math.min(0.15, Math.max(0, (telemetryLastEventAgeSec - telemetryStaleThresholdSec) / telemetryStaleThresholdSec) * 0.05), 4)
+        : 0,
+    reconnectPressure:
+      Number.isFinite(telemetry.reconnectCountTotal)
+        ? roundN(Math.min(0.1, telemetry.reconnectCountTotal * 0.005), 4)
+        : 0,
+    watchdogPressure:
+      Number.isFinite(telemetry.watchdogTriggerCount)
+        ? roundN(Math.min(0.1, telemetry.watchdogTriggerCount * 0.02), 4)
+        : 0
   };
 
   const penaltyTotal = roundN(
     penalties.invalidBarsFiltered +
       penalties.lowLookbackRatio +
       penalties.unknownRegime +
-      penalties.unknownVolatility,
+      penalties.unknownVolatility +
+      penalties.streamDisconnected +
+      penalties.streamStale +
+      penalties.streamEventAge +
+      penalties.reconnectPressure +
+      penalties.watchdogPressure,
     4
   );
 
