@@ -616,3 +616,95 @@ test("readScannerRankings detects unstable persistence and volatility expansion"
   assert.ok(out.persistenceIssues.includes("SCANNER_TREND_REVERSAL_RISK"));
   assert.ok(out.persistenceIssues.includes("SCANNER_VOLATILITY_EXPANDING"));
 });
+test("readScannerRankings exposes stable predictive intelligence deterministically", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-predictive-stable-"));
+
+  const files = [
+    { t: "00", conf: 0.75, q: 0.8, regime: "bullish", action: "buy" },
+    { t: "01", conf: 0.78, q: 0.82, regime: "bullish", action: "buy" },
+    { t: "02", conf: 0.8, q: 0.84, regime: "bullish", action: "buy" },
+    { t: "03", conf: 0.82, q: 0.86, regime: "bullish", action: "buy" },
+  ];
+
+  for (const file of files) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-${file.t}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:${file.t}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: file.action,
+          regime: file.regime,
+          confidence: file.conf,
+          compositeConfidence: file.conf,
+          qualityOverall: file.q,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:04:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.ok(out.consensusMomentum > 0);
+  assert.ok(out.momentumDecayRisk < 0.25);
+  assert.ok(out.regimeTransitionProbability < 0.25);
+  assert.ok(out.signalExhaustionRisk < 0.25);
+
+  assert.equal(out.predictiveRiskBias, "low");
+
+  assert.ok(!out.issues.includes("SCANNER_CONSENSUS_EXHAUSTION"));
+});
+
+test("readScannerRankings detects predictive exhaustion and transition risk", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-predictive-risk-"));
+
+  const files = [
+    { t: "00", conf: 0.9, q: 0.9, regime: "bullish", action: "buy" },
+    { t: "01", conf: 0.7, q: 0.7, regime: "bullish", action: "buy" },
+    { t: "02", conf: 0.45, q: 0.5, regime: "mixed", action: "hold" },
+    { t: "03", conf: 0.25, q: 0.35, regime: "bearish", action: "sell" },
+  ];
+
+  for (const file of files) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-${file.t}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:${file.t}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: file.action,
+          regime: file.regime,
+          confidence: file.conf,
+          compositeConfidence: file.conf,
+          qualityOverall: file.q,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:04:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.ok(out.consensusMomentum < 0);
+  assert.ok(out.momentumDecayRisk >= 0.5);
+  assert.ok(out.regimeTransitionProbability >= 0.5);
+  assert.ok(out.signalExhaustionRisk >= 0.5);
+
+  assert.equal(out.predictiveRiskBias, "severe");
+
+  assert.ok(out.predictiveIssues.includes("SCANNER_CONSENSUS_EXHAUSTION"));
+  assert.ok(out.predictiveIssues.includes("SCANNER_REGIME_TRANSITION_PENDING"));
+  assert.ok(out.predictiveIssues.includes("SCANNER_MOMENTUM_COLLAPSE"));
+  assert.ok(out.predictiveIssues.includes("SCANNER_SIGNAL_EXHAUSTION"));
+});

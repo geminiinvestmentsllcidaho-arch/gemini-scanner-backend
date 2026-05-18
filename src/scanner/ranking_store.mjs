@@ -597,6 +597,130 @@ function computePersistenceIntelligence(latestFile, opts = {}) {
 }
 
 
+function computePredictiveIntelligence(latestFile, opts = {}) {
+  const dryrunsDir = opts.dryrunsDir || path.dirname(latestFile);
+
+  const windowSize = Number.isFinite(opts.predictiveWindow)
+    ? Math.max(3, Math.floor(opts.predictiveWindow))
+    : 4;
+
+  const files = fs
+    .readdirSync(dryrunsDir)
+    .filter((file) => file.endsWith(".jsonl"))
+    .sort()
+    .slice(-windowSize);
+
+  if (files.length < 3) {
+    return {
+      momentumDecayRisk: 0,
+      consensusMomentum: 0,
+      regimeTransitionProbability: 0,
+      signalExhaustionRisk: 0,
+      predictiveRiskBias: "low",
+      predictiveIssues: [],
+    };
+  }
+
+  const snapshots = files.map((file) => {
+    const rows = readLatestRowsFromDryrunFile(path.join(dryrunsDir, file));
+    const consensusStrength = computeRollingConsensusStrength(rows);
+    const quality = computeRollingQuality(rows);
+    const regime = computeRollingRegime(rows);
+
+    const actionableCount = rows.filter((row) => {
+      const action = String(row?.action || "").toLowerCase();
+      return action === "buy" || action === "sell";
+    }).length;
+
+    const signalDensity = rows.length > 0 ? actionableCount / rows.length : 0;
+
+    return {
+      consensusStrength,
+      quality,
+      regime,
+      signalDensity,
+    };
+  });
+
+  const first = snapshots[0];
+  const latest = snapshots[snapshots.length - 1];
+
+  const consensusMomentum = roundN(latest.consensusStrength - first.consensusStrength, 4);
+  const qualityMomentum = roundN(latest.quality - first.quality, 4);
+  const signalDensityMomentum = roundN(latest.signalDensity - first.signalDensity, 4);
+
+  let regimeTransitions = 0;
+  for (let i = 1; i < snapshots.length; i += 1) {
+    if (snapshots[i].regime !== snapshots[i - 1].regime) {
+      regimeTransitions += 1;
+    }
+  }
+
+  const regimeTransitionProbability = roundN(
+    clamp01(regimeTransitions / (snapshots.length - 1)),
+    4
+  );
+
+  const momentumDecayRisk = roundN(clamp01(Math.max(0, -consensusMomentum)), 4);
+
+  const signalExhaustionRisk = roundN(
+    clamp01(
+      Math.max(
+        Math.max(0, -consensusMomentum),
+        Math.max(0, -qualityMomentum),
+        Math.max(0, -signalDensityMomentum)
+      )
+    ),
+    4
+  );
+
+  const predictiveCompositeRisk = roundN(
+    clamp01(
+      (
+        momentumDecayRisk +
+        regimeTransitionProbability +
+        signalExhaustionRisk
+      ) / 3
+    ),
+    4
+  );
+
+  let predictiveRiskBias = "low";
+
+  if (predictiveCompositeRisk >= 0.5) {
+    predictiveRiskBias = "severe";
+  } else if (predictiveCompositeRisk >= 0.5) {
+    predictiveRiskBias = "elevated";
+  } else if (predictiveCompositeRisk >= 0.25) {
+    predictiveRiskBias = "moderate";
+  }
+
+  const predictiveIssues = [];
+
+  if (momentumDecayRisk >= 0.5) {
+    predictiveIssues.push("SCANNER_MOMENTUM_COLLAPSE");
+    predictiveIssues.push("SCANNER_CONSENSUS_EXHAUSTION");
+  }
+
+  if (regimeTransitionProbability >= 0.5) {
+    predictiveIssues.push("SCANNER_REGIME_TRANSITION_PENDING");
+  }
+
+  if (signalExhaustionRisk >= 0.5) {
+    predictiveIssues.push("SCANNER_SIGNAL_EXHAUSTION");
+  }
+
+  return {
+    momentumDecayRisk,
+    consensusMomentum,
+    regimeTransitionProbability,
+    signalExhaustionRisk,
+    predictiveRiskBias,
+    predictiveIssues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -636,6 +760,7 @@ export function readScannerRankings(opts = {}) {
   );
 
   const persistence = computePersistenceIntelligence(latestFile, opts);
+  const predictive = computePredictiveIntelligence(latestFile, opts);
 
   return {
     ok: true,
@@ -663,12 +788,19 @@ export function readScannerRankings(opts = {}) {
     regimeFlipRisk: persistence.regimeFlipRisk,
     volatilityExpansionRisk: persistence.volatilityExpansionRisk,
     persistenceIssues: persistence.persistenceIssues,
+    momentumDecayRisk: predictive.momentumDecayRisk,
+    consensusMomentum: predictive.consensusMomentum,
+    regimeTransitionProbability: predictive.regimeTransitionProbability,
+    signalExhaustionRisk: predictive.signalExhaustionRisk,
+    predictiveRiskBias: predictive.predictiveRiskBias,
+    predictiveIssues: predictive.predictiveIssues,
     issues: [
       ...health.issues,
       ...consensus.issues,
       ...adaptive.issues,
       ...temporal.temporalIssues,
       ...persistence.persistenceIssues,
+      ...predictive.predictiveIssues,
     ],
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
