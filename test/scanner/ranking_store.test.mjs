@@ -368,3 +368,121 @@ test("readScannerRankings detects low signal density deterministically", () => {
   assert.ok(out.issues.includes("SCANNER_LOW_SIGNAL_DENSITY"));
 });
 
+
+test("readScannerRankings exposes strong adaptive consensus metrics", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-adaptive-strong-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "MSFT",
+        ok: true,
+        httpStatus: 200,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.8,
+        compositeConfidence: 0.8,
+        qualityOverall: 0.8,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "NVDA",
+        ok: true,
+        httpStatus: 200,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.85,
+        compositeConfidence: 0.85,
+        qualityOverall: 0.85,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT", "NVDA"],
+  });
+
+  assert.equal(out.consensusStrength, 0.85);
+  assert.equal(out.directionalAlignment, 1);
+  assert.equal(out.marketInternalQuality, 0.85);
+  assert.equal(out.instabilityScore, 0);
+  assert.equal(out.adaptiveRiskBias, "low");
+
+  assert.deepEqual(out.issues, []);
+});
+
+test("readScannerRankings exposes elevated adaptive instability deterministically", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-adaptive-instability-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "TSLA",
+        ok: true,
+        httpStatus: 200,
+        action: "sell",
+        regime: "bearish",
+        confidence: 0.3,
+        compositeConfidence: 0.3,
+        qualityOverall: 0.4,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "SPY",
+        ok: true,
+        httpStatus: 200,
+        action: "hold",
+        regime: "neutral",
+        confidence: 0.4,
+        compositeConfidence: 0.4,
+        qualityOverall: 0.5,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "TSLA", "SPY"],
+  });
+
+  assert.equal(out.consensusStrength, 0.5333);
+  assert.equal(out.directionalAlignment, 0);
+  assert.equal(out.marketInternalQuality, 0.5667);
+
+  assert.ok(out.instabilityScore > 0);
+  assert.equal(out.adaptiveRiskBias, "severe");
+
+  assert.ok(out.issues.includes("SCANNER_WEAK_CONSENSUS"));
+  assert.ok(out.issues.includes("SCANNER_DIRECTIONAL_MISALIGNMENT"));
+  assert.ok(out.issues.includes("SCANNER_INTERNAL_QUALITY_WEAK"));
+  assert.ok(out.issues.includes("SCANNER_INSTABILITY_ELEVATED"));
+});

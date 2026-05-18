@@ -239,6 +239,113 @@ function computeConsensusIntelligence(rows, opts = {}) {
   };
 }
 
+function computeAdaptiveIntelligence(rows, health, consensus, opts = {}) {
+  const total = rows.length;
+
+  const consensusStrength = roundN(
+    clamp01(avg(rows.map((row) => Number.isFinite(Number(row?.compositeConfidence))
+      ? Number(row.compositeConfidence)
+      : Number(row?.confidence)
+    ))),
+    4
+  ) ?? 0;
+
+  const actionable = rows.filter((row) => {
+    const action = String(row?.action || "").toLowerCase();
+    return action === "buy" || action === "sell";
+  });
+
+  const aligned = actionable.filter((row) => {
+    const action = String(row?.action || "").toLowerCase();
+    const regime = String(row?.regime || "").toLowerCase();
+
+    return (
+      (action === "buy" && consensus?.marketRegime === "bullish") ||
+      (action === "sell" && consensus?.marketRegime === "bearish")
+    );
+  });
+
+  const directionalAlignment =
+    actionable.length > 0
+      ? roundN(clamp01(aligned.length / actionable.length), 4)
+      : 1;
+
+  const marketInternalQuality = roundN(
+    clamp01(avg([
+      health?.rankingQuality,
+      health?.rankingConfidence,
+    ].map(Number))),
+    4
+  ) ?? 0;
+
+  const fragmentationPenalty = consensus?.marketRegime === "mixed" ? 0.4 : 0;
+  const weakConsensusPenalty =
+    actionable.length > 0 && consensusStrength < 0.6
+      ? 0.25
+      : 0;
+  const misalignmentPenalty =
+    actionable.length > 0 && directionalAlignment < 0.5
+      ? 0.25
+      : 0;
+  const weakQualityPenalty = marketInternalQuality < 0.6 ? 0.25 : 0;
+  const lowDensityPenalty = Number(consensus?.signalDensity) < 0.25 ? 0.15 : 0;
+
+  const instabilityScore = roundN(
+    clamp01(
+      fragmentationPenalty +
+      weakConsensusPenalty +
+      misalignmentPenalty +
+      weakQualityPenalty +
+      lowDensityPenalty
+    ),
+    4
+  );
+
+  let adaptiveRiskBias = "low";
+
+  if (instabilityScore >= 0.75) {
+    adaptiveRiskBias = "severe";
+  } else if (instabilityScore >= 0.5) {
+    adaptiveRiskBias = "elevated";
+  } else if (instabilityScore >= 0.25) {
+    adaptiveRiskBias = "moderate";
+  }
+
+  const issues = [];
+
+  if (
+    actionable.length > 0 &&
+    consensusStrength < 0.6
+  ) {
+    issues.push("SCANNER_WEAK_CONSENSUS");
+  }
+
+  if (
+    actionable.length > 0 &&
+    directionalAlignment < 0.5
+  ) {
+    issues.push("SCANNER_DIRECTIONAL_MISALIGNMENT");
+  }
+
+  if (marketInternalQuality < 0.6) {
+    issues.push("SCANNER_INTERNAL_QUALITY_WEAK");
+  }
+
+  if (instabilityScore >= 0.5) {
+    issues.push("SCANNER_INSTABILITY_ELEVATED");
+  }
+
+  return {
+    consensusStrength,
+    directionalAlignment,
+    marketInternalQuality,
+    instabilityScore,
+    adaptiveRiskBias,
+    issues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -269,6 +376,7 @@ export function readScannerRankings(opts = {}) {
   const freshness = computeFreshness(latestRows, opts);
   const health = computeScannerHealth(latestRows, freshness, opts);
   const consensus = computeConsensusIntelligence(latestRows, opts);
+  const adaptive = computeAdaptiveIntelligence(latestRows, health, consensus, opts);
 
   return {
     ok: true,
@@ -280,7 +388,12 @@ export function readScannerRankings(opts = {}) {
     signalDensity: consensus.signalDensity,
     riskState: consensus.riskState,
     topSignals: consensus.topSignals,
-    issues: [...health.issues, ...consensus.issues],
+    consensusStrength: adaptive.consensusStrength,
+    directionalAlignment: adaptive.directionalAlignment,
+    marketInternalQuality: adaptive.marketInternalQuality,
+    instabilityScore: adaptive.instabilityScore,
+    adaptiveRiskBias: adaptive.adaptiveRiskBias,
+    issues: [...health.issues, ...consensus.issues, ...adaptive.issues],
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
   };
