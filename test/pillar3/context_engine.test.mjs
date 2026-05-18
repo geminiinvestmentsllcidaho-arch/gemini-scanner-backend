@@ -106,3 +106,40 @@ test("contextEngine: output schema is stable (top-level + nested keys)", () => {
     ["overall", "penaltyTotal"].sort()
   );
 });
+
+test("contextEngine: reliability telemetry penalties are deterministic and bounded", () => {
+  const bars = mkBars({ n: 120, drift: 0.0005, noise: 0.00001 });
+
+  const telemetry = {
+    streamConnected: false,
+    streamStale: true,
+    lastEventAgeSec: 90,
+    staleThresholdSec: 30,
+    reconnectCountTotal: 50,
+    watchdogTriggerCount: 20
+  };
+
+  const a = computeContext({ bars }, { telemetry });
+  const b = computeContext({ bars }, { telemetry });
+
+  assert.deepEqual(a, b);
+
+  assert.equal(a.penalties.streamDisconnected, 0.05);
+  assert.equal(a.penalties.streamStale, 0.15);
+  assert.equal(a.penalties.streamEventAge, 0.1);
+  assert.equal(a.penalties.reconnectPressure, 0.1);
+  assert.equal(a.penalties.watchdogPressure, 0.1);
+
+  assert.ok(a.quality.overall >= 0 && a.quality.overall <= 1);
+});
+
+test("contextEngine: reliability telemetry omitted produces zero reliability penalties", () => {
+  const bars = mkBars({ n: 120, drift: 0.0005, noise: 0.00001 });
+  const out = computeContext({ bars });
+
+  assert.equal(out.penalties.streamDisconnected, 0);
+  assert.equal(out.penalties.streamStale, 0);
+  assert.equal(out.penalties.streamEventAge, 0);
+  assert.equal(out.penalties.reconnectPressure, 0);
+  assert.equal(out.penalties.watchdogPressure, 0);
+});
