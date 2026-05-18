@@ -346,6 +346,109 @@ function computeAdaptiveIntelligence(rows, health, consensus, opts = {}) {
 }
 
 
+
+
+function computeTemporalIntelligence(currentRows, latestFile, adaptive, opts = {}) {
+  const dryrunsDir = opts.dryrunsDir || path.dirname(latestFile);
+
+  const files = fs
+    .readdirSync(dryrunsDir)
+    .filter((file) => file.endsWith(".jsonl"))
+    .sort();
+
+  if (files.length < 2) {
+    return {
+      temporalDirection: "stable",
+      scannerTrend: "stable",
+      consensusDelta: 0,
+      riskDelta: 0,
+      temporalIssues: [],
+    };
+  }
+
+  const previousFile = path.join(dryrunsDir, files[files.length - 2]);
+
+  const previousRows = fs
+    .readFileSync(previousFile, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(safeJsonParse)
+    .filter(Boolean)
+    .filter((row) => row?.ok === true && row?.httpStatus === 200);
+
+  const previousLatestRows = latestBySymbol(previousRows);
+
+  const previousConsensusStrength = roundN(
+    clamp01(avg(previousLatestRows.map((row) =>
+      Number.isFinite(Number(row?.compositeConfidence))
+        ? Number(row.compositeConfidence)
+        : Number(row?.confidence)
+    ))),
+    4
+  ) ?? 0;
+
+  const previousQuality = roundN(
+    clamp01(avg(previousLatestRows.map((row) =>
+      Number(row?.qualityOverall)
+    ))),
+    4
+  ) ?? 0;
+
+  const previousRiskScore = roundN(
+    clamp01(1 - avg([previousConsensusStrength, previousQuality])),
+    4
+  ) ?? 0;
+
+  const currentRiskScore = roundN(
+    clamp01(1 - avg([
+      adaptive?.consensusStrength,
+      adaptive?.marketInternalQuality,
+    ])),
+    4
+  ) ?? 0;
+
+  const consensusDelta = roundN(
+    adaptive.consensusStrength - previousConsensusStrength,
+    4
+  );
+
+  const riskDelta = roundN(
+    currentRiskScore - previousRiskScore,
+    4
+  );
+
+  let temporalDirection = "stable";
+
+  if (consensusDelta >= 0.15 && riskDelta <= -0.1) {
+    temporalDirection = "improving";
+  } else if (consensusDelta <= -0.15 && riskDelta >= 0.1) {
+    temporalDirection = "deteriorating";
+  }
+
+  let scannerTrend = "stable";
+
+  if (temporalDirection === "improving") {
+    scannerTrend = "strengthening";
+  } else if (temporalDirection === "deteriorating") {
+    scannerTrend = "weakening";
+  }
+
+  const temporalIssues = [];
+
+  if (riskDelta >= 0.25) {
+    temporalIssues.push("SCANNER_RISK_ACCELERATING");
+  }
+
+  return {
+    temporalDirection,
+    scannerTrend,
+    consensusDelta,
+    riskDelta,
+    temporalIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -377,6 +480,12 @@ export function readScannerRankings(opts = {}) {
   const health = computeScannerHealth(latestRows, freshness, opts);
   const consensus = computeConsensusIntelligence(latestRows, opts);
   const adaptive = computeAdaptiveIntelligence(latestRows, health, consensus, opts);
+  const temporal = computeTemporalIntelligence(
+    latestRows,
+    latestFile,
+    adaptive,
+    opts
+  );
 
   return {
     ok: true,
@@ -393,7 +502,17 @@ export function readScannerRankings(opts = {}) {
     marketInternalQuality: adaptive.marketInternalQuality,
     instabilityScore: adaptive.instabilityScore,
     adaptiveRiskBias: adaptive.adaptiveRiskBias,
-    issues: [...health.issues, ...consensus.issues, ...adaptive.issues],
+    temporalDirection: temporal.temporalDirection,
+    scannerTrend: temporal.scannerTrend,
+    consensusDelta: temporal.consensusDelta,
+    riskDelta: temporal.riskDelta,
+    temporalIssues: temporal.temporalIssues,
+    issues: [
+      ...health.issues,
+      ...consensus.issues,
+      ...adaptive.issues,
+      ...temporal.temporalIssues,
+    ],
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
   };

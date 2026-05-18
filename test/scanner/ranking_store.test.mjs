@@ -486,3 +486,68 @@ test("readScannerRankings exposes elevated adaptive instability deterministicall
   assert.ok(out.issues.includes("SCANNER_INTERNAL_QUALITY_WEAK"));
   assert.ok(out.issues.includes("SCANNER_INSTABILITY_ELEVATED"));
 });
+
+test("readScannerRankings exposes improving temporal scanner intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-temporal-improving-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, action: "hold", regime: "neutral", confidence: 0.4, compositeConfidence: 0.4, qualityOverall: 0.6 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, action: "hold", regime: "neutral", confidence: 0.5, compositeConfidence: 0.5, qualityOverall: 0.6 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.8, compositeConfidence: 0.8, qualityOverall: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.7, compositeConfidence: 0.7, qualityOverall: 0.8 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.temporalDirection, "improving");
+  assert.equal(out.scannerTrend, "strengthening");
+  assert.equal(out.consensusDelta, 0.3);
+  assert.equal(out.riskDelta, -0.25);
+  assert.deepEqual(out.temporalIssues, []);
+});
+
+test("readScannerRankings exposes deteriorating temporal scanner intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-temporal-deteriorating-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.8, compositeConfidence: 0.8, qualityOverall: 0.8 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.3, compositeConfidence: 0.3, qualityOverall: 0.4 }),
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "TSLA", ok: true, httpStatus: 200, action: "sell", regime: "bearish", confidence: 0.3, compositeConfidence: 0.3, qualityOverall: 0.4 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT", "TSLA"],
+  });
+
+  assert.equal(out.temporalDirection, "deteriorating");
+  assert.equal(out.scannerTrend, "weakening");
+  assert.equal(out.consensusDelta, -0.55);
+  assert.equal(out.riskDelta, 0.525);
+  assert.ok(out.temporalIssues.includes("SCANNER_RISK_ACCELERATING"));
+  assert.ok(out.issues.includes("SCANNER_RISK_ACCELERATING"));
+});
