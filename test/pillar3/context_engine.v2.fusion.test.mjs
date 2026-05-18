@@ -76,6 +76,40 @@ describe("pillar3/context_engine v2 - multi-timeframe fusion", () => {
     assert.equal(out.integrity.fusion.volatility.agreeRatio, 1);
   });
 
+  test("extends integrity quality with deterministic composite confidence", () => {
+    const snapshot = {
+      barsByTf: {
+        "1m": mkBars({ n: 120, drift: 0.0010, noise: 0.0 }),
+        "5m": mkBars({ n: 120, stepMin: 5, drift: 0.0010, noise: 0.0 }),
+        "15m": mkBars({ n: 120, stepMin: 15, drift: 0.0000, noise: 0.0 }),
+        "1h": mkBars({ n: 120, stepMin: 60, drift: -0.0010, noise: 0.0 })
+      }
+    };
+
+    const out = computeContext(snapshot, {
+      telemetry: {
+        streamConnected: false,
+        streamStale: true,
+        lastEventAgeSec: 120,
+        staleThresholdSec: 30,
+        reconnectCountTotal: 4,
+        watchdogTriggerCount: 2
+      }
+    });
+
+    assert.equal(typeof out.integrity.quality.confidence, "number");
+    assert.equal(typeof out.quality.overall, "number");
+    assert.equal(typeof out.integrity.quality.structuralQuality, "number");
+    assert.equal(typeof out.integrity.quality.compositeConfidence, "number");
+
+    assert.equal(out.integrity.quality.structuralQuality, out.quality.overall);
+    assert.equal(
+      out.integrity.quality.compositeConfidence,
+      Number((out.integrity.quality.confidence * out.quality.overall).toFixed(4))
+    );
+    assert.ok(out.integrity.quality.compositeConfidence <= out.integrity.quality.confidence);
+  });
+
   test("preserves v1 schema fields and only extends output (no mutation)", () => {
 
     const snapshot = {

@@ -286,12 +286,17 @@ function computeFusion(snapshot, opts = {}) {
   // Derived ONLY from per-TF votes already computed; no clocks, no IO.
   const qReg = computeVoteQuality(perTf, "regime");
   const qVol = computeVoteQuality(perTf, "volatility");
+  const voteConfidence = roundN((qReg.confidence + qVol.confidence) / 2, 4);
+  const structuralQuality = roundN(out.quality?.overall ?? 0, 4);
+
   out.integrity = {
     ...out.integrity,
     quality: {
       voteMargin: roundN((qReg.voteMargin + qVol.voteMargin) / 2, 4),
       entropy: roundN((qReg.entropy + qVol.entropy) / 2, 4),
-      confidence: roundN((qReg.confidence + qVol.confidence) / 2, 4)
+      confidence: voteConfidence,
+      structuralQuality,
+      compositeConfidence: roundN(voteConfidence * structuralQuality, 4)
     }
   };
 
