@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "dry:scanner": "node scripts/dry_scanner.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

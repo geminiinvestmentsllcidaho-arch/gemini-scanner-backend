@@ -14,6 +14,7 @@ import { getCoaching } from './pillar2/coaching_engine.js';
 import { computeContext as computeContextV3 } from './pillar3/context_engine.mjs';
 import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
+import { readScannerRankings } from './scanner/ranking_store.mjs';
 
 dotenv.config();
 
@@ -29,6 +30,17 @@ app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
 app.get('/marketdata', marketDataDump);
+
+app.get('/scanner/rankings', (req, res) => {
+  try {
+    res.json({
+      ...readScannerRankings(),
+      ts: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
 
 // Runlog endpoints
 app.get('/runlog', runlogIndex);
