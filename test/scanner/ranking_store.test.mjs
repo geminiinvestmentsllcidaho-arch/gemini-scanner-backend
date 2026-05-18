@@ -81,7 +81,7 @@ test("readScannerRankings exposes freshness metadata", () => {
   assert.equal(out.stale, false);
   assert.equal(out.sourceAgeSec, 60);
   assert.equal(out.maxAgeSec, 180);
-  assert.deepEqual(out.issues, []);
+  assert.deepEqual(out.issues, ["SCANNER_LOW_CONFIDENCE"]);
 });
 
 test("readScannerRankings marks stale rankings deterministically", () => {
@@ -112,5 +112,96 @@ test("readScannerRankings marks stale rankings deterministically", () => {
 
   assert.equal(out.stale, true);
   assert.equal(out.sourceAgeSec, 600);
+  assert.deepEqual(out.issues, ["SCANNER_TELEMETRY_STALE"]);
+});
+
+test("readScannerRankings exposes healthy scanner health classification", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-health-healthy-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.8, compositeConfidence: 0.8, qualityOverall: 0.9, rsi: 50 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.7, compositeConfidence: 0.7, qualityOverall: 0.8, rsi: 50 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    maxAgeSec: 180,
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.scannerHealth, "healthy");
+  assert.equal(out.rankingQuality, 0.85);
+  assert.equal(out.rankingConfidence, 0.75);
+  assert.equal(out.telemetryCoverage, 1);
+  assert.deepEqual(out.issues, []);
+});
+
+test("readScannerRankings marks scanner health degraded on low coverage", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-health-coverage-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.8, compositeConfidence: 0.8, qualityOverall: 0.9, rsi: 50 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    maxAgeSec: 180,
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.scannerHealth, "degraded");
+  assert.equal(out.telemetryCoverage, 0.5);
+  assert.deepEqual(out.issues, ["SCANNER_LOW_COVERAGE"]);
+});
+
+test("readScannerRankings marks scanner health degraded on low aggregate confidence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-health-confidence-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.2, compositeConfidence: 0.2, qualityOverall: 0.9, rsi: 50 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.4, compositeConfidence: 0.4, qualityOverall: 0.9, rsi: 50 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    maxAgeSec: 180,
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.scannerHealth, "degraded");
+  assert.equal(out.rankingConfidence, 0.3);
+  assert.deepEqual(out.issues, ["SCANNER_LOW_CONFIDENCE"]);
+});
+
+test("readScannerRankings marks scanner health stale when rankings are stale", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-health-stale-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.8, compositeConfidence: 0.8, qualityOverall: 0.9, rsi: 50 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:10:00.000Z"),
+    maxAgeSec: 180,
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.scannerHealth, "stale");
   assert.deepEqual(out.issues, ["SCANNER_TELEMETRY_STALE"]);
 });

@@ -78,16 +78,94 @@ function computeFreshness(rows, opts = {}) {
   };
 }
 
+function clamp01(value) {
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(1, value));
+}
+
+function roundN(value, places = 4) {
+  if (!Number.isFinite(value)) return null;
+  const scale = 10 ** places;
+  return Math.round(value * scale) / scale;
+}
+
+function avg(values) {
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (finite.length === 0) return null;
+  return finite.reduce((sum, value) => sum + value, 0) / finite.length;
+}
+
+function computeScannerHealth(rows, freshness, opts = {}) {
+  const configuredSymbols = Array.isArray(opts.configuredSymbols)
+    ? opts.configuredSymbols.map((symbol) => String(symbol || "").trim().toUpperCase()).filter(Boolean)
+    : String(process.env.ALPACA_SYMBOLS || "")
+        .split(",")
+        .map((symbol) => symbol.trim().toUpperCase())
+        .filter(Boolean);
+
+  const rankedSymbols = new Set(
+    rows.map((row) => String(row?.symbol || "").trim().toUpperCase()).filter(Boolean)
+  );
+
+  const telemetryCoverage =
+    configuredSymbols.length > 0
+      ? roundN(clamp01(rankedSymbols.size / configuredSymbols.length), 4)
+      : rows.length > 0
+        ? 1
+        : 0;
+
+  const rankingQuality = roundN(
+    clamp01(avg(rows.map((row) => Number(row?.qualityOverall)))),
+    4
+  );
+
+  const rankingConfidence = roundN(
+    clamp01(avg(rows.map((row) => Number.isFinite(Number(row?.compositeConfidence))
+      ? Number(row.compositeConfidence)
+      : Number(row?.confidence)
+    ))),
+    4
+  );
+
+  const minCoverage = Number.isFinite(opts.minCoverage) ? opts.minCoverage : 0.8;
+  const minQuality = Number.isFinite(opts.minQuality) ? opts.minQuality : 0.6;
+  const minConfidence = Number.isFinite(opts.minConfidence) ? opts.minConfidence : 0.6;
+
+  const issues = [...freshness.issues];
+
+  if (!freshness.stale) {
+    if (telemetryCoverage < minCoverage) issues.push("SCANNER_LOW_COVERAGE");
+    if (rankingQuality !== null && rankingQuality < minQuality) issues.push("SCANNER_LOW_QUALITY");
+    if (rankingConfidence !== null && rankingConfidence < minConfidence) issues.push("SCANNER_LOW_CONFIDENCE");
+  }
+
+  const scannerHealth = freshness.stale
+    ? "stale"
+    : issues.length > 0
+      ? "degraded"
+      : "healthy";
+
+  return {
+    scannerHealth,
+    rankingQuality,
+    rankingConfidence,
+    telemetryCoverage,
+    issues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
 
   if (!latestFile) {
     const freshness = computeFreshness([], opts);
+    const health = computeScannerHealth([], freshness, opts);
     return {
       ok: true,
       source: null,
       ...freshness,
+      ...health,
       count: 0,
       rankings: [],
     };
@@ -104,11 +182,13 @@ export function readScannerRankings(opts = {}) {
 
   const latestRows = latestBySymbol(rows);
   const freshness = computeFreshness(latestRows, opts);
+  const health = computeScannerHealth(latestRows, freshness, opts);
 
   return {
     ok: true,
     source: latestFile,
     ...freshness,
+    ...health,
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
   };
