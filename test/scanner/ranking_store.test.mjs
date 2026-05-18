@@ -551,3 +551,68 @@ test("readScannerRankings exposes deteriorating temporal scanner intelligence", 
   assert.ok(out.temporalIssues.includes("SCANNER_RISK_ACCELERATING"));
   assert.ok(out.issues.includes("SCANNER_RISK_ACCELERATING"));
 });
+
+test("readScannerRankings exposes stable persistence intelligence across rolling dryruns", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-persistence-stable-"));
+
+  for (let i = 0; i < 4; i += 1) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-0${i}-00-000Z.jsonl`),
+      [
+        JSON.stringify({ ts: `2026-01-01T00:0${i}:00.000Z`, symbol: "AAPL", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.85, compositeConfidence: 0.85, qualityOverall: 0.9 }),
+        JSON.stringify({ ts: `2026-01-01T00:0${i}:00.000Z`, symbol: "MSFT", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.8, compositeConfidence: 0.8, qualityOverall: 0.85 }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:04:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.regimePersistenceScore, 1);
+  assert.equal(out.consensusStability, 1);
+  assert.equal(out.trendPersistence, 1);
+  assert.equal(out.regimeFlipRisk, 0);
+  assert.equal(out.volatilityExpansionRisk, 0);
+  assert.ok(!out.issues.includes("SCANNER_REGIME_UNSTABLE"));
+});
+
+test("readScannerRankings detects unstable persistence and volatility expansion", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-persistence-unstable-"));
+
+  const files = [
+    { t: "00", regimeA: "bullish", actionA: "buy", confA: 0.9, qA: 0.9, regimeB: "bullish", actionB: "buy", confB: 0.85, qB: 0.85 },
+    { t: "01", regimeA: "bearish", actionA: "sell", confA: 0.7, qA: 0.75, regimeB: "bearish", actionB: "sell", confB: 0.65, qB: 0.7 },
+    { t: "02", regimeA: "bullish", actionA: "buy", confA: 0.5, qA: 0.55, regimeB: "bearish", actionB: "sell", confB: 0.45, qB: 0.5 },
+    { t: "03", regimeA: "bearish", actionA: "sell", confA: 0.35, qA: 0.4, regimeB: "bearish", actionB: "sell", confB: 0.3, qB: 0.35 },
+  ];
+
+  for (const file of files) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-${file.t}-00-000Z.jsonl`),
+      [
+        JSON.stringify({ ts: `2026-01-01T00:${file.t}:00.000Z`, symbol: "AAPL", ok: true, httpStatus: 200, action: file.actionA, regime: file.regimeA, confidence: file.confA, compositeConfidence: file.confA, qualityOverall: file.qA }),
+        JSON.stringify({ ts: `2026-01-01T00:${file.t}:00.000Z`, symbol: "MSFT", ok: true, httpStatus: 200, action: file.actionB, regime: file.regimeB, confidence: file.confB, compositeConfidence: file.confB, qualityOverall: file.qB }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:04:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.regimePersistenceScore, 0.5);
+  assert.equal(out.regimeFlipRisk, 1);
+  assert.ok(out.consensusStability < 0.7);
+  assert.ok(out.trendPersistence < 0.7);
+  assert.ok(out.volatilityExpansionRisk >= 0.25);
+
+  assert.ok(out.persistenceIssues.includes("SCANNER_REGIME_UNSTABLE"));
+  assert.ok(out.persistenceIssues.includes("SCANNER_CONSENSUS_DECAY"));
+  assert.ok(out.persistenceIssues.includes("SCANNER_TREND_REVERSAL_RISK"));
+  assert.ok(out.persistenceIssues.includes("SCANNER_VOLATILITY_EXPANDING"));
+});

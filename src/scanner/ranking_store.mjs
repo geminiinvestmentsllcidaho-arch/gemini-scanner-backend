@@ -449,6 +449,154 @@ function computeTemporalIntelligence(currentRows, latestFile, adaptive, opts = {
   };
 }
 
+function readLatestRowsFromDryrunFile(file) {
+  const rows = fs
+    .readFileSync(file, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(safeJsonParse)
+    .filter(Boolean)
+    .filter((row) => row?.ok === true && row?.httpStatus === 200);
+
+  return latestBySymbol(rows);
+}
+
+function computeRollingConsensusStrength(rows) {
+  return roundN(
+    clamp01(avg(rows.map((row) =>
+      Number.isFinite(Number(row?.compositeConfidence))
+        ? Number(row.compositeConfidence)
+        : Number(row?.confidence)
+    ))),
+    4
+  ) ?? 0;
+}
+
+function computeRollingQuality(rows) {
+  return roundN(
+    clamp01(avg(rows.map((row) => Number(row?.qualityOverall)))),
+    4
+  ) ?? 0;
+}
+
+function computeRollingRegime(rows) {
+  const consensus = computeConsensusIntelligence(rows);
+  return consensus.marketRegime;
+}
+
+function computePersistenceIntelligence(latestFile, opts = {}) {
+  const dryrunsDir = opts.dryrunsDir || path.dirname(latestFile);
+  const windowSize = Number.isFinite(opts.persistenceWindow)
+    ? Math.max(2, Math.floor(opts.persistenceWindow))
+    : 4;
+
+  const files = fs
+    .readdirSync(dryrunsDir)
+    .filter((file) => file.endsWith(".jsonl"))
+    .sort()
+    .slice(-windowSize);
+
+  if (files.length < 2) {
+    return {
+      regimePersistenceScore: 1,
+      consensusStability: 1,
+      trendPersistence: 1,
+      regimeFlipRisk: 0,
+      volatilityExpansionRisk: 0,
+      persistenceIssues: [],
+    };
+  }
+
+  const snapshots = files.map((file) => {
+    const rows = readLatestRowsFromDryrunFile(path.join(dryrunsDir, file));
+    const consensusStrength = computeRollingConsensusStrength(rows);
+    const quality = computeRollingQuality(rows);
+    const regime = computeRollingRegime(rows);
+    const riskScore = roundN(clamp01(1 - avg([consensusStrength, quality])), 4) ?? 0;
+
+    return {
+      regime,
+      consensusStrength,
+      quality,
+      riskScore,
+    };
+  });
+
+  const latest = snapshots[snapshots.length - 1];
+  const regimeMatches = snapshots.filter((snap) => snap.regime === latest.regime).length;
+
+  const regimePersistenceScore = roundN(
+    clamp01(regimeMatches / snapshots.length),
+    4
+  );
+
+  const consensusValues = snapshots.map((snap) => snap.consensusStrength);
+  const firstConsensus = consensusValues[0];
+  const latestConsensus = consensusValues[consensusValues.length - 1];
+  const consensusDrift = roundN(latestConsensus - firstConsensus, 4);
+
+  const consensusStability = roundN(
+    clamp01(1 - Math.abs(consensusDrift)),
+    4
+  );
+
+  const riskValues = snapshots.map((snap) => snap.riskScore);
+  const firstRisk = riskValues[0];
+  const latestRisk = riskValues[riskValues.length - 1];
+  const riskDrift = roundN(latestRisk - firstRisk, 4);
+
+  const trendPersistence = roundN(
+    clamp01(1 - Math.abs(riskDrift)),
+    4
+  );
+
+  let regimeFlips = 0;
+  for (let i = 1; i < snapshots.length; i += 1) {
+    if (snapshots[i].regime !== snapshots[i - 1].regime) {
+      regimeFlips += 1;
+    }
+  }
+
+  const regimeFlipRisk = roundN(
+    clamp01(regimeFlips / Math.max(1, snapshots.length - 1)),
+    4
+  );
+
+  const volatilityExpansionRisk = roundN(
+    clamp01(Math.max(0, riskDrift)),
+    4
+  );
+
+  const persistenceIssues = [];
+
+  if (regimeFlipRisk >= 0.5 || regimePersistenceScore < 0.6) {
+    persistenceIssues.push("SCANNER_REGIME_UNSTABLE");
+  }
+
+  if (consensusDrift <= -0.25 || consensusStability < 0.7) {
+    persistenceIssues.push("SCANNER_CONSENSUS_DECAY");
+  }
+
+  if (riskDrift >= 0.25) {
+    persistenceIssues.push("SCANNER_TREND_REVERSAL_RISK");
+  }
+
+  if (volatilityExpansionRisk >= 0.25) {
+    persistenceIssues.push("SCANNER_VOLATILITY_EXPANDING");
+  }
+
+  return {
+    regimePersistenceScore,
+    consensusStability,
+    trendPersistence,
+    regimeFlipRisk,
+    volatilityExpansionRisk,
+    persistenceIssues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -487,6 +635,8 @@ export function readScannerRankings(opts = {}) {
     opts
   );
 
+  const persistence = computePersistenceIntelligence(latestFile, opts);
+
   return {
     ok: true,
     source: latestFile,
@@ -507,11 +657,18 @@ export function readScannerRankings(opts = {}) {
     consensusDelta: temporal.consensusDelta,
     riskDelta: temporal.riskDelta,
     temporalIssues: temporal.temporalIssues,
+    regimePersistenceScore: persistence.regimePersistenceScore,
+    consensusStability: persistence.consensusStability,
+    trendPersistence: persistence.trendPersistence,
+    regimeFlipRisk: persistence.regimeFlipRisk,
+    volatilityExpansionRisk: persistence.volatilityExpansionRisk,
+    persistenceIssues: persistence.persistenceIssues,
     issues: [
       ...health.issues,
       ...consensus.issues,
       ...adaptive.issues,
       ...temporal.temporalIssues,
+      ...persistence.persistenceIssues,
     ],
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
