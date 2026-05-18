@@ -205,3 +205,166 @@ test("readScannerRankings marks scanner health stale when rankings are stale", (
   assert.equal(out.scannerHealth, "stale");
   assert.deepEqual(out.issues, ["SCANNER_TELEMETRY_STALE"]);
 });
+
+test("readScannerRankings exposes bullish consensus intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-consensus-bullish-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "MSFT",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.8,
+        compositeConfidence: 0.8,
+        qualityOverall: 0.8,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "SPY",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "hold",
+        regime: "bullish",
+        confidence: 0.7,
+        compositeConfidence: 0.7,
+        qualityOverall: 0.8,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT", "SPY"],
+  });
+
+  assert.equal(out.marketRegime, "bullish");
+  assert.equal(out.riskState, "low");
+  assert.equal(out.signalDensity, 0.6667);
+  assert.equal(out.marketBreadth, 0.6667);
+  assert.equal(out.topSignals.length, 2);
+  assert.deepEqual(out.issues, []);
+});
+
+test("readScannerRankings exposes fragmented mixed consensus intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-consensus-mixed-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "TSLA",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "sell",
+        regime: "bearish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "SPY",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "hold",
+        regime: "neutral",
+        confidence: 0.5,
+        compositeConfidence: 0.5,
+        qualityOverall: 0.7,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "TSLA", "SPY"],
+  });
+
+  assert.equal(out.marketRegime, "mixed");
+  assert.equal(out.riskState, "high");
+  assert.equal(out.signalDensity, 0.6667);
+  assert.equal(out.marketBreadth, 0);
+  assert.ok(out.issues.includes("SCANNER_SIGNAL_FRAGMENTATION"));
+});
+
+test("readScannerRankings detects low signal density deterministically", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-signal-density-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "SPY",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "hold",
+        regime: "neutral",
+        confidence: 0.4,
+        compositeConfidence: 0.4,
+        qualityOverall: 0.8,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "QQQ",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "hold",
+        regime: "neutral",
+        confidence: 0.4,
+        compositeConfidence: 0.4,
+        qualityOverall: 0.8,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["SPY", "QQQ"],
+  });
+
+  assert.equal(out.signalDensity, 0);
+  assert.equal(out.marketRegime, "neutral");
+  assert.equal(out.riskState, "moderate");
+  assert.ok(out.issues.includes("SCANNER_LOW_SIGNAL_DENSITY"));
+});
+

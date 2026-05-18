@@ -154,6 +154,91 @@ function computeScannerHealth(rows, freshness, opts = {}) {
   };
 }
 
+function computeConsensusIntelligence(rows, opts = {}) {
+  const actionable = rows.filter((row) => {
+    const action = String(row?.action || "").toLowerCase();
+    return action === "buy" || action === "sell";
+  });
+
+  const bullish = actionable.filter(
+    (row) => String(row?.regime || "").toLowerCase() === "bullish"
+  ).length;
+
+  const bearish = actionable.filter(
+    (row) => String(row?.regime || "").toLowerCase() === "bearish"
+  ).length;
+
+  const bullishAll = rows.filter(
+    (row) => String(row?.regime || "").toLowerCase() === "bullish"
+  ).length;
+
+  const bearishAll = rows.filter(
+    (row) => String(row?.regime || "").toLowerCase() === "bearish"
+  ).length;
+
+
+  const total = rows.length;
+
+  const signalDensity =
+    total > 0
+      ? roundN(clamp01(actionable.length / total), 4)
+      : 0;
+
+  const marketBreadth =
+    total > 0
+      ? roundN((bullish - bearish) / total, 4)
+      : 0;
+
+  let marketRegime = "neutral";
+
+  if (marketBreadth >= 0.5) {
+    marketRegime = "bullish";
+  } else if (marketBreadth <= -0.5) {
+    marketRegime = "bearish";
+  } else if (bullishAll > 0 || bearishAll > 0) {
+    marketRegime = "mixed";
+  }
+
+  let riskState = "moderate";
+
+  if (marketRegime === "bullish" && signalDensity >= 0.5) {
+    riskState = "low";
+  } else if (marketRegime === "mixed") {
+    riskState = "high";
+  }
+
+  const issues = [];
+
+  if (marketRegime === "mixed") {
+    issues.push("SCANNER_SIGNAL_FRAGMENTATION");
+  }
+
+  const allNeutral =
+    rows.every(
+      (row) => String(row?.regime || "").toLowerCase() === "neutral"
+    );
+
+  if (
+    actionable.length === 0 &&
+    allNeutral
+  ) {
+    issues.push("SCANNER_LOW_SIGNAL_DENSITY");
+  }
+
+  if (riskState === "high") {
+    issues.push("SCANNER_HIGH_RISK_ENVIRONMENT");
+  }
+
+  return {
+    marketRegime,
+    marketBreadth,
+    signalDensity,
+    riskState,
+    topSignals: actionable.slice(0, 5),
+    issues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -183,12 +268,19 @@ export function readScannerRankings(opts = {}) {
   const latestRows = latestBySymbol(rows);
   const freshness = computeFreshness(latestRows, opts);
   const health = computeScannerHealth(latestRows, freshness, opts);
+  const consensus = computeConsensusIntelligence(latestRows, opts);
 
   return {
     ok: true,
     source: latestFile,
     ...freshness,
     ...health,
+    marketRegime: consensus.marketRegime,
+    marketBreadth: consensus.marketBreadth,
+    signalDensity: consensus.signalDensity,
+    riskState: consensus.riskState,
+    topSignals: consensus.topSignals,
+    issues: [...health.issues, ...consensus.issues],
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
   };
