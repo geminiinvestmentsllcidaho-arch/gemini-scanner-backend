@@ -87,3 +87,91 @@ test("rankScannerCandidates is deterministic and stable on ties", () => {
     ["AAPL", "MSFT"]
   );
 });
+
+test("rankScannerCandidates exposes normalized scoring metadata", () => {
+  const candidates = [
+    {
+      symbol: "SPY",
+      p3GateOk: true,
+      confidence: 0.8,
+      compositeConfidence: 0.8,
+      qualityOverall: 0.9,
+      rsi: 30,
+    },
+    {
+      symbol: "AAPL",
+      p3GateOk: true,
+      confidence: 0.4,
+      compositeConfidence: 0.4,
+      qualityOverall: 0.7,
+      rsi: 50,
+    },
+  ];
+
+  const ranked = rankScannerCandidates(candidates);
+
+  assert.equal(ranked[0].normalizedScore, 1);
+  assert.equal(ranked[1].normalizedScore < ranked[0].normalizedScore, true);
+
+  assert.equal(ranked[0].scorePercentile, 100);
+  assert.equal(ranked[1].scorePercentile, 50);
+});
+
+test("rankScannerCandidates exposes deterministic quality and confidence tiers", () => {
+  const candidates = [
+    {
+      symbol: "HIGH",
+      p3GateOk: true,
+      confidence: 0.9,
+      compositeConfidence: 0.9,
+      qualityOverall: 0.95,
+      rsi: 30,
+    },
+    {
+      symbol: "MID",
+      p3GateOk: true,
+      confidence: 0.55,
+      compositeConfidence: 0.55,
+      qualityOverall: 0.7,
+      rsi: 50,
+    },
+    {
+      symbol: "LOW",
+      p3GateOk: true,
+      confidence: 0.2,
+      compositeConfidence: 0.2,
+      qualityOverall: 0.4,
+      rsi: 50,
+    },
+  ];
+
+  const ranked = rankScannerCandidates(candidates);
+
+  const bySymbol = Object.fromEntries(
+    ranked.map((item) => [item.symbol, item])
+  );
+
+  assert.equal(bySymbol.HIGH.qualityTier, "high");
+  assert.equal(bySymbol.MID.qualityTier, "medium");
+  assert.equal(bySymbol.LOW.qualityTier, "low");
+
+  assert.equal(bySymbol.HIGH.confidenceTier, "high");
+  assert.equal(bySymbol.MID.confidenceTier, "medium");
+  assert.equal(bySymbol.LOW.confidenceTier, "low");
+});
+
+test("rankScannerCandidates exposes deterministic rankReason", () => {
+  const ranked = rankScannerCandidates([
+    {
+      symbol: "SPY",
+      p3GateOk: true,
+      confidence: 0.8,
+      compositeConfidence: 0.8,
+      qualityOverall: 0.9,
+      rsi: 30,
+    },
+  ]);
+
+  assert.equal(typeof ranked[0].rankReason, "string");
+  assert.ok(ranked[0].rankReason.length > 0);
+});

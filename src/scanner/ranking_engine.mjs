@@ -42,6 +42,34 @@ function scoreCandidate(candidate) {
   );
 }
 
+function tier(value) {
+  if (value >= 0.8) return "high";
+  if (value >= 0.5) return "medium";
+  return "low";
+}
+
+function buildRankReason(candidate, setupScore) {
+  const parts = [];
+
+  if (!candidate.p3GateOk) parts.push("invalid P3 gate");
+  else if (candidate.compositeConfidence >= 0.8 && candidate.qualityOverall >= 0.8) parts.push("high confidence + high quality");
+  else if (candidate.compositeConfidence >= 0.5) parts.push("usable confidence");
+  else parts.push("low confidence");
+
+  if (Number.isFinite(candidate.rsi)) {
+    if (candidate.rsi <= 30) parts.push("oversold RSI");
+    else if (candidate.rsi <= 40) parts.push("near-oversold RSI");
+    else if (candidate.rsi >= 70) parts.push("overbought RSI");
+    else parts.push("neutral RSI");
+  } else {
+    parts.push("RSI unavailable");
+  }
+
+  if (setupScore <= 0) parts.push("not actionable");
+
+  return parts.join("; ");
+}
+
 function buildReason(candidate, setupScore) {
   const reason = [];
 
@@ -71,7 +99,7 @@ function buildReason(candidate, setupScore) {
 }
 
 export function rankScannerCandidates(candidates = []) {
-  return candidates
+  const ranked = candidates
     .map(normalizeCandidate)
     .filter((candidate) => candidate.symbol.length > 0)
     .map((candidate) => {
@@ -86,15 +114,28 @@ export function rankScannerCandidates(candidates = []) {
         confidence: candidate.confidence,
         rsi: candidate.rsi,
         p3GateOk: candidate.p3GateOk,
+        qualityTier: tier(candidate.qualityOverall),
+        confidenceTier: tier(candidate.compositeConfidence),
+        rankReason: buildRankReason(candidate, setupScore),
         reason: buildReason(candidate, setupScore),
       };
     })
     .sort((a, b) => {
       if (b.setupScore !== a.setupScore) return b.setupScore - a.setupScore;
       return a.symbol.localeCompare(b.symbol);
-    })
-    .map((candidate, index) => ({
-      ...candidate,
-      rank: index + 1,
-    }));
+    });
+
+  const maxScore = ranked.reduce(
+    (max, candidate) => Math.max(max, candidate.setupScore),
+    0
+  );
+
+  return ranked.map((candidate, index) => ({
+    ...candidate,
+    rank: index + 1,
+    normalizedScore: maxScore > 0 ? roundN(candidate.setupScore / maxScore, 4) : 0,
+    scorePercentile: ranked.length > 0
+      ? roundN(((ranked.length - index) / ranked.length) * 100, 2)
+      : 0,
+  }));
 }
