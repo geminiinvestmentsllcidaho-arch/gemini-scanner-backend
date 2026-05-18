@@ -134,14 +134,15 @@ app.post('/ops/run', (req, res) => {
 
       const insufficientLookback = Object.entries(minLookback).some(([tf, min]) => (lookbackHave[tf] || 0) < min);
 
-      // Freshness gate: stricter during regular session/unknown; relaxed when closed/off-hours
+      // Freshness gate: strict only during confirmed regular session; relaxed otherwise for off-hours/historical validation.
       const maxFreshSecRegular = Number(process.env.P3_MAX_FRESH_SEC_REGULAR || 600);      // 10 min
       const maxFreshSecClosed  = Number(process.env.P3_MAX_FRESH_SEC_CLOSED  || 604800);  // 7 days
-      const maxFreshSec = (session === 'regular' || session === 'unknown') ? maxFreshSecRegular : maxFreshSecClosed;
+      const isRegularSession = session === 'regular';
+      const maxFreshSec = isRegularSession ? maxFreshSecRegular : maxFreshSecClosed;
 
       const staleHard = (ageSec === null)
         ? true
-        : ((session === 'regular' || session === 'unknown') ? (ageSec > maxFreshSec) : false);
+        : (isRegularSession ? (ageSec > maxFreshSec) : false);
 
       if (staleHard || insufficientLookback) {
         p3_gate = {

@@ -93,7 +93,8 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
   if (!open) {
     try {
       for (const s of symbols) {
-        const n = await backfillBars({ symbol: s, limit: 300 });
+        const backfillLimit = Number(process.env.ALPACA_BACKFILL_LIMIT || 3000);
+        const n = await backfillBars({ symbol: s, limit: backfillLimit });
         console.log('[md] backfilled bars', { symbol: s, count: n });
       }
     } catch (e) {
