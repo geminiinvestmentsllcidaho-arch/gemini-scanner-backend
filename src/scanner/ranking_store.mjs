@@ -43,14 +43,51 @@ function latestBySymbol(rows) {
   return Array.from(bySymbol.values());
 }
 
+function computeFreshness(rows, opts = {}) {
+  const nowMs = Number.isFinite(opts.nowMs) ? opts.nowMs : Date.now();
+  const maxAgeSec = Number.isFinite(opts.maxAgeSec)
+    ? opts.maxAgeSec
+    : Number(process.env.SCANNER_RANKINGS_MAX_AGE_SEC || 180);
+
+  const latestTsMs = rows.reduce((latest, row) => {
+    const tsMs = Date.parse(row?.ts || "");
+    return Number.isFinite(tsMs) ? Math.max(latest, tsMs) : latest;
+  }, -Infinity);
+
+  const sourceTs = Number.isFinite(latestTsMs)
+    ? new Date(latestTsMs).toISOString()
+    : null;
+
+  const sourceAgeSec = Number.isFinite(latestTsMs)
+    ? Math.max(0, Math.floor((nowMs - latestTsMs) / 1000))
+    : null;
+
+  const stale =
+    sourceAgeSec === null ||
+    !Number.isFinite(maxAgeSec) ||
+    sourceAgeSec > maxAgeSec;
+
+  const issues = stale ? ["SCANNER_TELEMETRY_STALE"] : [];
+
+  return {
+    sourceTs,
+    sourceAgeSec,
+    maxAgeSec,
+    stale,
+    issues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
 
   if (!latestFile) {
+    const freshness = computeFreshness([], opts);
     return {
       ok: true,
       source: null,
+      ...freshness,
       count: 0,
       rankings: [],
     };
@@ -66,10 +103,12 @@ export function readScannerRankings(opts = {}) {
     .filter((row) => row?.ok === true && row?.httpStatus === 200);
 
   const latestRows = latestBySymbol(rows);
+  const freshness = computeFreshness(latestRows, opts);
 
   return {
     ok: true,
     source: latestFile,
+    ...freshness,
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
   };
