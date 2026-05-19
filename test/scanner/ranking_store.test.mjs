@@ -890,3 +890,112 @@ test("readScannerRankings exposes expansion portfolio orchestration state", () =
   assert.ok(out.signalConcentrationRisk < 0.6);
   assert.equal(out.capitalPreservationBias, "low");
 });
+
+test("readScannerRankings exposes permissive governance state", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-governance-permissive-"));
+
+  for (let i = 0; i < 4; i += 1) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-0${i}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:0${i}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: "buy",
+          regime: "bullish",
+          confidence: 0.92,
+          compositeConfidence: 0.92,
+          qualityOverall: 0.9,
+          p3GateOk: true,
+        }),
+        JSON.stringify({
+          ts: `2026-01-01T00:0${i}:00.000Z`,
+          symbol: "MSFT",
+          ok: true,
+          httpStatus: 200,
+          action: "buy",
+          regime: "bullish",
+          confidence: 0.88,
+          compositeConfidence: 0.88,
+          qualityOverall: 0.88,
+          p3GateOk: true,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:05:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.governanceState, "permissive");
+  assert.equal(out.portfolioPermission, "expanded");
+  assert.equal(out.maxDeploymentBias, "high");
+  assert.equal(out.riskBudgetBias, "expansion");
+
+  assert.ok(out.governanceScore >= 0.75);
+
+  assert.ok(
+    !out.governanceIssues.includes("SCANNER_GOVERNANCE_LOCKED")
+  );
+});
+
+test("readScannerRankings exposes locked governance state", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-governance-locked-"));
+
+  const files = [
+    { t: "00", regime: "bullish", action: "buy", conf: 0.9, q: 0.9 },
+    { t: "01", regime: "mixed", action: "hold", conf: 0.55, q: 0.55 },
+    { t: "02", regime: "bearish", action: "sell", conf: 0.3, q: 0.35 },
+    { t: "03", regime: "bearish", action: "sell", conf: 0.2, q: 0.25 },
+  ];
+
+  for (const file of files) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-${file.t}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:${file.t}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: file.action,
+          regime: file.regime,
+          confidence: file.conf,
+          compositeConfidence: file.conf,
+          qualityOverall: file.q,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:05:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.governanceState, "locked");
+  assert.equal(out.portfolioPermission, "denied");
+  assert.equal(out.maxDeploymentBias, "minimal");
+  assert.equal(out.riskBudgetBias, "conservative");
+
+  assert.ok(out.governanceScore < 0.5);
+
+  assert.ok(
+    out.governanceIssues.includes("SCANNER_GOVERNANCE_LOCKED")
+  );
+
+  assert.ok(
+    out.governanceIssues.includes("SCANNER_RISK_BUDGET_CONSTRAINED")
+  );
+
+  assert.ok(
+    out.governanceIssues.includes("SCANNER_PORTFOLIO_PERMISSION_RESTRICTED")
+  );
+});
+

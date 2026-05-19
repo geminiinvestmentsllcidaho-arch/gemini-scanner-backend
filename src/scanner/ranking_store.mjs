@@ -1038,6 +1038,128 @@ function computeExecutionCoordination(inputs = {}) {
 }
 
 
+function computePortfolioGovernance(inputs = {}) {
+  const {
+    orchestration,
+    execution,
+    readiness,
+    predictive,
+    health,
+  } = inputs;
+
+  const governanceScore = roundN(
+    clamp01(
+      avg([
+        readiness?.readinessScore || 0,
+        execution?.deploymentPressure || 0,
+        1 - (orchestration?.signalConcentrationRisk || 0),
+        health?.scannerHealth === "healthy" ? 1 : 0.5,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let governanceState = "selective";
+
+  if (
+    execution?.executionCoordinationState === "halted" ||
+    orchestration?.orchestrationState === "preservation" ||
+    predictive?.predictiveRiskBias === "severe"
+  ) {
+    governanceState = "locked";
+  } else if (
+    orchestration?.orchestrationState === "defensive" ||
+    (
+      governanceScore < 0.4 &&
+      execution?.deploymentPressure >= 0.5
+    )
+  ) {
+    governanceState = "constrained";
+  } else if (
+    (
+      governanceScore >= 0.65 &&
+      orchestration?.signalConcentrationRisk < 0.75
+    ) ||
+    (
+      orchestration?.orchestrationState === "expansion" &&
+      execution?.deploymentPressure >= 0.75
+    )
+  ) {
+    governanceState = "permissive";
+  }
+
+  let portfolioPermission = "restricted";
+
+  if (governanceState === "permissive") {
+    portfolioPermission = "expanded";
+  } else if (governanceState === "locked") {
+    portfolioPermission = "denied";
+  }
+
+  let maxDeploymentBias = "moderate";
+
+  if (governanceState === "permissive") {
+    maxDeploymentBias = "high";
+  } else if (governanceState === "constrained") {
+    maxDeploymentBias = "low";
+  } else if (governanceState === "locked") {
+    maxDeploymentBias = "minimal";
+  }
+
+  let riskBudgetBias = "balanced";
+
+  if (
+    governanceState === "constrained" ||
+    governanceState === "locked"
+  ) {
+    riskBudgetBias = "conservative";
+  } else if (governanceState === "permissive") {
+    riskBudgetBias = "expansion";
+  }
+
+  let allocationDiscipline = "normal";
+
+  if (
+    orchestration?.signalConcentrationRisk >= 0.9 &&
+    execution?.deploymentPressure >= 0.75 &&
+    orchestration?.portfolioHeat >= 0.75
+  ) {
+    allocationDiscipline = "strict";
+  }
+
+  const governanceIssues = [];
+
+  if (governanceState === "locked") {
+    governanceIssues.push("SCANNER_GOVERNANCE_LOCKED");
+  }
+
+  if (riskBudgetBias === "conservative") {
+    governanceIssues.push("SCANNER_RISK_BUDGET_CONSTRAINED");
+  }
+
+  if (allocationDiscipline === "strict") {
+    governanceIssues.push("SCANNER_ALLOCATION_DISCIPLINE_REQUIRED");
+  }
+
+  if (
+    governanceState === "constrained" ||
+    governanceState === "locked"
+  ) {
+    governanceIssues.push("SCANNER_PORTFOLIO_PERMISSION_RESTRICTED");
+  }
+
+  return {
+    governanceState,
+    portfolioPermission,
+    maxDeploymentBias,
+    riskBudgetBias,
+    allocationDiscipline,
+    governanceScore,
+    governanceIssues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1118,6 +1240,14 @@ export function readScannerRankings(opts = {}) {
     rows: latestRows,
   });
 
+  const governance = computePortfolioGovernance({
+    orchestration,
+    execution,
+    readiness,
+    predictive,
+    health,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1170,12 +1300,21 @@ export function readScannerRankings(opts = {}) {
     signalConcentrationRisk: orchestration.signalConcentrationRisk,
     orchestrationIssues: orchestration.orchestrationIssues,
 
+    governanceState: governance.governanceState,
+    portfolioPermission: governance.portfolioPermission,
+    maxDeploymentBias: governance.maxDeploymentBias,
+    riskBudgetBias: governance.riskBudgetBias,
+    allocationDiscipline: governance.allocationDiscipline,
+    governanceScore: governance.governanceScore,
+    governanceIssues: governance.governanceIssues,
+
     issues: freshness.stale
       ? combinedIssues
       : [
           ...combinedIssues,
           ...execution.executionIssues,
           ...orchestration.orchestrationIssues,
+          ...governance.governanceIssues,
         ],
 
     count: latestRows.length,
