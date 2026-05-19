@@ -788,6 +788,121 @@ function computeDecisionReadiness(inputs = {}) {
 }
 
 
+function computeExecutionCoordination(inputs = {}) {
+  const {
+    readiness,
+    predictive,
+    adaptive,
+    persistence,
+    rankings = [],
+  } = inputs;
+
+  const topRankings = rankings.slice(0, 5);
+
+  const avgSetupScore =
+    topRankings.length > 0
+      ? roundN(
+          clamp01(
+            avg(
+              topRankings.map((r) =>
+                Number.isFinite(Number(r?.setupScore))
+                  ? Number(r.setupScore)
+                  : 0
+              )
+            )
+          ),
+          4
+        )
+      : 0;
+
+  const deploymentPressure = roundN(
+    clamp01(
+      avg([
+        readiness?.readinessScore || 0,
+        1 - (adaptive?.instabilityScore || 0),
+        persistence?.regimePersistenceScore || 0,
+        avgSetupScore || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let executionCoordinationState = "balanced";
+
+  if (
+    readiness?.scannerReadiness === "blocked" ||
+    predictive?.predictiveRiskBias === "severe"
+  ) {
+    executionCoordinationState = "halted";
+  } else if (
+    deploymentPressure >= 0.75 &&
+    readiness?.scannerActionBias === "offensive"
+  ) {
+    executionCoordinationState = "aggressive";
+  } else if (
+    deploymentPressure < 0.5
+  ) {
+    executionCoordinationState = "defensive";
+  }
+
+  let executionReadiness = "deployable";
+
+  if (executionCoordinationState === "halted") {
+    executionReadiness = "blocked";
+  } else if (executionCoordinationState === "defensive") {
+    executionReadiness = "restricted";
+  }
+
+  let executionThrottle = "moderate";
+
+  if (executionCoordinationState === "aggressive") {
+    executionThrottle = "none";
+  } else if (executionCoordinationState === "halted") {
+    executionThrottle = "full";
+  } else if (executionCoordinationState === "defensive") {
+    executionThrottle = "high";
+  }
+
+  let capitalExposureBias = "balanced";
+
+  if (executionCoordinationState === "aggressive") {
+    capitalExposureBias = "expansion";
+  } else if (
+    executionCoordinationState === "halted" ||
+    executionCoordinationState === "defensive"
+  ) {
+    capitalExposureBias = "defensive";
+  }
+
+  const executionIssues = [];
+
+  if (executionThrottle === "full") {
+    executionIssues.push("SCANNER_COORDINATION_HALTED");
+  }
+
+  if (executionThrottle === "high") {
+    executionIssues.push("SCANNER_EXECUTION_THROTTLED");
+  }
+
+  if (capitalExposureBias === "defensive") {
+    executionIssues.push("SCANNER_CAPITAL_DEFENSIVE");
+  }
+
+  if (deploymentPressure < 0.4) {
+    executionIssues.push("SCANNER_DEPLOYMENT_SUPPRESSED");
+  }
+
+  return {
+    executionReadiness,
+    executionThrottle,
+    capitalExposureBias,
+    deploymentPressure,
+    executionCoordinationState,
+    executionIssues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -848,6 +963,16 @@ export function readScannerRankings(opts = {}) {
     issues: combinedIssues,
   });
 
+  const rankedCandidates = rankScannerCandidates(latestRows);
+
+  const execution = computeExecutionCoordination({
+    readiness,
+    predictive,
+    adaptive,
+    persistence,
+    rankings: rankedCandidates,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -884,8 +1009,22 @@ export function readScannerRankings(opts = {}) {
     scannerActionBias: readiness.scannerActionBias,
     scannerBlockReason: readiness.scannerBlockReason,
     readinessScore: readiness.readinessScore,
-    issues: combinedIssues,
+
+    executionReadiness: execution.executionReadiness,
+    executionThrottle: execution.executionThrottle,
+    capitalExposureBias: execution.capitalExposureBias,
+    deploymentPressure: execution.deploymentPressure,
+    executionCoordinationState: execution.executionCoordinationState,
+    executionIssues: execution.executionIssues,
+
+    issues: freshness.stale
+      ? combinedIssues
+      : [
+          ...combinedIssues,
+          ...execution.executionIssues,
+        ],
+
     count: latestRows.length,
-    rankings: rankScannerCandidates(latestRows),
+    rankings: rankedCandidates,
   };
 }
