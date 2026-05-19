@@ -687,7 +687,7 @@ function computePredictiveIntelligence(latestFile, opts = {}) {
 
   let predictiveRiskBias = "low";
 
-  if (predictiveCompositeRisk >= 0.5) {
+  if (predictiveCompositeRisk >= 0.75) {
     predictiveRiskBias = "severe";
   } else if (predictiveCompositeRisk >= 0.5) {
     predictiveRiskBias = "elevated";
@@ -784,6 +784,141 @@ function computeDecisionReadiness(inputs = {}) {
     scannerActionBias,
     scannerBlockReason,
     readinessScore,
+  };
+}
+
+
+function computePortfolioOrchestration(inputs = {}) {
+  const {
+    execution,
+    consensus,
+    adaptive,
+    persistence,
+    predictive,
+    rankings = [],
+    rows = [],
+  } = inputs;
+
+  const topRankings = rankings.slice(0, 5);
+
+  const avgTopScore =
+    topRankings.length > 0
+      ? avg(topRankings.map((r) => Number(r?.normalizedScore || 0)))
+      : 0;
+
+  const portfolioHeat = roundN(
+    clamp01(
+      avg([
+        execution?.deploymentPressure || 0,
+        consensus?.signalDensity || 0,
+        adaptive?.consensusStrength || 0,
+        avgTopScore || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const portfolioAggression = roundN(
+    clamp01(
+      avg([
+        execution?.deploymentPressure || 0,
+        persistence?.regimePersistenceScore || 0,
+        1 - (predictive?.momentumDecayRisk || 0),
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const actionableRows = rows.filter((row) => {
+    const action = String(row?.action || "").toLowerCase();
+    return action === "buy" || action === "sell";
+  });
+
+  const buys = actionableRows.filter(
+    (row) => String(row?.action || "").toLowerCase() === "buy"
+  ).length;
+
+  const sells = actionableRows.filter(
+    (row) => String(row?.action || "").toLowerCase() === "sell"
+  ).length;
+
+  const exposureSynchronization =
+    actionableRows.length > 0
+      ? roundN(
+          clamp01(Math.max(buys, sells) / actionableRows.length),
+          4
+        )
+      : 0;
+
+  const topScore = Number(topRankings[0]?.normalizedScore || 0);
+  const secondScore = Number(topRankings[1]?.normalizedScore || 0);
+
+  const signalConcentrationRisk = roundN(
+    clamp01(Math.max(0, topScore - secondScore)),
+    4
+  ) ?? 0;
+
+  let capitalPreservationBias = "low";
+
+  if (
+    execution?.executionCoordinationState === "halted" ||
+    predictive?.predictiveRiskBias === "severe"
+  ) {
+    capitalPreservationBias = "high";
+  } else if (
+    execution?.executionCoordinationState === "defensive" ||
+    predictive?.predictiveRiskBias === "elevated"
+  ) {
+    capitalPreservationBias = "moderate";
+  }
+
+  let orchestrationState = "rotational";
+
+  if (capitalPreservationBias === "high") {
+    orchestrationState = "preservation";
+  } else if (capitalPreservationBias === "moderate") {
+    orchestrationState = "defensive";
+  } else if (
+    portfolioHeat >= 0.75 &&
+    portfolioAggression >= 0.75 &&
+    exposureSynchronization >= 0.75 &&
+    signalConcentrationRisk < 0.6
+  ) {
+    orchestrationState = "expansion";
+  }
+
+  const orchestrationIssues = [];
+
+  if (
+    signalConcentrationRisk >= 0.75 &&
+    topRankings.length >= 5
+  ) {
+    orchestrationIssues.push("SCANNER_PORTFOLIO_OVERCONCENTRATION");
+  }
+
+  if (
+    exposureSynchronization >= 0.95 &&
+    actionableRows.length >= 5
+  ) {
+    orchestrationIssues.push("SCANNER_DIRECTIONAL_CROWDING");
+  }
+
+  if (capitalPreservationBias !== "low") {
+    orchestrationIssues.push("SCANNER_CAPITAL_PRESERVATION_MODE");
+  }
+
+  if (orchestrationState === "defensive" || orchestrationState === "preservation") {
+    orchestrationIssues.push("SCANNER_ORCHESTRATION_DEFENSIVE");
+  }
+
+  return {
+    portfolioHeat,
+    portfolioAggression,
+    orchestrationState,
+    capitalPreservationBias,
+    exposureSynchronization,
+    signalConcentrationRisk,
+    orchestrationIssues,
   };
 }
 
@@ -973,6 +1108,16 @@ export function readScannerRankings(opts = {}) {
     rankings: rankedCandidates,
   });
 
+  const orchestration = computePortfolioOrchestration({
+    execution,
+    consensus,
+    adaptive,
+    persistence,
+    predictive,
+    rankings: rankedCandidates,
+    rows: latestRows,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1017,11 +1162,20 @@ export function readScannerRankings(opts = {}) {
     executionCoordinationState: execution.executionCoordinationState,
     executionIssues: execution.executionIssues,
 
+    portfolioHeat: orchestration.portfolioHeat,
+    portfolioAggression: orchestration.portfolioAggression,
+    orchestrationState: orchestration.orchestrationState,
+    capitalPreservationBias: orchestration.capitalPreservationBias,
+    exposureSynchronization: orchestration.exposureSynchronization,
+    signalConcentrationRisk: orchestration.signalConcentrationRisk,
+    orchestrationIssues: orchestration.orchestrationIssues,
+
     issues: freshness.stale
       ? combinedIssues
       : [
           ...combinedIssues,
           ...execution.executionIssues,
+          ...orchestration.orchestrationIssues,
         ],
 
     count: latestRows.length,

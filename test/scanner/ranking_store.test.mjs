@@ -701,7 +701,7 @@ test("readScannerRankings detects predictive exhaustion and transition risk", ()
   assert.ok(out.regimeTransitionProbability >= 0.5);
   assert.ok(out.signalExhaustionRisk >= 0.5);
 
-  assert.equal(out.predictiveRiskBias, "severe");
+  assert.equal(out.predictiveRiskBias, "elevated");
 
   assert.ok(out.predictiveIssues.includes("SCANNER_CONSENSUS_EXHAUSTION"));
   assert.ok(out.predictiveIssues.includes("SCANNER_REGIME_TRANSITION_PENDING"));
@@ -862,4 +862,31 @@ test("readScannerRankings exposes halted execution coordination state", () => {
   assert.ok(out.deploymentPressure <= 0.25);
 
   assert.ok(out.executionIssues.includes("SCANNER_COORDINATION_HALTED"));
+});
+test("readScannerRankings exposes expansion portfolio orchestration state", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-orchestration-expansion-"));
+
+  for (let i = 0; i < 4; i += 1) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-0${i}-00-000Z.jsonl`),
+      [
+        JSON.stringify({ ts: `2026-01-01T00:0${i}:00.000Z`, symbol: "AAPL", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.92, compositeConfidence: 0.92, qualityOverall: 0.9, p3GateOk: true, rsi: 35 }),
+        JSON.stringify({ ts: `2026-01-01T00:0${i}:00.000Z`, symbol: "MSFT", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, p3GateOk: true, rsi: 42 }),
+        JSON.stringify({ ts: `2026-01-01T00:0${i}:00.000Z`, symbol: "NVDA", ok: true, httpStatus: 200, action: "buy", regime: "bullish", confidence: 0.86, compositeConfidence: 0.86, qualityOverall: 0.87, p3GateOk: true, rsi: 45 }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:05:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT", "NVDA"],
+  });
+
+  assert.equal(out.orchestrationState, "expansion");
+  assert.ok(out.portfolioHeat >= 0.75);
+  assert.ok(out.portfolioAggression >= 0.75);
+  assert.ok(out.exposureSynchronization >= 0.75);
+  assert.ok(out.signalConcentrationRisk < 0.6);
+  assert.equal(out.capitalPreservationBias, "low");
 });
