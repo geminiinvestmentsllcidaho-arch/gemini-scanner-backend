@@ -721,6 +721,73 @@ function computePredictiveIntelligence(latestFile, opts = {}) {
 }
 
 
+function computeDecisionReadiness(inputs = {}) {
+  const {
+    freshness,
+    health,
+    consensus,
+    adaptive,
+    persistence,
+    predictive,
+    issues = [],
+  } = inputs;
+
+  const penalties = [];
+
+  if (freshness?.stale) penalties.push(1);
+  if (health?.scannerHealth === "degraded") penalties.push(0.35);
+  if (consensus?.riskState === "high") penalties.push(0.35);
+
+  if (adaptive?.adaptiveRiskBias === "severe") penalties.push(0.4);
+  else if (adaptive?.adaptiveRiskBias === "elevated") penalties.push(0.25);
+
+  if (predictive?.predictiveRiskBias === "severe") penalties.push(0.4);
+  else if (predictive?.predictiveRiskBias === "elevated") penalties.push(0.25);
+
+  if (persistence?.regimeFlipRisk >= 0.5) penalties.push(0.25);
+  if (Number(consensus?.signalDensity) < 0.25) penalties.push(0.15);
+
+  const readinessScore = roundN(
+    clamp01(1 - penalties.reduce((sum, value) => sum + value, 0)),
+    4
+  );
+
+  let scannerReadiness = "ready";
+
+  if (freshness?.stale || readinessScore < 0.4) {
+    scannerReadiness = "blocked";
+  } else if (readinessScore < 0.75) {
+    scannerReadiness = "cautious";
+  }
+
+  let scannerActionBias = "neutral";
+
+  if (
+    consensus?.marketRegime === "bullish" &&
+    predictive?.predictiveRiskBias === "low"
+  ) {
+    scannerActionBias = "offensive";
+  } else if (
+    consensus?.marketRegime === "bearish" ||
+    predictive?.predictiveRiskBias === "severe"
+  ) {
+    scannerActionBias = "defensive";
+  }
+
+  const scannerBlockReason =
+    scannerReadiness === "blocked"
+      ? issues[0] || "SCANNER_READINESS_BLOCKED"
+      : null;
+
+  return {
+    scannerReadiness,
+    scannerActionBias,
+    scannerBlockReason,
+    readinessScore,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -762,6 +829,25 @@ export function readScannerRankings(opts = {}) {
   const persistence = computePersistenceIntelligence(latestFile, opts);
   const predictive = computePredictiveIntelligence(latestFile, opts);
 
+  const combinedIssues = [
+    ...health.issues,
+    ...consensus.issues,
+    ...adaptive.issues,
+    ...temporal.temporalIssues,
+    ...persistence.persistenceIssues,
+    ...predictive.predictiveIssues,
+  ];
+
+  const readiness = computeDecisionReadiness({
+    freshness,
+    health,
+    consensus,
+    adaptive,
+    persistence,
+    predictive,
+    issues: combinedIssues,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -794,14 +880,11 @@ export function readScannerRankings(opts = {}) {
     signalExhaustionRisk: predictive.signalExhaustionRisk,
     predictiveRiskBias: predictive.predictiveRiskBias,
     predictiveIssues: predictive.predictiveIssues,
-    issues: [
-      ...health.issues,
-      ...consensus.issues,
-      ...adaptive.issues,
-      ...temporal.temporalIssues,
-      ...persistence.persistenceIssues,
-      ...predictive.predictiveIssues,
-    ],
+    scannerReadiness: readiness.scannerReadiness,
+    scannerActionBias: readiness.scannerActionBias,
+    scannerBlockReason: readiness.scannerBlockReason,
+    readinessScore: readiness.readinessScore,
+    issues: combinedIssues,
     count: latestRows.length,
     rankings: rankScannerCandidates(latestRows),
   };

@@ -707,4 +707,90 @@ test("readScannerRankings detects predictive exhaustion and transition risk", ()
   assert.ok(out.predictiveIssues.includes("SCANNER_REGIME_TRANSITION_PENDING"));
   assert.ok(out.predictiveIssues.includes("SCANNER_MOMENTUM_COLLAPSE"));
   assert.ok(out.predictiveIssues.includes("SCANNER_SIGNAL_EXHAUSTION"));
+});test("readScannerRankings exposes ready offensive scanner readiness state", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-readiness-ready-"));
+
+  for (let i = 0; i < 4; i += 1) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-0${i}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:0${i}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: "buy",
+          regime: "bullish",
+          confidence: 0.9,
+          compositeConfidence: 0.9,
+          qualityOverall: 0.9,
+        }),
+        JSON.stringify({
+          ts: `2026-01-01T00:0${i}:00.000Z`,
+          symbol: "MSFT",
+          ok: true,
+          httpStatus: 200,
+          action: "buy",
+          regime: "bullish",
+          confidence: 0.85,
+          compositeConfidence: 0.85,
+          qualityOverall: 0.85,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:05:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.scannerReadiness, "ready");
+  assert.equal(out.scannerActionBias, "offensive");
+  assert.equal(out.scannerBlockReason, null);
+
+  assert.ok(out.readinessScore >= 0.75);
+});
+
+test("readScannerRankings exposes blocked defensive scanner readiness state", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-readiness-blocked-"));
+
+  const files = [
+    { t: "00", regime: "bullish", action: "buy", conf: 0.9, q: 0.9 },
+    { t: "01", regime: "mixed", action: "hold", conf: 0.6, q: 0.6 },
+    { t: "02", regime: "bearish", action: "sell", conf: 0.35, q: 0.4 },
+    { t: "03", regime: "bearish", action: "sell", conf: 0.2, q: 0.3 },
+  ];
+
+  for (const file of files) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-${file.t}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:${file.t}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: file.action,
+          regime: file.regime,
+          confidence: file.conf,
+          compositeConfidence: file.conf,
+          qualityOverall: file.q,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:05:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.scannerReadiness, "blocked");
+  assert.equal(out.scannerActionBias, "defensive");
+
+  assert.ok(typeof out.scannerBlockReason === "string");
+  assert.ok(out.readinessScore <= 0.4);
 });
