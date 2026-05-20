@@ -944,6 +944,34 @@ test("readScannerRankings exposes permissive governance state", () => {
   );
 });
 
+test("readScannerRankings exposes position sizing intelligence per ranking", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-position-sizing-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T12-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.95, compositeConfidence: 0.95, qualityOverall: 0.95, rsi: 35 }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.65, compositeConfidence: 0.65, qualityOverall: 0.75, rsi: 50 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T12:05:00.000Z"),
+    maxAgeSec: 15 * 60,
+  });
+
+  assert.equal(out.rankings[0].positionSizingModel, "deterministic_score_weighted_v1");
+  assert.equal(out.rankings[0].deploymentPriority, "high");
+  assert.ok(out.rankings[0].targetPositionPct > 0);
+  assert.ok(out.rankings[0].maxPositionPct >= out.rankings[0].targetPositionPct);
+  assert.ok(out.rankings[0].volatilityAdjustedSize > 0);
+  assert.equal(out.rankings[0].correlationPenalty, 0);
+  assert.ok(out.rankings[0].portfolioCapacityImpact > 0);
+  assert.equal(out.rankings[0].riskAdjustedExposure, out.rankings[0].volatilityAdjustedSize);
+});
+
+
 test("readScannerRankings exposes capital allocation intelligence", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-capital-allocation-"));
 

@@ -48,6 +48,57 @@ function tier(value) {
   return "low";
 }
 
+
+function computePositionSizing(candidate, setupScore) {
+  const scoreWeight = clamp01(setupScore / 100);
+  const qualityWeight = clamp01(candidate.qualityOverall);
+  const confidenceWeight = clamp01(candidate.compositeConfidence);
+
+  const baseExposure = clamp01(
+    (scoreWeight * 0.45) +
+    (qualityWeight * 0.25) +
+    (confidenceWeight * 0.3)
+  );
+
+  let deploymentPriority = "low";
+
+  if (baseExposure >= 0.8 && candidate.p3GateOk) {
+    deploymentPriority = "high";
+  } else if (baseExposure >= 0.5 && candidate.p3GateOk) {
+    deploymentPriority = "medium";
+  }
+
+  const volatilityAdjustedSize = roundN(
+    clamp01(
+      Number.isFinite(candidate.rsi) && candidate.rsi >= 70
+        ? baseExposure * 0.75
+        : baseExposure
+    ),
+    4
+  );
+
+  const correlationPenalty = 0;
+  const portfolioCapacityImpact = roundN(volatilityAdjustedSize * 0.5, 4);
+
+  const maxPositionPct = candidate.p3GateOk
+    ? roundN(Math.min(0.1, volatilityAdjustedSize * 0.1), 4)
+    : 0;
+
+  const targetPositionPct = roundN(maxPositionPct * 0.65, 4);
+
+  return {
+    positionSizingModel: "deterministic_score_weighted_v1",
+    targetPositionPct,
+    maxPositionPct,
+    volatilityAdjustedSize,
+    correlationPenalty,
+    portfolioCapacityImpact,
+    deploymentPriority,
+    riskAdjustedExposure: volatilityAdjustedSize,
+  };
+}
+
+
 function buildRankReason(candidate, setupScore) {
   const parts = [];
 
@@ -105,6 +156,8 @@ export function rankScannerCandidates(candidates = []) {
     .map((candidate) => {
       const setupScore = scoreCandidate(candidate);
 
+      const positionSizing = computePositionSizing(candidate, setupScore);
+
       return {
         symbol: candidate.symbol,
         rank: null,
@@ -116,6 +169,14 @@ export function rankScannerCandidates(candidates = []) {
         p3GateOk: candidate.p3GateOk,
         qualityTier: tier(candidate.qualityOverall),
         confidenceTier: tier(candidate.compositeConfidence),
+        positionSizingModel: positionSizing.positionSizingModel,
+        targetPositionPct: positionSizing.targetPositionPct,
+        maxPositionPct: positionSizing.maxPositionPct,
+        volatilityAdjustedSize: positionSizing.volatilityAdjustedSize,
+        correlationPenalty: positionSizing.correlationPenalty,
+        portfolioCapacityImpact: positionSizing.portfolioCapacityImpact,
+        deploymentPriority: positionSizing.deploymentPriority,
+        riskAdjustedExposure: positionSizing.riskAdjustedExposure,
         rankReason: buildRankReason(candidate, setupScore),
         reason: buildReason(candidate, setupScore),
       };
