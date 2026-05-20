@@ -721,6 +721,109 @@ function computePredictiveIntelligence(latestFile, opts = {}) {
 }
 
 
+function computeRecoveryIntelligence(inputs = {}) {
+  const {
+    predictive,
+    persistence,
+    adaptive,
+    consensus,
+    execution,
+    orchestration,
+  } = inputs;
+
+  const recoveryReadiness = roundN(
+    clamp01(
+      avg([
+        1 - (predictive?.momentumDecayRisk || 0),
+        persistence?.trendPersistence || 0,
+        1 - (adaptive?.instabilityScore || 0),
+        consensus?.signalDensity || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const drawdownRecoveryProbability = roundN(
+    clamp01(
+      avg([
+        recoveryReadiness,
+        1 - (predictive?.signalExhaustionRisk || 0),
+        1 - (persistence?.regimeFlipRisk || 0),
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const confidenceRebuildStrength = roundN(
+    clamp01(
+      avg([
+        adaptive?.consensusStrength || 0,
+        persistence?.consensusStability || 0,
+        1 - (predictive?.momentumDecayRisk || 0),
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const regimeRecoveryAlignment = roundN(
+    clamp01(
+      avg([
+        persistence?.regimePersistenceScore || 0,
+        orchestration?.portfolioAggression || 0,
+        execution?.deploymentPressure || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let recoveryState = "stabilizing";
+
+  if (
+    recoveryReadiness >= 0.75 &&
+    confidenceRebuildStrength >= 0.75 &&
+    drawdownRecoveryProbability >= 0.75
+  ) {
+    recoveryState = "recovered";
+  } else if (
+    recoveryReadiness < 0.4 ||
+    drawdownRecoveryProbability < 0.4
+  ) {
+    recoveryState = "impaired";
+  } else if (
+    confidenceRebuildStrength >= 0.6
+  ) {
+    recoveryState = "recovering";
+  }
+
+  const recoveryIssues = [];
+
+  if (drawdownRecoveryProbability < 0.4) {
+    recoveryIssues.push("SCANNER_RECOVERY_PROBABILITY_WEAK");
+  }
+
+  if (confidenceRebuildStrength < 0.5) {
+    recoveryIssues.push("SCANNER_CONFIDENCE_REBUILD_WEAK");
+  }
+
+  if (regimeRecoveryAlignment < 0.5) {
+    recoveryIssues.push("SCANNER_RECOVERY_ALIGNMENT_WEAK");
+  }
+
+  if (recoveryState === "impaired") {
+    recoveryIssues.push("SCANNER_RECOVERY_IMPAIRED");
+  }
+
+  return {
+    recoveryReadiness,
+    drawdownRecoveryProbability,
+    confidenceRebuildStrength,
+    regimeRecoveryAlignment,
+    recoveryState,
+    recoveryIssues,
+  };
+}
+
+
 function computeDecisionReadiness(inputs = {}) {
   const {
     freshness,
@@ -1713,6 +1816,15 @@ export function readScannerRankings(opts = {}) {
     rows: latestRows,
   });
 
+  const recovery = computeRecoveryIntelligence({
+    predictive,
+    persistence,
+    adaptive,
+    consensus,
+    execution,
+    orchestration,
+  });
+
   const governance = computePortfolioGovernance({
     orchestration,
     execution,
@@ -1793,6 +1905,14 @@ export function readScannerRankings(opts = {}) {
     signalExhaustionRisk: predictive.signalExhaustionRisk,
     predictiveRiskBias: predictive.predictiveRiskBias,
     predictiveIssues: predictive.predictiveIssues,
+
+    recoveryReadiness: recovery.recoveryReadiness,
+    drawdownRecoveryProbability: recovery.drawdownRecoveryProbability,
+    confidenceRebuildStrength: recovery.confidenceRebuildStrength,
+    regimeRecoveryAlignment: recovery.regimeRecoveryAlignment,
+    recoveryState: recovery.recoveryState,
+    recoveryIssues: recovery.recoveryIssues,
+
     scannerReadiness: readiness.scannerReadiness,
     scannerActionBias: readiness.scannerActionBias,
     scannerBlockReason: readiness.scannerBlockReason,
@@ -1856,6 +1976,7 @@ export function readScannerRankings(opts = {}) {
       ? combinedIssues
       : [
           ...combinedIssues,
+          ...recovery.recoveryIssues,
           ...execution.executionIssues,
           ...orchestration.orchestrationIssues,
           ...governance.governanceIssues,

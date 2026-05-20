@@ -1197,3 +1197,135 @@ test("readScannerRankings exposes capital preservation intelligence", () => {
   assert.ok(out.rankings[0].capitalRetentionScore >= 0);
   assert.ok(out.rankings[0].capitalRetentionScore <= 1);
 });
+
+
+test("readScannerRankings exposes recovering capital recovery intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-recovery-recovering-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.85,
+        compositeConfidence: 0.85,
+        qualityOverall: 0.9,
+        setupScore: 0.9,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "MSFT",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.8,
+        compositeConfidence: 0.8,
+        qualityOverall: 0.85,
+        setupScore: 0.85,
+      }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:01:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.95,
+        setupScore: 0.95,
+      }),
+      JSON.stringify({
+        ts: "2026-01-01T00:01:00.000Z",
+        symbol: "MSFT",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "buy",
+        regime: "bullish",
+        confidence: 0.88,
+        compositeConfidence: 0.88,
+        qualityOverall: 0.9,
+        setupScore: 0.9,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.equal(out.recoveryState, "recovered");
+  assert.ok(out.recoveryReadiness >= 0.75);
+  assert.ok(out.drawdownRecoveryProbability >= 0.75);
+  assert.deepEqual(out.recoveryIssues, []);
+});
+
+test("readScannerRankings exposes impaired capital recovery intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-recovery-impaired-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:00:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "sell",
+        regime: "bearish",
+        confidence: 0.9,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+        setupScore: 0.9,
+      }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({
+        ts: "2026-01-01T00:01:00.000Z",
+        symbol: "AAPL",
+        ok: true,
+        httpStatus: 200,
+        p3GateOk: true,
+        action: "hold",
+        regime: "neutral",
+        confidence: 0.2,
+        compositeConfidence: 0.2,
+        qualityOverall: 0.3,
+        setupScore: 0.2,
+      }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.recoveryState, "stabilizing");
+  assert.ok(out.drawdownRecoveryProbability < 0.5);
+  assert.ok(Array.isArray(out.recoveryIssues));
+});
