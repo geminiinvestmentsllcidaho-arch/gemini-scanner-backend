@@ -1736,6 +1736,111 @@ function computeCapitalPreservationIntelligence(inputs = {}) {
   };
 }
 
+function computeCapitalResilienceIntelligence(inputs = {}) {
+  const {
+    recovery,
+    capitalPreservation,
+    exposureBalancing,
+    exposureRotation,
+    predictive,
+    persistence,
+    adaptive,
+  } = inputs;
+
+  const resilienceScore = roundN(
+    clamp01(
+      avg([
+        recovery?.recoveryReadiness || 0,
+        recovery?.confidenceRebuildStrength || 0,
+        1 - (capitalPreservation?.preservationPressure || 0),
+        1 - (predictive?.signalExhaustionRisk || 0),
+        persistence?.trendPersistence || 0,
+        1 - (adaptive?.instabilityScore || 0),
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const systemicStressAbsorption = roundN(
+    clamp01(
+      avg([
+        1 - (exposureBalancing?.portfolioSaturationScore || 0),
+        1 - (exposureBalancing?.correlationClusterRisk || 0),
+        1 - (exposureRotation?.exposureMigrationRisk || 0),
+        1 - (capitalPreservation?.drawdownSensitivity || 0),
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const resilienceRecoveryCapacity = roundN(
+    clamp01(
+      avg([
+        resilienceScore,
+        systemicStressAbsorption,
+        recovery?.drawdownRecoveryProbability || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let resilienceState = "stable";
+
+  if (
+    resilienceRecoveryCapacity >= 0.8 &&
+    resilienceScore >= 0.75
+  ) {
+    resilienceState = "reinforced";
+  } else if (
+    resilienceRecoveryCapacity < 0.55 ||
+    resilienceScore < 0.55
+  ) {
+    resilienceState = "fragile";
+  } else if (
+    resilienceRecoveryCapacity >= 0.6
+  ) {
+    resilienceState = "adaptive";
+  }
+
+  let resilienceMomentum = "stable";
+
+  if (resilienceState === "reinforced") {
+    resilienceMomentum = "strengthening";
+  } else if (resilienceState === "fragile") {
+    resilienceMomentum = "deteriorating";
+  }
+
+  const resilienceIssues = [];
+
+  if (resilienceScore < 0.5) {
+    resilienceIssues.push("SCANNER_RESILIENCE_WEAK");
+  }
+
+  if (
+    resilienceScore < 0.5 &&
+    systemicStressAbsorption < 0.5
+  ) {
+    resilienceIssues.push("SCANNER_STRESS_ABSORPTION_WEAK");
+  }
+
+  if (
+    resilienceScore < 0.5 &&
+    resilienceRecoveryCapacity < 0.5
+  ) {
+    resilienceIssues.push("SCANNER_RECOVERY_CAPACITY_WEAK");
+  }
+
+  return {
+    resilienceScore,
+    resilienceState,
+    resilienceMomentum,
+    systemicStressAbsorption,
+    resilienceRecoveryCapacity,
+    resilienceIssues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1873,6 +1978,16 @@ export function readScannerRankings(opts = {}) {
     adaptive,
   });
 
+  const capitalResilience = computeCapitalResilienceIntelligence({
+    recovery,
+    capitalPreservation,
+    exposureBalancing,
+    exposureRotation,
+    predictive,
+    persistence,
+    adaptive,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1972,11 +2087,19 @@ export function readScannerRankings(opts = {}) {
     liquidityProtectionState: capitalPreservation.liquidityProtectionState,
     riskCompressionState: capitalPreservation.riskCompressionState,
 
+    resilienceScore: capitalResilience.resilienceScore,
+    resilienceState: capitalResilience.resilienceState,
+    resilienceMomentum: capitalResilience.resilienceMomentum,
+    systemicStressAbsorption: capitalResilience.systemicStressAbsorption,
+    resilienceRecoveryCapacity: capitalResilience.resilienceRecoveryCapacity,
+    resilienceIssues: capitalResilience.resilienceIssues,
+
     issues: freshness.stale
       ? combinedIssues
       : [
           ...combinedIssues,
           ...recovery.recoveryIssues,
+          ...capitalResilience.resilienceIssues,
           ...execution.executionIssues,
           ...orchestration.orchestrationIssues,
           ...governance.governanceIssues,
