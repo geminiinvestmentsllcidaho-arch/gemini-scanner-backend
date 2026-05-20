@@ -99,6 +99,88 @@ function computePositionSizing(candidate, setupScore) {
 }
 
 
+function computeExposureBalancing(candidate, setupScore, normalizedScore, positionSizing = {}) {
+  const rsi = candidate.rsi;
+  const scoreWeight = clamp01(setupScore / 100);
+  const normalizedWeight = clamp01(normalizedScore);
+  const riskAdjustedExposure = clamp01(positionSizing.riskAdjustedExposure || 0);
+
+  let sectorExposureBias = "balanced";
+  if (candidate.compositeConfidence >= 0.75 && Number.isFinite(rsi) && rsi <= 40) {
+    sectorExposureBias = "growth_accumulation";
+  } else if (candidate.compositeConfidence >= 0.75 && Number.isFinite(rsi) && rsi >= 70) {
+    sectorExposureBias = "momentum_extended";
+  } else if (candidate.qualityOverall < 0.5 || !candidate.p3GateOk) {
+    sectorExposureBias = "defensive_quality";
+  }
+
+  let directionalExposureBalance = "neutral_bias";
+  if (candidate.p3GateOk && candidate.compositeConfidence >= 0.65 && scoreWeight >= 0.5) {
+    directionalExposureBalance = "long_bias";
+  } else if (!candidate.p3GateOk || candidate.qualityOverall < 0.4) {
+    directionalExposureBalance = "risk_off_bias";
+  }
+
+  let volatilityBucketExposure = "normal";
+  if (Number.isFinite(rsi) && rsi >= 70) {
+    volatilityBucketExposure = "expanded";
+  } else if (Number.isFinite(rsi) && rsi <= 40) {
+    volatilityBucketExposure = "compressed";
+  }
+
+  const priorityPressure =
+    positionSizing.deploymentPriority === "high"
+      ? 1
+      : positionSizing.deploymentPriority === "medium"
+        ? 0.5
+        : 0.15;
+
+  const correlationClusterRisk = roundN(
+    clamp01((normalizedWeight * 0.6) + (priorityPressure * 0.4)),
+    4
+  );
+
+  const balancingPenalty = roundN(
+    clamp01(
+      correlationClusterRisk >= 0.75
+        ? correlationClusterRisk * 0.25
+        : correlationClusterRisk * 0.1
+    ),
+    4
+  );
+
+  const concentrationAdjustment = roundN(
+    clamp01(1 - balancingPenalty),
+    4
+  );
+
+  const exposureWeight = roundN(
+    clamp01(riskAdjustedExposure * normalizedWeight * concentrationAdjustment),
+    4
+  );
+
+  let exposurePriority = "low";
+  if (candidate.p3GateOk && exposureWeight >= 0.65 && balancingPenalty < 0.2) {
+    exposurePriority = "critical";
+  } else if (candidate.p3GateOk && exposureWeight >= 0.4) {
+    exposurePriority = "elevated";
+  } else if (candidate.p3GateOk && exposureWeight >= 0.2) {
+    exposurePriority = "standard";
+  }
+
+  return {
+    sectorExposureBias,
+    directionalExposureBalance,
+    volatilityBucketExposure,
+    correlationClusterRisk,
+    exposureWeight,
+    balancingPenalty,
+    exposurePriority,
+    concentrationAdjustment,
+  };
+}
+
+
 function buildRankReason(candidate, setupScore) {
   const parts = [];
 
@@ -191,12 +273,30 @@ export function rankScannerCandidates(candidates = []) {
     0
   );
 
-  return ranked.map((candidate, index) => ({
-    ...candidate,
-    rank: index + 1,
-    normalizedScore: maxScore > 0 ? roundN(candidate.setupScore / maxScore, 4) : 0,
-    scorePercentile: ranked.length > 0
-      ? roundN(((ranked.length - index) / ranked.length) * 100, 2)
-      : 0,
-  }));
+  return ranked.map((candidate, index) => {
+    const normalizedScore = maxScore > 0 ? roundN(candidate.setupScore / maxScore, 4) : 0;
+    const exposureBalancing = computeExposureBalancing(
+      candidate,
+      candidate.setupScore,
+      normalizedScore,
+      candidate
+    );
+
+    return {
+      ...candidate,
+      rank: index + 1,
+      normalizedScore,
+      scorePercentile: ranked.length > 0
+        ? roundN(((ranked.length - index) / ranked.length) * 100, 2)
+        : 0,
+      sectorExposureBias: exposureBalancing.sectorExposureBias,
+      directionalExposureBalance: exposureBalancing.directionalExposureBalance,
+      volatilityBucketExposure: exposureBalancing.volatilityBucketExposure,
+      correlationClusterRisk: exposureBalancing.correlationClusterRisk,
+      exposureWeight: exposureBalancing.exposureWeight,
+      balancingPenalty: exposureBalancing.balancingPenalty,
+      exposurePriority: exposureBalancing.exposurePriority,
+      concentrationAdjustment: exposureBalancing.concentrationAdjustment,
+    };
+  });
 }

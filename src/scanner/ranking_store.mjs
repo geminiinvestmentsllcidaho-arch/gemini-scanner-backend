@@ -1245,6 +1245,140 @@ function computeCapitalAllocationIntelligence(inputs = {}) {
   };
 }
 
+
+function computeExposureBalancingIntelligence(inputs = {}) {
+  const {
+    governance,
+    orchestration,
+    execution,
+    capitalAllocation,
+    rankings = [],
+  } = inputs;
+
+  const topRankings = rankings.slice(0, 5);
+
+  const avgExposureWeight = roundN(
+    clamp01(
+      avg(
+        topRankings.map((ranking) =>
+          Number(ranking?.exposureWeight || 0)
+        )
+      )
+    ),
+    4
+  ) ?? 0;
+
+  const avgClusterRisk = roundN(
+    clamp01(
+      avg(
+        topRankings.map((ranking) =>
+          Number(ranking?.correlationClusterRisk || 0)
+        )
+      )
+    ),
+    4
+  ) ?? 0;
+
+  const expandedBuckets = topRankings.filter(
+    (ranking) =>
+      String(ranking?.volatilityBucketExposure || "") === "expanded"
+  ).length;
+
+  const volatilityBucketExposure =
+    expandedBuckets >= Math.max(2, Math.ceil(topRankings.length * 0.5))
+      ? "expanded"
+      : expandedBuckets > 0
+        ? "mixed"
+        : "compressed";
+
+  const directionalLongBias = topRankings.filter(
+    (ranking) =>
+      String(ranking?.directionalExposureBalance || "") === "long_bias"
+  ).length;
+
+  const directionalExposureBalance =
+    directionalLongBias >= Math.max(2, Math.ceil(topRankings.length * 0.6))
+      ? "long_dominant"
+      : directionalLongBias > 0
+        ? "balanced"
+        : "neutral";
+
+  const portfolioSaturationScore = roundN(
+    clamp01(
+      avg([
+        avgExposureWeight,
+        avgClusterRisk,
+        orchestration?.signalConcentrationRisk || 0,
+        execution?.deploymentPressure || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let exposureDecayRate = "stable";
+
+  if (
+    orchestration?.capitalPreservationBias === "high" ||
+    governance?.governanceState === "locked"
+  ) {
+    exposureDecayRate = "accelerated";
+  } else if (
+    portfolioSaturationScore >= 0.75
+  ) {
+    exposureDecayRate = "elevated";
+  }
+
+  let deploymentSequencing = "balanced";
+
+  if (
+    capitalAllocation?.allocationTier === "aggressive" &&
+    portfolioSaturationScore < 0.75
+  ) {
+    deploymentSequencing = "progressive";
+  } else if (
+    portfolioSaturationScore >= 0.85 ||
+    governance?.allocationDiscipline === "strict"
+  ) {
+    deploymentSequencing = "staggered";
+  }
+
+  let exposureRebalancingState = "stable";
+
+  if (
+    governance?.governanceState === "locked"
+  ) {
+    exposureRebalancingState = "restricted";
+  } else if (
+    portfolioSaturationScore >= 0.8 ||
+    avgClusterRisk >= 0.75
+  ) {
+    exposureRebalancingState = "required";
+  } else if (
+    orchestration?.orchestrationState === "expansion"
+  ) {
+    exposureRebalancingState = "adaptive";
+  }
+
+  return {
+    sectorExposureBias:
+      topRankings[0]?.sectorExposureBias || "balanced",
+
+    directionalExposureBalance,
+
+    volatilityBucketExposure,
+
+    correlationClusterRisk: avgClusterRisk,
+
+    portfolioSaturationScore,
+
+    exposureDecayRate,
+
+    deploymentSequencing,
+
+    exposureRebalancingState,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1342,6 +1476,14 @@ export function readScannerRankings(opts = {}) {
     rankings: rankedCandidates,
   });
 
+  const exposureBalancing = computeExposureBalancingIntelligence({
+    governance,
+    orchestration,
+    execution,
+    capitalAllocation,
+    rankings: rankedCandidates,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1408,6 +1550,15 @@ export function readScannerRankings(opts = {}) {
     deploymentWeight: capitalAllocation.deploymentWeight,
     capitalEfficiency: capitalAllocation.capitalEfficiency,
     exposureClass: capitalAllocation.exposureClass,
+
+    sectorExposureBias: exposureBalancing.sectorExposureBias,
+    directionalExposureBalance: exposureBalancing.directionalExposureBalance,
+    volatilityBucketExposure: exposureBalancing.volatilityBucketExposure,
+    correlationClusterRisk: exposureBalancing.correlationClusterRisk,
+    portfolioSaturationScore: exposureBalancing.portfolioSaturationScore,
+    exposureDecayRate: exposureBalancing.exposureDecayRate,
+    deploymentSequencing: exposureBalancing.deploymentSequencing,
+    exposureRebalancingState: exposureBalancing.exposureRebalancingState,
 
     issues: freshness.stale
       ? combinedIssues

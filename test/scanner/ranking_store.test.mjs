@@ -1054,3 +1054,37 @@ test("readScannerRankings exposes locked governance state", () => {
   );
 });
 
+
+test("readScannerRankings exposes exposure balancing intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-exposure-balancing-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T12-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "AAPL", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.95, compositeConfidence: 0.95, qualityOverall: 0.95, rsi: 35, regime: "bullish" }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "MSFT", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, rsi: 50, regime: "bullish" }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "NVDA", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, rsi: 72, regime: "bullish" }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T12:05:00.000Z"),
+    maxAgeSec: 15 * 60,
+    configuredSymbols: ["AAPL", "MSFT", "NVDA"],
+  });
+
+  assert.ok(["growth_accumulation", "momentum_extended", "balanced"].includes(out.sectorExposureBias));
+  assert.ok(["long_dominant", "balanced", "neutral"].includes(out.directionalExposureBalance));
+  assert.ok(["compressed", "mixed", "expanded"].includes(out.volatilityBucketExposure));
+  assert.ok(out.correlationClusterRisk >= 0);
+  assert.ok(out.portfolioSaturationScore >= 0);
+  assert.ok(["stable", "elevated", "accelerated"].includes(out.exposureDecayRate));
+  assert.ok(["balanced", "progressive", "staggered"].includes(out.deploymentSequencing));
+  assert.ok(["stable", "adaptive", "required", "restricted"].includes(out.exposureRebalancingState));
+
+  assert.ok(out.rankings[0].exposureWeight >= 0);
+  assert.ok(out.rankings[0].balancingPenalty >= 0);
+  assert.ok(["critical", "elevated", "standard", "low"].includes(out.rankings[0].exposurePriority));
+  assert.ok(out.rankings[0].concentrationAdjustment <= 1);
+});
