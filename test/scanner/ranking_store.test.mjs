@@ -944,6 +944,33 @@ test("readScannerRankings exposes permissive governance state", () => {
   );
 });
 
+test("readScannerRankings exposes capital allocation intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-capital-allocation-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T12-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "AAPL", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.95, compositeConfidence: 0.95, qualityOverall: 0.95, rsi: 50, context_v3: { regime: "bullish", volatility: "normal", quality: { overall: 0.95 } } }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "MSFT", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, rsi: 50, context_v3: { regime: "bullish", volatility: "normal", quality: { overall: 0.9 } } }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "NVDA", action: "hold", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.85, compositeConfidence: 0.85, qualityOverall: 0.85, rsi: 50, context_v3: { regime: "bullish", volatility: "normal", quality: { overall: 0.85 } } }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T12:05:00.000Z"),
+    maxAgeSec: 15 * 60,
+  });
+
+  assert.equal(out.capitalProfile, "expansion");
+  assert.equal(out.allocationTier, "aggressive");
+  assert.equal(out.suggestedRiskPct, 0.02);
+  assert.equal(out.exposureClass, "offensive");
+  assert.ok(out.deploymentWeight > 0);
+  assert.ok(out.capitalEfficiency >= 0.7);
+});
+
+
 test("readScannerRankings exposes locked governance state", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-governance-locked-"));
 
