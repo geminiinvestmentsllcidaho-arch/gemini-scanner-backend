@@ -240,6 +240,49 @@ export function rankScannerCandidates(candidates = []) {
 
       const positionSizing = computePositionSizing(candidate, setupScore);
 
+      const exposureBalancing = computeExposureBalancing(
+        candidate,
+        setupScore,
+        clamp01(setupScore / 100),
+        positionSizing
+      );
+
+      const defensivePenalty = roundN(
+        clamp01(
+          (
+            exposureBalancing.correlationClusterRisk * 0.4
+          ) +
+          (
+            exposureBalancing.balancingPenalty * 0.6
+          )
+        ),
+        4
+      );
+
+      const preservationWeight = roundN(
+        clamp01(1 - defensivePenalty),
+        4
+      );
+
+      const liquidityBias =
+        defensivePenalty >= 0.7
+          ? "high"
+          : defensivePenalty >= 0.4
+            ? "moderate"
+            : "low";
+
+      const capitalRetentionScore = roundN(
+        clamp01(
+          (
+            positionSizing.riskAdjustedExposure * 0.5
+          ) +
+          (
+            preservationWeight * 0.5
+          )
+        ),
+        4
+      );
+
       return {
         symbol: candidate.symbol,
         rank: null,
@@ -259,6 +302,10 @@ export function rankScannerCandidates(candidates = []) {
         portfolioCapacityImpact: positionSizing.portfolioCapacityImpact,
         deploymentPriority: positionSizing.deploymentPriority,
         riskAdjustedExposure: positionSizing.riskAdjustedExposure,
+        defensivePenalty,
+        preservationWeight,
+        liquidityBias,
+        capitalRetentionScore,
         rankReason: buildRankReason(candidate, setupScore),
         reason: buildReason(candidate, setupScore),
       };

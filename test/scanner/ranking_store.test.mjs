@@ -1117,3 +1117,83 @@ test("readScannerRankings exposes exposure rotation intelligence", () => {
   assert.ok(out.exposureMigrationRisk >= 0);
   assert.ok(out.exposureMigrationRisk <= 1);
 });
+
+test("readScannerRankings exposes capital preservation intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-capital-preservation-"));
+
+  const files = [
+    { t: "00", regime: "bullish", action: "buy", conf: 0.92, q: 0.9 },
+    { t: "01", regime: "mixed", action: "hold", conf: 0.5, q: 0.5 },
+    { t: "02", regime: "bearish", action: "sell", conf: 0.28, q: 0.3 },
+    { t: "03", regime: "bearish", action: "sell", conf: 0.18, q: 0.22 },
+  ];
+
+  for (const file of files) {
+    fs.writeFileSync(
+      path.join(dir, `dry-scanner-2026-01-01T00-${file.t}-00-000Z.jsonl`),
+      [
+        JSON.stringify({
+          ts: `2026-01-01T00:${file.t}:00.000Z`,
+          symbol: "AAPL",
+          ok: true,
+          httpStatus: 200,
+          action: file.action,
+          regime: file.regime,
+          confidence: file.conf,
+          compositeConfidence: file.conf,
+          qualityOverall: file.q,
+        }),
+      ].join("\n")
+    );
+  }
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:05:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.ok(out.preservationPressure >= 0);
+  assert.ok(out.preservationPressure <= 1);
+
+  assert.ok(
+    ["normal", "guarded", "defensive", "locked"].includes(
+      out.capitalPreservationState
+    )
+  );
+
+  assert.ok(
+    ["neutral", "moderate", "high", "maximum"].includes(
+      out.defensiveCapitalBias
+    )
+  );
+
+  assert.ok(out.drawdownSensitivity >= 0);
+  assert.ok(out.drawdownSensitivity <= 1);
+
+  assert.ok(
+    ["standard", "elevated", "high", "critical"].includes(
+      out.preservationPriority
+    )
+  );
+
+  assert.ok(
+    ["open", "guarded", "restricted", "protected"].includes(
+      out.liquidityProtectionState
+    )
+  );
+
+  assert.ok(
+    ["relaxed", "moderate", "elevated", "maximum"].includes(
+      out.riskCompressionState
+    )
+  );
+
+  assert.ok(out.rankings[0].defensivePenalty >= 0);
+  assert.ok(out.rankings[0].defensivePenalty <= 1);
+  assert.ok(out.rankings[0].preservationWeight >= 0);
+  assert.ok(out.rankings[0].preservationWeight <= 1);
+  assert.ok(["low", "moderate", "high"].includes(out.rankings[0].liquidityBias));
+  assert.ok(out.rankings[0].capitalRetentionScore >= 0);
+  assert.ok(out.rankings[0].capitalRetentionScore <= 1);
+});

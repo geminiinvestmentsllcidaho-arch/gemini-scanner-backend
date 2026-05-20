@@ -1486,6 +1486,153 @@ function computeExposureRotationIntelligence(inputs = {}) {
   };
 }
 
+function computeCapitalPreservationIntelligence(inputs = {}) {
+  const {
+    governance,
+    orchestration,
+    execution,
+    capitalAllocation,
+    exposureBalancing,
+    exposureRotation,
+    predictive,
+    persistence,
+    adaptive,
+  } = inputs;
+
+  const preservationPressure = roundN(
+    clamp01(
+      avg([
+        governance?.governanceState === "locked" ? 1 : 0,
+        governance?.portfolioPermission === "blocked" ? 1 : 0,
+        orchestration?.capitalPreservationBias === "high" ? 1 : 0,
+        execution?.executionCoordinationState === "halted" ? 1 : 0,
+        predictive?.signalExhaustionRisk || 0,
+        predictive?.regimeTransitionProbability || 0,
+        persistence?.regimeFlipRisk || 0,
+        persistence?.volatilityExpansionRisk || 0,
+        adaptive?.instabilityScore || 0,
+        exposureBalancing?.portfolioSaturationScore || 0,
+        exposureBalancing?.correlationClusterRisk || 0,
+        exposureRotation?.rotationPressure || 0,
+        exposureRotation?.exposureMigrationRisk || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let capitalPreservationState = "normal";
+
+  if (
+    governance?.governanceState === "locked" ||
+    execution?.executionCoordinationState === "halted" ||
+    preservationPressure >= 0.85
+  ) {
+    capitalPreservationState = "locked";
+  } else if (
+    preservationPressure >= 0.7 ||
+    exposureRotation?.capitalRotationState === "frozen"
+  ) {
+    capitalPreservationState = "defensive";
+  } else if (
+    preservationPressure >= 0.5 ||
+    exposureBalancing?.exposureRebalancingState === "required"
+  ) {
+    capitalPreservationState = "guarded";
+  }
+
+  let defensiveCapitalBias = "neutral";
+
+  if (capitalPreservationState === "locked") {
+    defensiveCapitalBias = "maximum";
+  } else if (capitalPreservationState === "defensive") {
+    defensiveCapitalBias = "high";
+  } else if (capitalPreservationState === "guarded") {
+    defensiveCapitalBias = "moderate";
+  } else if (capitalAllocation?.allocationTier === "aggressive") {
+    defensiveCapitalBias = "low";
+  }
+
+  const drawdownSensitivity = roundN(
+    clamp01(
+      avg([
+        preservationPressure,
+        predictive?.signalExhaustionRisk || 0,
+        persistence?.volatilityExpansionRisk || 0,
+        exposureRotation?.exposureMigrationRisk || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let preservationPriority = "standard";
+
+  if (
+    capitalPreservationState === "locked" ||
+    drawdownSensitivity >= 0.85
+  ) {
+    preservationPriority = "critical";
+  } else if (
+    capitalPreservationState === "defensive" ||
+    drawdownSensitivity >= 0.7
+  ) {
+    preservationPriority = "high";
+  } else if (
+    capitalPreservationState === "guarded" ||
+    drawdownSensitivity >= 0.5
+  ) {
+    preservationPriority = "elevated";
+  }
+
+  let liquidityProtectionState = "open";
+
+  if (
+    capitalPreservationState === "locked" ||
+    governance?.portfolioPermission === "blocked"
+  ) {
+    liquidityProtectionState = "protected";
+  } else if (
+    defensiveCapitalBias === "high" ||
+    defensiveCapitalBias === "maximum" ||
+    exposureBalancing?.exposureDecayRate === "accelerated"
+  ) {
+    liquidityProtectionState = "restricted";
+  } else if (
+    defensiveCapitalBias === "moderate" ||
+    exposureRotation?.deploymentRotationPriority === "reduce"
+  ) {
+    liquidityProtectionState = "guarded";
+  }
+
+  let riskCompressionState = "relaxed";
+
+  if (
+    capitalPreservationState === "locked" ||
+    preservationPressure >= 0.85
+  ) {
+    riskCompressionState = "maximum";
+  } else if (
+    capitalPreservationState === "defensive" ||
+    preservationPressure >= 0.7
+  ) {
+    riskCompressionState = "elevated";
+  } else if (
+    capitalPreservationState === "guarded" ||
+    preservationPressure >= 0.5
+  ) {
+    riskCompressionState = "moderate";
+  }
+
+  return {
+    preservationPressure,
+    capitalPreservationState,
+    defensiveCapitalBias,
+    drawdownSensitivity,
+    preservationPriority,
+    liquidityProtectionState,
+    riskCompressionState,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1602,6 +1749,18 @@ export function readScannerRankings(opts = {}) {
     rankings: rankedCandidates,
   });
 
+  const capitalPreservation = computeCapitalPreservationIntelligence({
+    governance,
+    orchestration,
+    execution,
+    capitalAllocation,
+    exposureBalancing,
+    exposureRotation,
+    predictive,
+    persistence,
+    adaptive,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1684,6 +1843,14 @@ export function readScannerRankings(opts = {}) {
     rotationVelocity: exposureRotation.rotationVelocity,
     deploymentRotationPriority: exposureRotation.deploymentRotationPriority,
     exposureMigrationRisk: exposureRotation.exposureMigrationRisk,
+
+    preservationPressure: capitalPreservation.preservationPressure,
+    capitalPreservationState: capitalPreservation.capitalPreservationState,
+    defensiveCapitalBias: capitalPreservation.defensiveCapitalBias,
+    drawdownSensitivity: capitalPreservation.drawdownSensitivity,
+    preservationPriority: capitalPreservation.preservationPriority,
+    liquidityProtectionState: capitalPreservation.liquidityProtectionState,
+    riskCompressionState: capitalPreservation.riskCompressionState,
 
     issues: freshness.stale
       ? combinedIssues
