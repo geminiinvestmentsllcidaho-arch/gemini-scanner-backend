@@ -1088,3 +1088,32 @@ test("readScannerRankings exposes exposure balancing intelligence", () => {
   assert.ok(["critical", "elevated", "standard", "low"].includes(out.rankings[0].exposurePriority));
   assert.ok(out.rankings[0].concentrationAdjustment <= 1);
 });
+
+test("readScannerRankings exposes exposure rotation intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-exposure-rotation-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T12-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "AAPL", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.95, compositeConfidence: 0.95, qualityOverall: 0.95, rsi: 35, regime: "bullish" }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "MSFT", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, rsi: 50, regime: "bullish" }),
+      JSON.stringify({ ts: "2026-01-01T12:00:00.000Z", symbol: "NVDA", action: "buy", ok: true, httpStatus: 200, p3GateOk: true, confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, rsi: 72, regime: "bullish" }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T12:05:00.000Z"),
+    maxAgeSec: 15 * 60,
+    configuredSymbols: ["AAPL", "MSFT", "NVDA"],
+  });
+
+  assert.ok(out.rotationPressure >= 0);
+  assert.ok(out.rotationPressure <= 1);
+  assert.ok(["stable", "watching", "rotating", "frozen"].includes(out.capitalRotationState));
+  assert.ok(["growth_accumulation", "momentum_extended", "balanced"].includes(out.sectorRotationBias));
+  assert.ok(["contained", "moderate", "fast", "paused"].includes(out.rotationVelocity));
+  assert.ok(["balanced", "advance", "reduce", "defer"].includes(out.deploymentRotationPriority));
+  assert.ok(out.exposureMigrationRisk >= 0);
+  assert.ok(out.exposureMigrationRisk <= 1);
+});

@@ -1379,6 +1379,113 @@ function computeExposureBalancingIntelligence(inputs = {}) {
   };
 }
 
+function computeExposureRotationIntelligence(inputs = {}) {
+  const {
+    governance,
+    orchestration,
+    execution,
+    capitalAllocation,
+    exposureBalancing,
+    predictive,
+    persistence,
+    rankings = [],
+  } = inputs;
+
+  const topRankings = rankings.slice(0, 5);
+
+  const rotationPressure = roundN(
+    clamp01(
+      avg([
+        exposureBalancing?.portfolioSaturationScore || 0,
+        exposureBalancing?.correlationClusterRisk || 0,
+        predictive?.regimeTransitionProbability || 0,
+        predictive?.signalExhaustionRisk || 0,
+        persistence?.regimeFlipRisk || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let capitalRotationState = "stable";
+
+  if (
+    governance?.governanceState === "locked" ||
+    execution?.executionCoordinationState === "halted"
+  ) {
+    capitalRotationState = "frozen";
+  } else if (
+    rotationPressure >= 0.75 ||
+    exposureBalancing?.exposureRebalancingState === "required"
+  ) {
+    capitalRotationState = "rotating";
+  } else if (
+    rotationPressure >= 0.55 ||
+    exposureBalancing?.deploymentSequencing === "staggered"
+  ) {
+    capitalRotationState = "watching";
+  }
+
+  const sectorRotationBias =
+    exposureBalancing?.sectorExposureBias || "balanced";
+
+  let rotationVelocity = "contained";
+
+  if (
+    capitalRotationState === "frozen"
+  ) {
+    rotationVelocity = "paused";
+  } else if (
+    rotationPressure >= 0.8 ||
+    predictive?.consensusMomentum === "deteriorating"
+  ) {
+    rotationVelocity = "fast";
+  } else if (
+    rotationPressure >= 0.6 ||
+    persistence?.trendPersistence === "weakening"
+  ) {
+    rotationVelocity = "moderate";
+  }
+
+  let deploymentRotationPriority = "balanced";
+
+  if (
+    capitalRotationState === "frozen"
+  ) {
+    deploymentRotationPriority = "defer";
+  } else if (
+    capitalAllocation?.allocationTier === "aggressive" &&
+    rotationPressure < 0.6
+  ) {
+    deploymentRotationPriority = "advance";
+  } else if (
+    rotationPressure >= 0.7 ||
+    exposureBalancing?.exposureDecayRate === "accelerated"
+  ) {
+    deploymentRotationPriority = "reduce";
+  }
+
+  const exposureMigrationRisk = roundN(
+    clamp01(
+      avg([
+        rotationPressure,
+        exposureBalancing?.portfolioSaturationScore || 0,
+        orchestration?.signalConcentrationRisk || 0,
+        predictive?.regimeTransitionProbability || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  return {
+    rotationPressure,
+    capitalRotationState,
+    sectorRotationBias,
+    rotationVelocity,
+    deploymentRotationPriority,
+    exposureMigrationRisk,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1484,6 +1591,17 @@ export function readScannerRankings(opts = {}) {
     rankings: rankedCandidates,
   });
 
+  const exposureRotation = computeExposureRotationIntelligence({
+    governance,
+    orchestration,
+    execution,
+    capitalAllocation,
+    exposureBalancing,
+    predictive,
+    persistence,
+    rankings: rankedCandidates,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1559,6 +1677,13 @@ export function readScannerRankings(opts = {}) {
     exposureDecayRate: exposureBalancing.exposureDecayRate,
     deploymentSequencing: exposureBalancing.deploymentSequencing,
     exposureRebalancingState: exposureBalancing.exposureRebalancingState,
+
+    rotationPressure: exposureRotation.rotationPressure,
+    capitalRotationState: exposureRotation.capitalRotationState,
+    sectorRotationBias: exposureRotation.sectorRotationBias,
+    rotationVelocity: exposureRotation.rotationVelocity,
+    deploymentRotationPriority: exposureRotation.deploymentRotationPriority,
+    exposureMigrationRisk: exposureRotation.exposureMigrationRisk,
 
     issues: freshness.stale
       ? combinedIssues
