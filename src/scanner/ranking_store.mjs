@@ -1160,6 +1160,91 @@ function computePortfolioGovernance(inputs = {}) {
 }
 
 
+
+
+function computeCapitalAllocationIntelligence(inputs = {}) {
+  const {
+    governance,
+    orchestration,
+    execution,
+    readiness,
+    predictive,
+    rankings,
+  } = inputs;
+
+  const candidateCount = Array.isArray(rankings)
+    ? rankings.length
+    : 0;
+
+  const deploymentEfficiency = roundN(
+    clamp01(
+      avg([
+        readiness?.readinessScore || 0,
+        execution?.deploymentPressure || 0,
+        1 - (orchestration?.signalConcentrationRisk || 0),
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let allocationTier = "standard";
+
+  if (
+    governance?.governanceState === "locked" ||
+    execution?.executionCoordinationState === "halted"
+  ) {
+    allocationTier = "minimal";
+  } else if (
+    governance?.governanceState === "constrained"
+  ) {
+    allocationTier = "reduced";
+  } else if (
+    governance?.governanceState === "permissive" &&
+    deploymentEfficiency >= 0.7
+  ) {
+    allocationTier = "aggressive";
+  }
+
+  let suggestedRiskPct = 0.01;
+
+  if (allocationTier === "reduced") {
+    suggestedRiskPct = 0.005;
+  } else if (allocationTier === "aggressive") {
+    suggestedRiskPct = 0.02;
+  } else if (allocationTier === "minimal") {
+    suggestedRiskPct = 0.0025;
+  }
+
+  let exposureClass = "balanced";
+
+  if (
+    orchestration?.capitalPreservationBias === "high"
+  ) {
+    exposureClass = "defensive";
+  } else if (
+    orchestration?.orchestrationState === "expansion"
+  ) {
+    exposureClass = "offensive";
+  }
+
+  const deploymentWeight = roundN(
+    clamp01(
+      deploymentEfficiency *
+      (candidateCount > 0 ? 1 : 0)
+    ),
+    4
+  ) ?? 0;
+
+  return {
+    capitalProfile: governance?.riskBudgetBias || "balanced",
+    allocationTier,
+    suggestedRiskPct,
+    deploymentWeight,
+    capitalEfficiency: deploymentEfficiency,
+    exposureClass,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1248,6 +1333,15 @@ export function readScannerRankings(opts = {}) {
     health,
   });
 
+  const capitalAllocation = computeCapitalAllocationIntelligence({
+    governance,
+    orchestration,
+    execution,
+    readiness,
+    predictive,
+    rankings: rankedCandidates,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -1307,6 +1401,13 @@ export function readScannerRankings(opts = {}) {
     allocationDiscipline: governance.allocationDiscipline,
     governanceScore: governance.governanceScore,
     governanceIssues: governance.governanceIssues,
+
+    capitalProfile: capitalAllocation.capitalProfile,
+    allocationTier: capitalAllocation.allocationTier,
+    suggestedRiskPct: capitalAllocation.suggestedRiskPct,
+    deploymentWeight: capitalAllocation.deploymentWeight,
+    capitalEfficiency: capitalAllocation.capitalEfficiency,
+    exposureClass: capitalAllocation.exposureClass,
 
     issues: freshness.stale
       ? combinedIssues
