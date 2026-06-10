@@ -1841,6 +1841,112 @@ function computeCapitalResilienceIntelligence(inputs = {}) {
 }
 
 
+function computeCapitalStabilityIntelligence(inputs = {}) {
+  const {
+    capitalResilience,
+    capitalPreservation,
+    governance,
+    predictive,
+    orchestration,
+    execution,
+  } = inputs;
+
+  const capitalFragilityRisk = roundN(
+    clamp01(
+      avg([
+        1 - (capitalResilience?.resilienceScore || 0),
+        capitalPreservation?.preservationPressure || 0,
+        predictive?.signalExhaustionRisk || 0,
+        orchestration?.portfolioHeat || 0,
+        execution?.deploymentPressure || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const stabilityPressure = roundN(
+    clamp01(
+      avg([
+        capitalFragilityRisk,
+        1 - (capitalResilience?.systemicStressAbsorption || 0),
+        1 - (governance?.governanceScore || 0),
+        capitalPreservation?.drawdownSensitivity || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  const capitalStabilityScore = roundN(
+    clamp01(
+      (
+        (capitalResilience?.resilienceScore || 0) * 0.3 +
+        (capitalResilience?.resilienceRecoveryCapacity || 0) * 0.2 +
+        (1 - capitalFragilityRisk) * 0.2 +
+        (1 - stabilityPressure) * 0.15 +
+        (governance?.governanceScore || 0) * 0.1 +
+        (1 - (orchestration?.portfolioHeat || 0)) * 0.05
+      )
+    ),
+    4
+  ) ?? 0;
+
+  const stabilityConfidence = roundN(
+    clamp01(
+      avg([
+        capitalStabilityScore,
+        1 - stabilityPressure,
+        capitalResilience?.systemicStressAbsorption || 0,
+      ])
+    ),
+    4
+  ) ?? 0;
+
+  let stabilityState = "stable";
+
+  if (
+    capitalStabilityScore >= 0.75 &&
+    stabilityPressure <= 0.3 &&
+    capitalFragilityRisk <= 0.45
+  ) {
+    stabilityState = "fortified";
+  } else if (
+    capitalStabilityScore <= 0.62 ||
+    stabilityPressure >= 0.33 ||
+    capitalFragilityRisk >= 0.3
+  ) {
+    stabilityState = "critical";
+  } else if (
+    capitalStabilityScore < 0.68 ||
+    stabilityPressure >= 0.28
+  ) {
+    stabilityState = "unstable";
+  }
+
+  const stabilityIssues = [];
+
+  if (capitalStabilityScore < 0.5) {
+    stabilityIssues.push("SCANNER_CAPITAL_STABILITY_WEAK");
+  }
+
+  if (capitalFragilityRisk >= 0.65) {
+    stabilityIssues.push("SCANNER_CAPITAL_FRAGILITY_ELEVATED");
+  }
+
+  if (stabilityPressure >= 0.65) {
+    stabilityIssues.push("SCANNER_STABILITY_PRESSURE_ELEVATED");
+  }
+
+  return {
+    capitalStabilityScore,
+    stabilityState,
+    stabilityConfidence,
+    capitalFragilityRisk,
+    stabilityPressure,
+    stabilityIssues,
+  };
+}
+
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -1988,6 +2094,15 @@ export function readScannerRankings(opts = {}) {
     adaptive,
   });
 
+  const capitalStability = computeCapitalStabilityIntelligence({
+    capitalResilience,
+    capitalPreservation,
+    governance,
+    predictive,
+    orchestration,
+    execution,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2093,6 +2208,13 @@ export function readScannerRankings(opts = {}) {
     systemicStressAbsorption: capitalResilience.systemicStressAbsorption,
     resilienceRecoveryCapacity: capitalResilience.resilienceRecoveryCapacity,
     resilienceIssues: capitalResilience.resilienceIssues,
+
+    capitalStabilityScore: capitalStability.capitalStabilityScore,
+    stabilityState: capitalStability.stabilityState,
+    stabilityConfidence: capitalStability.stabilityConfidence,
+    capitalFragilityRisk: capitalStability.capitalFragilityRisk,
+    stabilityPressure: capitalStability.stabilityPressure,
+    stabilityIssues: capitalStability.stabilityIssues,
 
     issues: freshness.stale
       ? combinedIssues
