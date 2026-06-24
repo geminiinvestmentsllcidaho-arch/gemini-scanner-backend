@@ -50,8 +50,20 @@ function computeFreshness(rows, opts = {}) {
     : Number(process.env.SCANNER_RANKINGS_MAX_AGE_SEC || 180);
 
   const latestTsMs = rows.reduce((latest, row) => {
-    const tsMs = Date.parse(row?.ts || "");
-    return Number.isFinite(tsMs) ? Math.max(latest, tsMs) : latest;
+    const candidates = [
+      row?.sourceTs,
+      row?.ts,
+      row?.createdAt,
+      row?.updatedAt,
+      row?.snapshotTs,
+    ];
+
+    for (const candidate of candidates) {
+      const tsMs = Date.parse(candidate || "");
+      if (Number.isFinite(tsMs)) latest = Math.max(latest, tsMs);
+    }
+
+    return latest;
   }, -Infinity);
 
   const sourceTs = Number.isFinite(latestTsMs)
