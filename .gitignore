@@ -18,3 +18,5 @@ payload.json
 
 # PM2
 ecosystem.config.cjs
+
+dryruns/
