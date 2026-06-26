@@ -2535,6 +2535,68 @@ function computeCapitalProductivityIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalLeverageIntelligence(inputs = {}) {
+  const productivity = inputs.productivity || {};
+  const optimization = inputs.optimization || {};
+  const efficiency = inputs.efficiency || {};
+  const scalability = inputs.scalability || {};
+  const governance = inputs.governance || {};
+  const execution = inputs.execution || {};
+
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const optimizationScore = Number.isFinite(optimization.optimizationScore) ? optimization.optimizationScore : 0.5;
+  const efficiencyScore = Number.isFinite(efficiency.efficiencyScore) ? efficiency.efficiencyScore : 0.5;
+  const scalabilityScore = Number.isFinite(scalability.scalabilityScore) ? scalability.scalabilityScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+  const deploymentPressure = Number.isFinite(execution.deploymentPressure) ? execution.deploymentPressure : 0.5;
+
+  const leverageScore = roundN(
+    productivityScore * 0.3 +
+      optimizationScore * 0.22 +
+      efficiencyScore * 0.18 +
+      scalabilityScore * 0.14 +
+      governanceScore * 0.1 +
+      (1 - deploymentPressure) * 0.06,
+    4
+  );
+
+  let leverageState = "balanced";
+  if (
+    leverageScore >= 0.75 &&
+    productivity.productivityState !== "wasteful" &&
+    optimization.optimizationState !== "constrained"
+  ) {
+    leverageState = "amplified";
+  } else if (
+    leverageScore < 0.5 ||
+    productivity.productivityState === "wasteful" ||
+    optimization.optimizationState === "constrained"
+  ) {
+    leverageState = "overextended";
+  } else if (leverageScore >= 0.62) {
+    leverageState = "leveraged";
+  }
+
+  let leverageBias = "neutral";
+  if (leverageState === "amplified") leverageBias = "amplify";
+  else if (leverageState === "leveraged") leverageBias = "deploy";
+  else if (leverageState === "overextended") leverageBias = "delever";
+
+  const leverageIssues = [];
+  if (leverageScore < 0.5) leverageIssues.push("SCANNER_LEVERAGE_WEAK");
+  if (productivity.productivityState === "wasteful") leverageIssues.push("SCANNER_PRODUCTIVITY_WASTEFUL");
+  if (optimization.optimizationState === "constrained") leverageIssues.push("SCANNER_OPTIMIZATION_CONSTRAINED");
+  if (efficiency.efficiencyState === "inefficient") leverageIssues.push("SCANNER_EFFICIENCY_INEFFICIENT");
+
+  return {
+    leverageScore,
+    leverageState,
+    leverageBias,
+    leverageIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2770,6 +2832,15 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalLeverage = computeCapitalLeverageIntelligence({
+    productivity: capitalProductivity,
+    optimization: capitalOptimization,
+    efficiency: capitalEfficiency,
+    scalability: capitalScalability,
+    governance,
+    execution,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2919,6 +2990,10 @@ export function readScannerRankings(opts = {}) {
     productivityState: capitalProductivity.productivityState,
     productivityBias: capitalProductivity.productivityBias,
     productivityIssues: capitalProductivity.productivityIssues,
+    leverageScore: capitalLeverage.leverageScore,
+    leverageState: capitalLeverage.leverageState,
+    leverageBias: capitalLeverage.leverageBias,
+    leverageIssues: capitalLeverage.leverageIssues,
 
     issues: freshness.stale
       ? combinedIssues
