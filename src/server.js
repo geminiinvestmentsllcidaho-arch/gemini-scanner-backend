@@ -66,6 +66,22 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 }
 
 const app = express();
+
+const API_PATCH_PLAN_DASHBOARD_ROUTE = "/diagnostics/alpaca-api-patch-plan";
+
+app.get(API_PATCH_PLAN_DASHBOARD_ROUTE, async (_req, res) => {
+  try {
+    const { readApiPatchPlanForDashboard } = await import("./scanner/api_patch_plan_dashboard.mjs");
+    res.json(await readApiPatchPlanForDashboard());
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: "API_PATCH_PLAN_DASHBOARD_ERROR",
+      message: err?.message ?? String(err)
+    });
+  }
+});
+
 app.use(express.json());
 
 const P3_ENABLED = process.env.P3_ENABLED === '1';

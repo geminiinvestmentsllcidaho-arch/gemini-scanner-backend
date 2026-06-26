@@ -374,7 +374,47 @@ ${panelCards}
     </section>
 
     <p class="footer">Read-only operator shell. Decision-assist only. Version: ${escapeHtml(payload.version)}.</p>
-  </main>
+  
+<!-- API_PATCH_PLAN_DASHBOARD_PANEL_V1 -->
+<section id="api-patch-plan-panel" style="border:1px solid rgba(148,163,184,.35);border-radius:16px;padding:16px;margin:16px 0;background:rgba(15,23,42,.45);">
+  <h2 style="margin:0 0 8px 0;">API Patch Planner</h2>
+  <p style="margin:0 0 12px 0;opacity:.78;">Monitor-only patch plan from runs/alpaca_api_patch_plan.json. No auto-patching. No broker execution.</p>
+  <div id="api-patch-plan-body">Loading patch plan...</div>
+</section>
+<script>
+(function () {
+  var target = document.getElementById("api-patch-plan-body");
+  if (!target) return;
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
+    });
+  }
+  function list(values) {
+    if (!values || !values.length) return "<em>none listed</em>";
+    return "<ul>" + values.map(function (value) { return "<li><code>" + esc(value) + "</code></li>"; }).join("") + "</ul>";
+  }
+  fetch("/diagnostics/alpaca-api-patch-plan", { cache: "no-store" })
+    .then(function (res) { return res.json(); })
+    .then(function (plan) {
+      target.innerHTML =
+        "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px;'>" +
+          "<div><strong>changeDetected</strong><br><code>" + esc(plan.changeDetected) + "</code></div>" +
+          "<div><strong>highestRisk</strong><br><code>" + esc(plan.highestRisk) + "</code></div>" +
+          "<div><strong>userApprovalRequired</strong><br><code>" + esc(plan.userApprovalRequired) + "</code></div>" +
+          "<div><strong>ok</strong><br><code>" + esc(plan.ok) + "</code></div>" +
+        "</div>" +
+        "<h3>Affected API areas</h3>" + list(plan.affectedApiAreas) +
+        "<h3>Likely impacted files</h3>" + list(plan.likelyImpactedFiles) +
+        "<h3>Validation commands</h3>" + list(plan.validationCommands);
+    })
+    .catch(function (err) {
+      target.innerHTML = "<strong>Patch plan panel failed to load:</strong> <code>" + esc(err && err.message ? err.message : err) + "</code>";
+    });
+})();
+</script>
+
+</main>
 
   <script>
     const boot = ${safePayload};
