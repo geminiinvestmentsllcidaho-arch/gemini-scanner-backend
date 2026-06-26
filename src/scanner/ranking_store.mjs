@@ -3271,6 +3271,139 @@ function computeCapitalPriorityIntelligence(inputs = {}) {
   };
 }
 
+
+function clampCapitalExitProtectionScore(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
+
+function computeCapitalExitProtectionIntelligence(inputs = {}) {
+  const capitalCommand = inputs.capitalCommand || {};
+  const commandScore = clampCapitalExitProtectionScore(capitalCommand.commandScore);
+  const commandState = String(capitalCommand.commandState || "unknown");
+  const commandBias = String(capitalCommand.commandBias || "unknown");
+  const commandIssues = Array.isArray(capitalCommand.commandIssues) ? capitalCommand.commandIssues : [];
+
+  const issues = [];
+
+  let score = commandScore;
+
+  if (commandState === "denied") {
+    score -= 0.35;
+    issues.push("COMMAND_DENIED");
+  }
+
+  if (commandState === "conditional") {
+    score -= 0.12;
+    issues.push("COMMAND_CONDITIONAL");
+  }
+
+  if (commandBias === "deny") {
+    score -= 0.25;
+    issues.push("DENY_BIAS");
+  }
+
+  if (commandBias === "wait") {
+    score -= 0.1;
+    issues.push("WAIT_BIAS");
+  }
+
+  for (const issue of commandIssues) {
+    if (typeof issue === "string" && issue.length > 0) {
+      issues.push(`COMMAND_${issue}`);
+    }
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let exitProtectionState = "protective";
+  if (commandState === "denied" || commandBias === "deny") {
+    exitProtectionState = "locked";
+  } else if (commandState === "conditional" || commandBias === "wait") {
+    exitProtectionState = "guarded";
+  } else if (score >= 0.78) {
+    exitProtectionState = "authorized";
+  } else if (score >= 0.58) {
+    exitProtectionState = "selective";
+  }
+
+  const exitBias =
+    exitProtectionState === "locked"
+      ? "reduce_or_exit"
+      : exitProtectionState === "guarded"
+        ? "hold_or_reduce"
+        : exitProtectionState === "authorized"
+          ? "hold_or_scale"
+          : "protect_capital";
+
+  const protectionMode =
+    exitProtectionState === "locked"
+      ? "capital_first"
+      : exitProtectionState === "guarded"
+        ? "tight_guardrails"
+        : exitProtectionState === "authorized"
+          ? "standard_guardrails"
+          : "defensive_guardrails";
+
+  const invalidationDiscipline =
+    exitProtectionState === "locked"
+      ? "hard_invalidation"
+      : exitProtectionState === "guarded"
+        ? "fast_invalidation"
+        : exitProtectionState === "authorized"
+          ? "normal_invalidation"
+          : "measured_invalidation";
+
+  const reductionPressure =
+    exitProtectionState === "locked"
+      ? "high"
+      : exitProtectionState === "guarded"
+        ? "moderate"
+        : exitProtectionState === "authorized"
+          ? "low"
+          : "controlled";
+
+  const holdPermission =
+    exitProtectionState === "locked"
+      ? "denied"
+      : exitProtectionState === "authorized"
+        ? "authorized"
+        : "conditional";
+
+  const exitReadiness =
+    exitProtectionState === "locked"
+      ? "immediate_protection"
+      : exitProtectionState === "guarded"
+        ? "preplanned_exit"
+        : exitProtectionState === "authorized"
+          ? "standard_exit_plan"
+          : "defensive_exit_plan";
+
+  const profitProtectionBias =
+    exitProtectionState === "locked"
+      ? "preserve"
+      : exitProtectionState === "guarded"
+        ? "protect_gains"
+        : exitProtectionState === "authorized"
+          ? "allow_expansion"
+          : "compress_risk";
+
+  return {
+    exitProtectionScore: score,
+    exitProtectionState,
+    exitBias,
+    protectionMode,
+    invalidationDiscipline,
+    reductionPressure,
+    holdPermission,
+    exitReadiness,
+    profitProtectionBias,
+    exitProtectionIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalCommandIntelligence(inputs = {}) {
   const priority = inputs.priority || {};
   const utilization = inputs.utilization || {};
@@ -3692,6 +3825,10 @@ export function readScannerRankings(opts = {}) {
     governance: governance,
   });
 
+  const capitalExitProtection = computeCapitalExitProtectionIntelligence({
+    capitalCommand,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -3897,6 +4034,16 @@ export function readScannerRankings(opts = {}) {
     commandState: capitalCommand.commandState,
     commandBias: capitalCommand.commandBias,
     commandIssues: capitalCommand.commandIssues,
+    exitProtectionScore: capitalExitProtection.exitProtectionScore,
+    exitProtectionState: capitalExitProtection.exitProtectionState,
+    exitBias: capitalExitProtection.exitBias,
+    protectionMode: capitalExitProtection.protectionMode,
+    invalidationDiscipline: capitalExitProtection.invalidationDiscipline,
+    reductionPressure: capitalExitProtection.reductionPressure,
+    holdPermission: capitalExitProtection.holdPermission,
+    exitReadiness: capitalExitProtection.exitReadiness,
+    profitProtectionBias: capitalExitProtection.profitProtectionBias,
+    exitProtectionIssues: capitalExitProtection.exitProtectionIssues,
 
     issues: freshness.stale
       ? combinedIssues

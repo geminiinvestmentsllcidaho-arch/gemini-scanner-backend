@@ -2637,3 +2637,62 @@ test("readScannerRankings exposes denied capital command intelligence", () => {
   assert.equal(out.commandBias, "deny");
   assert.ok(Array.isArray(out.commandIssues));
 });
+
+test("readScannerRankings exposes capital exit protection intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-exit-protection-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.exitProtectionScore >= 0);
+  assert.ok(out.exitProtectionScore <= 1);
+  assert.ok(["authorized", "selective", "guarded", "locked", "protective"].includes(out.exitProtectionState));
+  assert.ok(["hold_or_scale", "hold_or_reduce", "reduce_or_exit", "protect_capital"].includes(out.exitBias));
+  assert.ok(["capital_first", "tight_guardrails", "standard_guardrails", "defensive_guardrails"].includes(out.protectionMode));
+  assert.ok(["hard_invalidation", "fast_invalidation", "normal_invalidation", "measured_invalidation"].includes(out.invalidationDiscipline));
+  assert.ok(["high", "moderate", "low", "controlled"].includes(out.reductionPressure));
+  assert.ok(["denied", "authorized", "conditional"].includes(out.holdPermission));
+  assert.ok(Array.isArray(out.exitProtectionIssues));
+});
+
+test("readScannerRankings locks exit protection when capital command is denied", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-exit-protection-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.commandState, "denied");
+  assert.equal(out.exitProtectionState, "locked");
+  assert.equal(out.exitBias, "reduce_or_exit");
+  assert.equal(out.holdPermission, "denied");
+  assert.ok(out.exitProtectionIssues.includes("COMMAND_DENIED") || out.exitProtectionIssues.includes("DENY_BIAS"));
+});
+
