@@ -4838,6 +4838,393 @@ function computeCapitalActionChecklistIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalDirectiveReasoningIntelligence(inputs = {}) {
+  const capitalDecisionDirective = inputs.capitalDecisionDirective || {};
+  const capitalActionChecklist = inputs.capitalActionChecklist || {};
+  const capitalSignalEscalation = inputs.capitalSignalEscalation || {};
+
+  const decisionDirectiveScore = clampCapitalExitProtectionScore(capitalDecisionDirective.decisionDirectiveScore);
+  const actionChecklistScore = clampCapitalExitProtectionScore(capitalActionChecklist.actionChecklistScore);
+  const signalEscalationScore = clampCapitalExitProtectionScore(capitalSignalEscalation.signalEscalationScore);
+
+  const decisionPermission = String(capitalDecisionDirective.decisionPermission || "unknown");
+  const decisionDirectiveState = String(capitalDecisionDirective.decisionDirectiveState || "unknown");
+  const checklistPermission = String(capitalActionChecklist.checklistPermission || "unknown");
+  const signalEscalationState = String(capitalSignalEscalation.signalEscalationState || "unknown");
+
+  const decisionDirectiveIssues = Array.isArray(capitalDecisionDirective.decisionDirectiveIssues)
+    ? capitalDecisionDirective.decisionDirectiveIssues
+    : [];
+  const actionChecklistIssues = Array.isArray(capitalActionChecklist.actionChecklistIssues)
+    ? capitalActionChecklist.actionChecklistIssues
+    : [];
+  const signalEscalationIssues = Array.isArray(capitalSignalEscalation.signalEscalationIssues)
+    ? capitalSignalEscalation.signalEscalationIssues
+    : [];
+
+  const issues = [];
+  let score = (decisionDirectiveScore * 0.45) + (actionChecklistScore * 0.3) + (signalEscalationScore * 0.25);
+
+  if (decisionPermission === "denied" || decisionDirectiveState === "directive_stand_down") {
+    score -= 0.4;
+    issues.push("DECISION_DENIED");
+  }
+
+  if (checklistPermission === "denied") {
+    score -= 0.28;
+    issues.push("CHECKLIST_DENIED");
+  }
+
+  if (signalEscalationState === "risk_alert") {
+    score -= 0.3;
+    issues.push("RISK_ALERT_ACTIVE");
+  }
+
+  if (decisionPermission === "restricted" || checklistPermission === "restricted" || signalEscalationState === "caution_alert") {
+    score -= 0.14;
+    issues.push("REASONING_RESTRICTED");
+  }
+
+  for (const issue of [...decisionDirectiveIssues, ...actionChecklistIssues, ...signalEscalationIssues]) {
+    if (typeof issue === "string" && issue.length > 0) {
+      issues.push(`SOURCE_${issue}`);
+    }
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let directiveReasoningState = "reasoning_watch";
+  if (decisionPermission === "denied" || decisionDirectiveState === "directive_stand_down" || checklistPermission === "denied" || signalEscalationState === "risk_alert") {
+    directiveReasoningState = "reasoning_defensive";
+  } else if (decisionPermission === "restricted" || checklistPermission === "restricted" || signalEscalationState === "caution_alert") {
+    directiveReasoningState = "reasoning_restricted";
+  } else if (score >= 0.78) {
+    directiveReasoningState = "reasoning_clear";
+  } else if (score >= 0.58) {
+    directiveReasoningState = "reasoning_conditional";
+  }
+
+  const directiveReason =
+    directiveReasoningState === "reasoning_defensive"
+      ? "capital_protection_overrides_entry"
+      : directiveReasoningState === "reasoning_restricted"
+        ? "risk_controls_limit_action"
+        : directiveReasoningState === "reasoning_clear"
+          ? "controls_support_action"
+          : directiveReasoningState === "reasoning_conditional"
+            ? "confirmation_required_before_action"
+            : "continue_monitoring";
+
+  const explanationPriority =
+    directiveReasoningState === "reasoning_defensive"
+      ? "critical"
+      : directiveReasoningState === "reasoning_restricted"
+        ? "high"
+        : directiveReasoningState === "reasoning_clear"
+          ? "normal"
+          : "watch";
+
+  return {
+    directiveReasoningScore: score,
+    directiveReasoningState,
+    directiveReason,
+    explanationPriority,
+    directiveReasoningIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalOperatorGuidanceIntelligence(inputs = {}) {
+  const capitalDecisionDirective = inputs.capitalDecisionDirective || {};
+  const capitalDirectiveReasoning = inputs.capitalDirectiveReasoning || {};
+  const capitalManualExecutionPlan = inputs.capitalManualExecutionPlan || {};
+
+  const decisionDirectiveScore = clampCapitalExitProtectionScore(capitalDecisionDirective.decisionDirectiveScore);
+  const directiveReasoningScore = clampCapitalExitProtectionScore(capitalDirectiveReasoning.directiveReasoningScore);
+  const manualExecutionScore = clampCapitalExitProtectionScore(capitalManualExecutionPlan.manualExecutionScore);
+
+  const decisionPermission = String(capitalDecisionDirective.decisionPermission || "unknown");
+  const manualExecutionPermission = String(capitalManualExecutionPlan.manualExecutionPermission || "unknown");
+  const directiveReasoningState = String(capitalDirectiveReasoning.directiveReasoningState || "unknown");
+
+  const issues = [];
+  let score = (decisionDirectiveScore * 0.4) + (directiveReasoningScore * 0.35) + (manualExecutionScore * 0.25);
+
+  if (decisionPermission === "denied" || manualExecutionPermission === "denied") {
+    score -= 0.4;
+    issues.push("OPERATOR_ACTION_DENIED");
+  }
+
+  if (directiveReasoningState === "reasoning_defensive") {
+    score -= 0.32;
+    issues.push("DEFENSIVE_REASONING");
+  }
+
+  if (decisionPermission === "restricted" || manualExecutionPermission === "restricted" || directiveReasoningState === "reasoning_restricted") {
+    score -= 0.16;
+    issues.push("OPERATOR_GUIDANCE_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let operatorGuidanceState = "operator_watch";
+  if (decisionPermission === "denied" || manualExecutionPermission === "denied" || directiveReasoningState === "reasoning_defensive") {
+    operatorGuidanceState = "operator_stand_down";
+  } else if (decisionPermission === "restricted" || manualExecutionPermission === "restricted" || directiveReasoningState === "reasoning_restricted") {
+    operatorGuidanceState = "operator_micro_only";
+  } else if (score >= 0.78) {
+    operatorGuidanceState = "operator_ready";
+  } else if (score >= 0.58) {
+    operatorGuidanceState = "operator_conditional";
+  }
+
+  const operatorInstruction =
+    operatorGuidanceState === "operator_stand_down"
+      ? "do_not_enter_wait_for_reset"
+      : operatorGuidanceState === "operator_micro_only"
+        ? "only_consider_micro_size_after_confirmation"
+        : operatorGuidanceState === "operator_ready"
+          ? "manual_plan_ready"
+          : operatorGuidanceState === "operator_conditional"
+            ? "manual_plan_requires_confirmation"
+            : "monitor_without_action";
+
+  const operatorRiskPosture =
+    operatorGuidanceState === "operator_stand_down"
+      ? "defensive"
+      : operatorGuidanceState === "operator_micro_only"
+        ? "restricted"
+        : operatorGuidanceState === "operator_ready"
+          ? "constructive"
+          : "cautious";
+
+  return {
+    operatorGuidanceScore: score,
+    operatorGuidanceState,
+    operatorInstruction,
+    operatorRiskPosture,
+    operatorGuidanceIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalReviewCheckpointIntelligence(inputs = {}) {
+  const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
+  const capitalFinalGate = inputs.capitalFinalGate || {};
+  const capitalActionChecklist = inputs.capitalActionChecklist || {};
+
+  const operatorGuidanceScore = clampCapitalExitProtectionScore(capitalOperatorGuidance.operatorGuidanceScore);
+  const finalGateScore = clampCapitalExitProtectionScore(capitalFinalGate.finalGateScore);
+  const actionChecklistScore = clampCapitalExitProtectionScore(capitalActionChecklist.actionChecklistScore);
+
+  const operatorGuidanceState = String(capitalOperatorGuidance.operatorGuidanceState || "unknown");
+  const finalGatePermission = String(capitalFinalGate.finalGatePermission || "unknown");
+  const checklistPermission = String(capitalActionChecklist.checklistPermission || "unknown");
+
+  const issues = [];
+  let score = (operatorGuidanceScore * 0.4) + (finalGateScore * 0.3) + (actionChecklistScore * 0.3);
+
+  if (operatorGuidanceState === "operator_stand_down") {
+    score -= 0.38;
+    issues.push("OPERATOR_STAND_DOWN");
+  }
+
+  if (finalGatePermission === "denied" || checklistPermission === "denied") {
+    score -= 0.35;
+    issues.push("REVIEW_PERMISSION_DENIED");
+  }
+
+  if (operatorGuidanceState === "operator_micro_only" || finalGatePermission === "restricted" || checklistPermission === "restricted") {
+    score -= 0.15;
+    issues.push("REVIEW_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let reviewCheckpointState = "review_watch";
+  if (operatorGuidanceState === "operator_stand_down" || finalGatePermission === "denied" || checklistPermission === "denied") {
+    reviewCheckpointState = "review_failed";
+  } else if (operatorGuidanceState === "operator_micro_only" || finalGatePermission === "restricted" || checklistPermission === "restricted") {
+    reviewCheckpointState = "review_restricted";
+  } else if (score >= 0.78) {
+    reviewCheckpointState = "review_passed";
+  } else if (score >= 0.58) {
+    reviewCheckpointState = "review_conditional";
+  }
+
+  const reviewRequirement =
+    reviewCheckpointState === "review_failed"
+      ? "new_cycle_required"
+      : reviewCheckpointState === "review_restricted"
+        ? "manual_micro_review_required"
+        : reviewCheckpointState === "review_passed"
+          ? "review_complete"
+          : reviewCheckpointState === "review_conditional"
+            ? "extra_review_required"
+            : "monitor_review";
+
+  const reviewPermission =
+    reviewCheckpointState === "review_failed"
+      ? "denied"
+      : reviewCheckpointState === "review_restricted"
+        ? "restricted"
+        : reviewCheckpointState === "review_passed"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    reviewCheckpointScore: score,
+    reviewCheckpointState,
+    reviewRequirement,
+    reviewPermission,
+    reviewCheckpointIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalAuditTrailIntelligence(inputs = {}) {
+  const capitalDirectiveReasoning = inputs.capitalDirectiveReasoning || {};
+  const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
+  const capitalReviewCheckpoint = inputs.capitalReviewCheckpoint || {};
+
+  const directiveReasoningScore = clampCapitalExitProtectionScore(capitalDirectiveReasoning.directiveReasoningScore);
+  const operatorGuidanceScore = clampCapitalExitProtectionScore(capitalOperatorGuidance.operatorGuidanceScore);
+  const reviewCheckpointScore = clampCapitalExitProtectionScore(capitalReviewCheckpoint.reviewCheckpointScore);
+
+  const explanationPriority = String(capitalDirectiveReasoning.explanationPriority || "unknown");
+  const operatorGuidanceState = String(capitalOperatorGuidance.operatorGuidanceState || "unknown");
+  const reviewPermission = String(capitalReviewCheckpoint.reviewPermission || "unknown");
+
+  const issues = [];
+  let score = (directiveReasoningScore * 0.34) + (operatorGuidanceScore * 0.33) + (reviewCheckpointScore * 0.33);
+
+  if (explanationPriority === "critical") {
+    score -= 0.3;
+    issues.push("CRITICAL_EXPLANATION");
+  }
+
+  if (operatorGuidanceState === "operator_stand_down") {
+    score -= 0.32;
+    issues.push("OPERATOR_STAND_DOWN");
+  }
+
+  if (reviewPermission === "denied") {
+    score -= 0.35;
+    issues.push("REVIEW_DENIED");
+  }
+
+  if (explanationPriority === "high" || operatorGuidanceState === "operator_micro_only" || reviewPermission === "restricted") {
+    score -= 0.14;
+    issues.push("AUDIT_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let auditTrailState = "audit_watch";
+  if (explanationPriority === "critical" || operatorGuidanceState === "operator_stand_down" || reviewPermission === "denied") {
+    auditTrailState = "audit_defensive";
+  } else if (explanationPriority === "high" || operatorGuidanceState === "operator_micro_only" || reviewPermission === "restricted") {
+    auditTrailState = "audit_restricted";
+  } else if (score >= 0.78) {
+    auditTrailState = "audit_clean";
+  } else if (score >= 0.58) {
+    auditTrailState = "audit_conditional";
+  }
+
+  const auditMode =
+    auditTrailState === "audit_defensive"
+      ? "record_protection_override"
+      : auditTrailState === "audit_restricted"
+        ? "record_restricted_action"
+        : auditTrailState === "audit_clean"
+          ? "record_standard_decision"
+          : auditTrailState === "audit_conditional"
+            ? "record_conditional_decision"
+            : "record_watch_state";
+
+  return {
+    auditTrailScore: score,
+    auditTrailState,
+    auditMode,
+    auditTrailIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalUserDecisionPacketIntelligence(inputs = {}) {
+  const capitalDecisionDirective = inputs.capitalDecisionDirective || {};
+  const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
+  const capitalReviewCheckpoint = inputs.capitalReviewCheckpoint || {};
+  const capitalAuditTrail = inputs.capitalAuditTrail || {};
+
+  const decisionDirectiveScore = clampCapitalExitProtectionScore(capitalDecisionDirective.decisionDirectiveScore);
+  const operatorGuidanceScore = clampCapitalExitProtectionScore(capitalOperatorGuidance.operatorGuidanceScore);
+  const reviewCheckpointScore = clampCapitalExitProtectionScore(capitalReviewCheckpoint.reviewCheckpointScore);
+  const auditTrailScore = clampCapitalExitProtectionScore(capitalAuditTrail.auditTrailScore);
+
+  const decisionPermission = String(capitalDecisionDirective.decisionPermission || "unknown");
+  const operatorGuidanceState = String(capitalOperatorGuidance.operatorGuidanceState || "unknown");
+  const reviewPermission = String(capitalReviewCheckpoint.reviewPermission || "unknown");
+  const auditTrailState = String(capitalAuditTrail.auditTrailState || "unknown");
+
+  const issues = [];
+  let score = (decisionDirectiveScore * 0.3) + (operatorGuidanceScore * 0.3) + (reviewCheckpointScore * 0.25) + (auditTrailScore * 0.15);
+
+  if (decisionPermission === "denied" || operatorGuidanceState === "operator_stand_down" || reviewPermission === "denied") {
+    score -= 0.45;
+    issues.push("USER_PACKET_DENIED");
+  }
+
+  if (auditTrailState === "audit_defensive") {
+    score -= 0.25;
+    issues.push("AUDIT_DEFENSIVE");
+  }
+
+  if (decisionPermission === "restricted" || operatorGuidanceState === "operator_micro_only" || reviewPermission === "restricted" || auditTrailState === "audit_restricted") {
+    score -= 0.16;
+    issues.push("USER_PACKET_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let userDecisionPacketState = "packet_watch";
+  if (decisionPermission === "denied" || operatorGuidanceState === "operator_stand_down" || reviewPermission === "denied" || auditTrailState === "audit_defensive") {
+    userDecisionPacketState = "packet_stand_down";
+  } else if (decisionPermission === "restricted" || operatorGuidanceState === "operator_micro_only" || reviewPermission === "restricted" || auditTrailState === "audit_restricted") {
+    userDecisionPacketState = "packet_restricted";
+  } else if (score >= 0.78) {
+    userDecisionPacketState = "packet_actionable";
+  } else if (score >= 0.58) {
+    userDecisionPacketState = "packet_conditional";
+  }
+
+  const userDecisionSummary =
+    userDecisionPacketState === "packet_stand_down"
+      ? "DO_NOT_ENTER"
+      : userDecisionPacketState === "packet_restricted"
+        ? "MICRO_ONLY_IF_CONFIRMED"
+        : userDecisionPacketState === "packet_actionable"
+          ? "MANUAL_ACTION_ALLOWED"
+          : userDecisionPacketState === "packet_conditional"
+            ? "WAIT_FOR_CONFIRMATION"
+            : "WATCH_ONLY";
+
+  const userDecisionPermission =
+    userDecisionPacketState === "packet_stand_down"
+      ? "denied"
+      : userDecisionPacketState === "packet_restricted"
+        ? "restricted"
+        : userDecisionPacketState === "packet_actionable"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    userDecisionPacketScore: score,
+    userDecisionPacketState,
+    userDecisionSummary,
+    userDecisionPermission,
+    userDecisionPacketIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalDecisionDirectiveIntelligence(inputs = {}) {
   const capitalFinalGate = inputs.capitalFinalGate || {};
   const capitalManualExecutionPlan = inputs.capitalManualExecutionPlan || {};
@@ -6049,6 +6436,37 @@ export function readScannerRankings(opts = {}) {
     capitalSignalEscalation,
   });
 
+  const capitalDirectiveReasoning = computeCapitalDirectiveReasoningIntelligence({
+    capitalDecisionDirective,
+    capitalActionChecklist,
+    capitalSignalEscalation,
+  });
+
+  const capitalOperatorGuidance = computeCapitalOperatorGuidanceIntelligence({
+    capitalDecisionDirective,
+    capitalDirectiveReasoning,
+    capitalManualExecutionPlan,
+  });
+
+  const capitalReviewCheckpoint = computeCapitalReviewCheckpointIntelligence({
+    capitalOperatorGuidance,
+    capitalFinalGate,
+    capitalActionChecklist,
+  });
+
+  const capitalAuditTrail = computeCapitalAuditTrailIntelligence({
+    capitalDirectiveReasoning,
+    capitalOperatorGuidance,
+    capitalReviewCheckpoint,
+  });
+
+  const capitalUserDecisionPacket = computeCapitalUserDecisionPacketIntelligence({
+    capitalDecisionDirective,
+    capitalOperatorGuidance,
+    capitalReviewCheckpoint,
+    capitalAuditTrail,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -6400,6 +6818,30 @@ export function readScannerRankings(opts = {}) {
     decisionDirective: capitalDecisionDirective.decisionDirective,
     decisionPermission: capitalDecisionDirective.decisionPermission,
     decisionDirectiveIssues: capitalDecisionDirective.decisionDirectiveIssues,
+    directiveReasoningScore: capitalDirectiveReasoning.directiveReasoningScore,
+    directiveReasoningState: capitalDirectiveReasoning.directiveReasoningState,
+    directiveReason: capitalDirectiveReasoning.directiveReason,
+    explanationPriority: capitalDirectiveReasoning.explanationPriority,
+    directiveReasoningIssues: capitalDirectiveReasoning.directiveReasoningIssues,
+    operatorGuidanceScore: capitalOperatorGuidance.operatorGuidanceScore,
+    operatorGuidanceState: capitalOperatorGuidance.operatorGuidanceState,
+    operatorInstruction: capitalOperatorGuidance.operatorInstruction,
+    operatorRiskPosture: capitalOperatorGuidance.operatorRiskPosture,
+    operatorGuidanceIssues: capitalOperatorGuidance.operatorGuidanceIssues,
+    reviewCheckpointScore: capitalReviewCheckpoint.reviewCheckpointScore,
+    reviewCheckpointState: capitalReviewCheckpoint.reviewCheckpointState,
+    reviewRequirement: capitalReviewCheckpoint.reviewRequirement,
+    reviewPermission: capitalReviewCheckpoint.reviewPermission,
+    reviewCheckpointIssues: capitalReviewCheckpoint.reviewCheckpointIssues,
+    auditTrailScore: capitalAuditTrail.auditTrailScore,
+    auditTrailState: capitalAuditTrail.auditTrailState,
+    auditMode: capitalAuditTrail.auditMode,
+    auditTrailIssues: capitalAuditTrail.auditTrailIssues,
+    userDecisionPacketScore: capitalUserDecisionPacket.userDecisionPacketScore,
+    userDecisionPacketState: capitalUserDecisionPacket.userDecisionPacketState,
+    userDecisionSummary: capitalUserDecisionPacket.userDecisionSummary,
+    userDecisionPermission: capitalUserDecisionPacket.userDecisionPermission,
+    userDecisionPacketIssues: capitalUserDecisionPacket.userDecisionPacketIssues,
 
     issues: freshness.stale
       ? combinedIssues

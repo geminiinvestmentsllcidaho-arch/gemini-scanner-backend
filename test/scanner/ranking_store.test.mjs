@@ -3209,3 +3209,93 @@ test("readScannerRankings stands down final decision directive after deployment 
   assert.equal(out.decisionPermission, "denied");
 });
 
+test("readScannerRankings exposes capital user decision packet stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-user-decision-packet-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.directiveReasoningScore >= 0);
+  assert.ok(out.directiveReasoningScore <= 1);
+  assert.ok(["reasoning_defensive", "reasoning_restricted", "reasoning_clear", "reasoning_conditional", "reasoning_watch"].includes(out.directiveReasoningState));
+  assert.ok(["capital_protection_overrides_entry", "risk_controls_limit_action", "controls_support_action", "confirmation_required_before_action", "continue_monitoring"].includes(out.directiveReason));
+  assert.ok(["critical", "high", "normal", "watch"].includes(out.explanationPriority));
+  assert.ok(Array.isArray(out.directiveReasoningIssues));
+
+  assert.ok(out.operatorGuidanceScore >= 0);
+  assert.ok(out.operatorGuidanceScore <= 1);
+  assert.ok(["operator_stand_down", "operator_micro_only", "operator_ready", "operator_conditional", "operator_watch"].includes(out.operatorGuidanceState));
+  assert.ok(["do_not_enter_wait_for_reset", "only_consider_micro_size_after_confirmation", "manual_plan_ready", "manual_plan_requires_confirmation", "monitor_without_action"].includes(out.operatorInstruction));
+  assert.ok(["defensive", "restricted", "constructive", "cautious"].includes(out.operatorRiskPosture));
+  assert.ok(Array.isArray(out.operatorGuidanceIssues));
+
+  assert.ok(out.reviewCheckpointScore >= 0);
+  assert.ok(out.reviewCheckpointScore <= 1);
+  assert.ok(["review_failed", "review_restricted", "review_passed", "review_conditional", "review_watch"].includes(out.reviewCheckpointState));
+  assert.ok(["new_cycle_required", "manual_micro_review_required", "review_complete", "extra_review_required", "monitor_review"].includes(out.reviewRequirement));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.reviewPermission));
+  assert.ok(Array.isArray(out.reviewCheckpointIssues));
+
+  assert.ok(out.auditTrailScore >= 0);
+  assert.ok(out.auditTrailScore <= 1);
+  assert.ok(["audit_defensive", "audit_restricted", "audit_clean", "audit_conditional", "audit_watch"].includes(out.auditTrailState));
+  assert.ok(["record_protection_override", "record_restricted_action", "record_standard_decision", "record_conditional_decision", "record_watch_state"].includes(out.auditMode));
+  assert.ok(Array.isArray(out.auditTrailIssues));
+
+  assert.ok(out.userDecisionPacketScore >= 0);
+  assert.ok(out.userDecisionPacketScore <= 1);
+  assert.ok(["packet_stand_down", "packet_restricted", "packet_actionable", "packet_conditional", "packet_watch"].includes(out.userDecisionPacketState));
+  assert.ok(["DO_NOT_ENTER", "MICRO_ONLY_IF_CONFIRMED", "MANUAL_ACTION_ALLOWED", "WAIT_FOR_CONFIRMATION", "WATCH_ONLY"].includes(out.userDecisionSummary));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.userDecisionPermission));
+  assert.ok(Array.isArray(out.userDecisionPacketIssues));
+});
+
+test("readScannerRankings emits defensive user decision packet after directive stand down", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-user-decision-packet-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.decisionDirectiveState, "directive_stand_down");
+  assert.equal(out.decisionPermission, "denied");
+  assert.equal(out.directiveReasoningState, "reasoning_defensive");
+  assert.equal(out.directiveReason, "capital_protection_overrides_entry");
+  assert.equal(out.explanationPriority, "critical");
+  assert.equal(out.operatorGuidanceState, "operator_stand_down");
+  assert.equal(out.operatorInstruction, "do_not_enter_wait_for_reset");
+  assert.equal(out.reviewCheckpointState, "review_failed");
+  assert.equal(out.reviewPermission, "denied");
+  assert.equal(out.auditTrailState, "audit_defensive");
+  assert.equal(out.userDecisionPacketState, "packet_stand_down");
+  assert.equal(out.userDecisionSummary, "DO_NOT_ENTER");
+  assert.equal(out.userDecisionPermission, "denied");
+});
+
