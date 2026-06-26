@@ -143,7 +143,7 @@ app.get('/api/next-step', (req, res) => {
 // --------------------
 // /coach endpoint
 // --------------------
-app.post('/coach', (req, res) => {
+app.post('/coach', async (req, res) => {
   try {
     const { symbol, snapshot, decision, rules } = req.body || {};
     if (!symbol) return res.status(400).json({ ok: false, error: 'Missing symbol' });
