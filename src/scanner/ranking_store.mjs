@@ -2042,6 +2042,64 @@ function computeCapitalContinuityIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalDurabilityIntelligence(inputs = {}) {
+  const continuity = inputs.continuity || {};
+  const stability = inputs.stability || {};
+  const resilience = inputs.resilience || {};
+  const preservation = inputs.preservation || {};
+  const recovery = inputs.recovery || {};
+  const governance = inputs.governance || {};
+
+  const continuityScore = Number.isFinite(continuity.continuityScore) ? continuity.continuityScore : 0.5;
+  const stabilityScore = Number.isFinite(stability.capitalStabilityScore)
+    ? stability.capitalStabilityScore
+    : Number.isFinite(stability.stabilityScore)
+      ? stability.stabilityScore
+      : 0.5;
+  const resilienceScore = Number.isFinite(resilience.resilienceScore) ? resilience.resilienceScore : 0.5;
+  const preservationPressure = Number.isFinite(preservation.preservationPressure) ? preservation.preservationPressure : 0.5;
+  const recoveryProbability = Number.isFinite(recovery.drawdownRecoveryProbability) ? recovery.drawdownRecoveryProbability : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const durabilityScore = roundN(
+    continuityScore * 0.28 +
+      stabilityScore * 0.24 +
+      resilienceScore * 0.22 +
+      recoveryProbability * 0.12 +
+      governanceScore * 0.09 +
+      (1 - preservationPressure) * 0.05,
+    4
+  );
+
+  let durabilityState = "balanced";
+  if (durabilityScore >= 0.75 && continuity.continuityState !== "disrupted" && stability.stabilityState !== "critical") {
+    durabilityState = "hardened";
+  } else if (durabilityScore < 0.5 || continuity.continuityState === "disrupted" || resilience.resilienceState === "fragile") {
+    durabilityState = "vulnerable";
+  } else if (durabilityScore >= 0.62) {
+    durabilityState = "durable";
+  }
+
+  let durabilityBias = "neutral";
+  if (durabilityState === "hardened") durabilityBias = "compound";
+  else if (durabilityState === "durable") durabilityBias = "sustain";
+  else if (durabilityState === "vulnerable") durabilityBias = "defend";
+
+  const durabilityIssues = [];
+  if (durabilityScore < 0.5) durabilityIssues.push("SCANNER_DURABILITY_WEAK");
+  if (continuity.continuityState === "disrupted") durabilityIssues.push("SCANNER_CONTINUITY_DISRUPTED");
+  if (stability.stabilityState === "critical") durabilityIssues.push("SCANNER_STABILITY_CRITICAL");
+  if (resilience.resilienceState === "fragile") durabilityIssues.push("SCANNER_RESILIENCE_FRAGILE");
+
+  return {
+    durabilityScore,
+    durabilityState,
+    durabilityBias,
+    durabilityIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2206,6 +2264,15 @@ export function readScannerRankings(opts = {}) {
     execution,
   });
 
+  const capitalDurability = computeCapitalDurabilityIntelligence({
+    continuity: capitalContinuity,
+    stability: capitalStability,
+    resilience: capitalResilience,
+    preservation: capitalPreservation,
+    recovery,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2323,6 +2390,10 @@ export function readScannerRankings(opts = {}) {
     continuityState: capitalContinuity.continuityState,
     continuityBias: capitalContinuity.continuityBias,
     continuityIssues: capitalContinuity.continuityIssues,
+    durabilityScore: capitalDurability.durabilityScore,
+    durabilityState: capitalDurability.durabilityState,
+    durabilityBias: capitalDurability.durabilityBias,
+    durabilityIssues: capitalDurability.durabilityIssues,
 
     issues: freshness.stale
       ? combinedIssues
