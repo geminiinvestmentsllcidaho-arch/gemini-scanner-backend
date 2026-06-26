@@ -3479,3 +3479,29 @@ test("readScannerRankings denies stage 2 final command after decision assist sta
   assert.equal(out.stage2FinalPermission, "denied");
 });
 
+
+
+test('readScannerRankings exposes stage 2 app display output for UI consumption', async () => {
+  const result = await readScannerRankings({
+    symbols: ['AAPL', 'MSFT'],
+    nowMs: Date.parse('2026-06-26T12:00:00Z'),
+    session: 'closed',
+    telemetry: {
+      streamConnected: true,
+      streamStale: true,
+      reconnectAttempts: 0,
+      reconnectCountTotal: 3,
+      watchdogTriggerCount: 1,
+      lastEventAgeSec: 120
+    }
+  })
+
+  assert.equal(result.stage2AppDisplay.appDisplayVersion, 'stage2_app_display_v1')
+  assert.equal(result.stage2AppDisplay.appPrimaryCommand, 'DO_NOT_TRADE')
+  assert.equal(result.stage2AppDisplay.appPermission, 'denied')
+  assert.equal(result.stage2AppDisplay.appDecision, 'DO_NOT_ENTER')
+  assert.equal(result.stage2AppDisplay.appTradeAllowed, false)
+  assert.equal(result.stage2AppDisplay.appRequiresUserDecision, true)
+  assert.equal(result.stage2AppDisplay.appSafetyMode, 'protection_locked')
+  assert.equal(result.stage2AppDisplay.appRiskBanner, 'Capital protection active')
+})

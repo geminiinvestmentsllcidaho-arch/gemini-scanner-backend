@@ -7725,6 +7725,12 @@ export function readScannerRankings(opts = {}) {
     stage2FinalCommand: capitalStage2FinalCommand.stage2FinalCommand,
     stage2FinalPermission: capitalStage2FinalCommand.stage2FinalPermission,
     stage2FinalCommandIssues: capitalStage2FinalCommand.stage2FinalCommandIssues,
+    stage2AppDisplay: computeStage2AppDisplayOutput({
+      stage2FinalCommand: capitalStage2FinalCommand.stage2FinalCommand,
+      stage2FinalPermission: capitalStage2FinalCommand.stage2FinalPermission,
+      stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
+      issues: capitalStage2FinalCommand.stage2FinalCommandIssues
+    }),
 
     issues: freshness.stale
       ? combinedIssues
@@ -7741,4 +7747,30 @@ export function readScannerRankings(opts = {}) {
     count: latestRows.length,
     rankings: rankedCandidates,
   };
+}
+
+
+function computeStage2AppDisplayOutput(inputs = {}) {
+  const stage2FinalCommand = String(inputs.stage2FinalCommand || 'DO_NOT_TRADE')
+  const stage2FinalPermission = String(inputs.stage2FinalPermission || 'denied')
+  const stage2FinalCommandState = String(inputs.stage2FinalCommandState || 'final_denied')
+  const allowed = stage2FinalPermission === 'approved' && stage2FinalCommand !== 'DO_NOT_TRADE'
+
+  return {
+    appDisplayVersion: 'stage2_app_display_v1',
+    appPrimaryCommand: allowed ? stage2FinalCommand : 'DO_NOT_TRADE',
+    appPermission: allowed ? 'approved' : 'denied',
+    appDecision: allowed ? 'REVIEW_SETUP' : 'DO_NOT_ENTER',
+    appHeadline: allowed ? 'Setup requires review' : 'Capital protection active',
+    appPrimaryAction: allowed ? 'REVIEW SETUP' : 'DO NOT ENTER',
+    appNarrative: allowed
+      ? 'Scanner conditions require user review before any action.'
+      : 'Defensive capital protection is active. No entry is authorized until scanner conditions improve.',
+    appRiskBanner: allowed ? 'Trade setup requires user review' : 'Capital protection active',
+    appTradeAllowed: allowed,
+    appRequiresUserDecision: true,
+    appSafetyMode: allowed ? 'review_required' : 'protection_locked',
+    appSourceState: stage2FinalCommandState,
+    appIssues: Array.isArray(inputs.issues) ? inputs.issues : []
+  }
 }
