@@ -4225,6 +4225,397 @@ function computeCapitalAllocationRestartIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalRedeploymentIntelligence(inputs = {}) {
+  const capitalRestartCommand = inputs.capitalRestartCommand || {};
+  const capitalAllocationRestart = inputs.capitalAllocationRestart || {};
+
+  const restartCommandScore = clampCapitalExitProtectionScore(capitalRestartCommand.restartCommandScore);
+  const allocationRestartScore = clampCapitalExitProtectionScore(capitalAllocationRestart.allocationRestartScore);
+
+  const restartCommandState = String(capitalRestartCommand.restartCommandState || "unknown");
+  const restartPermission = String(capitalRestartCommand.restartPermission || "unknown");
+  const allocationRestartState = String(capitalAllocationRestart.allocationRestartState || "unknown");
+  const capitalReleaseBias = String(capitalAllocationRestart.capitalReleaseBias || "unknown");
+
+  const issues = [];
+  let score = (restartCommandScore * 0.55) + (allocationRestartScore * 0.45);
+
+  if (restartPermission === "denied" || restartCommandState === "restart_denied") {
+    score -= 0.4;
+    issues.push("RESTART_DENIED");
+  }
+
+  if (restartPermission === "restricted" || restartCommandState === "restart_restricted") {
+    score -= 0.16;
+    issues.push("RESTART_RESTRICTED");
+  }
+
+  if (allocationRestartState === "allocation_blocked" || capitalReleaseBias === "none") {
+    score -= 0.32;
+    issues.push("ALLOCATION_BLOCKED");
+  }
+
+  if (allocationRestartState === "allocation_limited" || capitalReleaseBias === "minimal") {
+    score -= 0.14;
+    issues.push("ALLOCATION_LIMITED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let redeploymentState = "redeployment_watch";
+  if (restartPermission === "denied" || restartCommandState === "restart_denied" || allocationRestartState === "allocation_blocked") {
+    redeploymentState = "redeployment_denied";
+  } else if (restartPermission === "restricted" || restartCommandState === "restart_restricted" || allocationRestartState === "allocation_limited") {
+    redeploymentState = "redeployment_restricted";
+  } else if (score >= 0.78) {
+    redeploymentState = "redeployment_ready";
+  } else if (score >= 0.58) {
+    redeploymentState = "redeployment_conditional";
+  }
+
+  const redeploymentMode =
+    redeploymentState === "redeployment_denied"
+      ? "no_redeployment"
+      : redeploymentState === "redeployment_restricted"
+        ? "micro_redeploy"
+        : redeploymentState === "redeployment_ready"
+          ? "standard_redeploy"
+          : redeploymentState === "redeployment_conditional"
+            ? "selective_redeploy"
+            : "watch_redeploy";
+
+  const redeploymentPermission =
+    redeploymentState === "redeployment_denied"
+      ? "denied"
+      : redeploymentState === "redeployment_restricted"
+        ? "restricted"
+        : redeploymentState === "redeployment_ready"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    redeploymentScore: score,
+    redeploymentState,
+    redeploymentMode,
+    redeploymentPermission,
+    redeploymentIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalRiskBudgetUnlockIntelligence(inputs = {}) {
+  const capitalRedeployment = inputs.capitalRedeployment || {};
+  const capitalTrustRebuild = inputs.capitalTrustRebuild || {};
+  const capitalQuarantine = inputs.capitalQuarantine || {};
+
+  const redeploymentScore = clampCapitalExitProtectionScore(capitalRedeployment.redeploymentScore);
+  const trustRebuildScore = clampCapitalExitProtectionScore(capitalTrustRebuild.trustRebuildScore);
+  const quarantineScore = clampCapitalExitProtectionScore(capitalQuarantine.quarantineScore);
+
+  const redeploymentPermission = String(capitalRedeployment.redeploymentPermission || "unknown");
+  const trustPermission = String(capitalTrustRebuild.trustPermission || "unknown");
+  const quarantinePermission = String(capitalQuarantine.quarantinePermission || "unknown");
+
+  const issues = [];
+  let score = (redeploymentScore * 0.45) + (trustRebuildScore * 0.35) + (quarantineScore * 0.2);
+
+  if (redeploymentPermission === "denied") {
+    score -= 0.35;
+    issues.push("REDEPLOYMENT_DENIED");
+  }
+
+  if (trustPermission === "denied") {
+    score -= 0.28;
+    issues.push("TRUST_DENIED");
+  }
+
+  if (quarantinePermission === "denied") {
+    score -= 0.24;
+    issues.push("QUARANTINE_DENIED");
+  }
+
+  if (redeploymentPermission === "restricted" || trustPermission === "restricted" || quarantinePermission === "restricted") {
+    score -= 0.14;
+    issues.push("BUDGET_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let riskBudgetUnlockState = "budget_watch";
+  if (redeploymentPermission === "denied" || trustPermission === "denied" || quarantinePermission === "denied") {
+    riskBudgetUnlockState = "budget_locked";
+  } else if (redeploymentPermission === "restricted" || trustPermission === "restricted" || quarantinePermission === "restricted") {
+    riskBudgetUnlockState = "budget_limited";
+  } else if (score >= 0.78) {
+    riskBudgetUnlockState = "budget_unlocked";
+  } else if (score >= 0.58) {
+    riskBudgetUnlockState = "budget_conditional";
+  }
+
+  const riskBudgetMode =
+    riskBudgetUnlockState === "budget_locked"
+      ? "capital_budget_zero"
+      : riskBudgetUnlockState === "budget_limited"
+        ? "capital_budget_micro"
+        : riskBudgetUnlockState === "budget_unlocked"
+          ? "capital_budget_normal"
+          : riskBudgetUnlockState === "budget_conditional"
+            ? "capital_budget_controlled"
+            : "capital_budget_watch";
+
+  const riskBudgetPermission =
+    riskBudgetUnlockState === "budget_locked"
+      ? "denied"
+      : riskBudgetUnlockState === "budget_limited"
+        ? "restricted"
+        : riskBudgetUnlockState === "budget_unlocked"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    riskBudgetUnlockScore: score,
+    riskBudgetUnlockState,
+    riskBudgetMode,
+    riskBudgetPermission,
+    riskBudgetUnlockIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalExposureRampIntelligence(inputs = {}) {
+  const capitalRiskBudgetUnlock = inputs.capitalRiskBudgetUnlock || {};
+  const capitalExposureRestore = inputs.capitalExposureRestore || {};
+  const capitalRiskRestart = inputs.capitalRiskRestart || {};
+
+  const riskBudgetUnlockScore = clampCapitalExitProtectionScore(capitalRiskBudgetUnlock.riskBudgetUnlockScore);
+  const exposureRestoreScore = clampCapitalExitProtectionScore(capitalExposureRestore.exposureRestoreScore);
+  const riskRestartScore = clampCapitalExitProtectionScore(capitalRiskRestart.riskRestartScore);
+
+  const riskBudgetPermission = String(capitalRiskBudgetUnlock.riskBudgetPermission || "unknown");
+  const exposureRestoreState = String(capitalExposureRestore.exposureRestoreState || "unknown");
+  const riskRestartState = String(capitalRiskRestart.riskRestartState || "unknown");
+
+  const issues = [];
+  let score = (riskBudgetUnlockScore * 0.4) + (exposureRestoreScore * 0.35) + (riskRestartScore * 0.25);
+
+  if (riskBudgetPermission === "denied") {
+    score -= 0.35;
+    issues.push("BUDGET_DENIED");
+  }
+
+  if (exposureRestoreState === "restore_blocked") {
+    score -= 0.32;
+    issues.push("RESTORE_BLOCKED");
+  }
+
+  if (riskRestartState === "restart_blocked") {
+    score -= 0.28;
+    issues.push("RESTART_BLOCKED");
+  }
+
+  if (riskBudgetPermission === "restricted" || exposureRestoreState === "rebuild_slow" || riskRestartState === "restart_limited") {
+    score -= 0.14;
+    issues.push("RAMP_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let exposureRampState = "ramp_watch";
+  if (riskBudgetPermission === "denied" || exposureRestoreState === "restore_blocked" || riskRestartState === "restart_blocked") {
+    exposureRampState = "ramp_blocked";
+  } else if (riskBudgetPermission === "restricted" || exposureRestoreState === "rebuild_slow" || riskRestartState === "restart_limited") {
+    exposureRampState = "ramp_slow";
+  } else if (score >= 0.78) {
+    exposureRampState = "ramp_ready";
+  } else if (score >= 0.58) {
+    exposureRampState = "ramp_conditional";
+  }
+
+  const exposureRampMode =
+    exposureRampState === "ramp_blocked"
+      ? "no_ramp"
+      : exposureRampState === "ramp_slow"
+        ? "staged_ramp"
+        : exposureRampState === "ramp_ready"
+          ? "normal_ramp"
+          : exposureRampState === "ramp_conditional"
+            ? "controlled_ramp"
+            : "watch_ramp";
+
+  const exposureRampSpeed =
+    exposureRampState === "ramp_blocked"
+      ? "none"
+      : exposureRampState === "ramp_slow"
+        ? "slow"
+        : exposureRampState === "ramp_ready"
+          ? "normal"
+          : "controlled";
+
+  return {
+    exposureRampScore: score,
+    exposureRampState,
+    exposureRampMode,
+    exposureRampSpeed,
+    exposureRampIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalConfidenceCheckpointIntelligence(inputs = {}) {
+  const capitalExposureRamp = inputs.capitalExposureRamp || {};
+  const capitalTrustRebuild = inputs.capitalTrustRebuild || {};
+  const capitalRestartCommand = inputs.capitalRestartCommand || {};
+
+  const exposureRampScore = clampCapitalExitProtectionScore(capitalExposureRamp.exposureRampScore);
+  const trustRebuildScore = clampCapitalExitProtectionScore(capitalTrustRebuild.trustRebuildScore);
+  const restartCommandScore = clampCapitalExitProtectionScore(capitalRestartCommand.restartCommandScore);
+
+  const exposureRampState = String(capitalExposureRamp.exposureRampState || "unknown");
+  const trustPermission = String(capitalTrustRebuild.trustPermission || "unknown");
+  const restartPermission = String(capitalRestartCommand.restartPermission || "unknown");
+
+  const issues = [];
+  let score = (exposureRampScore * 0.45) + (trustRebuildScore * 0.35) + (restartCommandScore * 0.2);
+
+  if (exposureRampState === "ramp_blocked") {
+    score -= 0.35;
+    issues.push("RAMP_BLOCKED");
+  }
+
+  if (trustPermission === "denied") {
+    score -= 0.3;
+    issues.push("TRUST_DENIED");
+  }
+
+  if (restartPermission === "denied") {
+    score -= 0.28;
+    issues.push("RESTART_DENIED");
+  }
+
+  if (exposureRampState === "ramp_slow" || trustPermission === "restricted" || restartPermission === "restricted") {
+    score -= 0.14;
+    issues.push("CHECKPOINT_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let confidenceCheckpointState = "checkpoint_watch";
+  if (exposureRampState === "ramp_blocked" || trustPermission === "denied" || restartPermission === "denied") {
+    confidenceCheckpointState = "checkpoint_failed";
+  } else if (exposureRampState === "ramp_slow" || trustPermission === "restricted" || restartPermission === "restricted") {
+    confidenceCheckpointState = "checkpoint_restricted";
+  } else if (score >= 0.78) {
+    confidenceCheckpointState = "checkpoint_passed";
+  } else if (score >= 0.58) {
+    confidenceCheckpointState = "checkpoint_conditional";
+  }
+
+  const confidenceCheckpointMode =
+    confidenceCheckpointState === "checkpoint_failed"
+      ? "require_new_signal"
+      : confidenceCheckpointState === "checkpoint_restricted"
+        ? "require_micro_confirmation"
+        : confidenceCheckpointState === "checkpoint_passed"
+          ? "confirmation_passed"
+          : confidenceCheckpointState === "checkpoint_conditional"
+            ? "confirm_selectively"
+            : "monitor_confirmation";
+
+  const confidenceCheckpointPermission =
+    confidenceCheckpointState === "checkpoint_failed"
+      ? "denied"
+      : confidenceCheckpointState === "checkpoint_restricted"
+        ? "restricted"
+        : confidenceCheckpointState === "checkpoint_passed"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    confidenceCheckpointScore: score,
+    confidenceCheckpointState,
+    confidenceCheckpointMode,
+    confidenceCheckpointPermission,
+    confidenceCheckpointIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalDeploymentAuthorizationIntelligence(inputs = {}) {
+  const capitalConfidenceCheckpoint = inputs.capitalConfidenceCheckpoint || {};
+  const capitalRiskBudgetUnlock = inputs.capitalRiskBudgetUnlock || {};
+  const capitalRedeployment = inputs.capitalRedeployment || {};
+
+  const confidenceCheckpointScore = clampCapitalExitProtectionScore(capitalConfidenceCheckpoint.confidenceCheckpointScore);
+  const riskBudgetUnlockScore = clampCapitalExitProtectionScore(capitalRiskBudgetUnlock.riskBudgetUnlockScore);
+  const redeploymentScore = clampCapitalExitProtectionScore(capitalRedeployment.redeploymentScore);
+
+  const confidenceCheckpointPermission = String(capitalConfidenceCheckpoint.confidenceCheckpointPermission || "unknown");
+  const riskBudgetPermission = String(capitalRiskBudgetUnlock.riskBudgetPermission || "unknown");
+  const redeploymentPermission = String(capitalRedeployment.redeploymentPermission || "unknown");
+
+  const issues = [];
+  let score = (confidenceCheckpointScore * 0.4) + (riskBudgetUnlockScore * 0.35) + (redeploymentScore * 0.25);
+
+  if (confidenceCheckpointPermission === "denied") {
+    score -= 0.35;
+    issues.push("CHECKPOINT_DENIED");
+  }
+
+  if (riskBudgetPermission === "denied") {
+    score -= 0.32;
+    issues.push("BUDGET_DENIED");
+  }
+
+  if (redeploymentPermission === "denied") {
+    score -= 0.3;
+    issues.push("REDEPLOYMENT_DENIED");
+  }
+
+  if (confidenceCheckpointPermission === "restricted" || riskBudgetPermission === "restricted" || redeploymentPermission === "restricted") {
+    score -= 0.14;
+    issues.push("DEPLOYMENT_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let deploymentAuthorizationState = "deployment_watch";
+  if (confidenceCheckpointPermission === "denied" || riskBudgetPermission === "denied" || redeploymentPermission === "denied") {
+    deploymentAuthorizationState = "deployment_denied";
+  } else if (confidenceCheckpointPermission === "restricted" || riskBudgetPermission === "restricted" || redeploymentPermission === "restricted") {
+    deploymentAuthorizationState = "deployment_restricted";
+  } else if (score >= 0.78) {
+    deploymentAuthorizationState = "deployment_authorized";
+  } else if (score >= 0.58) {
+    deploymentAuthorizationState = "deployment_conditional";
+  }
+
+  const deploymentAuthorizationCommand =
+    deploymentAuthorizationState === "deployment_denied"
+      ? "stand_down"
+      : deploymentAuthorizationState === "deployment_restricted"
+        ? "micro_deploy"
+        : deploymentAuthorizationState === "deployment_authorized"
+          ? "authorize_deployment"
+          : deploymentAuthorizationState === "deployment_conditional"
+            ? "selective_deployment"
+            : "monitor_only";
+
+  const deploymentAuthorizationPermission =
+    deploymentAuthorizationState === "deployment_denied"
+      ? "denied"
+      : deploymentAuthorizationState === "deployment_restricted"
+        ? "restricted"
+        : deploymentAuthorizationState === "deployment_authorized"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    deploymentAuthorizationScore: score,
+    deploymentAuthorizationState,
+    deploymentAuthorizationCommand,
+    deploymentAuthorizationPermission,
+    deploymentAuthorizationIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalRestartCommandIntelligence(inputs = {}) {
   const capitalQuarantine = inputs.capitalQuarantine || {};
   const capitalRiskRestart = inputs.capitalRiskRestart || {};
@@ -5221,6 +5612,35 @@ export function readScannerRankings(opts = {}) {
     capitalAllocationRestart,
   });
 
+  const capitalRedeployment = computeCapitalRedeploymentIntelligence({
+    capitalRestartCommand,
+    capitalAllocationRestart,
+  });
+
+  const capitalRiskBudgetUnlock = computeCapitalRiskBudgetUnlockIntelligence({
+    capitalRedeployment,
+    capitalTrustRebuild,
+    capitalQuarantine,
+  });
+
+  const capitalExposureRamp = computeCapitalExposureRampIntelligence({
+    capitalRiskBudgetUnlock,
+    capitalExposureRestore,
+    capitalRiskRestart,
+  });
+
+  const capitalConfidenceCheckpoint = computeCapitalConfidenceCheckpointIntelligence({
+    capitalExposureRamp,
+    capitalTrustRebuild,
+    capitalRestartCommand,
+  });
+
+  const capitalDeploymentAuthorization = computeCapitalDeploymentAuthorizationIntelligence({
+    capitalConfidenceCheckpoint,
+    capitalRiskBudgetUnlock,
+    capitalRedeployment,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -5522,6 +5942,31 @@ export function readScannerRankings(opts = {}) {
     restartCommand: capitalRestartCommand.restartCommand,
     restartPermission: capitalRestartCommand.restartPermission,
     restartCommandIssues: capitalRestartCommand.restartCommandIssues,
+    redeploymentScore: capitalRedeployment.redeploymentScore,
+    redeploymentState: capitalRedeployment.redeploymentState,
+    redeploymentMode: capitalRedeployment.redeploymentMode,
+    redeploymentPermission: capitalRedeployment.redeploymentPermission,
+    redeploymentIssues: capitalRedeployment.redeploymentIssues,
+    riskBudgetUnlockScore: capitalRiskBudgetUnlock.riskBudgetUnlockScore,
+    riskBudgetUnlockState: capitalRiskBudgetUnlock.riskBudgetUnlockState,
+    riskBudgetMode: capitalRiskBudgetUnlock.riskBudgetMode,
+    riskBudgetPermission: capitalRiskBudgetUnlock.riskBudgetPermission,
+    riskBudgetUnlockIssues: capitalRiskBudgetUnlock.riskBudgetUnlockIssues,
+    exposureRampScore: capitalExposureRamp.exposureRampScore,
+    exposureRampState: capitalExposureRamp.exposureRampState,
+    exposureRampMode: capitalExposureRamp.exposureRampMode,
+    exposureRampSpeed: capitalExposureRamp.exposureRampSpeed,
+    exposureRampIssues: capitalExposureRamp.exposureRampIssues,
+    confidenceCheckpointScore: capitalConfidenceCheckpoint.confidenceCheckpointScore,
+    confidenceCheckpointState: capitalConfidenceCheckpoint.confidenceCheckpointState,
+    confidenceCheckpointMode: capitalConfidenceCheckpoint.confidenceCheckpointMode,
+    confidenceCheckpointPermission: capitalConfidenceCheckpoint.confidenceCheckpointPermission,
+    confidenceCheckpointIssues: capitalConfidenceCheckpoint.confidenceCheckpointIssues,
+    deploymentAuthorizationScore: capitalDeploymentAuthorization.deploymentAuthorizationScore,
+    deploymentAuthorizationState: capitalDeploymentAuthorization.deploymentAuthorizationState,
+    deploymentAuthorizationCommand: capitalDeploymentAuthorization.deploymentAuthorizationCommand,
+    deploymentAuthorizationPermission: capitalDeploymentAuthorization.deploymentAuthorizationPermission,
+    deploymentAuthorizationIssues: capitalDeploymentAuthorization.deploymentAuthorizationIssues,
 
     issues: freshness.stale
       ? combinedIssues

@@ -3026,3 +3026,94 @@ test("readScannerRankings denies capital restart after protection stand down", (
   assert.equal(out.restartPermission, "denied");
 });
 
+test("readScannerRankings exposes capital deployment authorization stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-deployment-authorization-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.redeploymentScore >= 0);
+  assert.ok(out.redeploymentScore <= 1);
+  assert.ok(["redeployment_denied", "redeployment_restricted", "redeployment_ready", "redeployment_conditional", "redeployment_watch"].includes(out.redeploymentState));
+  assert.ok(["no_redeployment", "micro_redeploy", "standard_redeploy", "selective_redeploy", "watch_redeploy"].includes(out.redeploymentMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.redeploymentPermission));
+  assert.ok(Array.isArray(out.redeploymentIssues));
+
+  assert.ok(out.riskBudgetUnlockScore >= 0);
+  assert.ok(out.riskBudgetUnlockScore <= 1);
+  assert.ok(["budget_locked", "budget_limited", "budget_unlocked", "budget_conditional", "budget_watch"].includes(out.riskBudgetUnlockState));
+  assert.ok(["capital_budget_zero", "capital_budget_micro", "capital_budget_normal", "capital_budget_controlled", "capital_budget_watch"].includes(out.riskBudgetMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.riskBudgetPermission));
+  assert.ok(Array.isArray(out.riskBudgetUnlockIssues));
+
+  assert.ok(out.exposureRampScore >= 0);
+  assert.ok(out.exposureRampScore <= 1);
+  assert.ok(["ramp_blocked", "ramp_slow", "ramp_ready", "ramp_conditional", "ramp_watch"].includes(out.exposureRampState));
+  assert.ok(["no_ramp", "staged_ramp", "normal_ramp", "controlled_ramp", "watch_ramp"].includes(out.exposureRampMode));
+  assert.ok(["none", "slow", "normal", "controlled"].includes(out.exposureRampSpeed));
+  assert.ok(Array.isArray(out.exposureRampIssues));
+
+  assert.ok(out.confidenceCheckpointScore >= 0);
+  assert.ok(out.confidenceCheckpointScore <= 1);
+  assert.ok(["checkpoint_failed", "checkpoint_restricted", "checkpoint_passed", "checkpoint_conditional", "checkpoint_watch"].includes(out.confidenceCheckpointState));
+  assert.ok(["require_new_signal", "require_micro_confirmation", "confirmation_passed", "confirm_selectively", "monitor_confirmation"].includes(out.confidenceCheckpointMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.confidenceCheckpointPermission));
+  assert.ok(Array.isArray(out.confidenceCheckpointIssues));
+
+  assert.ok(out.deploymentAuthorizationScore >= 0);
+  assert.ok(out.deploymentAuthorizationScore <= 1);
+  assert.ok(["deployment_denied", "deployment_restricted", "deployment_authorized", "deployment_conditional", "deployment_watch"].includes(out.deploymentAuthorizationState));
+  assert.ok(["stand_down", "micro_deploy", "authorize_deployment", "selective_deployment", "monitor_only"].includes(out.deploymentAuthorizationCommand));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.deploymentAuthorizationPermission));
+  assert.ok(Array.isArray(out.deploymentAuthorizationIssues));
+});
+
+test("readScannerRankings denies deployment authorization after restart denial", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-deployment-authorization-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.restartCommandState, "restart_denied");
+  assert.equal(out.restartPermission, "denied");
+  assert.equal(out.redeploymentState, "redeployment_denied");
+  assert.equal(out.redeploymentPermission, "denied");
+  assert.equal(out.riskBudgetUnlockState, "budget_locked");
+  assert.equal(out.riskBudgetPermission, "denied");
+  assert.equal(out.exposureRampState, "ramp_blocked");
+  assert.equal(out.exposureRampMode, "no_ramp");
+  assert.equal(out.confidenceCheckpointState, "checkpoint_failed");
+  assert.equal(out.confidenceCheckpointPermission, "denied");
+  assert.equal(out.deploymentAuthorizationState, "deployment_denied");
+  assert.equal(out.deploymentAuthorizationCommand, "stand_down");
+  assert.equal(out.deploymentAuthorizationPermission, "denied");
+});
+
