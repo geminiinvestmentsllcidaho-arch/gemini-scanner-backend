@@ -2597,6 +2597,68 @@ function computeCapitalLeverageIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalVelocityIntelligence(inputs = {}) {
+  const leverage = inputs.leverage || {};
+  const productivity = inputs.productivity || {};
+  const optimization = inputs.optimization || {};
+  const efficiency = inputs.efficiency || {};
+  const execution = inputs.execution || {};
+  const governance = inputs.governance || {};
+
+  const leverageScore = Number.isFinite(leverage.leverageScore) ? leverage.leverageScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const optimizationScore = Number.isFinite(optimization.optimizationScore) ? optimization.optimizationScore : 0.5;
+  const efficiencyScore = Number.isFinite(efficiency.efficiencyScore) ? efficiency.efficiencyScore : 0.5;
+  const deploymentPressure = Number.isFinite(execution.deploymentPressure) ? execution.deploymentPressure : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const velocityScore = roundN(
+    leverageScore * 0.3 +
+      productivityScore * 0.22 +
+      optimizationScore * 0.18 +
+      efficiencyScore * 0.13 +
+      governanceScore * 0.1 +
+      (1 - deploymentPressure) * 0.07,
+    4
+  );
+
+  let velocityState = "balanced";
+  if (
+    velocityScore >= 0.75 &&
+    leverage.leverageState !== "overextended" &&
+    productivity.productivityState !== "wasteful"
+  ) {
+    velocityState = "accelerating";
+  } else if (
+    velocityScore < 0.5 ||
+    leverage.leverageState === "overextended" ||
+    productivity.productivityState === "wasteful"
+  ) {
+    velocityState = "stalled";
+  } else if (velocityScore >= 0.62) {
+    velocityState = "controlled";
+  }
+
+  let velocityBias = "neutral";
+  if (velocityState === "accelerating") velocityBias = "press";
+  else if (velocityState === "controlled") velocityBias = "pace";
+  else if (velocityState === "stalled") velocityBias = "slow";
+
+  const velocityIssues = [];
+  if (velocityScore < 0.5) velocityIssues.push("SCANNER_VELOCITY_WEAK");
+  if (leverage.leverageState === "overextended") velocityIssues.push("SCANNER_LEVERAGE_OVEREXTENDED");
+  if (productivity.productivityState === "wasteful") velocityIssues.push("SCANNER_PRODUCTIVITY_WASTEFUL");
+  if (optimization.optimizationState === "constrained") velocityIssues.push("SCANNER_OPTIMIZATION_CONSTRAINED");
+
+  return {
+    velocityScore,
+    velocityState,
+    velocityBias,
+    velocityIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2841,6 +2903,15 @@ export function readScannerRankings(opts = {}) {
     execution,
   });
 
+  const capitalVelocity = computeCapitalVelocityIntelligence({
+    leverage: capitalLeverage,
+    productivity: capitalProductivity,
+    optimization: capitalOptimization,
+    efficiency: capitalEfficiency,
+    execution,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2994,6 +3065,10 @@ export function readScannerRankings(opts = {}) {
     leverageState: capitalLeverage.leverageState,
     leverageBias: capitalLeverage.leverageBias,
     leverageIssues: capitalLeverage.leverageIssues,
+    velocityScore: capitalVelocity.velocityScore,
+    velocityState: capitalVelocity.velocityState,
+    velocityBias: capitalVelocity.velocityBias,
+    velocityIssues: capitalVelocity.velocityIssues,
 
     issues: freshness.stale
       ? combinedIssues
