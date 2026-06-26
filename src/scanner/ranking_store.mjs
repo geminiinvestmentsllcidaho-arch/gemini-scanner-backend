@@ -2473,6 +2473,68 @@ function computeCapitalOptimizationIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalProductivityIntelligence(inputs = {}) {
+  const optimization = inputs.optimization || {};
+  const efficiency = inputs.efficiency || {};
+  const compounding = inputs.compounding || {};
+  const scalability = inputs.scalability || {};
+  const sustainability = inputs.sustainability || {};
+  const governance = inputs.governance || {};
+
+  const optimizationScore = Number.isFinite(optimization.optimizationScore) ? optimization.optimizationScore : 0.5;
+  const efficiencyScore = Number.isFinite(efficiency.efficiencyScore) ? efficiency.efficiencyScore : 0.5;
+  const compoundingScore = Number.isFinite(compounding.compoundingScore) ? compounding.compoundingScore : 0.5;
+  const scalabilityScore = Number.isFinite(scalability.scalabilityScore) ? scalability.scalabilityScore : 0.5;
+  const sustainabilityScore = Number.isFinite(sustainability.sustainabilityScore) ? sustainability.sustainabilityScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const productivityScore = roundN(
+    optimizationScore * 0.3 +
+      efficiencyScore * 0.23 +
+      compoundingScore * 0.18 +
+      scalabilityScore * 0.13 +
+      sustainabilityScore * 0.09 +
+      governanceScore * 0.07,
+    4
+  );
+
+  let productivityState = "balanced";
+  if (
+    productivityScore >= 0.75 &&
+    optimization.optimizationState !== "constrained" &&
+    efficiency.efficiencyState !== "inefficient"
+  ) {
+    productivityState = "high_yield";
+  } else if (
+    productivityScore < 0.5 ||
+    optimization.optimizationState === "constrained" ||
+    efficiency.efficiencyState === "inefficient"
+  ) {
+    productivityState = "wasteful";
+  } else if (productivityScore >= 0.62) {
+    productivityState = "productive";
+  }
+
+  let productivityBias = "neutral";
+  if (productivityState === "high_yield") productivityBias = "harvest";
+  else if (productivityState === "productive") productivityBias = "allocate";
+  else if (productivityState === "wasteful") productivityBias = "cut";
+
+  const productivityIssues = [];
+  if (productivityScore < 0.5) productivityIssues.push("SCANNER_PRODUCTIVITY_WEAK");
+  if (optimization.optimizationState === "constrained") productivityIssues.push("SCANNER_OPTIMIZATION_CONSTRAINED");
+  if (efficiency.efficiencyState === "inefficient") productivityIssues.push("SCANNER_EFFICIENCY_INEFFICIENT");
+  if (compounding.compoundingState === "blocked") productivityIssues.push("SCANNER_COMPOUNDING_BLOCKED");
+
+  return {
+    productivityScore,
+    productivityState,
+    productivityBias,
+    productivityIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2699,6 +2761,15 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalProductivity = computeCapitalProductivityIntelligence({
+    optimization: capitalOptimization,
+    efficiency: capitalEfficiency,
+    compounding: capitalCompounding,
+    scalability: capitalScalability,
+    sustainability: capitalSustainability,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2844,6 +2915,10 @@ export function readScannerRankings(opts = {}) {
     optimizationState: capitalOptimization.optimizationState,
     optimizationBias: capitalOptimization.optimizationBias,
     optimizationIssues: capitalOptimization.optimizationIssues,
+    productivityScore: capitalProductivity.productivityScore,
+    productivityState: capitalProductivity.productivityState,
+    productivityBias: capitalProductivity.productivityBias,
+    productivityIssues: capitalProductivity.productivityIssues,
 
     issues: freshness.stale
       ? combinedIssues
