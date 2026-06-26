@@ -1,0 +1,72 @@
+BEGIN HANDOFF
+
+Project: GeminiScanner
+Branch: feature/p3-quality-confidence-v1
+
+Server Login:
+ssh gemini-vps
+
+Current State:
+- Alpaca API Watcher v1 complete.
+- API watcher dashboard panel complete.
+- API watcher scanner alerts integration complete.
+- Latest commit:
+  9f43481 feat(scanner): include alpaca api watcher in alerts
+- Latest freeze tag:
+  alpaca-api-watcher-alerts-freeze-9f43481
+- Previous freeze tags:
+  operator-api-watcher-panel-freeze-3666bb0
+  alpaca-api-watcher-handoff-freeze-e200586
+  alpaca-api-watcher-validator-freeze-e200586
+  alpaca-api-watcher-cron-freeze-3454584
+  alpaca-api-watcher-freeze-f7d72de
+- Tests:
+  153/153 passing
+
+Completed:
+- Added monitor-only Alpaca API watcher:
+  npm run watch:alpaca-api
+- Added watcher cron:
+  npm run watch:alpaca-api:install-cron
+- Cron runs every 6 hours at minute 17.
+- Added watcher validator:
+  npm run validate:alpaca-api-watch
+- Added dashboard API watcher panel.
+- Added API watcher summary into:
+  npm run alerts:scanner
+- Watcher monitors:
+  Alpaca changelog
+  Market Data API docs
+  Trading API docs
+  Alpaca status page
+- Watcher is monitor-only.
+- No auto-patching.
+- No auto production edits.
+- No broker execution.
+- No order placement.
+
+Known Status:
+- Market is closed.
+- Stream stale warnings are expected while closed.
+- Rankings are non-zero from backfilled bars.
+- GeminiScanner remains decision-assist only.
+
+Current Safety Commands:
+npm run watch:alpaca-api
+npm run validate:alpaca-api-watch
+npm run validate:alpaca-audit
+npm run validate:trading-safety
+npm run alerts:scanner
+npm run validate:all
+
+Next:
+- At next market open run:
+  npm run validate:open
+  npm run alerts:scanner
+  npm run validate:alpaca-audit
+  npm run validate:trading-safety
+- Optional next build:
+  Add a patch-planner report that suggests files to inspect when the API watcher detects a change.
+- Do not implement order placement unless explicitly approved later.
+
+END HANDOFF
