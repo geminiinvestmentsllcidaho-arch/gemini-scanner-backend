@@ -2117,3 +2117,523 @@ test("readScannerRankings exposes fading capital momentum intelligence", () => {
   assert.equal(out.momentumBias, "fade");
   assert.ok(Array.isArray(out.momentumIssues));
 });
+
+
+test("readScannerRankings exposes aligned capital trajectory intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-trajectory-aligned-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.trajectoryScore >= 0.62);
+  assert.ok(["aligned", "advancing"].includes(out.trajectoryState));
+  assert.ok(["track", "press"].includes(out.trajectoryBias));
+  assert.deepEqual(out.trajectoryIssues, []);
+});
+
+test("readScannerRankings exposes reversing capital trajectory intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-trajectory-reversing-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.trajectoryState, "reversing");
+  assert.equal(out.trajectoryBias, "reverse");
+  assert.ok(Array.isArray(out.trajectoryIssues));
+});
+
+
+test("readScannerRankings exposes aligned capital alignment intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-alignment-aligned-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.alignmentScore >= 0.62);
+  assert.ok(["aligned", "coherent"].includes(out.alignmentState));
+  assert.ok(["focus", "confirm"].includes(out.alignmentBias));
+  assert.deepEqual(out.alignmentIssues, []);
+});
+
+test("readScannerRankings exposes divergent capital alignment intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-alignment-divergent-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.alignmentState, "divergent");
+  assert.equal(out.alignmentBias, "stand_down");
+  assert.ok(Array.isArray(out.alignmentIssues));
+});
+
+
+test("readScannerRankings exposes confirmed capital conviction intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-conviction-confirmed-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.convictionScore >= 0.62);
+  assert.ok(["confirmed", "high_conviction"].includes(out.convictionState));
+  assert.ok(["hold", "add"].includes(out.convictionBias));
+  assert.deepEqual(out.convictionIssues, []);
+});
+
+test("readScannerRankings exposes weak capital conviction intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-conviction-weak-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.convictionState, "weak");
+  assert.equal(out.convictionBias, "wait");
+  assert.ok(Array.isArray(out.convictionIssues));
+});
+
+
+test("readScannerRankings exposes controlled capital discipline intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-discipline-controlled-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.disciplineScore >= 0.62);
+  assert.ok(["controlled", "disciplined"].includes(out.disciplineState));
+  assert.ok(["manage", "enforce"].includes(out.disciplineBias));
+  assert.deepEqual(out.disciplineIssues, []);
+});
+
+test("readScannerRankings exposes undisciplined capital discipline intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-discipline-undisciplined-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.disciplineState, "undisciplined");
+  assert.equal(out.disciplineBias, "restrict");
+  assert.ok(Array.isArray(out.disciplineIssues));
+});
+
+
+test("readScannerRankings exposes filtered capital selectivity intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-selectivity-filtered-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.selectivityScore >= 0.62);
+  assert.ok(["filtered", "selective"].includes(out.selectivityState));
+  assert.ok(["filter", "select"].includes(out.selectivityBias));
+  assert.deepEqual(out.selectivityIssues, []);
+});
+
+test("readScannerRankings exposes unselective capital selectivity intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-selectivity-unselective-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.selectivityState, "unselective");
+  assert.equal(out.selectivityBias, "skip");
+  assert.ok(Array.isArray(out.selectivityIssues));
+});
+
+
+test("readScannerRankings exposes neutral capital timing intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-timing-neutral-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.timingScore >= 0.62);
+  assert.ok(["neutral", "timely"].includes(out.timingState));
+  assert.ok(["wait", "act"].includes(out.timingBias));
+  assert.deepEqual(out.timingIssues, []);
+});
+
+test("readScannerRankings exposes poor capital timing intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-timing-poor-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.timingState, "poor");
+  assert.equal(out.timingBias, "delay");
+  assert.ok(Array.isArray(out.timingIssues));
+});
+
+
+test("readScannerRankings exposes guarded capital capacity intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-capacity-guarded-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.capacityScore >= 0.62);
+  assert.ok(["guarded", "available"].includes(out.capacityState));
+  assert.ok(["hold", "deploy"].includes(out.capacityBias));
+  assert.deepEqual(out.capacityIssues, []);
+});
+
+test("readScannerRankings exposes capped capital capacity intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-capacity-capped-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.capacityState, "capped");
+  assert.equal(out.capacityBias, "cap");
+  assert.ok(Array.isArray(out.capacityIssues));
+});
+
+
+test("readScannerRankings exposes managed capital utilization intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-utilization-managed-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.utilizationScore >= 0.62);
+  assert.ok(["managed", "productive"].includes(out.utilizationState));
+  assert.ok(["manage", "use"].includes(out.utilizationBias));
+  assert.deepEqual(out.utilizationIssues, []);
+});
+
+test("readScannerRankings exposes underutilized capital utilization intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-utilization-underutilized-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.utilizationState, "underutilized");
+  assert.equal(out.utilizationBias, "idle");
+  assert.ok(Array.isArray(out.utilizationIssues));
+});
+
+
+test("readScannerRankings exposes queued capital priority intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-priority-queued-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.priorityScore >= 0.62);
+  assert.ok(["queued", "high_priority"].includes(out.priorityState));
+  assert.ok(["queue", "prioritize"].includes(out.priorityBias));
+  assert.deepEqual(out.priorityIssues, []);
+});
+
+test("readScannerRankings exposes low_priority capital priority intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-priority-low_priority-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.priorityState, "low_priority");
+  assert.equal(out.priorityBias, "deprioritize");
+  assert.ok(Array.isArray(out.priorityIssues));
+});
+
+
+test("readScannerRankings exposes conditional capital command intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-command-conditional-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.commandScore >= 0.62);
+  assert.ok(["conditional", "authorized"].includes(out.commandState));
+  assert.ok(["condition", "authorize"].includes(out.commandBias));
+  assert.deepEqual(out.commandIssues, []);
+});
+
+test("readScannerRankings exposes denied capital command intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-command-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.commandState, "denied");
+  assert.equal(out.commandBias, "deny");
+  assert.ok(Array.isArray(out.commandIssues));
+});

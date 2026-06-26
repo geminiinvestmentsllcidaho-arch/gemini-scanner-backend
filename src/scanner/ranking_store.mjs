@@ -2783,6 +2783,554 @@ function computeCapitalMomentumIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalTrajectoryIntelligence(inputs = {}) {
+  const momentum = inputs.momentum || {};
+  const acceleration = inputs.acceleration || {};
+  const velocity = inputs.velocity || {};
+  const leverage = inputs.leverage || {};
+  const productivity = inputs.productivity || {};
+  const governance = inputs.governance || {};
+
+  const momentumScore = Number.isFinite(momentum.momentumScore) ? momentum.momentumScore : 0.5;
+  const accelerationScore = Number.isFinite(acceleration.accelerationScore) ? acceleration.accelerationScore : 0.5;
+  const velocityScore = Number.isFinite(velocity.velocityScore) ? velocity.velocityScore : 0.5;
+  const leverageScore = Number.isFinite(leverage.leverageScore) ? leverage.leverageScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const trajectoryScore = roundN(
+    momentumScore * 0.32 +
+      accelerationScore * 0.22 +
+      velocityScore * 0.18 +
+      leverageScore * 0.12 +
+      productivityScore * 0.09 +
+      governanceScore * 0.07,
+    4
+  );
+
+  let trajectoryState = "balanced";
+  if (trajectoryScore >= 0.75 && !(momentum.momentumState === "fading" || acceleration.accelerationState === "decelerating" || velocity.velocityState === "stalled")) {
+    trajectoryState = "advancing";
+  } else if (trajectoryScore < 0.5 || momentum.momentumState === "fading" || acceleration.accelerationState === "decelerating" || velocity.velocityState === "stalled") {
+    trajectoryState = "reversing";
+  } else if (trajectoryScore >= 0.62) {
+    trajectoryState = "aligned";
+  }
+
+  let trajectoryBias = "neutral";
+  if (trajectoryState === "advancing") trajectoryBias = "press";
+  else if (trajectoryState === "aligned") trajectoryBias = "track";
+  else if (trajectoryState === "reversing") trajectoryBias = "reverse";
+
+  const trajectoryIssues = [];
+  if (trajectoryScore < 0.5) trajectoryIssues.push("SCANNER_TRAJECTORY_WEAK");
+  if (momentum.momentumState === "fading") trajectoryIssues.push("SCANNER_MOMENTUM_FADING");
+  if (acceleration.accelerationState === "decelerating") trajectoryIssues.push("SCANNER_ACCELERATION_DECELERATING");
+  if (velocity.velocityState === "stalled") trajectoryIssues.push("SCANNER_VELOCITY_STALLED");
+
+  return {
+    trajectoryScore,
+    trajectoryState,
+    trajectoryBias,
+    trajectoryIssues,
+  };
+}
+
+function computeCapitalAlignmentIntelligence(inputs = {}) {
+  const trajectory = inputs.trajectory || {};
+  const momentum = inputs.momentum || {};
+  const acceleration = inputs.acceleration || {};
+  const velocity = inputs.velocity || {};
+  const productivity = inputs.productivity || {};
+  const governance = inputs.governance || {};
+
+  const trajectoryScore = Number.isFinite(trajectory.trajectoryScore) ? trajectory.trajectoryScore : 0.5;
+  const momentumScore = Number.isFinite(momentum.momentumScore) ? momentum.momentumScore : 0.5;
+  const accelerationScore = Number.isFinite(acceleration.accelerationScore) ? acceleration.accelerationScore : 0.5;
+  const velocityScore = Number.isFinite(velocity.velocityScore) ? velocity.velocityScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const alignmentScore = roundN(
+    trajectoryScore * 0.32 +
+      momentumScore * 0.22 +
+      accelerationScore * 0.18 +
+      velocityScore * 0.13 +
+      productivityScore * 0.08 +
+      governanceScore * 0.07,
+    4
+  );
+
+  let alignmentState = "balanced";
+  if (alignmentScore >= 0.75 && !(trajectory.trajectoryState === "reversing" || momentum.momentumState === "fading" || acceleration.accelerationState === "decelerating")) {
+    alignmentState = "coherent";
+  } else if (alignmentScore < 0.5 || trajectory.trajectoryState === "reversing" || momentum.momentumState === "fading" || acceleration.accelerationState === "decelerating") {
+    alignmentState = "divergent";
+  } else if (alignmentScore >= 0.62) {
+    alignmentState = "aligned";
+  }
+
+  let alignmentBias = "neutral";
+  if (alignmentState === "coherent") alignmentBias = "confirm";
+  else if (alignmentState === "aligned") alignmentBias = "focus";
+  else if (alignmentState === "divergent") alignmentBias = "stand_down";
+
+  const alignmentIssues = [];
+  if (alignmentScore < 0.5) alignmentIssues.push("SCANNER_ALIGNMENT_WEAK");
+  if (trajectory.trajectoryState === "reversing") alignmentIssues.push("SCANNER_TRAJECTORY_REVERSING");
+  if (momentum.momentumState === "fading") alignmentIssues.push("SCANNER_MOMENTUM_FADING");
+  if (acceleration.accelerationState === "decelerating") alignmentIssues.push("SCANNER_ACCELERATION_DECELERATING");
+
+  return {
+    alignmentScore,
+    alignmentState,
+    alignmentBias,
+    alignmentIssues,
+  };
+}
+
+function computeCapitalConvictionIntelligence(inputs = {}) {
+  const alignment = inputs.alignment || {};
+  const trajectory = inputs.trajectory || {};
+  const momentum = inputs.momentum || {};
+  const acceleration = inputs.acceleration || {};
+  const productivity = inputs.productivity || {};
+  const governance = inputs.governance || {};
+
+  const alignmentScore = Number.isFinite(alignment.alignmentScore) ? alignment.alignmentScore : 0.5;
+  const trajectoryScore = Number.isFinite(trajectory.trajectoryScore) ? trajectory.trajectoryScore : 0.5;
+  const momentumScore = Number.isFinite(momentum.momentumScore) ? momentum.momentumScore : 0.5;
+  const accelerationScore = Number.isFinite(acceleration.accelerationScore) ? acceleration.accelerationScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const convictionScore = roundN(
+    alignmentScore * 0.34 +
+      trajectoryScore * 0.22 +
+      momentumScore * 0.18 +
+      accelerationScore * 0.12 +
+      productivityScore * 0.08 +
+      governanceScore * 0.06,
+    4
+  );
+
+  let convictionState = "balanced";
+  if (convictionScore >= 0.75 && !(alignment.alignmentState === "divergent" || trajectory.trajectoryState === "reversing" || momentum.momentumState === "fading")) {
+    convictionState = "high_conviction";
+  } else if (convictionScore < 0.5 || alignment.alignmentState === "divergent" || trajectory.trajectoryState === "reversing" || momentum.momentumState === "fading") {
+    convictionState = "weak";
+  } else if (convictionScore >= 0.62) {
+    convictionState = "confirmed";
+  }
+
+  let convictionBias = "neutral";
+  if (convictionState === "high_conviction") convictionBias = "add";
+  else if (convictionState === "confirmed") convictionBias = "hold";
+  else if (convictionState === "weak") convictionBias = "wait";
+
+  const convictionIssues = [];
+  if (convictionScore < 0.5) convictionIssues.push("SCANNER_CONVICTION_WEAK");
+  if (alignment.alignmentState === "divergent") convictionIssues.push("SCANNER_ALIGNMENT_DIVERGENT");
+  if (trajectory.trajectoryState === "reversing") convictionIssues.push("SCANNER_TRAJECTORY_REVERSING");
+  if (momentum.momentumState === "fading") convictionIssues.push("SCANNER_MOMENTUM_FADING");
+
+  return {
+    convictionScore,
+    convictionState,
+    convictionBias,
+    convictionIssues,
+  };
+}
+
+function computeCapitalDisciplineIntelligence(inputs = {}) {
+  const conviction = inputs.conviction || {};
+  const alignment = inputs.alignment || {};
+  const trajectory = inputs.trajectory || {};
+  const productivity = inputs.productivity || {};
+  const optimization = inputs.optimization || {};
+  const governance = inputs.governance || {};
+
+  const convictionScore = Number.isFinite(conviction.convictionScore) ? conviction.convictionScore : 0.5;
+  const alignmentScore = Number.isFinite(alignment.alignmentScore) ? alignment.alignmentScore : 0.5;
+  const trajectoryScore = Number.isFinite(trajectory.trajectoryScore) ? trajectory.trajectoryScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const optimizationScore = Number.isFinite(optimization.optimizationScore) ? optimization.optimizationScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const disciplineScore = roundN(
+    convictionScore * 0.3 +
+      alignmentScore * 0.22 +
+      trajectoryScore * 0.18 +
+      productivityScore * 0.12 +
+      optimizationScore * 0.1 +
+      governanceScore * 0.08,
+    4
+  );
+
+  let disciplineState = "balanced";
+  if (disciplineScore >= 0.75 && !(conviction.convictionState === "weak" || alignment.alignmentState === "divergent" || trajectory.trajectoryState === "reversing")) {
+    disciplineState = "disciplined";
+  } else if (disciplineScore < 0.5 || conviction.convictionState === "weak" || alignment.alignmentState === "divergent" || trajectory.trajectoryState === "reversing") {
+    disciplineState = "undisciplined";
+  } else if (disciplineScore >= 0.62) {
+    disciplineState = "controlled";
+  }
+
+  let disciplineBias = "neutral";
+  if (disciplineState === "disciplined") disciplineBias = "enforce";
+  else if (disciplineState === "controlled") disciplineBias = "manage";
+  else if (disciplineState === "undisciplined") disciplineBias = "restrict";
+
+  const disciplineIssues = [];
+  if (disciplineScore < 0.5) disciplineIssues.push("SCANNER_DISCIPLINE_WEAK");
+  if (conviction.convictionState === "weak") disciplineIssues.push("SCANNER_CONVICTION_WEAK");
+  if (alignment.alignmentState === "divergent") disciplineIssues.push("SCANNER_ALIGNMENT_DIVERGENT");
+  if (trajectory.trajectoryState === "reversing") disciplineIssues.push("SCANNER_TRAJECTORY_REVERSING");
+
+  return {
+    disciplineScore,
+    disciplineState,
+    disciplineBias,
+    disciplineIssues,
+  };
+}
+
+function computeCapitalSelectivityIntelligence(inputs = {}) {
+  const discipline = inputs.discipline || {};
+  const conviction = inputs.conviction || {};
+  const alignment = inputs.alignment || {};
+  const trajectory = inputs.trajectory || {};
+  const efficiency = inputs.efficiency || {};
+  const governance = inputs.governance || {};
+
+  const disciplineScore = Number.isFinite(discipline.disciplineScore) ? discipline.disciplineScore : 0.5;
+  const convictionScore = Number.isFinite(conviction.convictionScore) ? conviction.convictionScore : 0.5;
+  const alignmentScore = Number.isFinite(alignment.alignmentScore) ? alignment.alignmentScore : 0.5;
+  const trajectoryScore = Number.isFinite(trajectory.trajectoryScore) ? trajectory.trajectoryScore : 0.5;
+  const efficiencyScore = Number.isFinite(efficiency.efficiencyScore) ? efficiency.efficiencyScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const selectivityScore = roundN(
+    disciplineScore * 0.3 +
+      convictionScore * 0.22 +
+      alignmentScore * 0.18 +
+      trajectoryScore * 0.12 +
+      efficiencyScore * 0.1 +
+      governanceScore * 0.08,
+    4
+  );
+
+  let selectivityState = "balanced";
+  if (selectivityScore >= 0.75 && !(discipline.disciplineState === "undisciplined" || conviction.convictionState === "weak" || alignment.alignmentState === "divergent")) {
+    selectivityState = "selective";
+  } else if (selectivityScore < 0.5 || discipline.disciplineState === "undisciplined" || conviction.convictionState === "weak" || alignment.alignmentState === "divergent") {
+    selectivityState = "unselective";
+  } else if (selectivityScore >= 0.62) {
+    selectivityState = "filtered";
+  }
+
+  let selectivityBias = "neutral";
+  if (selectivityState === "selective") selectivityBias = "select";
+  else if (selectivityState === "filtered") selectivityBias = "filter";
+  else if (selectivityState === "unselective") selectivityBias = "skip";
+
+  const selectivityIssues = [];
+  if (selectivityScore < 0.5) selectivityIssues.push("SCANNER_SELECTIVITY_WEAK");
+  if (discipline.disciplineState === "undisciplined") selectivityIssues.push("SCANNER_DISCIPLINE_UNDISCIPLINED");
+  if (conviction.convictionState === "weak") selectivityIssues.push("SCANNER_CONVICTION_WEAK");
+  if (alignment.alignmentState === "divergent") selectivityIssues.push("SCANNER_ALIGNMENT_DIVERGENT");
+
+  return {
+    selectivityScore,
+    selectivityState,
+    selectivityBias,
+    selectivityIssues,
+  };
+}
+
+function computeCapitalTimingIntelligence(inputs = {}) {
+  const selectivity = inputs.selectivity || {};
+  const discipline = inputs.discipline || {};
+  const momentum = inputs.momentum || {};
+  const velocity = inputs.velocity || {};
+  const alignment = inputs.alignment || {};
+  const governance = inputs.governance || {};
+
+  const selectivityScore = Number.isFinite(selectivity.selectivityScore) ? selectivity.selectivityScore : 0.5;
+  const disciplineScore = Number.isFinite(discipline.disciplineScore) ? discipline.disciplineScore : 0.5;
+  const momentumScore = Number.isFinite(momentum.momentumScore) ? momentum.momentumScore : 0.5;
+  const velocityScore = Number.isFinite(velocity.velocityScore) ? velocity.velocityScore : 0.5;
+  const alignmentScore = Number.isFinite(alignment.alignmentScore) ? alignment.alignmentScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const timingBaseScore = roundN(
+    selectivityScore * 0.3 +
+      disciplineScore * 0.22 +
+      momentumScore * 0.18 +
+      velocityScore * 0.13 +
+      alignmentScore * 0.1 +
+      governanceScore * 0.07,
+    4
+  );
+
+  const timingScore = roundN(
+    timingBaseScore >= 0.58 && !(selectivity.selectivityState === "unselective" || discipline.disciplineState === "undisciplined" || velocity.velocityState === "stalled")
+      ? Math.max(timingBaseScore, 0.62)
+      : timingBaseScore,
+    4
+  );
+
+  let timingState = "balanced";
+  if (timingScore >= 0.75 && !(selectivity.selectivityState === "unselective" || discipline.disciplineState === "undisciplined" || velocity.velocityState === "stalled")) {
+    timingState = "timely";
+  } else if (timingScore < 0.5 || selectivity.selectivityState === "unselective" || discipline.disciplineState === "undisciplined" || velocity.velocityState === "stalled") {
+    timingState = "poor";
+  } else if (timingScore >= 0.62) {
+    timingState = "neutral";
+  }
+
+  let timingBias = "neutral";
+  if (timingState === "timely") timingBias = "act";
+  else if (timingState === "neutral") timingBias = "wait";
+  else if (timingState === "poor") timingBias = "delay";
+
+  const timingIssues = [];
+  if (timingScore < 0.5) timingIssues.push("SCANNER_TIMING_WEAK");
+  if (selectivity.selectivityState === "unselective") timingIssues.push("SCANNER_SELECTIVITY_UNSELECTIVE");
+  if (discipline.disciplineState === "undisciplined") timingIssues.push("SCANNER_DISCIPLINE_UNDISCIPLINED");
+  if (velocity.velocityState === "stalled") timingIssues.push("SCANNER_VELOCITY_STALLED");
+
+  return {
+    timingScore,
+    timingState,
+    timingBias,
+    timingIssues,
+  };
+}
+
+function computeCapitalCapacityIntelligence(inputs = {}) {
+  const timing = inputs.timing || {};
+  const selectivity = inputs.selectivity || {};
+  const scalability = inputs.scalability || {};
+  const sustainability = inputs.sustainability || {};
+  const discipline = inputs.discipline || {};
+  const governance = inputs.governance || {};
+
+  const timingScore = Number.isFinite(timing.timingScore) ? timing.timingScore : 0.5;
+  const selectivityScore = Number.isFinite(selectivity.selectivityScore) ? selectivity.selectivityScore : 0.5;
+  const scalabilityScore = Number.isFinite(scalability.scalabilityScore) ? scalability.scalabilityScore : 0.5;
+  const sustainabilityScore = Number.isFinite(sustainability.sustainabilityScore) ? sustainability.sustainabilityScore : 0.5;
+  const disciplineScore = Number.isFinite(discipline.disciplineScore) ? discipline.disciplineScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const capacityScore = roundN(
+    timingScore * 0.28 +
+      selectivityScore * 0.22 +
+      scalabilityScore * 0.18 +
+      sustainabilityScore * 0.14 +
+      disciplineScore * 0.1 +
+      governanceScore * 0.08,
+    4
+  );
+
+  let capacityState = "balanced";
+  if (capacityScore >= 0.75 && !(timing.timingState === "poor" || selectivity.selectivityState === "unselective" || scalability.scalabilityState === "restricted" || sustainability.sustainabilityState === "unsustainable")) {
+    capacityState = "available";
+  } else if (capacityScore < 0.5 || timing.timingState === "poor" || selectivity.selectivityState === "unselective" || scalability.scalabilityState === "restricted" || sustainability.sustainabilityState === "unsustainable") {
+    capacityState = "capped";
+  } else if (capacityScore >= 0.62) {
+    capacityState = "guarded";
+  }
+
+  let capacityBias = "neutral";
+  if (capacityState === "available") capacityBias = "deploy";
+  else if (capacityState === "guarded") capacityBias = "hold";
+  else if (capacityState === "capped") capacityBias = "cap";
+
+  const capacityIssues = [];
+  if (capacityScore < 0.5) capacityIssues.push("SCANNER_CAPACITY_WEAK");
+  if (timing.timingState === "poor") capacityIssues.push("SCANNER_TIMING_POOR");
+  if (selectivity.selectivityState === "unselective") capacityIssues.push("SCANNER_SELECTIVITY_UNSELECTIVE");
+  if (scalability.scalabilityState === "restricted") capacityIssues.push("SCANNER_SCALABILITY_RESTRICTED");
+  if (sustainability.sustainabilityState === "unsustainable") capacityIssues.push("SCANNER_SUSTAINABILITY_UNSUSTAINABLE");
+
+  return {
+    capacityScore,
+    capacityState,
+    capacityBias,
+    capacityIssues,
+  };
+}
+
+function computeCapitalUtilizationIntelligence(inputs = {}) {
+  const capacity = inputs.capacity || {};
+  const timing = inputs.timing || {};
+  const efficiency = inputs.efficiency || {};
+  const optimization = inputs.optimization || {};
+  const discipline = inputs.discipline || {};
+  const governance = inputs.governance || {};
+
+  const capacityScore = Number.isFinite(capacity.capacityScore) ? capacity.capacityScore : 0.5;
+  const timingScore = Number.isFinite(timing.timingScore) ? timing.timingScore : 0.5;
+  const efficiencyScore = Number.isFinite(efficiency.efficiencyScore) ? efficiency.efficiencyScore : 0.5;
+  const optimizationScore = Number.isFinite(optimization.optimizationScore) ? optimization.optimizationScore : 0.5;
+  const disciplineScore = Number.isFinite(discipline.disciplineScore) ? discipline.disciplineScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const utilizationScore = roundN(
+    capacityScore * 0.3 +
+      timingScore * 0.2 +
+      efficiencyScore * 0.18 +
+      optimizationScore * 0.14 +
+      disciplineScore * 0.1 +
+      governanceScore * 0.08,
+    4
+  );
+
+  let utilizationState = "balanced";
+  if (utilizationScore >= 0.75 && !(capacity.capacityState === "capped" || timing.timingState === "poor" || efficiency.efficiencyState === "inefficient" || optimization.optimizationState === "constrained")) {
+    utilizationState = "productive";
+  } else if (utilizationScore < 0.5 || capacity.capacityState === "capped" || timing.timingState === "poor" || efficiency.efficiencyState === "inefficient" || optimization.optimizationState === "constrained") {
+    utilizationState = "underutilized";
+  } else if (utilizationScore >= 0.62) {
+    utilizationState = "managed";
+  }
+
+  let utilizationBias = "neutral";
+  if (utilizationState === "productive") utilizationBias = "use";
+  else if (utilizationState === "managed") utilizationBias = "manage";
+  else if (utilizationState === "underutilized") utilizationBias = "idle";
+
+  const utilizationIssues = [];
+  if (utilizationScore < 0.5) utilizationIssues.push("SCANNER_UTILIZATION_WEAK");
+  if (capacity.capacityState === "capped") utilizationIssues.push("SCANNER_CAPACITY_CAPPED");
+  if (timing.timingState === "poor") utilizationIssues.push("SCANNER_TIMING_POOR");
+  if (efficiency.efficiencyState === "inefficient") utilizationIssues.push("SCANNER_EFFICIENCY_INEFFICIENT");
+  if (optimization.optimizationState === "constrained") utilizationIssues.push("SCANNER_OPTIMIZATION_CONSTRAINED");
+
+  return {
+    utilizationScore,
+    utilizationState,
+    utilizationBias,
+    utilizationIssues,
+  };
+}
+
+function computeCapitalPriorityIntelligence(inputs = {}) {
+  const utilization = inputs.utilization || {};
+  const capacity = inputs.capacity || {};
+  const productivity = inputs.productivity || {};
+  const leverage = inputs.leverage || {};
+  const discipline = inputs.discipline || {};
+  const governance = inputs.governance || {};
+
+  const utilizationScore = Number.isFinite(utilization.utilizationScore) ? utilization.utilizationScore : 0.5;
+  const capacityScore = Number.isFinite(capacity.capacityScore) ? capacity.capacityScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const leverageScore = Number.isFinite(leverage.leverageScore) ? leverage.leverageScore : 0.5;
+  const disciplineScore = Number.isFinite(discipline.disciplineScore) ? discipline.disciplineScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const priorityScore = roundN(
+    utilizationScore * 0.3 +
+      capacityScore * 0.2 +
+      productivityScore * 0.18 +
+      leverageScore * 0.14 +
+      disciplineScore * 0.1 +
+      governanceScore * 0.08,
+    4
+  );
+
+  let priorityState = "balanced";
+  if (priorityScore >= 0.75 && !(utilization.utilizationState === "underutilized" || capacity.capacityState === "capped" || productivity.productivityState === "wasteful" || leverage.leverageState === "overextended")) {
+    priorityState = "high_priority";
+  } else if (priorityScore < 0.5 || utilization.utilizationState === "underutilized" || capacity.capacityState === "capped" || productivity.productivityState === "wasteful" || leverage.leverageState === "overextended") {
+    priorityState = "low_priority";
+  } else if (priorityScore >= 0.62) {
+    priorityState = "queued";
+  }
+
+  let priorityBias = "neutral";
+  if (priorityState === "high_priority") priorityBias = "prioritize";
+  else if (priorityState === "queued") priorityBias = "queue";
+  else if (priorityState === "low_priority") priorityBias = "deprioritize";
+
+  const priorityIssues = [];
+  if (priorityScore < 0.5) priorityIssues.push("SCANNER_PRIORITY_WEAK");
+  if (utilization.utilizationState === "underutilized") priorityIssues.push("SCANNER_UTILIZATION_UNDERUTILIZED");
+  if (capacity.capacityState === "capped") priorityIssues.push("SCANNER_CAPACITY_CAPPED");
+  if (productivity.productivityState === "wasteful") priorityIssues.push("SCANNER_PRODUCTIVITY_WASTEFUL");
+  if (leverage.leverageState === "overextended") priorityIssues.push("SCANNER_LEVERAGE_OVEREXTENDED");
+
+  return {
+    priorityScore,
+    priorityState,
+    priorityBias,
+    priorityIssues,
+  };
+}
+
+function computeCapitalCommandIntelligence(inputs = {}) {
+  const priority = inputs.priority || {};
+  const utilization = inputs.utilization || {};
+  const discipline = inputs.discipline || {};
+  const conviction = inputs.conviction || {};
+  const alignment = inputs.alignment || {};
+  const governance = inputs.governance || {};
+
+  const priorityScore = Number.isFinite(priority.priorityScore) ? priority.priorityScore : 0.5;
+  const utilizationScore = Number.isFinite(utilization.utilizationScore) ? utilization.utilizationScore : 0.5;
+  const disciplineScore = Number.isFinite(discipline.disciplineScore) ? discipline.disciplineScore : 0.5;
+  const convictionScore = Number.isFinite(conviction.convictionScore) ? conviction.convictionScore : 0.5;
+  const alignmentScore = Number.isFinite(alignment.alignmentScore) ? alignment.alignmentScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const commandBaseScore = roundN(
+    priorityScore * 0.3 +
+      utilizationScore * 0.2 +
+      disciplineScore * 0.18 +
+      convictionScore * 0.14 +
+      alignmentScore * 0.1 +
+      governanceScore * 0.08,
+    4
+  );
+
+  const commandScore = roundN(
+    commandBaseScore >= 0.58 && !(priority.priorityState === "low_priority" || utilization.utilizationState === "underutilized" || discipline.disciplineState === "undisciplined" || conviction.convictionState === "weak")
+      ? Math.max(commandBaseScore, 0.62)
+      : commandBaseScore,
+    4
+  );
+
+  let commandState = "balanced";
+  if (commandScore >= 0.75 && !(priority.priorityState === "low_priority" || utilization.utilizationState === "underutilized" || discipline.disciplineState === "undisciplined" || conviction.convictionState === "weak")) {
+    commandState = "authorized";
+  } else if (commandScore < 0.5 || priority.priorityState === "low_priority" || utilization.utilizationState === "underutilized" || discipline.disciplineState === "undisciplined" || conviction.convictionState === "weak") {
+    commandState = "denied";
+  } else if (commandScore >= 0.62) {
+    commandState = "conditional";
+  }
+
+  let commandBias = "neutral";
+  if (commandState === "authorized") commandBias = "authorize";
+  else if (commandState === "conditional") commandBias = "condition";
+  else if (commandState === "denied") commandBias = "deny";
+
+  const commandIssues = [];
+  if (commandScore < 0.5) commandIssues.push("SCANNER_COMMAND_WEAK");
+  if (priority.priorityState === "low_priority") commandIssues.push("SCANNER_PRIORITY_LOW_PRIORITY");
+  if (utilization.utilizationState === "underutilized") commandIssues.push("SCANNER_UTILIZATION_UNDERUTILIZED");
+  if (discipline.disciplineState === "undisciplined") commandIssues.push("SCANNER_DISCIPLINE_UNDISCIPLINED");
+  if (conviction.convictionState === "weak") commandIssues.push("SCANNER_CONVICTION_WEAK");
+
+  return {
+    commandScore,
+    commandState,
+    commandBias,
+    commandIssues,
+  };
+}
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -3054,6 +3602,96 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalTrajectory = computeCapitalTrajectoryIntelligence({
+    momentum: capitalMomentum,
+    acceleration: capitalAcceleration,
+    velocity: capitalVelocity,
+    leverage: capitalLeverage,
+    productivity: capitalProductivity,
+    governance: governance,
+  });
+
+  const capitalAlignment = computeCapitalAlignmentIntelligence({
+    trajectory: capitalTrajectory,
+    momentum: capitalMomentum,
+    acceleration: capitalAcceleration,
+    velocity: capitalVelocity,
+    productivity: capitalProductivity,
+    governance: governance,
+  });
+
+  const capitalConviction = computeCapitalConvictionIntelligence({
+    alignment: capitalAlignment,
+    trajectory: capitalTrajectory,
+    momentum: capitalMomentum,
+    acceleration: capitalAcceleration,
+    productivity: capitalProductivity,
+    governance: governance,
+  });
+
+  const capitalDiscipline = computeCapitalDisciplineIntelligence({
+    conviction: capitalConviction,
+    alignment: capitalAlignment,
+    trajectory: capitalTrajectory,
+    productivity: capitalProductivity,
+    optimization: capitalOptimization,
+    governance: governance,
+  });
+
+  const capitalSelectivity = computeCapitalSelectivityIntelligence({
+    discipline: capitalDiscipline,
+    conviction: capitalConviction,
+    alignment: capitalAlignment,
+    trajectory: capitalTrajectory,
+    efficiency: capitalEfficiency,
+    governance: governance,
+  });
+
+  const capitalTiming = computeCapitalTimingIntelligence({
+    selectivity: capitalSelectivity,
+    discipline: capitalDiscipline,
+    momentum: capitalMomentum,
+    velocity: capitalVelocity,
+    alignment: capitalAlignment,
+    governance: governance,
+  });
+
+  const capitalCapacity = computeCapitalCapacityIntelligence({
+    timing: capitalTiming,
+    selectivity: capitalSelectivity,
+    scalability: capitalScalability,
+    sustainability: capitalSustainability,
+    discipline: capitalDiscipline,
+    governance: governance,
+  });
+
+  const capitalUtilization = computeCapitalUtilizationIntelligence({
+    capacity: capitalCapacity,
+    timing: capitalTiming,
+    efficiency: capitalEfficiency,
+    optimization: capitalOptimization,
+    discipline: capitalDiscipline,
+    governance: governance,
+  });
+
+  const capitalPriority = computeCapitalPriorityIntelligence({
+    utilization: capitalUtilization,
+    capacity: capitalCapacity,
+    productivity: capitalProductivity,
+    leverage: capitalLeverage,
+    discipline: capitalDiscipline,
+    governance: governance,
+  });
+
+  const capitalCommand = computeCapitalCommandIntelligence({
+    priority: capitalPriority,
+    utilization: capitalUtilization,
+    discipline: capitalDiscipline,
+    conviction: capitalConviction,
+    alignment: capitalAlignment,
+    governance: governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -3219,6 +3857,46 @@ export function readScannerRankings(opts = {}) {
     momentumState: capitalMomentum.momentumState,
     momentumBias: capitalMomentum.momentumBias,
     momentumIssues: capitalMomentum.momentumIssues,
+    trajectoryScore: capitalTrajectory.trajectoryScore,
+    trajectoryState: capitalTrajectory.trajectoryState,
+    trajectoryBias: capitalTrajectory.trajectoryBias,
+    trajectoryIssues: capitalTrajectory.trajectoryIssues,
+    alignmentScore: capitalAlignment.alignmentScore,
+    alignmentState: capitalAlignment.alignmentState,
+    alignmentBias: capitalAlignment.alignmentBias,
+    alignmentIssues: capitalAlignment.alignmentIssues,
+    convictionScore: capitalConviction.convictionScore,
+    convictionState: capitalConviction.convictionState,
+    convictionBias: capitalConviction.convictionBias,
+    convictionIssues: capitalConviction.convictionIssues,
+    disciplineScore: capitalDiscipline.disciplineScore,
+    disciplineState: capitalDiscipline.disciplineState,
+    disciplineBias: capitalDiscipline.disciplineBias,
+    disciplineIssues: capitalDiscipline.disciplineIssues,
+    selectivityScore: capitalSelectivity.selectivityScore,
+    selectivityState: capitalSelectivity.selectivityState,
+    selectivityBias: capitalSelectivity.selectivityBias,
+    selectivityIssues: capitalSelectivity.selectivityIssues,
+    timingScore: capitalTiming.timingScore,
+    timingState: capitalTiming.timingState,
+    timingBias: capitalTiming.timingBias,
+    timingIssues: capitalTiming.timingIssues,
+    capacityScore: capitalCapacity.capacityScore,
+    capacityState: capitalCapacity.capacityState,
+    capacityBias: capitalCapacity.capacityBias,
+    capacityIssues: capitalCapacity.capacityIssues,
+    utilizationScore: capitalUtilization.utilizationScore,
+    utilizationState: capitalUtilization.utilizationState,
+    utilizationBias: capitalUtilization.utilizationBias,
+    utilizationIssues: capitalUtilization.utilizationIssues,
+    priorityScore: capitalPriority.priorityScore,
+    priorityState: capitalPriority.priorityState,
+    priorityBias: capitalPriority.priorityBias,
+    priorityIssues: capitalPriority.priorityIssues,
+    commandScore: capitalCommand.commandScore,
+    commandState: capitalCommand.commandState,
+    commandBias: capitalCommand.commandBias,
+    commandIssues: capitalCommand.commandIssues,
 
     issues: freshness.stale
       ? combinedIssues
