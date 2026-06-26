@@ -2013,3 +2013,55 @@ test("readScannerRankings exposes stalled capital velocity intelligence", () => 
   assert.equal(out.velocityBias, "slow");
   assert.ok(Array.isArray(out.velocityIssues));
 });
+
+
+test("readScannerRankings exposes building capital acceleration intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-acceleration-building-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.94, compositeConfidence: 0.94, qualityOverall: 0.94, setupScore: 0.94 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.accelerationScore >= 0.62);
+  assert.ok(["building", "accelerating"].includes(out.accelerationState));
+  assert.ok(["build", "press"].includes(out.accelerationBias));
+  assert.deepEqual(out.accelerationIssues, []);
+});
+
+test("readScannerRankings exposes decelerating capital acceleration intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-acceleration-decelerating-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.accelerationState, "decelerating");
+  assert.equal(out.accelerationBias, "brake");
+  assert.ok(Array.isArray(out.accelerationIssues));
+});
