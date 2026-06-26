@@ -302,12 +302,30 @@ export function buildOperatorDashboardHtml(payload = buildOperatorDashboardPaylo
       .metrics, .grid { grid-template-columns: 1fr; }
       .route { white-space: normal; }
     }
+  
+    .scanner-alert-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0 18px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      border: 1px solid rgba(255,255,255,.14);
+    }
+    .scanner-alert-badge.loading { color: #cbd5e1; background: rgba(148,163,184,.12); }
+    .scanner-alert-badge.ok { color: #86efac; background: rgba(22,163,74,.16); }
+    .scanner-alert-badge.warning { color: #fde68a; background: rgba(234,179,8,.16); }
+    .scanner-alert-badge.critical { color: #fecaca; background: rgba(239,68,68,.18); }
   </style>
 </head>
 <body>
   <main>
     <header>
       <h1>GeminiScanner Operator</h1>
+      <div id="scanner-alert-badge" class="scanner-alert-badge loading">Scanner alert badge loading</div>
       <p class="lead">Live protected operator dashboard for Stage 2 app, LCM, health, readiness, diagnostics, rankings, market data, run logs, and safety state. This surface is read-only: no broker execution and no order placement.</p>
       <div class="bar">
         <span class="pill good">Mode: ${escapeHtml(payload.mode)}</span>
@@ -424,7 +442,52 @@ ${panelCards}
     refresh();
     setInterval(refresh, refreshMs);
   </script>
-</body>
+
+    <script>
+      (function () {
+        var el = document.getElementById("scanner-alert-badge");
+        if (!el) return;
+
+        function n(v) {
+          var x = Number(v);
+          return Number.isFinite(x) ? x : 0;
+        }
+
+        function rowNonZero(r) {
+          return n(r.setupScore) > 0 || n(r.normalizedScore) > 0 || n(r.confidence) > 0 || n(r.compositeConfidence) > 0;
+        }
+
+        function setBadge(level, text) {
+          el.className = "scanner-alert-badge " + level;
+          el.textContent = text;
+        }
+
+        Promise.all([
+          fetch("/health").then(function (r) { return r.json(); }),
+          fetch("/scanner/rankings").then(function (r) { return r.json(); })
+        ]).then(function (items) {
+          var health = items[0] || {};
+          var scanner = items[1] || {};
+          var rows = Array.isArray(scanner.rankings) ? scanner.rankings : [];
+          var nonZeroCount = rows.filter(rowNonZero).length;
+          var critical = [];
+          var warnings = [];
+
+          if (!rows.length) critical.push("NO_RANKINGS");
+          if (rows.length && nonZeroCount === 0) critical.push("ZERO_RANKINGS");
+          if (health.degraded === true) warnings.push("DEGRADED");
+          if (health.stream && health.stream.streamStale === true) warnings.push("STREAM_STALE");
+          if (scanner.rankingConfidence !== undefined && n(scanner.rankingConfidence) < 0.15) warnings.push("LOW_CONFIDENCE");
+
+          if (critical.length) setBadge("critical", "ALERT: " + critical.join(", "));
+          else if (warnings.length) setBadge("warning", "WARN: " + warnings.join(", "));
+          else setBadge("ok", "OK: scanner stable");
+        }).catch(function () {
+          setBadge("critical", "ALERT: scanner check failed");
+        });
+      })();
+    </script>
+  </body>
 </html>`;
 }
 
