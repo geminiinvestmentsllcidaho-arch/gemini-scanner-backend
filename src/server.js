@@ -18,6 +18,50 @@ import { readScannerRankings } from './scanner/ranking_store.mjs';
 
 dotenv.config();
 
+
+async function buildStage2LcmPayload() {
+  const rankings = await readScannerRankings()
+  return {
+    version: 'stage2_lcm_payload_v1',
+    scannerHealth: rankings.scannerHealth,
+    rankingConfidence: rankings.rankingConfidence,
+    stage2FinalCommand: rankings.stage2FinalCommand,
+    stage2FinalPermission: rankings.stage2FinalPermission,
+    decisionAssistCommand: rankings.decisionAssistCommand,
+    userDecisionSummary: rankings.userDecisionSummary,
+    lcmHeadline: rankings.lcmHeadline,
+    actionCardPrimary: rankings.actionCardPrimary,
+    coachingNarrative: rankings.coachingNarrative,
+    stage2AppDisplay: rankings.stage2AppDisplay,
+    stage2MobileDecisionCard: rankings.stage2MobileDecisionCard,
+    stage2AppScreenPayload: rankings.stage2AppScreenPayload
+  }
+}
+
+function attachStage2ToCoachingOutput(out, stage2Payload) {
+  if (Array.isArray(out)) {
+    return {
+      ok: true,
+      coaching: out,
+      stage2Lcm: stage2Payload
+    }
+  }
+
+  if (out && typeof out === 'object') {
+    return {
+      ...out,
+      stage2Lcm: stage2Payload
+    }
+  }
+
+  return {
+    ok: true,
+    coaching: [],
+    rawCoachingOutput: out,
+    stage2Lcm: stage2Payload
+  }
+}
+
 const app = express();
 app.use(express.json());
 
@@ -115,7 +159,9 @@ app.post('/coach', (req, res) => {
       ctx: { rules: ctxRules },
     });
 
-    res.json(out);
+    const stage2Payload = await buildStage2LcmPayload();
+
+    res.json(attachStage2ToCoachingOutput(out, stage2Payload));
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err) });
   }
