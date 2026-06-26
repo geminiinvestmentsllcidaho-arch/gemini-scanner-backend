@@ -3596,6 +3596,404 @@ function computeCapitalExitRoutingIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalCooldownIntelligence(inputs = {}) {
+  const capitalProtectionCommand = inputs.capitalProtectionCommand || {};
+  const capitalExitRouting = inputs.capitalExitRouting || {};
+
+  const protectionCommandScore = clampCapitalExitProtectionScore(capitalProtectionCommand.protectionCommandScore);
+  const exitRouteScore = clampCapitalExitProtectionScore(capitalExitRouting.exitRouteScore);
+
+  const protectionCommandState = String(capitalProtectionCommand.protectionCommandState || "unknown");
+  const protectionPermission = String(capitalProtectionCommand.protectionPermission || "unknown");
+  const exitRouteState = String(capitalExitRouting.exitRouteState || "unknown");
+  const routeUrgency = String(capitalExitRouting.routeUrgency || "unknown");
+
+  const issues = [];
+  let score = (protectionCommandScore * 0.6) + (exitRouteScore * 0.4);
+
+  if (protectionCommandState === "protect_now") {
+    score -= 0.4;
+    issues.push("PROTECT_NOW_ACTIVE");
+  }
+
+  if (protectionCommandState === "protective_reduce") {
+    score -= 0.18;
+    issues.push("PROTECTIVE_REDUCE_ACTIVE");
+  }
+
+  if (protectionPermission === "exit_required") {
+    score -= 0.3;
+    issues.push("EXIT_REQUIRED");
+  }
+
+  if (exitRouteState === "forced_exit_route" || routeUrgency === "immediate") {
+    score -= 0.25;
+    issues.push("FORCED_EXIT_ROUTE");
+  }
+
+  if (routeUrgency === "elevated") {
+    score -= 0.1;
+    issues.push("ELEVATED_ROUTE_URGENCY");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let cooldownState = "cooldown_caution";
+  if (protectionCommandState === "protect_now" || protectionPermission === "exit_required" || exitRouteState === "forced_exit_route") {
+    cooldownState = "cooldown_required";
+  } else if (protectionCommandState === "protective_reduce" || routeUrgency === "elevated") {
+    cooldownState = "cooldown_active";
+  } else if (score >= 0.78) {
+    cooldownState = "cooldown_clear";
+  } else if (score >= 0.58) {
+    cooldownState = "cooldown_watch";
+  }
+
+  const cooldownMode =
+    cooldownState === "cooldown_required"
+      ? "no_new_entries"
+      : cooldownState === "cooldown_active"
+        ? "wait_for_reset"
+        : cooldownState === "cooldown_clear"
+          ? "normal_scan"
+          : cooldownState === "cooldown_watch"
+            ? "selective_scan"
+            : "cautious_scan";
+
+  const recheckCadence =
+    cooldownState === "cooldown_required"
+      ? "next_cycle"
+      : cooldownState === "cooldown_active"
+        ? "short_interval"
+        : cooldownState === "cooldown_clear"
+          ? "standard_interval"
+          : "watch_interval";
+
+  return {
+    cooldownScore: score,
+    cooldownState,
+    cooldownMode,
+    recheckCadence,
+    cooldownIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalResetReadinessIntelligence(inputs = {}) {
+  const capitalCooldown = inputs.capitalCooldown || {};
+  const capitalDrawdownBrake = inputs.capitalDrawdownBrake || {};
+
+  const cooldownScore = clampCapitalExitProtectionScore(capitalCooldown.cooldownScore);
+  const drawdownBrakeScore = clampCapitalExitProtectionScore(capitalDrawdownBrake.drawdownBrakeScore);
+
+  const cooldownState = String(capitalCooldown.cooldownState || "unknown");
+  const drawdownBrakeState = String(capitalDrawdownBrake.drawdownBrakeState || "unknown");
+  const lossRecoveryPermission = String(capitalDrawdownBrake.lossRecoveryPermission || "unknown");
+
+  const issues = [];
+  let score = (cooldownScore * 0.55) + (drawdownBrakeScore * 0.45);
+
+  if (cooldownState === "cooldown_required") {
+    score -= 0.35;
+    issues.push("COOLDOWN_REQUIRED");
+  }
+
+  if (cooldownState === "cooldown_active") {
+    score -= 0.15;
+    issues.push("COOLDOWN_ACTIVE");
+  }
+
+  if (drawdownBrakeState === "hard_brake") {
+    score -= 0.3;
+    issues.push("HARD_DRAWDOWN_BRAKE");
+  }
+
+  if (lossRecoveryPermission === "denied") {
+    score -= 0.22;
+    issues.push("LOSS_RECOVERY_DENIED");
+  }
+
+  if (lossRecoveryPermission === "restricted") {
+    score -= 0.1;
+    issues.push("LOSS_RECOVERY_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let resetReadinessState = "reset_watch";
+  if (cooldownState === "cooldown_required" || drawdownBrakeState === "hard_brake" || lossRecoveryPermission === "denied") {
+    resetReadinessState = "reset_blocked";
+  } else if (cooldownState === "cooldown_active" || lossRecoveryPermission === "restricted") {
+    resetReadinessState = "reset_restricted";
+  } else if (score >= 0.78) {
+    resetReadinessState = "reset_ready";
+  } else if (score >= 0.58) {
+    resetReadinessState = "reset_conditional";
+  }
+
+  const resetRequirement =
+    resetReadinessState === "reset_blocked"
+      ? "fresh_confirmation_required"
+      : resetReadinessState === "reset_restricted"
+        ? "reduced_risk_confirmation"
+        : resetReadinessState === "reset_ready"
+          ? "standard_confirmation"
+          : "additional_validation";
+
+  const resetPermission =
+    resetReadinessState === "reset_blocked"
+      ? "denied"
+      : resetReadinessState === "reset_restricted"
+        ? "restricted"
+        : resetReadinessState === "reset_ready"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    resetReadinessScore: score,
+    resetReadinessState,
+    resetRequirement,
+    resetPermission,
+    resetReadinessIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalReentryGateIntelligence(inputs = {}) {
+  const capitalResetReadiness = inputs.capitalResetReadiness || {};
+  const capitalProfitLock = inputs.capitalProfitLock || {};
+  const capitalProtectionCommand = inputs.capitalProtectionCommand || {};
+
+  const resetReadinessScore = clampCapitalExitProtectionScore(capitalResetReadiness.resetReadinessScore);
+  const profitLockScore = clampCapitalExitProtectionScore(capitalProfitLock.profitLockScore);
+  const protectionCommandScore = clampCapitalExitProtectionScore(capitalProtectionCommand.protectionCommandScore);
+
+  const resetPermission = String(capitalResetReadiness.resetPermission || "unknown");
+  const profitLockState = String(capitalProfitLock.profitLockState || "unknown");
+  const protectionPermission = String(capitalProtectionCommand.protectionPermission || "unknown");
+  const protectionCommandState = String(capitalProtectionCommand.protectionCommandState || "unknown");
+
+  const issues = [];
+  let score = (resetReadinessScore * 0.45) + (profitLockScore * 0.25) + (protectionCommandScore * 0.3);
+
+  if (resetPermission === "denied") {
+    score -= 0.35;
+    issues.push("RESET_DENIED");
+  }
+
+  if (resetPermission === "restricted") {
+    score -= 0.16;
+    issues.push("RESET_RESTRICTED");
+  }
+
+  if (protectionPermission === "exit_required" || protectionCommandState === "protect_now") {
+    score -= 0.35;
+    issues.push("PROTECTION_EXIT_REQUIRED");
+  }
+
+  if (profitLockState === "lock_gains") {
+    score -= 0.12;
+    issues.push("PROFIT_LOCK_ACTIVE");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let reentryGateState = "reentry_standby";
+  if (resetPermission === "denied" || protectionPermission === "exit_required" || protectionCommandState === "protect_now") {
+    reentryGateState = "reentry_denied";
+  } else if (resetPermission === "restricted" || profitLockState === "partial_lock") {
+    reentryGateState = "reentry_restricted";
+  } else if (score >= 0.78) {
+    reentryGateState = "reentry_ready";
+  } else if (score >= 0.58) {
+    reentryGateState = "reentry_watch";
+  }
+
+  const reentryBias =
+    reentryGateState === "reentry_denied"
+      ? "stand_down"
+      : reentryGateState === "reentry_restricted"
+        ? "test_size_only"
+        : reentryGateState === "reentry_ready"
+          ? "normal_entry_allowed"
+          : reentryGateState === "reentry_watch"
+            ? "selective_entry_only"
+            : "wait_for_confirmation";
+
+  const reentryPermission =
+    reentryGateState === "reentry_denied"
+      ? "denied"
+      : reentryGateState === "reentry_restricted"
+        ? "restricted"
+        : reentryGateState === "reentry_ready"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    reentryGateScore: score,
+    reentryGateState,
+    reentryBias,
+    reentryPermission,
+    reentryGateIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalExposureRestoreIntelligence(inputs = {}) {
+  const capitalReentryGate = inputs.capitalReentryGate || {};
+  const capitalDrawdownBrake = inputs.capitalDrawdownBrake || {};
+  const capitalExitRouting = inputs.capitalExitRouting || {};
+
+  const reentryGateScore = clampCapitalExitProtectionScore(capitalReentryGate.reentryGateScore);
+  const drawdownBrakeScore = clampCapitalExitProtectionScore(capitalDrawdownBrake.drawdownBrakeScore);
+  const exitRouteScore = clampCapitalExitProtectionScore(capitalExitRouting.exitRouteScore);
+
+  const reentryPermission = String(capitalReentryGate.reentryPermission || "unknown");
+  const drawdownBrakeState = String(capitalDrawdownBrake.drawdownBrakeState || "unknown");
+  const exitRouteState = String(capitalExitRouting.exitRouteState || "unknown");
+
+  const issues = [];
+  let score = (reentryGateScore * 0.45) + (drawdownBrakeScore * 0.3) + (exitRouteScore * 0.25);
+
+  if (reentryPermission === "denied") {
+    score -= 0.35;
+    issues.push("REENTRY_DENIED");
+  }
+
+  if (reentryPermission === "restricted") {
+    score -= 0.15;
+    issues.push("REENTRY_RESTRICTED");
+  }
+
+  if (drawdownBrakeState === "hard_brake") {
+    score -= 0.28;
+    issues.push("HARD_BRAKE_ACTIVE");
+  }
+
+  if (exitRouteState === "forced_exit_route") {
+    score -= 0.22;
+    issues.push("FORCED_EXIT_ROUTE");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let exposureRestoreState = "restore_watch";
+  if (reentryPermission === "denied" || drawdownBrakeState === "hard_brake" || exitRouteState === "forced_exit_route") {
+    exposureRestoreState = "restore_blocked";
+  } else if (reentryPermission === "restricted" || drawdownBrakeState === "soft_brake") {
+    exposureRestoreState = "rebuild_slow";
+  } else if (score >= 0.78) {
+    exposureRestoreState = "full_restore";
+  } else if (score >= 0.58) {
+    exposureRestoreState = "partial_restore";
+  }
+
+  const restoreMode =
+    exposureRestoreState === "restore_blocked"
+      ? "no_restore"
+      : exposureRestoreState === "rebuild_slow"
+        ? "staged_restore"
+        : exposureRestoreState === "full_restore"
+          ? "normal_restore"
+          : exposureRestoreState === "partial_restore"
+            ? "partial_restore"
+            : "observe";
+
+  const restorePressure =
+    exposureRestoreState === "restore_blocked"
+      ? "none"
+      : exposureRestoreState === "rebuild_slow"
+        ? "low"
+        : exposureRestoreState === "full_restore"
+          ? "normal"
+          : "moderate";
+
+  return {
+    exposureRestoreScore: score,
+    exposureRestoreState,
+    restoreMode,
+    restorePressure,
+    exposureRestoreIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalContinuationCommandIntelligence(inputs = {}) {
+  const capitalCooldown = inputs.capitalCooldown || {};
+  const capitalReentryGate = inputs.capitalReentryGate || {};
+  const capitalExposureRestore = inputs.capitalExposureRestore || {};
+
+  const cooldownScore = clampCapitalExitProtectionScore(capitalCooldown.cooldownScore);
+  const reentryGateScore = clampCapitalExitProtectionScore(capitalReentryGate.reentryGateScore);
+  const exposureRestoreScore = clampCapitalExitProtectionScore(capitalExposureRestore.exposureRestoreScore);
+
+  const cooldownState = String(capitalCooldown.cooldownState || "unknown");
+  const reentryPermission = String(capitalReentryGate.reentryPermission || "unknown");
+  const exposureRestoreState = String(capitalExposureRestore.exposureRestoreState || "unknown");
+
+  const issues = [];
+  let score = (cooldownScore * 0.25) + (reentryGateScore * 0.4) + (exposureRestoreScore * 0.35);
+
+  if (cooldownState === "cooldown_required") {
+    score -= 0.3;
+    issues.push("COOLDOWN_REQUIRED");
+  }
+
+  if (reentryPermission === "denied") {
+    score -= 0.35;
+    issues.push("REENTRY_DENIED");
+  }
+
+  if (exposureRestoreState === "restore_blocked") {
+    score -= 0.28;
+    issues.push("RESTORE_BLOCKED");
+  }
+
+  if (reentryPermission === "restricted" || exposureRestoreState === "rebuild_slow") {
+    score -= 0.12;
+    issues.push("REENTRY_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let continuationCommandState = "managed_continuation";
+  if (cooldownState === "cooldown_required" || reentryPermission === "denied" || exposureRestoreState === "restore_blocked") {
+    continuationCommandState = "stand_down";
+  } else if (reentryPermission === "restricted" || exposureRestoreState === "rebuild_slow") {
+    continuationCommandState = "limited_reentry";
+  } else if (score >= 0.78) {
+    continuationCommandState = "continuation_allowed";
+  } else if (score >= 0.58) {
+    continuationCommandState = "continuation_watch";
+  }
+
+  const continuationCommand =
+    continuationCommandState === "stand_down"
+      ? "no_new_risk"
+      : continuationCommandState === "limited_reentry"
+        ? "test_size_only"
+        : continuationCommandState === "continuation_allowed"
+          ? "continue_scanning"
+          : continuationCommandState === "continuation_watch"
+            ? "watch_only"
+            : "managed_scanning";
+
+  const continuationPermission =
+    continuationCommandState === "stand_down"
+      ? "denied"
+      : continuationCommandState === "limited_reentry"
+        ? "restricted"
+        : continuationCommandState === "continuation_allowed"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    continuationCommandScore: score,
+    continuationCommandState,
+    continuationCommand,
+    continuationPermission,
+    continuationCommandIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalProtectionCommandIntelligence(inputs = {}) {
   const capitalExitRouting = inputs.capitalExitRouting || {};
   const capitalDrawdownBrake = inputs.capitalDrawdownBrake || {};
@@ -4380,6 +4778,34 @@ export function readScannerRankings(opts = {}) {
     capitalStopManagement,
   });
 
+  const capitalCooldown = computeCapitalCooldownIntelligence({
+    capitalProtectionCommand,
+    capitalExitRouting,
+  });
+
+  const capitalResetReadiness = computeCapitalResetReadinessIntelligence({
+    capitalCooldown,
+    capitalDrawdownBrake,
+  });
+
+  const capitalReentryGate = computeCapitalReentryGateIntelligence({
+    capitalResetReadiness,
+    capitalProfitLock,
+    capitalProtectionCommand,
+  });
+
+  const capitalExposureRestore = computeCapitalExposureRestoreIntelligence({
+    capitalReentryGate,
+    capitalDrawdownBrake,
+    capitalExitRouting,
+  });
+
+  const capitalContinuationCommand = computeCapitalContinuationCommandIntelligence({
+    capitalCooldown,
+    capitalReentryGate,
+    capitalExposureRestore,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -4631,6 +5057,31 @@ export function readScannerRankings(opts = {}) {
     protectionCommand: capitalProtectionCommand.protectionCommand,
     protectionPermission: capitalProtectionCommand.protectionPermission,
     protectionCommandIssues: capitalProtectionCommand.protectionCommandIssues,
+    cooldownScore: capitalCooldown.cooldownScore,
+    cooldownState: capitalCooldown.cooldownState,
+    cooldownMode: capitalCooldown.cooldownMode,
+    recheckCadence: capitalCooldown.recheckCadence,
+    cooldownIssues: capitalCooldown.cooldownIssues,
+    resetReadinessScore: capitalResetReadiness.resetReadinessScore,
+    resetReadinessState: capitalResetReadiness.resetReadinessState,
+    resetRequirement: capitalResetReadiness.resetRequirement,
+    resetPermission: capitalResetReadiness.resetPermission,
+    resetReadinessIssues: capitalResetReadiness.resetReadinessIssues,
+    reentryGateScore: capitalReentryGate.reentryGateScore,
+    reentryGateState: capitalReentryGate.reentryGateState,
+    reentryBias: capitalReentryGate.reentryBias,
+    reentryPermission: capitalReentryGate.reentryPermission,
+    reentryGateIssues: capitalReentryGate.reentryGateIssues,
+    exposureRestoreScore: capitalExposureRestore.exposureRestoreScore,
+    exposureRestoreState: capitalExposureRestore.exposureRestoreState,
+    restoreMode: capitalExposureRestore.restoreMode,
+    restorePressure: capitalExposureRestore.restorePressure,
+    exposureRestoreIssues: capitalExposureRestore.exposureRestoreIssues,
+    continuationCommandScore: capitalContinuationCommand.continuationCommandScore,
+    continuationCommandState: capitalContinuationCommand.continuationCommandState,
+    continuationCommand: capitalContinuationCommand.continuationCommand,
+    continuationPermission: capitalContinuationCommand.continuationPermission,
+    continuationCommandIssues: capitalContinuationCommand.continuationCommandIssues,
 
     issues: freshness.stale
       ? combinedIssues
