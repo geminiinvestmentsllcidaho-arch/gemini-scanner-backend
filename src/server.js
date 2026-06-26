@@ -15,6 +15,7 @@ import { computeContext as computeContextV3 } from './pillar3/context_engine.mjs
 import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
+import { registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 
 dotenv.config();
 
@@ -405,6 +406,10 @@ app.post('/ops/run', async (req, res) => {
 // --------------------
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
+
+if (!app.__geminiOperatorDashboardRoutesRegistered) {
+  registerOperatorDashboardRoutes(app);
+}
 
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
