@@ -90,16 +90,14 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
   const open = await isMarketOpen();
 
-  if (!open) {
-    try {
-      for (const s of symbols) {
-        const backfillLimit = Number(process.env.ALPACA_BACKFILL_LIMIT || 3000);
-        const n = await backfillBars({ symbol: s, limit: backfillLimit });
-        console.log('[md] backfilled bars', { symbol: s, count: n });
-      }
-    } catch (e) {
-      console.log('[md] backfill error', String(e?.message || e));
+  try {
+    for (const s of symbols) {
+      const backfillLimit = Number(process.env.ALPACA_BACKFILL_LIMIT || 3000);
+      const n = await backfillBars({ symbol: s, limit: backfillLimit });
+      console.log('[md] backfilled bars', { symbol: s, count: n, marketOpen: open });
     }
+  } catch (e) {
+    console.log('[md] backfill error', String(e?.message || e), { marketOpen: open });
   }
 
   let ws = null;

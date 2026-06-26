@@ -6700,10 +6700,11 @@ function computeCapitalCommandIntelligence(inputs = {}) {
   };
 }
 export function readScannerRankings(opts = {}) {
+  const liveRows = Array.isArray(opts.rows) ? opts.rows.filter(Boolean) : null;
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
-  const latestFile = getLatestDryrunFile(dryrunsDir);
+  const latestFile = liveRows ? null : getLatestDryrunFile(dryrunsDir);
 
-  if (!latestFile) {
+  if (!liveRows && !latestFile) {
     const freshness = computeFreshness([], opts);
     const health = computeScannerHealth([], freshness, opts);
     return {
@@ -6716,8 +6717,7 @@ export function readScannerRankings(opts = {}) {
     };
   }
 
-  const content = fs.readFileSync(latestFile, "utf8");
-  const rows = content
+  const rows = liveRows || fs.readFileSync(latestFile, "utf8")
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
