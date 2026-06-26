@@ -2935,3 +2935,94 @@ test("readScannerRankings blocks reentry control after denied capital command", 
   assert.equal(out.continuationPermission, "denied");
 });
 
+test("readScannerRankings exposes capital restart governance stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-restart-governance-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.quarantineScore >= 0);
+  assert.ok(out.quarantineScore <= 1);
+  assert.ok(["quarantine_required", "quarantine_limited", "quarantine_clear", "quarantine_monitor", "quarantine_watch"].includes(out.quarantineState));
+  assert.ok(["isolate_risk", "limited_observation", "normal_monitoring", "heightened_monitoring", "watch_risk"].includes(out.quarantineMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.quarantinePermission));
+  assert.ok(Array.isArray(out.quarantineIssues));
+
+  assert.ok(out.trustRebuildScore >= 0);
+  assert.ok(out.trustRebuildScore <= 1);
+  assert.ok(["trust_blocked", "trust_restricted", "trust_restored", "trust_rebuilding", "trust_watch"].includes(out.trustRebuildState));
+  assert.ok(["no_confidence_rebuild", "slow_confidence_rebuild", "standard_confidence", "measured_confidence", "watch_confidence"].includes(out.trustRebuildMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.trustPermission));
+  assert.ok(Array.isArray(out.trustRebuildIssues));
+
+  assert.ok(out.riskRestartScore >= 0);
+  assert.ok(out.riskRestartScore <= 1);
+  assert.ok(["restart_blocked", "restart_limited", "restart_ready", "restart_conditional", "restart_watch"].includes(out.riskRestartState));
+  assert.ok(["no_restart", "micro_size_restart", "standard_restart", "reduced_size_restart", "wait_for_restart"].includes(out.riskRestartMode));
+  assert.ok(["zero", "micro", "normal", "reduced"].includes(out.restartSizeBias));
+  assert.ok(Array.isArray(out.riskRestartIssues));
+
+  assert.ok(out.allocationRestartScore >= 0);
+  assert.ok(out.allocationRestartScore <= 1);
+  assert.ok(["allocation_blocked", "allocation_limited", "allocation_ready", "allocation_conditional", "allocation_watch"].includes(out.allocationRestartState));
+  assert.ok(["capital_locked", "capital_drip", "capital_release", "conditional_release", "watch_release"].includes(out.allocationRestartMode));
+  assert.ok(["none", "minimal", "normal", "controlled"].includes(out.capitalReleaseBias));
+  assert.ok(Array.isArray(out.allocationRestartIssues));
+
+  assert.ok(out.restartCommandScore >= 0);
+  assert.ok(out.restartCommandScore <= 1);
+  assert.ok(["restart_denied", "restart_restricted", "restart_authorized", "restart_conditional", "restart_managed"].includes(out.restartCommandState));
+  assert.ok(["stand_down", "micro_rebuild_only", "resume_controlled_risk", "resume_selective_risk", "manage_restart"].includes(out.restartCommand));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.restartPermission));
+  assert.ok(Array.isArray(out.restartCommandIssues));
+});
+
+test("readScannerRankings denies capital restart after protection stand down", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-restart-governance-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.continuationCommandState, "stand_down");
+  assert.equal(out.continuationPermission, "denied");
+  assert.equal(out.quarantineState, "quarantine_required");
+  assert.equal(out.quarantinePermission, "denied");
+  assert.equal(out.trustRebuildState, "trust_blocked");
+  assert.equal(out.trustPermission, "denied");
+  assert.equal(out.riskRestartState, "restart_blocked");
+  assert.equal(out.riskRestartMode, "no_restart");
+  assert.equal(out.allocationRestartState, "allocation_blocked");
+  assert.equal(out.allocationRestartMode, "capital_locked");
+  assert.equal(out.restartCommandState, "restart_denied");
+  assert.equal(out.restartCommand, "stand_down");
+  assert.equal(out.restartPermission, "denied");
+});
+
