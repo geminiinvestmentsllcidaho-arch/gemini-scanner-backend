@@ -3278,6 +3278,136 @@ function clampCapitalExitProtectionScore(value) {
   return Math.max(0, Math.min(1, n));
 }
 
+
+function computeCapitalInvalidationIntelligence(inputs = {}) {
+  const capitalExitProtection = inputs.capitalExitProtection || {};
+  const exitProtectionScore = clampCapitalExitProtectionScore(capitalExitProtection.exitProtectionScore);
+  const exitProtectionState = String(capitalExitProtection.exitProtectionState || "unknown");
+  const holdPermission = String(capitalExitProtection.holdPermission || "unknown");
+  const invalidationDiscipline = String(capitalExitProtection.invalidationDiscipline || "unknown");
+  const reductionPressure = String(capitalExitProtection.reductionPressure || "unknown");
+  const protectionIssues = Array.isArray(capitalExitProtection.exitProtectionIssues)
+    ? capitalExitProtection.exitProtectionIssues
+    : [];
+
+  const issues = [];
+
+  let score = exitProtectionScore;
+
+  if (exitProtectionState === "locked") {
+    score -= 0.3;
+    issues.push("EXIT_PROTECTION_LOCKED");
+  }
+
+  if (exitProtectionState === "guarded") {
+    score -= 0.12;
+    issues.push("EXIT_PROTECTION_GUARDED");
+  }
+
+  if (holdPermission === "denied") {
+    score -= 0.25;
+    issues.push("HOLD_DENIED");
+  }
+
+  if (reductionPressure === "high") {
+    score -= 0.15;
+    issues.push("HIGH_REDUCTION_PRESSURE");
+  }
+
+  if (invalidationDiscipline === "hard_invalidation") {
+    score -= 0.12;
+    issues.push("HARD_INVALIDATION_REQUIRED");
+  }
+
+  for (const issue of protectionIssues) {
+    if (typeof issue === "string" && issue.length > 0) {
+      issues.push(`PROTECTION_${issue}`);
+    }
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let invalidationState = "managed";
+  if (exitProtectionState === "locked" || holdPermission === "denied") {
+    invalidationState = "hard_stop";
+  } else if (exitProtectionState === "guarded" || reductionPressure === "moderate") {
+    invalidationState = "tight_stop";
+  } else if (score >= 0.78) {
+    invalidationState = "standard_stop";
+  } else if (score >= 0.58) {
+    invalidationState = "adaptive_stop";
+  }
+
+  const stopDiscipline =
+    invalidationState === "hard_stop"
+      ? "mandatory_exit_rules"
+      : invalidationState === "tight_stop"
+        ? "tight_exit_rules"
+        : invalidationState === "standard_stop"
+          ? "normal_exit_rules"
+          : invalidationState === "adaptive_stop"
+            ? "adaptive_exit_rules"
+            : "managed_exit_rules";
+
+  const stopTightness =
+    invalidationState === "hard_stop"
+      ? "maximum"
+      : invalidationState === "tight_stop"
+        ? "tight"
+        : invalidationState === "standard_stop"
+          ? "normal"
+          : "adaptive";
+
+  const lossContainmentMode =
+    invalidationState === "hard_stop"
+      ? "immediate_containment"
+      : invalidationState === "tight_stop"
+        ? "fast_containment"
+        : invalidationState === "standard_stop"
+          ? "planned_containment"
+          : "dynamic_containment";
+
+  const exitTriggerSensitivity =
+    invalidationState === "hard_stop"
+      ? "very_high"
+      : invalidationState === "tight_stop"
+        ? "high"
+        : invalidationState === "standard_stop"
+          ? "normal"
+          : "adaptive";
+
+  const riskOffTrigger =
+    invalidationState === "hard_stop"
+      ? "active"
+      : invalidationState === "tight_stop"
+        ? "armed"
+        : invalidationState === "standard_stop"
+          ? "standard"
+          : "watch";
+
+  const protectionUrgency =
+    invalidationState === "hard_stop"
+      ? "urgent"
+      : invalidationState === "tight_stop"
+        ? "elevated"
+        : invalidationState === "standard_stop"
+          ? "normal"
+          : "measured";
+
+  return {
+    invalidationScore: score,
+    invalidationState,
+    stopDiscipline,
+    stopTightness,
+    lossContainmentMode,
+    exitTriggerSensitivity,
+    riskOffTrigger,
+    protectionUrgency,
+    invalidationIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalExitProtectionIntelligence(inputs = {}) {
   const capitalCommand = inputs.capitalCommand || {};
   const commandScore = clampCapitalExitProtectionScore(capitalCommand.commandScore);
@@ -3829,6 +3959,10 @@ export function readScannerRankings(opts = {}) {
     capitalCommand,
   });
 
+  const capitalInvalidation = computeCapitalInvalidationIntelligence({
+    capitalExitProtection,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -4044,6 +4178,15 @@ export function readScannerRankings(opts = {}) {
     exitReadiness: capitalExitProtection.exitReadiness,
     profitProtectionBias: capitalExitProtection.profitProtectionBias,
     exitProtectionIssues: capitalExitProtection.exitProtectionIssues,
+    invalidationScore: capitalInvalidation.invalidationScore,
+    invalidationState: capitalInvalidation.invalidationState,
+    stopDiscipline: capitalInvalidation.stopDiscipline,
+    stopTightness: capitalInvalidation.stopTightness,
+    lossContainmentMode: capitalInvalidation.lossContainmentMode,
+    exitTriggerSensitivity: capitalInvalidation.exitTriggerSensitivity,
+    riskOffTrigger: capitalInvalidation.riskOffTrigger,
+    protectionUrgency: capitalInvalidation.protectionUrgency,
+    invalidationIssues: capitalInvalidation.invalidationIssues,
 
     issues: freshness.stale
       ? combinedIssues
