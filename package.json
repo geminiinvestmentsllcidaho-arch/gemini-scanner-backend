@@ -23,7 +23,8 @@
     "validate:api-patch-dashboard": "node --test test/api_patch_plan_dashboard.test.mjs",
     "approve:api-patch": "node scripts/approve_api_patch_plan.mjs",
     "validate:api-patch-approval": "node --test test/api_patch_approval_gate.test.mjs && node scripts/validate_api_patch_approval_gate.mjs",
-    "validate:operator-approval-workflow": "node --test test/operator_approval_workflow.test.mjs"
+    "validate:operator-approval-workflow": "node --test test/operator_approval_workflow.test.mjs",
+    "validate:operator-approval-dashboard-panel": "node scripts/validate_operator_approval_dashboard_panel.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

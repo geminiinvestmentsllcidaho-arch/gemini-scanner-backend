@@ -1,3 +1,4 @@
+import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
 import fs from "node:fs";
 import dotenv from 'dotenv';
 import express from 'express';
@@ -446,6 +447,19 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
 }
 
 
+
+app.get('/diagnostics/operator-approval-dashboard-panel', (req, res) => {
+  try {
+    const panel = buildOperatorApprovalDashboardPanel();
+    res.json({ ok: true, panel });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: 'operator_approval_dashboard_panel_failed',
+      message: error?.message || String(error)
+    });
+  }
+});
 app.get('/diagnostics/operator-approval-workflow', async (req, res) => {
   try {
     const { loadOperatorApprovalWorkflow } = await import('./scanner/operator_approval_workflow.mjs')
