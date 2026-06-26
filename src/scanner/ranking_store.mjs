@@ -2231,6 +2231,65 @@ function computeCapitalSustainabilityIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalScalabilityIntelligence(inputs = {}) {
+  const sustainability = inputs.sustainability || {};
+  const endurance = inputs.endurance || {};
+  const durability = inputs.durability || {};
+  const continuity = inputs.continuity || {};
+  const governance = inputs.governance || {};
+
+  const sustainabilityScore = Number.isFinite(sustainability.sustainabilityScore) ? sustainability.sustainabilityScore : 0.5;
+  const enduranceScore = Number.isFinite(endurance.enduranceScore) ? endurance.enduranceScore : 0.5;
+  const durabilityScore = Number.isFinite(durability.durabilityScore) ? durability.durabilityScore : 0.5;
+  const continuityScore = Number.isFinite(continuity.continuityScore) ? continuity.continuityScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const scalabilityScore = roundN(
+    sustainabilityScore * 0.34 +
+      enduranceScore * 0.23 +
+      durabilityScore * 0.18 +
+      continuityScore * 0.15 +
+      governanceScore * 0.1,
+    4
+  );
+
+  let scalabilityState = "balanced";
+  if (
+    scalabilityScore >= 0.75 &&
+    sustainability.sustainabilityState !== "unsustainable" &&
+    endurance.enduranceState !== "limited"
+  ) {
+    scalabilityState = "expandable";
+  } else if (
+    scalabilityScore < 0.5 ||
+    sustainability.sustainabilityState === "unsustainable" ||
+    endurance.enduranceState === "limited"
+  ) {
+    scalabilityState = "restricted";
+  } else if (scalabilityScore >= 0.62) {
+    scalabilityState = "scalable";
+  }
+
+  let scalabilityBias = "neutral";
+  if (scalabilityState === "expandable") scalabilityBias = "expand";
+  else if (scalabilityState === "scalable") scalabilityBias = "scale";
+  else if (scalabilityState === "restricted") scalabilityBias = "cap";
+
+  const scalabilityIssues = [];
+  if (scalabilityScore < 0.5) scalabilityIssues.push("SCANNER_SCALABILITY_WEAK");
+  if (sustainability.sustainabilityState === "unsustainable") scalabilityIssues.push("SCANNER_SUSTAINABILITY_UNSUSTAINABLE");
+  if (endurance.enduranceState === "limited") scalabilityIssues.push("SCANNER_ENDURANCE_LIMITED");
+  if (durability.durabilityState === "vulnerable") scalabilityIssues.push("SCANNER_DURABILITY_VULNERABLE");
+
+  return {
+    scalabilityScore,
+    scalabilityState,
+    scalabilityBias,
+    scalabilityIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2423,6 +2482,14 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalScalability = computeCapitalScalabilityIntelligence({
+    sustainability: capitalSustainability,
+    endurance: capitalEndurance,
+    durability: capitalDurability,
+    continuity: capitalContinuity,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2552,6 +2619,10 @@ export function readScannerRankings(opts = {}) {
     sustainabilityState: capitalSustainability.sustainabilityState,
     sustainabilityBias: capitalSustainability.sustainabilityBias,
     sustainabilityIssues: capitalSustainability.sustainabilityIssues,
+    scalabilityScore: capitalScalability.scalabilityScore,
+    scalabilityState: capitalScalability.scalabilityState,
+    scalabilityBias: capitalScalability.scalabilityBias,
+    scalabilityIssues: capitalScalability.scalabilityIssues,
 
     issues: freshness.stale
       ? combinedIssues
