@@ -3299,3 +3299,91 @@ test("readScannerRankings emits defensive user decision packet after directive s
   assert.equal(out.userDecisionPermission, "denied");
 });
 
+test("readScannerRankings exposes capital decision assist output stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-decision-assist-output-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.lcmMessageScore >= 0);
+  assert.ok(out.lcmMessageScore <= 1);
+  assert.ok(["lcm_stand_down", "lcm_restricted", "lcm_actionable", "lcm_conditional", "lcm_watch"].includes(out.lcmMessageState));
+  assert.ok(["Capital protection active", "Restricted manual setup", "Manual setup cleared", "Manual setup needs confirmation", "Monitor only"].includes(out.lcmHeadline));
+  assert.ok(["critical", "high", "normal", "watch"].includes(out.lcmSeverity));
+  assert.ok(Array.isArray(out.lcmMessageIssues));
+
+  assert.ok(out.riskWarningScore >= 0);
+  assert.ok(out.riskWarningScore <= 1);
+  assert.ok(["warning_critical", "warning_elevated", "warning_clear", "warning_moderate", "warning_watch"].includes(out.riskWarningState));
+  assert.ok(["critical", "high", "normal", "watch"].includes(out.riskWarningLevel));
+  assert.ok(Array.isArray(out.riskWarningIssues));
+
+  assert.ok(out.actionCardScore >= 0);
+  assert.ok(out.actionCardScore <= 1);
+  assert.ok(["card_blocked", "card_restricted", "card_actionable", "card_conditional", "card_watch"].includes(out.actionCardState));
+  assert.ok(["DO NOT ENTER", "MICRO ONLY", "MANUAL ACTION OK", "WAIT FOR CONFIRMATION", "WATCH"].includes(out.actionCardPrimary));
+  assert.ok(Array.isArray(out.actionCardIssues));
+
+  assert.ok(out.coachingNarrativeScore >= 0);
+  assert.ok(out.coachingNarrativeScore <= 1);
+  assert.ok(["narrative_defensive", "narrative_restricted", "narrative_clear", "narrative_conditional", "narrative_watch"].includes(out.coachingNarrativeState));
+  assert.equal(typeof out.coachingNarrative, "string");
+  assert.ok(Array.isArray(out.coachingNarrativeIssues));
+
+  assert.ok(out.decisionAssistOutputScore >= 0);
+  assert.ok(out.decisionAssistOutputScore <= 1);
+  assert.ok(["assist_stand_down", "assist_restricted", "assist_actionable", "assist_conditional", "assist_watch"].includes(out.decisionAssistOutputState));
+  assert.ok(["DO_NOT_TRADE", "MICRO_ONLY_IF_CONFIRMED", "MANUAL_DECISION_ALLOWED", "WAIT_FOR_CONFIRMATION", "WATCH_ONLY"].includes(out.decisionAssistCommand));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.decisionAssistPermission));
+  assert.ok(Array.isArray(out.decisionAssistOutputIssues));
+});
+
+test("readScannerRankings emits stand-down decision assist output after user packet denial", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-decision-assist-output-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.userDecisionPacketState, "packet_stand_down");
+  assert.equal(out.userDecisionPermission, "denied");
+  assert.equal(out.lcmMessageState, "lcm_stand_down");
+  assert.equal(out.lcmHeadline, "Capital protection active");
+  assert.equal(out.lcmSeverity, "critical");
+  assert.equal(out.riskWarningState, "warning_critical");
+  assert.equal(out.riskWarningLevel, "critical");
+  assert.equal(out.actionCardState, "card_blocked");
+  assert.equal(out.actionCardPrimary, "DO NOT ENTER");
+  assert.equal(out.coachingNarrativeState, "narrative_defensive");
+  assert.equal(out.decisionAssistOutputState, "assist_stand_down");
+  assert.equal(out.decisionAssistCommand, "DO_NOT_TRADE");
+  assert.equal(out.decisionAssistPermission, "denied");
+});
+

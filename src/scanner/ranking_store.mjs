@@ -5148,6 +5148,391 @@ function computeCapitalAuditTrailIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalLCMMessageIntelligence(inputs = {}) {
+  const capitalUserDecisionPacket = inputs.capitalUserDecisionPacket || {};
+  const capitalDirectiveReasoning = inputs.capitalDirectiveReasoning || {};
+  const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
+
+  const userDecisionPacketScore = clampCapitalExitProtectionScore(capitalUserDecisionPacket.userDecisionPacketScore);
+  const directiveReasoningScore = clampCapitalExitProtectionScore(capitalDirectiveReasoning.directiveReasoningScore);
+  const operatorGuidanceScore = clampCapitalExitProtectionScore(capitalOperatorGuidance.operatorGuidanceScore);
+
+  const userDecisionPermission = String(capitalUserDecisionPacket.userDecisionPermission || "unknown");
+  const userDecisionSummary = String(capitalUserDecisionPacket.userDecisionSummary || "unknown");
+  const directiveReasoningState = String(capitalDirectiveReasoning.directiveReasoningState || "unknown");
+  const operatorGuidanceState = String(capitalOperatorGuidance.operatorGuidanceState || "unknown");
+
+  const issues = [];
+  let score = (userDecisionPacketScore * 0.45) + (directiveReasoningScore * 0.3) + (operatorGuidanceScore * 0.25);
+
+  if (userDecisionPermission === "denied" || userDecisionSummary === "DO_NOT_ENTER") {
+    score -= 0.42;
+    issues.push("USER_DECISION_DENIED");
+  }
+
+  if (directiveReasoningState === "reasoning_defensive") {
+    score -= 0.3;
+    issues.push("DEFENSIVE_REASONING");
+  }
+
+  if (operatorGuidanceState === "operator_stand_down") {
+    score -= 0.32;
+    issues.push("OPERATOR_STAND_DOWN");
+  }
+
+  if (userDecisionPermission === "restricted" || directiveReasoningState === "reasoning_restricted" || operatorGuidanceState === "operator_micro_only") {
+    score -= 0.14;
+    issues.push("LCM_MESSAGE_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let lcmMessageState = "lcm_watch";
+  if (userDecisionPermission === "denied" || userDecisionSummary === "DO_NOT_ENTER" || operatorGuidanceState === "operator_stand_down") {
+    lcmMessageState = "lcm_stand_down";
+  } else if (userDecisionPermission === "restricted" || directiveReasoningState === "reasoning_restricted" || operatorGuidanceState === "operator_micro_only") {
+    lcmMessageState = "lcm_restricted";
+  } else if (score >= 0.78) {
+    lcmMessageState = "lcm_actionable";
+  } else if (score >= 0.58) {
+    lcmMessageState = "lcm_conditional";
+  }
+
+  const lcmHeadline =
+    lcmMessageState === "lcm_stand_down"
+      ? "Capital protection active"
+      : lcmMessageState === "lcm_restricted"
+        ? "Restricted manual setup"
+        : lcmMessageState === "lcm_actionable"
+          ? "Manual setup cleared"
+          : lcmMessageState === "lcm_conditional"
+            ? "Manual setup needs confirmation"
+            : "Monitor only";
+
+  const lcmInstruction =
+    lcmMessageState === "lcm_stand_down"
+      ? "Do not enter. Wait for reset."
+      : lcmMessageState === "lcm_restricted"
+        ? "Only consider micro size after confirmation."
+        : lcmMessageState === "lcm_actionable"
+          ? "Manual action allowed with standard controls."
+          : lcmMessageState === "lcm_conditional"
+            ? "Wait for confirmation before action."
+            : "Watch without action.";
+
+  const lcmSeverity =
+    lcmMessageState === "lcm_stand_down"
+      ? "critical"
+      : lcmMessageState === "lcm_restricted"
+        ? "high"
+        : lcmMessageState === "lcm_actionable"
+          ? "normal"
+          : "watch";
+
+  return {
+    lcmMessageScore: score,
+    lcmMessageState,
+    lcmHeadline,
+    lcmInstruction,
+    lcmSeverity,
+    lcmMessageIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalRiskWarningPanelIntelligence(inputs = {}) {
+  const capitalLCMMessage = inputs.capitalLCMMessage || {};
+  const capitalAuditTrail = inputs.capitalAuditTrail || {};
+  const capitalProtectionCommand = inputs.capitalProtectionCommand || {};
+
+  const lcmMessageScore = clampCapitalExitProtectionScore(capitalLCMMessage.lcmMessageScore);
+  const auditTrailScore = clampCapitalExitProtectionScore(capitalAuditTrail.auditTrailScore);
+  const protectionCommandScore = clampCapitalExitProtectionScore(capitalProtectionCommand.protectionCommandScore);
+
+  const lcmSeverity = String(capitalLCMMessage.lcmSeverity || "unknown");
+  const auditTrailState = String(capitalAuditTrail.auditTrailState || "unknown");
+  const protectionCommandState = String(capitalProtectionCommand.protectionCommandState || "unknown");
+
+  const issues = [];
+  let score = (lcmMessageScore * 0.4) + (auditTrailScore * 0.25) + (protectionCommandScore * 0.35);
+
+  if (lcmSeverity === "critical") {
+    score -= 0.35;
+    issues.push("CRITICAL_LCM_SEVERITY");
+  }
+
+  if (auditTrailState === "audit_defensive") {
+    score -= 0.25;
+    issues.push("DEFENSIVE_AUDIT");
+  }
+
+  if (protectionCommandState === "protect_now") {
+    score -= 0.35;
+    issues.push("PROTECT_NOW");
+  }
+
+  if (lcmSeverity === "high" || auditTrailState === "audit_restricted" || protectionCommandState === "protective_reduce") {
+    score -= 0.14;
+    issues.push("WARNING_PANEL_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let riskWarningState = "warning_watch";
+  if (lcmSeverity === "critical" || auditTrailState === "audit_defensive" || protectionCommandState === "protect_now") {
+    riskWarningState = "warning_critical";
+  } else if (lcmSeverity === "high" || auditTrailState === "audit_restricted" || protectionCommandState === "protective_reduce") {
+    riskWarningState = "warning_elevated";
+  } else if (score >= 0.78) {
+    riskWarningState = "warning_clear";
+  } else if (score >= 0.58) {
+    riskWarningState = "warning_moderate";
+  }
+
+  const riskWarningMessage =
+    riskWarningState === "warning_critical"
+      ? "Protection override active. Avoid new risk."
+      : riskWarningState === "warning_elevated"
+        ? "Risk controls are elevated. Reduce size."
+        : riskWarningState === "warning_clear"
+          ? "Risk warnings clear."
+          : riskWarningState === "warning_moderate"
+            ? "Proceed only with confirmation."
+            : "Keep monitoring.";
+
+  const riskWarningLevel =
+    riskWarningState === "warning_critical"
+      ? "critical"
+      : riskWarningState === "warning_elevated"
+        ? "high"
+        : riskWarningState === "warning_clear"
+          ? "normal"
+          : "watch";
+
+  return {
+    riskWarningScore: score,
+    riskWarningState,
+    riskWarningMessage,
+    riskWarningLevel,
+    riskWarningIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalActionCardIntelligence(inputs = {}) {
+  const capitalLCMMessage = inputs.capitalLCMMessage || {};
+  const capitalRiskWarningPanel = inputs.capitalRiskWarningPanel || {};
+  const capitalUserDecisionPacket = inputs.capitalUserDecisionPacket || {};
+
+  const lcmMessageScore = clampCapitalExitProtectionScore(capitalLCMMessage.lcmMessageScore);
+  const riskWarningScore = clampCapitalExitProtectionScore(capitalRiskWarningPanel.riskWarningScore);
+  const userDecisionPacketScore = clampCapitalExitProtectionScore(capitalUserDecisionPacket.userDecisionPacketScore);
+
+  const lcmMessageState = String(capitalLCMMessage.lcmMessageState || "unknown");
+  const riskWarningLevel = String(capitalRiskWarningPanel.riskWarningLevel || "unknown");
+  const userDecisionPermission = String(capitalUserDecisionPacket.userDecisionPermission || "unknown");
+
+  const issues = [];
+  let score = (lcmMessageScore * 0.35) + (riskWarningScore * 0.3) + (userDecisionPacketScore * 0.35);
+
+  if (userDecisionPermission === "denied" || lcmMessageState === "lcm_stand_down" || riskWarningLevel === "critical") {
+    score -= 0.42;
+    issues.push("ACTION_CARD_BLOCKED");
+  }
+
+  if (userDecisionPermission === "restricted" || lcmMessageState === "lcm_restricted" || riskWarningLevel === "high") {
+    score -= 0.16;
+    issues.push("ACTION_CARD_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let actionCardState = "card_watch";
+  if (userDecisionPermission === "denied" || lcmMessageState === "lcm_stand_down" || riskWarningLevel === "critical") {
+    actionCardState = "card_blocked";
+  } else if (userDecisionPermission === "restricted" || lcmMessageState === "lcm_restricted" || riskWarningLevel === "high") {
+    actionCardState = "card_restricted";
+  } else if (score >= 0.78) {
+    actionCardState = "card_actionable";
+  } else if (score >= 0.58) {
+    actionCardState = "card_conditional";
+  }
+
+  const actionCardPrimary =
+    actionCardState === "card_blocked"
+      ? "DO NOT ENTER"
+      : actionCardState === "card_restricted"
+        ? "MICRO ONLY"
+        : actionCardState === "card_actionable"
+          ? "MANUAL ACTION OK"
+          : actionCardState === "card_conditional"
+            ? "WAIT FOR CONFIRMATION"
+            : "WATCH";
+
+  const actionCardSecondary =
+    actionCardState === "card_blocked"
+      ? "Capital protection overrides setup."
+      : actionCardState === "card_restricted"
+        ? "Use reduced risk only after confirmation."
+        : actionCardState === "card_actionable"
+          ? "Follow manual plan and exits."
+          : actionCardState === "card_conditional"
+            ? "Need stronger confirmation."
+            : "No action yet.";
+
+  return {
+    actionCardScore: score,
+    actionCardState,
+    actionCardPrimary,
+    actionCardSecondary,
+    actionCardIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalCoachingNarrativeIntelligence(inputs = {}) {
+  const capitalDirectiveReasoning = inputs.capitalDirectiveReasoning || {};
+  const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
+  const capitalActionCard = inputs.capitalActionCard || {};
+
+  const directiveReasoningScore = clampCapitalExitProtectionScore(capitalDirectiveReasoning.directiveReasoningScore);
+  const operatorGuidanceScore = clampCapitalExitProtectionScore(capitalOperatorGuidance.operatorGuidanceScore);
+  const actionCardScore = clampCapitalExitProtectionScore(capitalActionCard.actionCardScore);
+
+  const directiveReason = String(capitalDirectiveReasoning.directiveReason || "unknown");
+  const operatorRiskPosture = String(capitalOperatorGuidance.operatorRiskPosture || "unknown");
+  const actionCardState = String(capitalActionCard.actionCardState || "unknown");
+
+  const issues = [];
+  let score = (directiveReasoningScore * 0.34) + (operatorGuidanceScore * 0.33) + (actionCardScore * 0.33);
+
+  if (actionCardState === "card_blocked") {
+    score -= 0.36;
+    issues.push("ACTION_CARD_BLOCKED");
+  }
+
+  if (operatorRiskPosture === "defensive") {
+    score -= 0.28;
+    issues.push("DEFENSIVE_OPERATOR_POSTURE");
+  }
+
+  if (directiveReason === "capital_protection_overrides_entry") {
+    score -= 0.3;
+    issues.push("PROTECTION_OVERRIDE_REASON");
+  }
+
+  if (actionCardState === "card_restricted" || operatorRiskPosture === "restricted") {
+    score -= 0.14;
+    issues.push("NARRATIVE_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let coachingNarrativeState = "narrative_watch";
+  if (actionCardState === "card_blocked" || operatorRiskPosture === "defensive" || directiveReason === "capital_protection_overrides_entry") {
+    coachingNarrativeState = "narrative_defensive";
+  } else if (actionCardState === "card_restricted" || operatorRiskPosture === "restricted") {
+    coachingNarrativeState = "narrative_restricted";
+  } else if (score >= 0.78) {
+    coachingNarrativeState = "narrative_clear";
+  } else if (score >= 0.58) {
+    coachingNarrativeState = "narrative_conditional";
+  }
+
+  const coachingNarrative =
+    coachingNarrativeState === "narrative_defensive"
+      ? "The scanner is prioritizing capital protection. Stand down and wait for a clean reset."
+      : coachingNarrativeState === "narrative_restricted"
+        ? "The scanner allows only restricted consideration. Confirm first and keep size minimal."
+        : coachingNarrativeState === "narrative_clear"
+          ? "The scanner supports a manual plan with standard risk controls."
+          : coachingNarrativeState === "narrative_conditional"
+            ? "The scanner needs more confirmation before manual action."
+            : "The scanner is in watch mode.";
+
+  return {
+    coachingNarrativeScore: score,
+    coachingNarrativeState,
+    coachingNarrative,
+    coachingNarrativeIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalDecisionAssistOutputIntelligence(inputs = {}) {
+  const capitalActionCard = inputs.capitalActionCard || {};
+  const capitalCoachingNarrative = inputs.capitalCoachingNarrative || {};
+  const capitalRiskWarningPanel = inputs.capitalRiskWarningPanel || {};
+  const capitalUserDecisionPacket = inputs.capitalUserDecisionPacket || {};
+
+  const actionCardScore = clampCapitalExitProtectionScore(capitalActionCard.actionCardScore);
+  const coachingNarrativeScore = clampCapitalExitProtectionScore(capitalCoachingNarrative.coachingNarrativeScore);
+  const riskWarningScore = clampCapitalExitProtectionScore(capitalRiskWarningPanel.riskWarningScore);
+  const userDecisionPacketScore = clampCapitalExitProtectionScore(capitalUserDecisionPacket.userDecisionPacketScore);
+
+  const actionCardState = String(capitalActionCard.actionCardState || "unknown");
+  const coachingNarrativeState = String(capitalCoachingNarrative.coachingNarrativeState || "unknown");
+  const riskWarningLevel = String(capitalRiskWarningPanel.riskWarningLevel || "unknown");
+  const userDecisionPermission = String(capitalUserDecisionPacket.userDecisionPermission || "unknown");
+
+  const issues = [];
+  let score = (actionCardScore * 0.3) + (coachingNarrativeScore * 0.25) + (riskWarningScore * 0.2) + (userDecisionPacketScore * 0.25);
+
+  if (userDecisionPermission === "denied" || actionCardState === "card_blocked" || riskWarningLevel === "critical") {
+    score -= 0.45;
+    issues.push("DECISION_ASSIST_DENIED");
+  }
+
+  if (coachingNarrativeState === "narrative_defensive") {
+    score -= 0.3;
+    issues.push("DEFENSIVE_NARRATIVE");
+  }
+
+  if (userDecisionPermission === "restricted" || actionCardState === "card_restricted" || riskWarningLevel === "high" || coachingNarrativeState === "narrative_restricted") {
+    score -= 0.16;
+    issues.push("DECISION_ASSIST_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let decisionAssistOutputState = "assist_watch";
+  if (userDecisionPermission === "denied" || actionCardState === "card_blocked" || riskWarningLevel === "critical" || coachingNarrativeState === "narrative_defensive") {
+    decisionAssistOutputState = "assist_stand_down";
+  } else if (userDecisionPermission === "restricted" || actionCardState === "card_restricted" || riskWarningLevel === "high" || coachingNarrativeState === "narrative_restricted") {
+    decisionAssistOutputState = "assist_restricted";
+  } else if (score >= 0.78) {
+    decisionAssistOutputState = "assist_actionable";
+  } else if (score >= 0.58) {
+    decisionAssistOutputState = "assist_conditional";
+  }
+
+  const decisionAssistCommand =
+    decisionAssistOutputState === "assist_stand_down"
+      ? "DO_NOT_TRADE"
+      : decisionAssistOutputState === "assist_restricted"
+        ? "MICRO_ONLY_IF_CONFIRMED"
+        : decisionAssistOutputState === "assist_actionable"
+          ? "MANUAL_DECISION_ALLOWED"
+          : decisionAssistOutputState === "assist_conditional"
+            ? "WAIT_FOR_CONFIRMATION"
+            : "WATCH_ONLY";
+
+  const decisionAssistPermission =
+    decisionAssistOutputState === "assist_stand_down"
+      ? "denied"
+      : decisionAssistOutputState === "assist_restricted"
+        ? "restricted"
+        : decisionAssistOutputState === "assist_actionable"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    decisionAssistOutputScore: score,
+    decisionAssistOutputState,
+    decisionAssistCommand,
+    decisionAssistPermission,
+    decisionAssistOutputIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalUserDecisionPacketIntelligence(inputs = {}) {
   const capitalDecisionDirective = inputs.capitalDecisionDirective || {};
   const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
@@ -6467,6 +6852,37 @@ export function readScannerRankings(opts = {}) {
     capitalAuditTrail,
   });
 
+  const capitalLCMMessage = computeCapitalLCMMessageIntelligence({
+    capitalUserDecisionPacket,
+    capitalDirectiveReasoning,
+    capitalOperatorGuidance,
+  });
+
+  const capitalRiskWarningPanel = computeCapitalRiskWarningPanelIntelligence({
+    capitalLCMMessage,
+    capitalAuditTrail,
+    capitalProtectionCommand,
+  });
+
+  const capitalActionCard = computeCapitalActionCardIntelligence({
+    capitalLCMMessage,
+    capitalRiskWarningPanel,
+    capitalUserDecisionPacket,
+  });
+
+  const capitalCoachingNarrative = computeCapitalCoachingNarrativeIntelligence({
+    capitalDirectiveReasoning,
+    capitalOperatorGuidance,
+    capitalActionCard,
+  });
+
+  const capitalDecisionAssistOutput = computeCapitalDecisionAssistOutputIntelligence({
+    capitalActionCard,
+    capitalCoachingNarrative,
+    capitalRiskWarningPanel,
+    capitalUserDecisionPacket,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -6842,6 +7258,31 @@ export function readScannerRankings(opts = {}) {
     userDecisionSummary: capitalUserDecisionPacket.userDecisionSummary,
     userDecisionPermission: capitalUserDecisionPacket.userDecisionPermission,
     userDecisionPacketIssues: capitalUserDecisionPacket.userDecisionPacketIssues,
+    lcmMessageScore: capitalLCMMessage.lcmMessageScore,
+    lcmMessageState: capitalLCMMessage.lcmMessageState,
+    lcmHeadline: capitalLCMMessage.lcmHeadline,
+    lcmInstruction: capitalLCMMessage.lcmInstruction,
+    lcmSeverity: capitalLCMMessage.lcmSeverity,
+    lcmMessageIssues: capitalLCMMessage.lcmMessageIssues,
+    riskWarningScore: capitalRiskWarningPanel.riskWarningScore,
+    riskWarningState: capitalRiskWarningPanel.riskWarningState,
+    riskWarningMessage: capitalRiskWarningPanel.riskWarningMessage,
+    riskWarningLevel: capitalRiskWarningPanel.riskWarningLevel,
+    riskWarningIssues: capitalRiskWarningPanel.riskWarningIssues,
+    actionCardScore: capitalActionCard.actionCardScore,
+    actionCardState: capitalActionCard.actionCardState,
+    actionCardPrimary: capitalActionCard.actionCardPrimary,
+    actionCardSecondary: capitalActionCard.actionCardSecondary,
+    actionCardIssues: capitalActionCard.actionCardIssues,
+    coachingNarrativeScore: capitalCoachingNarrative.coachingNarrativeScore,
+    coachingNarrativeState: capitalCoachingNarrative.coachingNarrativeState,
+    coachingNarrative: capitalCoachingNarrative.coachingNarrative,
+    coachingNarrativeIssues: capitalCoachingNarrative.coachingNarrativeIssues,
+    decisionAssistOutputScore: capitalDecisionAssistOutput.decisionAssistOutputScore,
+    decisionAssistOutputState: capitalDecisionAssistOutput.decisionAssistOutputState,
+    decisionAssistCommand: capitalDecisionAssistOutput.decisionAssistCommand,
+    decisionAssistPermission: capitalDecisionAssistOutput.decisionAssistPermission,
+    decisionAssistOutputIssues: capitalDecisionAssistOutput.decisionAssistOutputIssues,
 
     issues: freshness.stale
       ? combinedIssues
