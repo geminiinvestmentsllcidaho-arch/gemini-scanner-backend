@@ -1959,6 +1959,89 @@ function computeCapitalStabilityIntelligence(inputs = {}) {
 }
 
 
+
+function computeCapitalContinuityIntelligence(inputs = {}) {
+  const stability = inputs.capitalStability || {};
+  const resilience = inputs.capitalResilience || {};
+  const recovery = inputs.capitalRecovery || {};
+  const preservation = inputs.capitalPreservation || {};
+  const governance = inputs.governance || {};
+  const execution = inputs.execution || {};
+
+  const stabilityScore = Number.isFinite(stability.capitalStabilityScore)
+    ? stability.capitalStabilityScore
+    : 0.5;
+  const resilienceScore = Number.isFinite(resilience.resilienceScore)
+    ? resilience.resilienceScore
+    : 0.5;
+  const recoveryProbability = Number.isFinite(recovery.drawdownRecoveryProbability)
+    ? recovery.drawdownRecoveryProbability
+    : 0.5;
+  const preservationPressure = Number.isFinite(preservation.preservationPressure)
+    ? preservation.preservationPressure
+    : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore)
+    ? governance.governanceScore
+    : 0.5;
+  const deploymentPressure = Number.isFinite(execution.deploymentPressure)
+    ? execution.deploymentPressure
+    : 0.5;
+
+  const continuityScore = roundN(
+    stabilityScore * 0.3 +
+      resilienceScore * 0.25 +
+      recoveryProbability * 0.2 +
+      governanceScore * 0.15 +
+      (1 - preservationPressure) * 0.05 +
+      (1 - deploymentPressure) * 0.05,
+    4
+  );
+
+  let continuityState = "balanced";
+  if (
+    continuityScore >= 0.75 &&
+    stabilityScore >= 0.68 &&
+    resilienceScore >= 0.68
+  ) {
+    continuityState = "durable";
+  } else if (
+    continuityScore < 0.5 ||
+    stability.capitalFragilityRisk >= 0.5 ||
+    resilience.resilienceState === "fragile"
+  ) {
+    continuityState = "disrupted";
+  } else if (continuityScore >= 0.62) {
+    continuityState = "steady";
+  }
+
+  let continuityBias = "neutral";
+  if (continuityState === "durable") {
+    continuityBias = "compound";
+  } else if (continuityState === "disrupted") {
+    continuityBias = "protect";
+  } else if (continuityState === "steady") {
+    continuityBias = "maintain";
+  }
+
+  const continuityIssues = [];
+  if (continuityScore < 0.5) {
+    continuityIssues.push("SCANNER_CONTINUITY_WEAK");
+  }
+  if (stability.capitalFragilityRisk >= 0.5) {
+    continuityIssues.push("SCANNER_CAPITAL_FRAGILITY_ELEVATED");
+  }
+  if (resilience.resilienceState === "fragile") {
+    continuityIssues.push("SCANNER_RESILIENCE_FRAGILE");
+  }
+
+  return {
+    continuityScore,
+    continuityState,
+    continuityBias,
+    continuityIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2114,6 +2197,14 @@ export function readScannerRankings(opts = {}) {
     orchestration,
     execution,
   });
+  const capitalContinuity = computeCapitalContinuityIntelligence({
+    capitalStability,
+    capitalResilience,
+    capitalRecovery: recovery,
+    capitalPreservation,
+    governance,
+    execution,
+  });
 
   return {
     ok: true,
@@ -2228,11 +2319,17 @@ export function readScannerRankings(opts = {}) {
     stabilityPressure: capitalStability.stabilityPressure,
     stabilityIssues: capitalStability.stabilityIssues,
 
+    continuityScore: capitalContinuity.continuityScore,
+    continuityState: capitalContinuity.continuityState,
+    continuityBias: capitalContinuity.continuityBias,
+    continuityIssues: capitalContinuity.continuityIssues,
+
     issues: freshness.stale
       ? combinedIssues
       : [
           ...combinedIssues,
           ...recovery.recoveryIssues,
+          ...capitalContinuity.continuityIssues,
           ...capitalResilience.resilienceIssues,
           ...execution.executionIssues,
           ...orchestration.orchestrationIssues,
