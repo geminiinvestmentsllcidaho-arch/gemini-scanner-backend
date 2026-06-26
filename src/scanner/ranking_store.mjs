@@ -2352,6 +2352,65 @@ function computeCapitalCompoundingIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalEfficiencyIntelligence(inputs = {}) {
+  const compounding = inputs.compounding || {};
+  const scalability = inputs.scalability || {};
+  const sustainability = inputs.sustainability || {};
+  const execution = inputs.execution || {};
+  const governance = inputs.governance || {};
+
+  const compoundingScore = Number.isFinite(compounding.compoundingScore) ? compounding.compoundingScore : 0.5;
+  const scalabilityScore = Number.isFinite(scalability.scalabilityScore) ? scalability.scalabilityScore : 0.5;
+  const sustainabilityScore = Number.isFinite(sustainability.sustainabilityScore) ? sustainability.sustainabilityScore : 0.5;
+  const deploymentPressure = Number.isFinite(execution.deploymentPressure) ? execution.deploymentPressure : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const efficiencyScore = roundN(
+    compoundingScore * 0.34 +
+      scalabilityScore * 0.22 +
+      sustainabilityScore * 0.18 +
+      governanceScore * 0.16 +
+      (1 - deploymentPressure) * 0.1,
+    4
+  );
+
+  let efficiencyState = "balanced";
+  if (
+    efficiencyScore >= 0.75 &&
+    compounding.compoundingState !== "blocked" &&
+    scalability.scalabilityState !== "restricted"
+  ) {
+    efficiencyState = "optimized";
+  } else if (
+    efficiencyScore < 0.5 ||
+    compounding.compoundingState === "blocked" ||
+    scalability.scalabilityState === "restricted"
+  ) {
+    efficiencyState = "inefficient";
+  } else if (efficiencyScore >= 0.62) {
+    efficiencyState = "efficient";
+  }
+
+  let efficiencyBias = "neutral";
+  if (efficiencyState === "optimized") efficiencyBias = "maximize";
+  else if (efficiencyState === "efficient") efficiencyBias = "optimize";
+  else if (efficiencyState === "inefficient") efficiencyBias = "tighten";
+
+  const efficiencyIssues = [];
+  if (efficiencyScore < 0.5) efficiencyIssues.push("SCANNER_EFFICIENCY_WEAK");
+  if (compounding.compoundingState === "blocked") efficiencyIssues.push("SCANNER_COMPOUNDING_BLOCKED");
+  if (scalability.scalabilityState === "restricted") efficiencyIssues.push("SCANNER_SCALABILITY_RESTRICTED");
+  if (sustainability.sustainabilityState === "unsustainable") efficiencyIssues.push("SCANNER_SUSTAINABILITY_UNSUSTAINABLE");
+
+  return {
+    efficiencyScore,
+    efficiencyState,
+    efficiencyBias,
+    efficiencyIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2561,6 +2620,14 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalEfficiency = computeCapitalEfficiencyIntelligence({
+    compounding: capitalCompounding,
+    scalability: capitalScalability,
+    sustainability: capitalSustainability,
+    execution,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2698,6 +2765,10 @@ export function readScannerRankings(opts = {}) {
     compoundingState: capitalCompounding.compoundingState,
     compoundingBias: capitalCompounding.compoundingBias,
     compoundingIssues: capitalCompounding.compoundingIssues,
+    efficiencyScore: capitalEfficiency.efficiencyScore,
+    efficiencyState: capitalEfficiency.efficiencyState,
+    efficiencyBias: capitalEfficiency.efficiencyBias,
+    efficiencyIssues: capitalEfficiency.efficiencyIssues,
 
     issues: freshness.stale
       ? combinedIssues
