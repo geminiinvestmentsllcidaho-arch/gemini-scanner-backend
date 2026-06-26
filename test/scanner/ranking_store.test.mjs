@@ -3117,3 +3117,95 @@ test("readScannerRankings denies deployment authorization after restart denial",
   assert.equal(out.deploymentAuthorizationPermission, "denied");
 });
 
+test("readScannerRankings exposes capital final decision directive stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-final-decision-directive-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.finalGateScore >= 0);
+  assert.ok(out.finalGateScore <= 1);
+  assert.ok(["final_gate_denied", "final_gate_restricted", "final_gate_open", "final_gate_conditional", "final_gate_watch"].includes(out.finalGateState));
+  assert.ok(["block_action", "micro_action_only", "action_allowed", "selective_action", "watch_action"].includes(out.finalGateMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.finalGatePermission));
+  assert.ok(Array.isArray(out.finalGateIssues));
+
+  assert.ok(out.manualExecutionScore >= 0);
+  assert.ok(out.manualExecutionScore <= 1);
+  assert.ok(["manual_blocked", "manual_micro_only", "manual_ready", "manual_conditional", "manual_watch"].includes(out.manualExecutionState));
+  assert.ok(["do_not_enter", "micro_size_only", "use_standard_plan", "use_reduced_plan", "observe_only"].includes(out.manualExecutionPlan));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.manualExecutionPermission));
+  assert.ok(Array.isArray(out.manualExecutionIssues));
+
+  assert.ok(out.signalEscalationScore >= 0);
+  assert.ok(out.signalEscalationScore <= 1);
+  assert.ok(["risk_alert", "caution_alert", "entry_alert", "watchlist_alert", "signal_watch"].includes(out.signalEscalationState));
+  assert.ok(["protective_alert", "restricted_alert", "actionable_alert", "conditional_alert", "monitor_alert"].includes(out.signalEscalationMode));
+  assert.ok(["critical", "high", "normal", "watch"].includes(out.alertPriority));
+  assert.ok(Array.isArray(out.signalEscalationIssues));
+
+  assert.ok(out.actionChecklistScore >= 0);
+  assert.ok(out.actionChecklistScore <= 1);
+  assert.ok(["checklist_failed", "checklist_restricted", "checklist_passed", "checklist_conditional", "checklist_watch"].includes(out.actionChecklistState));
+  assert.ok(["stand_down_required", "micro_size_check_required", "standard_check_passed", "extra_confirmation_required", "continue_monitoring"].includes(out.checklistRequirement));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.checklistPermission));
+  assert.ok(Array.isArray(out.actionChecklistIssues));
+
+  assert.ok(out.decisionDirectiveScore >= 0);
+  assert.ok(out.decisionDirectiveScore <= 1);
+  assert.ok(["directive_stand_down", "directive_micro_only", "directive_authorized", "directive_conditional", "directive_watch"].includes(out.decisionDirectiveState));
+  assert.ok(["do_not_enter", "micro_size_only", "manual_entry_allowed", "manual_entry_conditional", "watch_only"].includes(out.decisionDirective));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.decisionPermission));
+  assert.ok(Array.isArray(out.decisionDirectiveIssues));
+});
+
+test("readScannerRankings stands down final decision directive after deployment denial", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-final-decision-directive-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.deploymentAuthorizationState, "deployment_denied");
+  assert.equal(out.deploymentAuthorizationPermission, "denied");
+  assert.equal(out.finalGateState, "final_gate_denied");
+  assert.equal(out.finalGatePermission, "denied");
+  assert.equal(out.manualExecutionState, "manual_blocked");
+  assert.equal(out.manualExecutionPlan, "do_not_enter");
+  assert.equal(out.manualExecutionPermission, "denied");
+  assert.equal(out.signalEscalationState, "risk_alert");
+  assert.equal(out.alertPriority, "critical");
+  assert.equal(out.actionChecklistState, "checklist_failed");
+  assert.equal(out.checklistPermission, "denied");
+  assert.equal(out.decisionDirectiveState, "directive_stand_down");
+  assert.equal(out.decisionDirective, "do_not_enter");
+  assert.equal(out.decisionPermission, "denied");
+});
+
