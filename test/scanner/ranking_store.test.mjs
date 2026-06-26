@@ -3505,3 +3505,32 @@ test('readScannerRankings exposes stage 2 app display output for UI consumption'
   assert.equal(result.stage2AppDisplay.appSafetyMode, 'protection_locked')
   assert.equal(result.stage2AppDisplay.appRiskBanner, 'Capital protection active')
 })
+
+
+test('readScannerRankings exposes stage 2 mobile decision card for app screens', async () => {
+  const result = await readScannerRankings({
+    symbols: ['AAPL', 'MSFT'],
+    nowMs: Date.parse('2026-06-26T12:00:00Z'),
+    session: 'closed',
+    telemetry: {
+      streamConnected: true,
+      streamStale: true,
+      reconnectAttempts: 0,
+      reconnectCountTotal: 3,
+      watchdogTriggerCount: 1,
+      lastEventAgeSec: 120
+    }
+  })
+
+  assert.equal(result.stage2MobileDecisionCard.cardVersion, 'stage2_mobile_card_v1')
+  assert.equal(result.stage2MobileDecisionCard.cardType, 'capital_protection')
+  assert.equal(result.stage2MobileDecisionCard.cardSeverity, 'critical')
+  assert.equal(result.stage2MobileDecisionCard.cardStatus, 'denied')
+  assert.equal(result.stage2MobileDecisionCard.cardCommand, 'DO_NOT_TRADE')
+  assert.equal(result.stage2MobileDecisionCard.cardPrimaryButton, 'Do Not Enter')
+  assert.equal(result.stage2MobileDecisionCard.cardPrimaryDisabled, true)
+  assert.equal(result.stage2MobileDecisionCard.buyEnabled, false)
+  assert.equal(result.stage2MobileDecisionCard.sellEnabled, false)
+  assert.equal(result.stage2MobileDecisionCard.watchOnly, true)
+  assert.equal(result.stage2MobileDecisionCard.safetyMode, 'protection_locked')
+})

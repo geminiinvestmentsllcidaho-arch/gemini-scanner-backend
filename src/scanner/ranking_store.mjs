@@ -7731,6 +7731,12 @@ export function readScannerRankings(opts = {}) {
       stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
       issues: capitalStage2FinalCommand.stage2FinalCommandIssues
     }),
+    stage2MobileDecisionCard: computeStage2MobileDecisionCard(computeStage2AppDisplayOutput({
+      stage2FinalCommand: capitalStage2FinalCommand.stage2FinalCommand,
+      stage2FinalPermission: capitalStage2FinalCommand.stage2FinalPermission,
+      stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
+      issues: capitalStage2FinalCommand.stage2FinalCommandIssues
+    })),
 
     issues: freshness.stale
       ? combinedIssues
@@ -7772,5 +7778,33 @@ function computeStage2AppDisplayOutput(inputs = {}) {
     appSafetyMode: allowed ? 'review_required' : 'protection_locked',
     appSourceState: stage2FinalCommandState,
     appIssues: Array.isArray(inputs.issues) ? inputs.issues : []
+  }
+}
+
+
+function computeStage2MobileDecisionCard(appDisplay = {}) {
+  const allowed = appDisplay.appTradeAllowed === true
+  const permission = String(appDisplay.appPermission || 'denied')
+  const command = String(appDisplay.appPrimaryCommand || 'DO_NOT_TRADE')
+  const safetyMode = String(appDisplay.appSafetyMode || 'protection_locked')
+  const issues = Array.isArray(appDisplay.appIssues) ? appDisplay.appIssues : []
+
+  return {
+    cardVersion: 'stage2_mobile_card_v1',
+    cardType: allowed ? 'trade_review' : 'capital_protection',
+    cardSeverity: allowed ? 'warning' : 'critical',
+    cardStatus: permission,
+    cardCommand: command,
+    cardTitle: allowed ? 'Review setup before action' : 'Capital protection active',
+    cardSubtitle: allowed ? 'Scanner requires user confirmation' : 'No entry is authorized right now',
+    cardPrimaryButton: allowed ? 'Review Setup' : 'Do Not Enter',
+    cardSecondaryButton: 'View Details',
+    cardPrimaryDisabled: !allowed,
+    buyEnabled: allowed,
+    sellEnabled: allowed,
+    watchOnly: !allowed,
+    safetyMode,
+    issueCount: issues.length,
+    issues
   }
 }
