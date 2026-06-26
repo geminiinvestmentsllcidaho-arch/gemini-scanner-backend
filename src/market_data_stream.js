@@ -1,3 +1,5 @@
+import { installAlpacaRequestAudit } from "./utils/alpaca_request_audit.mjs";
+installAlpacaRequestAudit();
 import 'dotenv/config';
 import WebSocket from 'ws';
 import { updateQuote, updateBar } from './market_data_cache.js';

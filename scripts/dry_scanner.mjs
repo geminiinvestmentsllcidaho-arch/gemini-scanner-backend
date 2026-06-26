@@ -1,3 +1,5 @@
+import { installAlpacaRequestAudit } from "../src/utils/alpaca_request_audit.mjs";
+installAlpacaRequestAudit();
 import fs from 'node:fs';
 import path from 'node:path';
 
