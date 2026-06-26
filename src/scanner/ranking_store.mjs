@@ -2169,6 +2169,68 @@ function computeCapitalEnduranceIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalSustainabilityIntelligence(inputs = {}) {
+  const endurance = inputs.endurance || {};
+  const durability = inputs.durability || {};
+  const continuity = inputs.continuity || {};
+  const resilience = inputs.resilience || {};
+  const preservation = inputs.preservation || {};
+  const governance = inputs.governance || {};
+
+  const enduranceScore = Number.isFinite(endurance.enduranceScore) ? endurance.enduranceScore : 0.5;
+  const durabilityScore = Number.isFinite(durability.durabilityScore) ? durability.durabilityScore : 0.5;
+  const continuityScore = Number.isFinite(continuity.continuityScore) ? continuity.continuityScore : 0.5;
+  const resilienceScore = Number.isFinite(resilience.resilienceScore) ? resilience.resilienceScore : 0.5;
+  const preservationPressure = Number.isFinite(preservation.preservationPressure) ? preservation.preservationPressure : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const sustainabilityScore = roundN(
+    enduranceScore * 0.32 +
+      durabilityScore * 0.24 +
+      continuityScore * 0.18 +
+      resilienceScore * 0.13 +
+      governanceScore * 0.08 +
+      (1 - preservationPressure) * 0.05,
+    4
+  );
+
+  let sustainabilityState = "balanced";
+  if (
+    sustainabilityScore >= 0.75 &&
+    endurance.enduranceState !== "limited" &&
+    durability.durabilityState !== "vulnerable"
+  ) {
+    sustainabilityState = "self_sustaining";
+  } else if (
+    sustainabilityScore < 0.5 ||
+    endurance.enduranceState === "limited" ||
+    durability.durabilityState === "vulnerable"
+  ) {
+    sustainabilityState = "unsustainable";
+  } else if (sustainabilityScore >= 0.62) {
+    sustainabilityState = "sustainable";
+  }
+
+  let sustainabilityBias = "neutral";
+  if (sustainabilityState === "self_sustaining") sustainabilityBias = "compound";
+  else if (sustainabilityState === "sustainable") sustainabilityBias = "maintain";
+  else if (sustainabilityState === "unsustainable") sustainabilityBias = "reduce";
+
+  const sustainabilityIssues = [];
+  if (sustainabilityScore < 0.5) sustainabilityIssues.push("SCANNER_SUSTAINABILITY_WEAK");
+  if (endurance.enduranceState === "limited") sustainabilityIssues.push("SCANNER_ENDURANCE_LIMITED");
+  if (durability.durabilityState === "vulnerable") sustainabilityIssues.push("SCANNER_DURABILITY_VULNERABLE");
+  if (continuity.continuityState === "disrupted") sustainabilityIssues.push("SCANNER_CONTINUITY_DISRUPTED");
+
+  return {
+    sustainabilityScore,
+    sustainabilityState,
+    sustainabilityBias,
+    sustainabilityIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2352,6 +2414,15 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalSustainability = computeCapitalSustainabilityIntelligence({
+    endurance: capitalEndurance,
+    durability: capitalDurability,
+    continuity: capitalContinuity,
+    resilience: capitalResilience,
+    preservation: capitalPreservation,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2477,6 +2548,10 @@ export function readScannerRankings(opts = {}) {
     enduranceState: capitalEndurance.enduranceState,
     enduranceBias: capitalEndurance.enduranceBias,
     enduranceIssues: capitalEndurance.enduranceIssues,
+    sustainabilityScore: capitalSustainability.sustainabilityScore,
+    sustainabilityState: capitalSustainability.sustainabilityState,
+    sustainabilityBias: capitalSustainability.sustainabilityBias,
+    sustainabilityIssues: capitalSustainability.sustainabilityIssues,
 
     issues: freshness.stale
       ? combinedIssues
