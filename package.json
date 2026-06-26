@@ -11,7 +11,8 @@
     "validate:open": "node scripts/open_market_validation.mjs",
     "validate:open:closed": "node scripts/open_market_validation.mjs --closed-ok",
     "validate:dashboard": "node scripts/dashboard_smoke_validation.mjs",
-    "validate:all": "npm run validate:weekend && npm run validate:open:closed && npm run validate:dashboard && node --test"
+    "validate:all": "npm run validate:weekend && npm run validate:open:closed && npm run validate:dashboard && node --test",
+    "alerts:scanner": "node scripts/scanner_alert_report.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
