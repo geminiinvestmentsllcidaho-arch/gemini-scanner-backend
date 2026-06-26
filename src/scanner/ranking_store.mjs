@@ -2290,6 +2290,68 @@ function computeCapitalScalabilityIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalCompoundingIntelligence(inputs = {}) {
+  const scalability = inputs.scalability || {};
+  const sustainability = inputs.sustainability || {};
+  const endurance = inputs.endurance || {};
+  const durability = inputs.durability || {};
+  const recovery = inputs.recovery || {};
+  const governance = inputs.governance || {};
+
+  const scalabilityScore = Number.isFinite(scalability.scalabilityScore) ? scalability.scalabilityScore : 0.5;
+  const sustainabilityScore = Number.isFinite(sustainability.sustainabilityScore) ? sustainability.sustainabilityScore : 0.5;
+  const enduranceScore = Number.isFinite(endurance.enduranceScore) ? endurance.enduranceScore : 0.5;
+  const durabilityScore = Number.isFinite(durability.durabilityScore) ? durability.durabilityScore : 0.5;
+  const recoveryProbability = Number.isFinite(recovery.drawdownRecoveryProbability) ? recovery.drawdownRecoveryProbability : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const compoundingScore = roundN(
+    scalabilityScore * 0.32 +
+      sustainabilityScore * 0.24 +
+      enduranceScore * 0.16 +
+      durabilityScore * 0.12 +
+      recoveryProbability * 0.09 +
+      governanceScore * 0.07,
+    4
+  );
+
+  let compoundingState = "balanced";
+  if (
+    compoundingScore >= 0.75 &&
+    scalability.scalabilityState !== "restricted" &&
+    sustainability.sustainabilityState !== "unsustainable"
+  ) {
+    compoundingState = "accelerating";
+  } else if (
+    compoundingScore < 0.5 ||
+    scalability.scalabilityState === "restricted" ||
+    sustainability.sustainabilityState === "unsustainable"
+  ) {
+    compoundingState = "blocked";
+  } else if (compoundingScore >= 0.62) {
+    compoundingState = "compounding";
+  }
+
+  let compoundingBias = "neutral";
+  if (compoundingState === "accelerating") compoundingBias = "increase";
+  else if (compoundingState === "compounding") compoundingBias = "compound";
+  else if (compoundingState === "blocked") compoundingBias = "pause";
+
+  const compoundingIssues = [];
+  if (compoundingScore < 0.5) compoundingIssues.push("SCANNER_COMPOUNDING_WEAK");
+  if (scalability.scalabilityState === "restricted") compoundingIssues.push("SCANNER_SCALABILITY_RESTRICTED");
+  if (sustainability.sustainabilityState === "unsustainable") compoundingIssues.push("SCANNER_SUSTAINABILITY_UNSUSTAINABLE");
+  if (endurance.enduranceState === "limited") compoundingIssues.push("SCANNER_ENDURANCE_LIMITED");
+
+  return {
+    compoundingScore,
+    compoundingState,
+    compoundingBias,
+    compoundingIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2490,6 +2552,15 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalCompounding = computeCapitalCompoundingIntelligence({
+    scalability: capitalScalability,
+    sustainability: capitalSustainability,
+    endurance: capitalEndurance,
+    durability: capitalDurability,
+    recovery,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2623,6 +2694,10 @@ export function readScannerRankings(opts = {}) {
     scalabilityState: capitalScalability.scalabilityState,
     scalabilityBias: capitalScalability.scalabilityBias,
     scalabilityIssues: capitalScalability.scalabilityIssues,
+    compoundingScore: capitalCompounding.compoundingScore,
+    compoundingState: capitalCompounding.compoundingState,
+    compoundingBias: capitalCompounding.compoundingBias,
+    compoundingIssues: capitalCompounding.compoundingIssues,
 
     issues: freshness.stale
       ? combinedIssues
