@@ -20,3 +20,5 @@ payload.json
 ecosystem.config.cjs
 
 dryruns/
+runs/alpaca_api_watch_state.json
+runs/alpaca_api_watch_report.json
