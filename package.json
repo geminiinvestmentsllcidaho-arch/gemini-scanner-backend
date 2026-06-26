@@ -16,7 +16,8 @@
     "validate:alpaca-audit": "node scripts/alpaca_audit_validation.mjs",
     "validate:trading-safety": "node scripts/trading_api_safety_validation.mjs",
     "watch:alpaca-api": "node scripts/alpaca_api_watcher.mjs",
-    "watch:alpaca-api:install-cron": "node scripts/install_alpaca_api_watcher_cron.mjs"
+    "watch:alpaca-api:install-cron": "node scripts/install_alpaca_api_watcher_cron.mjs",
+    "validate:alpaca-api-watch": "node scripts/alpaca_api_watch_validation.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
