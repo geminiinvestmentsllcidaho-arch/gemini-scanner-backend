@@ -1,0 +1,67 @@
+BEGIN HANDOFF
+
+Project: GeminiScanner
+Branch: feature/p3-quality-confidence-v1
+
+Current State:
+- Weekend validation stack complete.
+- Operator alert badge complete and live route verified.
+- Latest commit:
+  62ea39f feat(scanner): add operator alert badge
+- Latest freeze tag:
+  operator-alert-badge-freeze-62ea39f
+- Previous freeze tags:
+  scanner-alert-report-freeze-7316f86
+  full-validation-command-freeze-270865f
+  dashboard-smoke-validation-freeze-4c429ea
+  weekend-validation-stack-freeze-cde8510
+- Git status:
+  clean
+  up to date with origin/feature/p3-quality-confidence-v1
+- Tests:
+  152/152 passing
+- PM2:
+  gemini-scanner ONLINE
+  gemini-dry-scanner ONLINE
+  pm2-logrotate ONLINE
+
+Completed:
+- Added weekend scanner validator:
+  npm run validate:weekend
+- Added open-market validator:
+  npm run validate:open
+  npm run validate:open:closed
+- Added dashboard smoke validator:
+  npm run validate:dashboard
+- Added full validation command:
+  npm run validate:all
+- Added scanner alert report:
+  npm run alerts:scanner
+- Added operator dashboard alert badge.
+- Confirmed badge exists in source and live /scanner/stage2-app route.
+- Confirmed full validation passes.
+- Confirmed alert report works.
+
+Known Status:
+- Market is closed.
+- Alerts show warning only:
+  HEALTH_DEGRADED / STREAM_STALE
+- This is expected while closed-market stream is stale.
+- Rankings are still non-zero from backfilled bars.
+- GeminiScanner remains decision-assist only.
+- No broker execution.
+- No order placement.
+
+Next:
+At next market open, run:
+npm run validate:open
+npm run alerts:scanner
+
+Confirm:
+- live movement detected true
+- stream stale clears or improves
+- p3GateOk remains true
+- rankings remain non-zero
+- dashboard badge reflects live scanner status
+
+END HANDOFF
