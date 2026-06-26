@@ -1,0 +1,71 @@
+BEGIN HANDOFF
+
+Project: GeminiScanner
+Branch: feature/p3-quality-confidence-v1
+
+Server Login:
+ssh gemini-vps
+
+Current State:
+- Alpaca Market Data request audit complete.
+- Alpaca Trading API safety validation complete.
+- Latest commit:
+  478e33e test(scanner): add trading api safety validation
+- Latest freeze tag:
+  trading-api-safety-freeze-478e33e
+- Previous freeze tags:
+  operator-alpaca-audit-panel-freeze-edd3069
+  alpaca-audit-validator-freeze-b3f5227
+  alpaca-request-audit-diagnostics-freeze-7373805
+  alpaca-request-audit-freeze-1d98a14
+- Tests:
+  153/153 passing
+- PM2:
+  gemini-scanner ONLINE
+  gemini-dry-scanner ONLINE
+  pm2-logrotate ONLINE
+
+Completed:
+- Reviewed Alpaca Market Data API request ID behavior.
+- Added Alpaca request audit wrapper.
+- Captures X-Request-ID for Alpaca REST calls.
+- Exposes recent request IDs at:
+  /diagnostics/alpaca-requests
+- Added dashboard Alpaca audit panel.
+- Added validator:
+  npm run validate:alpaca-audit
+- Reviewed Trading API request ID behavior.
+- Added trading safety validator:
+  npm run validate:trading-safety
+- Added trading safety into:
+  npm run validate:all
+- Confirmed no order placement endpoint exists.
+- Confirmed no submit/create/place order function exists.
+- Confirmed no trading POST/DELETE execution path exists.
+
+Known Status:
+- GeminiScanner remains decision-assist only.
+- No broker execution.
+- No order placement.
+- Market is closed.
+- Stream stale warnings are expected while market is closed.
+- Rankings are non-zero from backfilled bars.
+
+Next API Review:
+- Check Alpaca Trading API paper account/order docs for future planning only.
+- Do not implement order placement.
+- Next useful API topics:
+  1. Paper account/account status endpoint
+  2. Orders endpoint behavior and restrictions
+  3. Positions endpoint read-only planning
+  4. Crypto separation if building a separate crypto module later
+  5. OAuth/Connect only if users will connect their own Alpaca accounts later
+  6. Broker API later only if building brokerage onboarding for other users
+
+Next Market Open Validation:
+npm run validate:open
+npm run alerts:scanner
+npm run validate:alpaca-audit
+npm run validate:trading-safety
+
+END HANDOFF
