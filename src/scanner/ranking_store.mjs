@@ -7737,6 +7737,20 @@ export function readScannerRankings(opts = {}) {
       stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
       issues: capitalStage2FinalCommand.stage2FinalCommandIssues
     })),
+    stage2AppScreenPayload: computeStage2AppScreenPayload(
+      computeStage2AppDisplayOutput({
+        stage2FinalCommand: capitalStage2FinalCommand.stage2FinalCommand,
+        stage2FinalPermission: capitalStage2FinalCommand.stage2FinalPermission,
+        stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
+        issues: capitalStage2FinalCommand.stage2FinalCommandIssues
+      }),
+      computeStage2MobileDecisionCard(computeStage2AppDisplayOutput({
+        stage2FinalCommand: capitalStage2FinalCommand.stage2FinalCommand,
+        stage2FinalPermission: capitalStage2FinalCommand.stage2FinalPermission,
+        stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
+        issues: capitalStage2FinalCommand.stage2FinalCommandIssues
+      }))
+    ),
 
     issues: freshness.stale
       ? combinedIssues
@@ -7806,5 +7820,42 @@ function computeStage2MobileDecisionCard(appDisplay = {}) {
     safetyMode,
     issueCount: issues.length,
     issues
+  }
+}
+
+
+function computeStage2AppScreenPayload(appDisplay = {}, mobileCard = {}) {
+  const allowed = appDisplay.appTradeAllowed === true
+  const issues = Array.isArray(mobileCard.issues) ? mobileCard.issues : []
+
+  return {
+    screenVersion: 'stage2_app_screen_v1',
+    screenState: allowed ? 'review_required' : 'protection_locked',
+    screenMode: allowed ? 'decision_review' : 'capital_protection',
+    heroTitle: String(mobileCard.cardTitle || appDisplay.appHeadline || 'Capital protection active'),
+    heroSubtitle: String(mobileCard.cardSubtitle || 'No entry is authorized right now'),
+    primaryCommand: String(appDisplay.appPrimaryCommand || 'DO_NOT_TRADE'),
+    primaryAction: String(mobileCard.cardPrimaryButton || appDisplay.appPrimaryAction || 'Do Not Enter'),
+    secondaryAction: String(mobileCard.cardSecondaryButton || 'View Details'),
+    permission: String(appDisplay.appPermission || 'denied'),
+    tradeAllowed: allowed,
+    controls: {
+      buyEnabled: mobileCard.buyEnabled === true,
+      sellEnabled: mobileCard.sellEnabled === true,
+      watchOnly: mobileCard.watchOnly !== false
+    },
+    banner: {
+      severity: String(mobileCard.cardSeverity || 'critical'),
+      text: String(appDisplay.appRiskBanner || 'Capital protection active')
+    },
+    copy: {
+      headline: String(appDisplay.appHeadline || 'Capital protection active'),
+      narrative: String(appDisplay.appNarrative || '')
+    },
+    diagnostics: {
+      sourceState: String(appDisplay.appSourceState || 'stage2_final_denied'),
+      issueCount: issues.length,
+      issues
+    }
   }
 }

@@ -3534,3 +3534,33 @@ test('readScannerRankings exposes stage 2 mobile decision card for app screens',
   assert.equal(result.stage2MobileDecisionCard.watchOnly, true)
   assert.equal(result.stage2MobileDecisionCard.safetyMode, 'protection_locked')
 })
+
+
+test('readScannerRankings exposes stage 2 app screen payload for mobile UI', async () => {
+  const result = await readScannerRankings({
+    symbols: ['AAPL', 'MSFT'],
+    nowMs: Date.parse('2026-06-26T12:00:00Z'),
+    session: 'closed',
+    telemetry: {
+      streamConnected: true,
+      streamStale: true,
+      reconnectAttempts: 0,
+      reconnectCountTotal: 3,
+      watchdogTriggerCount: 1,
+      lastEventAgeSec: 120
+    }
+  })
+
+  assert.equal(result.stage2AppScreenPayload.screenVersion, 'stage2_app_screen_v1')
+  assert.equal(result.stage2AppScreenPayload.screenState, 'protection_locked')
+  assert.equal(result.stage2AppScreenPayload.screenMode, 'capital_protection')
+  assert.equal(result.stage2AppScreenPayload.primaryCommand, 'DO_NOT_TRADE')
+  assert.equal(result.stage2AppScreenPayload.permission, 'denied')
+  assert.equal(result.stage2AppScreenPayload.tradeAllowed, false)
+  assert.equal(result.stage2AppScreenPayload.controls.buyEnabled, false)
+  assert.equal(result.stage2AppScreenPayload.controls.sellEnabled, false)
+  assert.equal(result.stage2AppScreenPayload.controls.watchOnly, true)
+  assert.equal(result.stage2AppScreenPayload.banner.severity, 'critical')
+  assert.equal(result.stage2AppScreenPayload.banner.text, 'Capital protection active')
+  assert.equal(result.stage2AppScreenPayload.diagnostics.issueCount, 2)
+})
