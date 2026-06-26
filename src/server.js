@@ -4,6 +4,7 @@ import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
 import { health, readiness } from './utils/health.js';
+import { getAlpacaRequestAudit } from "./utils/alpaca_request_audit.mjs";
 import { getStreamTelemetry } from './utils/stream_telemetry.js';
 import { nextStep } from './next-step.js';
 
@@ -179,6 +180,12 @@ app.get('/', (_req, res) => {
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
+app.get('/diagnostics/alpaca-requests', (req, res) => {
+  res.json({
+    ok: true,
+    alpacaRequestAudit: getAlpacaRequestAudit(),
+  });
+});
 app.get('/marketdata', marketDataDump);
 
 
