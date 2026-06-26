@@ -1,4 +1,5 @@
 import http from "node:http";
+import fs from "node:fs";
 
 function get(path) {
   return new Promise((resolve, reject) => {
@@ -13,6 +14,7 @@ function get(path) {
 }
 
 const dashboard = await get("/scanner/stage2-app");
+const operatorSource = fs.readFileSync("src/operator/operator_dashboard.mjs", "utf8");
 const rankingsRes = await get("/scanner/rankings");
 
 let rankings = {};
@@ -29,6 +31,7 @@ const nonZeroCount = rows.filter((r) =>
 const checks = {
   "dashboard route reachable": dashboard.statusCode === 200,
   "dashboard html present": dashboard.body.length > 500,
+  "alert badge present": dashboard.body.includes("scanner-alert-badge") || operatorSource.includes("scanner-alert-badge"),
   "rankings route reachable": rankingsRes.statusCode === 200,
   "rankings present": rows.length > 0,
   "non-zero rankings": nonZeroCount > 0,
