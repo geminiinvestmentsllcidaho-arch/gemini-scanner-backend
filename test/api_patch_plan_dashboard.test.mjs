@@ -31,3 +31,17 @@ test("api patch plan dashboard supplies safe defaults when plan is missing", asy
   assert.equal(plan.userApprovalRequired, true);
   assert.ok(plan.validationCommands.includes("npm run validate:all"));
 });
+
+test("api patch plan dashboard formats object-based planner labels", () => {
+  const plan = normalizeApiPatchPlan({
+    changeDetected: true,
+    highestRisk: "HIGH",
+    affectedApiAreas: [{ apiArea: "connect-api" }, { area: "trading-api" }],
+    likelyImpactedFiles: [{ filePath: "src/server.js" }, { path: "src/operator/operator_dashboard.mjs" }]
+  });
+
+  assert.deepEqual(plan.affectedApiAreas, ["connect-api", "trading-api"]);
+  assert.deepEqual(plan.likelyImpactedFiles, ["src/server.js", "src/operator/operator_dashboard.mjs"]);
+  assert.equal(plan.highestRisk, "high");
+  assert.equal(plan.userApprovalRequired, true);
+});

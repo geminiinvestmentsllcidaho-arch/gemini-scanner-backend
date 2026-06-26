@@ -24,8 +24,43 @@ function asArray(value) {
   return [value];
 }
 
+function labelValue(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (Array.isArray(value)) return value.map(labelValue).filter(Boolean).join(" / ");
+  if (typeof value !== "object") return String(value).trim();
+
+  const preferred = pickFirstDefined(
+    value.apiArea,
+    value.api_area,
+    value.affectedApiArea,
+    value.affected_api_area,
+    value.area,
+    value.name,
+    value.title,
+    value.endpoint,
+    value.route,
+    value.path,
+    value.file,
+    value.filePath,
+    value.file_path,
+    value.command,
+    value.value,
+    value.id,
+    value.type
+  );
+
+  if (preferred !== undefined && preferred !== null && preferred !== "") {
+    return labelValue(preferred);
+  }
+
+  return Object.entries(value)
+    .filter(([, entryValue]) => entryValue !== undefined && entryValue !== null && typeof entryValue !== "object")
+    .map(([key, entryValue]) => `${key}=${entryValue}`)
+    .join(", ");
+}
+
 function uniqueStrings(values) {
-  return [...new Set(asArray(values).flatMap((value) => Array.isArray(value) ? value : [value]).map((value) => String(value).trim()).filter(Boolean))];
+  return [...new Set(asArray(values).flatMap((value) => Array.isArray(value) ? value : [value]).map(labelValue).filter(Boolean))];
 }
 
 function pickFirstDefined(...values) {
