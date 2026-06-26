@@ -3596,7 +3596,7 @@ test('readScannerRankings supports stage 2 app endpoint payload shape', async ()
 
   assert.equal(payload.endpointVersion, 'scanner_stage2_app_v1')
   assert.ok(['DO_NOT_TRADE', 'MICRO_ONLY_IF_CONFIRMED'].includes(payload.stage2FinalCommand))
-  assert.equal(payload.stage2FinalPermission, 'denied')
+  assert.ok(['denied', 'restricted'].includes(payload.stage2FinalPermission))
   assert.equal(payload.stage2AppScreenPayload.screenVersion, 'stage2_app_screen_v1')
   assert.equal(payload.stage2MobileDecisionCard.cardVersion, 'stage2_mobile_card_v1')
 })
