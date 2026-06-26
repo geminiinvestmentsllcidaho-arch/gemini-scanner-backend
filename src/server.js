@@ -170,7 +170,7 @@ app.post('/coach', async (req, res) => {
 // --------------------
 // /ops/run endpoint
 // --------------------
-app.post('/ops/run', (req, res) => {
+app.post('/ops/run', async (req, res) => {
   try {
     const inputs = req.body || {};
     const decision = inputs.decision;
@@ -188,6 +188,8 @@ app.post('/ops/run', (req, res) => {
       snapshot,
       ctx: { rules: { lcmEnabled: true } },
     });
+
+    const stage2Payload = await buildStage2LcmPayload();
 
     // -------- Pillar 3 Compute-Only (Guarded) --------
     let context_v3 = null;
@@ -279,6 +281,7 @@ app.post('/ops/run', (req, res) => {
 
     res.json({
       ok: true,
+      stage2Lcm: stage2Payload,
       runId: record.id,
       result: decision,
       snapshot: snapshotOut,
