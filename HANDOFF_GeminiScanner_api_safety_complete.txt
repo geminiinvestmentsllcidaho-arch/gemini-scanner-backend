@@ -1,0 +1,74 @@
+BEGIN HANDOFF
+
+Project: GeminiScanner
+Branch: feature/p3-quality-confidence-v1
+
+Server Login:
+ssh gemini-vps
+
+Current State:
+- Alpaca API safety review complete.
+- Market Data audit complete.
+- Trading API safety validation complete.
+- Connect/OAuth safety validation complete.
+- API watcher complete.
+- Latest commit:
+  78dafbd test(scanner): add connect api safety validation
+- Latest freeze tag:
+  connect-api-safety-freeze-78dafbd
+- Previous freeze tags:
+  alpaca-api-watcher-alerts-freeze-9f43481
+  operator-api-watcher-panel-freeze-3666bb0
+  trading-api-safety-freeze-478e33e
+  alpaca-request-audit-diagnostics-freeze-7373805
+- Tests:
+  153/153 passing
+
+Completed:
+- Added Alpaca request ID audit.
+- Added diagnostics endpoint:
+  /diagnostics/alpaca-requests
+- Added Alpaca API watcher:
+  npm run watch:alpaca-api
+- Added watcher cron:
+  npm run watch:alpaca-api:install-cron
+- Added watcher dashboard panel.
+- Added watcher alerts integration.
+- Added Trading API safety validator:
+  npm run validate:trading-safety
+- Added Connect/OAuth safety validator:
+  npm run validate:connect-safety
+- Confirmed no order placement path.
+- Confirmed no trading POST/DELETE path.
+- Confirmed no OAuth/client-secret/token-storage path.
+
+Known Status:
+- GeminiScanner remains decision-assist only.
+- No broker execution.
+- No order placement.
+- No OAuth user account connection.
+- Market is closed.
+- Stream stale warnings are expected while market is closed.
+- Rankings are non-zero from backfilled bars.
+
+Current Safety Commands:
+npm run watch:alpaca-api
+npm run validate:alpaca-api-watch
+npm run validate:alpaca-audit
+npm run validate:trading-safety
+npm run validate:connect-safety
+npm run alerts:scanner
+npm run validate:all
+
+Next:
+- At next market open run:
+  npm run validate:open
+  npm run alerts:scanner
+  npm run validate:alpaca-audit
+  npm run validate:trading-safety
+  npm run validate:connect-safety
+- Optional next build:
+  Add patch-planner report for API watcher changes.
+- Do not implement order placement or OAuth user connection unless explicitly approved later.
+
+END HANDOFF
