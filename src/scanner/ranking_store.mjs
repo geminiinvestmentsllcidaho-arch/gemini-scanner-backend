@@ -3279,6 +3279,397 @@ function clampCapitalExitProtectionScore(value) {
 }
 
 
+
+function computeCapitalStopManagementIntelligence(inputs = {}) {
+  const capitalInvalidation = inputs.capitalInvalidation || {};
+  const invalidationScore = clampCapitalExitProtectionScore(capitalInvalidation.invalidationScore);
+  const invalidationState = String(capitalInvalidation.invalidationState || "unknown");
+  const stopTightness = String(capitalInvalidation.stopTightness || "unknown");
+  const protectionUrgency = String(capitalInvalidation.protectionUrgency || "unknown");
+  const invalidationIssues = Array.isArray(capitalInvalidation.invalidationIssues)
+    ? capitalInvalidation.invalidationIssues
+    : [];
+
+  const issues = [];
+  let score = invalidationScore;
+
+  if (invalidationState === "hard_stop") {
+    score -= 0.32;
+    issues.push("HARD_STOP_ACTIVE");
+  }
+
+  if (invalidationState === "tight_stop") {
+    score -= 0.14;
+    issues.push("TIGHT_STOP_ACTIVE");
+  }
+
+  if (stopTightness === "maximum") {
+    score -= 0.18;
+    issues.push("MAXIMUM_STOP_TIGHTNESS");
+  }
+
+  if (protectionUrgency === "urgent") {
+    score -= 0.18;
+    issues.push("URGENT_PROTECTION");
+  }
+
+  for (const issue of invalidationIssues) {
+    if (typeof issue === "string" && issue.length > 0) {
+      issues.push(`INVALIDATION_${issue}`);
+    }
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let stopManagementState = "managed";
+  if (invalidationState === "hard_stop" || stopTightness === "maximum") {
+    stopManagementState = "emergency_stop";
+  } else if (invalidationState === "tight_stop" || protectionUrgency === "elevated") {
+    stopManagementState = "compressed_stop";
+  } else if (score >= 0.78) {
+    stopManagementState = "stable_stop";
+  } else if (score >= 0.58) {
+    stopManagementState = "adaptive_stop";
+  }
+
+  const stopAction =
+    stopManagementState === "emergency_stop"
+      ? "exit_or_reduce_now"
+      : stopManagementState === "compressed_stop"
+        ? "tighten_and_monitor"
+        : stopManagementState === "stable_stop"
+          ? "maintain_plan"
+          : "adjust_dynamically";
+
+  const stopPriority =
+    stopManagementState === "emergency_stop"
+      ? "critical"
+      : stopManagementState === "compressed_stop"
+        ? "high"
+        : stopManagementState === "stable_stop"
+          ? "normal"
+          : "watch";
+
+  const trailingStopBias =
+    stopManagementState === "emergency_stop"
+      ? "disable_expansion"
+      : stopManagementState === "compressed_stop"
+        ? "tight_trailing"
+        : stopManagementState === "stable_stop"
+          ? "standard_trailing"
+          : "adaptive_trailing";
+
+  return {
+    stopManagementScore: score,
+    stopManagementState,
+    stopAction,
+    stopPriority,
+    trailingStopBias,
+    stopManagementIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalDrawdownBrakeIntelligence(inputs = {}) {
+  const capitalStopManagement = inputs.capitalStopManagement || {};
+  const stopManagementScore = clampCapitalExitProtectionScore(capitalStopManagement.stopManagementScore);
+  const stopManagementState = String(capitalStopManagement.stopManagementState || "unknown");
+  const stopPriority = String(capitalStopManagement.stopPriority || "unknown");
+  const stopManagementIssues = Array.isArray(capitalStopManagement.stopManagementIssues)
+    ? capitalStopManagement.stopManagementIssues
+    : [];
+
+  const issues = [];
+  let score = stopManagementScore;
+
+  if (stopManagementState === "emergency_stop") {
+    score -= 0.36;
+    issues.push("EMERGENCY_STOP");
+  }
+
+  if (stopManagementState === "compressed_stop") {
+    score -= 0.16;
+    issues.push("COMPRESSED_STOP");
+  }
+
+  if (stopPriority === "critical") {
+    score -= 0.22;
+    issues.push("CRITICAL_STOP_PRIORITY");
+  }
+
+  for (const issue of stopManagementIssues) {
+    if (typeof issue === "string" && issue.length > 0) {
+      issues.push(`STOP_${issue}`);
+    }
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let drawdownBrakeState = "normal";
+  if (stopManagementState === "emergency_stop" || stopPriority === "critical") {
+    drawdownBrakeState = "hard_brake";
+  } else if (stopManagementState === "compressed_stop" || stopPriority === "high") {
+    drawdownBrakeState = "soft_brake";
+  } else if (score >= 0.78) {
+    drawdownBrakeState = "released";
+  } else if (score >= 0.58) {
+    drawdownBrakeState = "armed";
+  }
+
+  const drawdownBrakeMode =
+    drawdownBrakeState === "hard_brake"
+      ? "block_new_risk"
+      : drawdownBrakeState === "soft_brake"
+        ? "reduce_new_risk"
+        : drawdownBrakeState === "released"
+          ? "normal_risk"
+          : "watch_drawdown";
+
+  const lossRecoveryPermission =
+    drawdownBrakeState === "hard_brake"
+      ? "denied"
+      : drawdownBrakeState === "soft_brake"
+        ? "restricted"
+        : drawdownBrakeState === "released"
+          ? "allowed"
+          : "conditional";
+
+  const capitalBrakePressure =
+    drawdownBrakeState === "hard_brake"
+      ? "maximum"
+      : drawdownBrakeState === "soft_brake"
+        ? "elevated"
+        : drawdownBrakeState === "released"
+          ? "low"
+          : "moderate";
+
+  return {
+    drawdownBrakeScore: score,
+    drawdownBrakeState,
+    drawdownBrakeMode,
+    lossRecoveryPermission,
+    capitalBrakePressure,
+    drawdownBrakeIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalProfitLockIntelligence(inputs = {}) {
+  const capitalExitProtection = inputs.capitalExitProtection || {};
+  const capitalInvalidation = inputs.capitalInvalidation || {};
+  const capitalStopManagement = inputs.capitalStopManagement || {};
+
+  const exitProtectionScore = clampCapitalExitProtectionScore(capitalExitProtection.exitProtectionScore);
+  const invalidationScore = clampCapitalExitProtectionScore(capitalInvalidation.invalidationScore);
+  const stopManagementScore = clampCapitalExitProtectionScore(capitalStopManagement.stopManagementScore);
+
+  const exitProtectionState = String(capitalExitProtection.exitProtectionState || "unknown");
+  const invalidationState = String(capitalInvalidation.invalidationState || "unknown");
+  const stopManagementState = String(capitalStopManagement.stopManagementState || "unknown");
+
+  const issues = [];
+  let score = (exitProtectionScore * 0.4) + (invalidationScore * 0.3) + (stopManagementScore * 0.3);
+
+  if (exitProtectionState === "locked") {
+    score -= 0.25;
+    issues.push("EXIT_PROTECTION_LOCKED");
+  }
+
+  if (invalidationState === "hard_stop") {
+    score -= 0.2;
+    issues.push("HARD_STOP_INVALIDATION");
+  }
+
+  if (stopManagementState === "emergency_stop") {
+    score -= 0.2;
+    issues.push("EMERGENCY_STOP_MANAGEMENT");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let profitLockState = "balanced";
+  if (exitProtectionState === "locked" || invalidationState === "hard_stop" || stopManagementState === "emergency_stop") {
+    profitLockState = "lock_gains";
+  } else if (exitProtectionState === "guarded" || invalidationState === "tight_stop" || stopManagementState === "compressed_stop") {
+    profitLockState = "partial_lock";
+  } else if (score >= 0.78) {
+    profitLockState = "let_winners_run";
+  } else if (score >= 0.58) {
+    profitLockState = "measured_lock";
+  }
+
+  const profitLockMode =
+    profitLockState === "lock_gains"
+      ? "protect_realized_edge"
+      : profitLockState === "partial_lock"
+        ? "scale_out_bias"
+        : profitLockState === "let_winners_run"
+          ? "hold_winner_bias"
+          : "balanced_profit_guard";
+
+  const gainProtectionPressure =
+    profitLockState === "lock_gains"
+      ? "high"
+      : profitLockState === "partial_lock"
+        ? "moderate"
+        : profitLockState === "let_winners_run"
+          ? "low"
+          : "measured";
+
+  return {
+    profitLockScore: score,
+    profitLockState,
+    profitLockMode,
+    gainProtectionPressure,
+    profitLockIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalExitRoutingIntelligence(inputs = {}) {
+  const capitalInvalidation = inputs.capitalInvalidation || {};
+  const capitalDrawdownBrake = inputs.capitalDrawdownBrake || {};
+  const capitalProfitLock = inputs.capitalProfitLock || {};
+
+  const invalidationScore = clampCapitalExitProtectionScore(capitalInvalidation.invalidationScore);
+  const drawdownBrakeScore = clampCapitalExitProtectionScore(capitalDrawdownBrake.drawdownBrakeScore);
+  const profitLockScore = clampCapitalExitProtectionScore(capitalProfitLock.profitLockScore);
+
+  const invalidationState = String(capitalInvalidation.invalidationState || "unknown");
+  const drawdownBrakeState = String(capitalDrawdownBrake.drawdownBrakeState || "unknown");
+  const profitLockState = String(capitalProfitLock.profitLockState || "unknown");
+
+  const issues = [];
+  let score = (invalidationScore * 0.34) + (drawdownBrakeScore * 0.33) + (profitLockScore * 0.33);
+
+  if (drawdownBrakeState === "hard_brake") {
+    score -= 0.32;
+    issues.push("HARD_DRAWDOWN_BRAKE");
+  }
+
+  if (invalidationState === "hard_stop") {
+    score -= 0.24;
+    issues.push("HARD_STOP_ROUTE");
+  }
+
+  if (profitLockState === "lock_gains") {
+    score -= 0.12;
+    issues.push("GAIN_LOCK_ROUTE");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let exitRouteState = "standard_route";
+  if (drawdownBrakeState === "hard_brake" || invalidationState === "hard_stop") {
+    exitRouteState = "forced_exit_route";
+  } else if (drawdownBrakeState === "soft_brake" || profitLockState === "partial_lock") {
+    exitRouteState = "staged_exit_route";
+  } else if (score >= 0.78) {
+    exitRouteState = "hold_route";
+  } else if (score >= 0.58) {
+    exitRouteState = "managed_route";
+  }
+
+  const exitRouteAction =
+    exitRouteState === "forced_exit_route"
+      ? "exit_or_cut_exposure"
+      : exitRouteState === "staged_exit_route"
+        ? "scale_down_in_stages"
+        : exitRouteState === "hold_route"
+          ? "hold_with_plan"
+          : exitRouteState === "managed_route"
+            ? "manage_position"
+            : "standard_exit_plan";
+
+  const routeUrgency =
+    exitRouteState === "forced_exit_route"
+      ? "immediate"
+      : exitRouteState === "staged_exit_route"
+        ? "elevated"
+        : exitRouteState === "hold_route"
+          ? "low"
+          : "normal";
+
+  return {
+    exitRouteScore: score,
+    exitRouteState,
+    exitRouteAction,
+    routeUrgency,
+    exitRouteIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalProtectionCommandIntelligence(inputs = {}) {
+  const capitalExitRouting = inputs.capitalExitRouting || {};
+  const capitalDrawdownBrake = inputs.capitalDrawdownBrake || {};
+  const capitalStopManagement = inputs.capitalStopManagement || {};
+
+  const exitRouteScore = clampCapitalExitProtectionScore(capitalExitRouting.exitRouteScore);
+  const drawdownBrakeScore = clampCapitalExitProtectionScore(capitalDrawdownBrake.drawdownBrakeScore);
+  const stopManagementScore = clampCapitalExitProtectionScore(capitalStopManagement.stopManagementScore);
+
+  const exitRouteState = String(capitalExitRouting.exitRouteState || "unknown");
+  const drawdownBrakeState = String(capitalDrawdownBrake.drawdownBrakeState || "unknown");
+  const stopManagementState = String(capitalStopManagement.stopManagementState || "unknown");
+
+  const issues = [];
+  let score = (exitRouteScore * 0.45) + (drawdownBrakeScore * 0.3) + (stopManagementScore * 0.25);
+
+  if (exitRouteState === "forced_exit_route") {
+    score -= 0.35;
+    issues.push("FORCED_EXIT_ROUTE");
+  }
+
+  if (drawdownBrakeState === "hard_brake") {
+    score -= 0.25;
+    issues.push("HARD_BRAKE_ACTIVE");
+  }
+
+  if (stopManagementState === "emergency_stop") {
+    score -= 0.2;
+    issues.push("EMERGENCY_STOP_ACTIVE");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let protectionCommandState = "managed";
+  if (exitRouteState === "forced_exit_route" || drawdownBrakeState === "hard_brake") {
+    protectionCommandState = "protect_now";
+  } else if (exitRouteState === "staged_exit_route" || drawdownBrakeState === "soft_brake") {
+    protectionCommandState = "protective_reduce";
+  } else if (score >= 0.78) {
+    protectionCommandState = "hold_authorized";
+  } else if (score >= 0.58) {
+    protectionCommandState = "hold_guarded";
+  }
+
+  const protectionCommand =
+    protectionCommandState === "protect_now"
+      ? "reduce_or_exit"
+      : protectionCommandState === "protective_reduce"
+        ? "trim_or_tighten"
+        : protectionCommandState === "hold_authorized"
+          ? "hold_with_standard_exit"
+          : protectionCommandState === "hold_guarded"
+            ? "hold_with_tight_exit"
+            : "manage_defensively";
+
+  const protectionPermission =
+    protectionCommandState === "protect_now"
+      ? "exit_required"
+      : protectionCommandState === "protective_reduce"
+        ? "reduction_preferred"
+        : protectionCommandState === "hold_authorized"
+          ? "hold_allowed"
+          : "conditional_hold";
+
+  return {
+    protectionCommandScore: score,
+    protectionCommandState,
+    protectionCommand,
+    protectionPermission,
+    protectionCommandIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalInvalidationIntelligence(inputs = {}) {
   const capitalExitProtection = inputs.capitalExitProtection || {};
   const exitProtectionScore = clampCapitalExitProtectionScore(capitalExitProtection.exitProtectionScore);
@@ -3963,6 +4354,32 @@ export function readScannerRankings(opts = {}) {
     capitalExitProtection,
   });
 
+  const capitalStopManagement = computeCapitalStopManagementIntelligence({
+    capitalInvalidation,
+  });
+
+  const capitalDrawdownBrake = computeCapitalDrawdownBrakeIntelligence({
+    capitalStopManagement,
+  });
+
+  const capitalProfitLock = computeCapitalProfitLockIntelligence({
+    capitalExitProtection,
+    capitalInvalidation,
+    capitalStopManagement,
+  });
+
+  const capitalExitRouting = computeCapitalExitRoutingIntelligence({
+    capitalInvalidation,
+    capitalDrawdownBrake,
+    capitalProfitLock,
+  });
+
+  const capitalProtectionCommand = computeCapitalProtectionCommandIntelligence({
+    capitalExitRouting,
+    capitalDrawdownBrake,
+    capitalStopManagement,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -4187,6 +4604,33 @@ export function readScannerRankings(opts = {}) {
     riskOffTrigger: capitalInvalidation.riskOffTrigger,
     protectionUrgency: capitalInvalidation.protectionUrgency,
     invalidationIssues: capitalInvalidation.invalidationIssues,
+    stopManagementScore: capitalStopManagement.stopManagementScore,
+    stopManagementState: capitalStopManagement.stopManagementState,
+    stopAction: capitalStopManagement.stopAction,
+    stopPriority: capitalStopManagement.stopPriority,
+    trailingStopBias: capitalStopManagement.trailingStopBias,
+    stopManagementIssues: capitalStopManagement.stopManagementIssues,
+    drawdownBrakeScore: capitalDrawdownBrake.drawdownBrakeScore,
+    drawdownBrakeState: capitalDrawdownBrake.drawdownBrakeState,
+    drawdownBrakeMode: capitalDrawdownBrake.drawdownBrakeMode,
+    lossRecoveryPermission: capitalDrawdownBrake.lossRecoveryPermission,
+    capitalBrakePressure: capitalDrawdownBrake.capitalBrakePressure,
+    drawdownBrakeIssues: capitalDrawdownBrake.drawdownBrakeIssues,
+    profitLockScore: capitalProfitLock.profitLockScore,
+    profitLockState: capitalProfitLock.profitLockState,
+    profitLockMode: capitalProfitLock.profitLockMode,
+    gainProtectionPressure: capitalProfitLock.gainProtectionPressure,
+    profitLockIssues: capitalProfitLock.profitLockIssues,
+    exitRouteScore: capitalExitRouting.exitRouteScore,
+    exitRouteState: capitalExitRouting.exitRouteState,
+    exitRouteAction: capitalExitRouting.exitRouteAction,
+    routeUrgency: capitalExitRouting.routeUrgency,
+    exitRouteIssues: capitalExitRouting.exitRouteIssues,
+    protectionCommandScore: capitalProtectionCommand.protectionCommandScore,
+    protectionCommandState: capitalProtectionCommand.protectionCommandState,
+    protectionCommand: capitalProtectionCommand.protectionCommand,
+    protectionPermission: capitalProtectionCommand.protectionPermission,
+    protectionCommandIssues: capitalProtectionCommand.protectionCommandIssues,
 
     issues: freshness.stale
       ? combinedIssues

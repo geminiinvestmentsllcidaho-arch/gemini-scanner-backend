@@ -2756,3 +2756,92 @@ test("readScannerRankings hard-stops invalidation when hold permission is denied
   assert.ok(out.invalidationIssues.includes("EXIT_PROTECTION_LOCKED") || out.invalidationIssues.includes("HOLD_DENIED"));
 });
 
+test("readScannerRankings exposes capital protection command stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-protection-command-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.stopManagementScore >= 0);
+  assert.ok(out.stopManagementScore <= 1);
+  assert.ok(["emergency_stop", "compressed_stop", "stable_stop", "adaptive_stop", "managed"].includes(out.stopManagementState));
+  assert.ok(["exit_or_reduce_now", "tighten_and_monitor", "maintain_plan", "adjust_dynamically"].includes(out.stopAction));
+  assert.ok(["critical", "high", "normal", "watch"].includes(out.stopPriority));
+  assert.ok(["disable_expansion", "tight_trailing", "standard_trailing", "adaptive_trailing"].includes(out.trailingStopBias));
+  assert.ok(Array.isArray(out.stopManagementIssues));
+
+  assert.ok(out.drawdownBrakeScore >= 0);
+  assert.ok(out.drawdownBrakeScore <= 1);
+  assert.ok(["hard_brake", "soft_brake", "released", "armed", "normal"].includes(out.drawdownBrakeState));
+  assert.ok(["block_new_risk", "reduce_new_risk", "normal_risk", "watch_drawdown"].includes(out.drawdownBrakeMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.lossRecoveryPermission));
+  assert.ok(["maximum", "elevated", "low", "moderate"].includes(out.capitalBrakePressure));
+  assert.ok(Array.isArray(out.drawdownBrakeIssues));
+
+  assert.ok(out.profitLockScore >= 0);
+  assert.ok(out.profitLockScore <= 1);
+  assert.ok(["lock_gains", "partial_lock", "let_winners_run", "measured_lock", "balanced"].includes(out.profitLockState));
+  assert.ok(["protect_realized_edge", "scale_out_bias", "hold_winner_bias", "balanced_profit_guard"].includes(out.profitLockMode));
+  assert.ok(["high", "moderate", "low", "measured"].includes(out.gainProtectionPressure));
+  assert.ok(Array.isArray(out.profitLockIssues));
+
+  assert.ok(out.exitRouteScore >= 0);
+  assert.ok(out.exitRouteScore <= 1);
+  assert.ok(["forced_exit_route", "staged_exit_route", "hold_route", "managed_route", "standard_route"].includes(out.exitRouteState));
+  assert.ok(["exit_or_cut_exposure", "scale_down_in_stages", "hold_with_plan", "manage_position", "standard_exit_plan"].includes(out.exitRouteAction));
+  assert.ok(["immediate", "elevated", "low", "normal"].includes(out.routeUrgency));
+  assert.ok(Array.isArray(out.exitRouteIssues));
+
+  assert.ok(out.protectionCommandScore >= 0);
+  assert.ok(out.protectionCommandScore <= 1);
+  assert.ok(["protect_now", "protective_reduce", "hold_authorized", "hold_guarded", "managed"].includes(out.protectionCommandState));
+  assert.ok(["reduce_or_exit", "trim_or_tighten", "hold_with_standard_exit", "hold_with_tight_exit", "manage_defensively"].includes(out.protectionCommand));
+  assert.ok(["exit_required", "reduction_preferred", "hold_allowed", "conditional_hold"].includes(out.protectionPermission));
+  assert.ok(Array.isArray(out.protectionCommandIssues));
+});
+
+test("readScannerRankings escalates protection command on denied capital command", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-protection-command-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.commandState, "denied");
+  assert.equal(out.exitProtectionState, "locked");
+  assert.equal(out.invalidationState, "hard_stop");
+  assert.equal(out.stopManagementState, "emergency_stop");
+  assert.equal(out.drawdownBrakeState, "hard_brake");
+  assert.equal(out.exitRouteState, "forced_exit_route");
+  assert.equal(out.protectionCommandState, "protect_now");
+  assert.equal(out.protectionCommand, "reduce_or_exit");
+  assert.equal(out.protectionPermission, "exit_required");
+});
+
