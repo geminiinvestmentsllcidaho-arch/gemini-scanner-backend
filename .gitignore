@@ -22,3 +22,4 @@ ecosystem.config.cjs
 dryruns/
 runs/alpaca_api_watch_state.json
 runs/alpaca_api_watch_report.json
+runs/alpaca_api_watcher_cron.log
