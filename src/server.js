@@ -445,6 +445,21 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
   registerOperatorDashboardRoutes(app);
 }
 
+
+app.get('/diagnostics/operator-approval-workflow', async (req, res) => {
+  try {
+    const { loadOperatorApprovalWorkflow } = await import('./scanner/operator_approval_workflow.mjs')
+    const workflow = await loadOperatorApprovalWorkflow()
+    res.json(workflow)
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: 'operator_approval_workflow_failed',
+      message: error instanceof Error ? error.message : String(error)
+    })
+  }
+})
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
