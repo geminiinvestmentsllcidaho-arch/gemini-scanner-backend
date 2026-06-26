@@ -1,0 +1,74 @@
+BEGIN HANDOFF
+
+Project: GeminiScanner
+Branch: feature/p3-quality-confidence-v1
+
+Server Login:
+ssh gemini-vps
+
+Current State:
+- Alpaca request audit stack complete.
+- Latest commit:
+  edd3069 test(scanner): stabilize stage 2 final permission expectation
+- Latest freeze tag:
+  operator-alpaca-audit-panel-freeze-edd3069
+- Previous freeze tags:
+  alpaca-audit-validator-freeze-b3f5227
+  alpaca-request-audit-diagnostics-freeze-7373805
+  alpaca-request-audit-freeze-1d98a14
+  operator-alert-badge-freeze-62ea39f
+- Git status:
+  clean
+  up to date with origin/feature/p3-quality-confidence-v1
+- Tests:
+  153/153 passing
+- PM2:
+  gemini-scanner ONLINE
+  gemini-dry-scanner ONLINE
+  pm2-logrotate ONLINE
+
+Completed:
+- Fixed Termux SSH login alias:
+  ssh gemini-vps
+- Added Alpaca request audit wrapper.
+- Captures recent Alpaca REST fetches:
+  host
+  path
+  status
+  durationMs
+  X-Request-ID
+  timestamp
+- Filters secret/auth headers from audit output.
+- Added diagnostics endpoint:
+  /diagnostics/alpaca-requests
+- Added validator:
+  npm run validate:alpaca-audit
+- Added audit validator into:
+  npm run validate:all
+- Added operator dashboard Alpaca audit panel.
+- Dashboard now shows latest Alpaca request ID.
+- Stabilized stage 2 app payload test expectations.
+
+Known Status:
+- Market is closed.
+- Stream stale warnings are expected while closed.
+- Rankings are non-zero from backfilled bars.
+- GeminiScanner remains decision-assist only.
+- No broker execution.
+- No order placement.
+
+Next:
+At next market open, run:
+npm run validate:open
+npm run alerts:scanner
+npm run validate:alpaca-audit
+
+Confirm:
+- live movement detected true
+- stream stale clears or improves
+- p3GateOk remains true
+- rankings remain non-zero
+- Alpaca request IDs continue updating
+- dashboard alert badge and Alpaca audit panel reflect live scanner status
+
+END HANDOFF
