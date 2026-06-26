@@ -2721,6 +2721,68 @@ function computeCapitalAccelerationIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalMomentumIntelligence(inputs = {}) {
+  const acceleration = inputs.acceleration || {};
+  const velocity = inputs.velocity || {};
+  const leverage = inputs.leverage || {};
+  const productivity = inputs.productivity || {};
+  const optimization = inputs.optimization || {};
+  const governance = inputs.governance || {};
+
+  const accelerationScore = Number.isFinite(acceleration.accelerationScore) ? acceleration.accelerationScore : 0.5;
+  const velocityScore = Number.isFinite(velocity.velocityScore) ? velocity.velocityScore : 0.5;
+  const leverageScore = Number.isFinite(leverage.leverageScore) ? leverage.leverageScore : 0.5;
+  const productivityScore = Number.isFinite(productivity.productivityScore) ? productivity.productivityScore : 0.5;
+  const optimizationScore = Number.isFinite(optimization.optimizationScore) ? optimization.optimizationScore : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const momentumScore = roundN(
+    accelerationScore * 0.32 +
+      velocityScore * 0.22 +
+      leverageScore * 0.17 +
+      productivityScore * 0.13 +
+      optimizationScore * 0.09 +
+      governanceScore * 0.07,
+    4
+  );
+
+  let momentumState = "balanced";
+  if (
+    momentumScore >= 0.75 &&
+    acceleration.accelerationState !== "decelerating" &&
+    velocity.velocityState !== "stalled"
+  ) {
+    momentumState = "surging";
+  } else if (
+    momentumScore < 0.5 ||
+    acceleration.accelerationState === "decelerating" ||
+    velocity.velocityState === "stalled"
+  ) {
+    momentumState = "fading";
+  } else if (momentumScore >= 0.62) {
+    momentumState = "building";
+  }
+
+  let momentumBias = "neutral";
+  if (momentumState === "surging") momentumBias = "press";
+  else if (momentumState === "building") momentumBias = "follow";
+  else if (momentumState === "fading") momentumBias = "fade";
+
+  const momentumIssues = [];
+  if (momentumScore < 0.5) momentumIssues.push("SCANNER_MOMENTUM_WEAK");
+  if (acceleration.accelerationState === "decelerating") momentumIssues.push("SCANNER_ACCELERATION_DECELERATING");
+  if (velocity.velocityState === "stalled") momentumIssues.push("SCANNER_VELOCITY_STALLED");
+  if (leverage.leverageState === "overextended") momentumIssues.push("SCANNER_LEVERAGE_OVEREXTENDED");
+
+  return {
+    momentumScore,
+    momentumState,
+    momentumBias,
+    momentumIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2983,6 +3045,15 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalMomentum = computeCapitalMomentumIntelligence({
+    acceleration: capitalAcceleration,
+    velocity: capitalVelocity,
+    leverage: capitalLeverage,
+    productivity: capitalProductivity,
+    optimization: capitalOptimization,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -3144,6 +3215,10 @@ export function readScannerRankings(opts = {}) {
     accelerationState: capitalAcceleration.accelerationState,
     accelerationBias: capitalAcceleration.accelerationBias,
     accelerationIssues: capitalAcceleration.accelerationIssues,
+    momentumScore: capitalMomentum.momentumScore,
+    momentumState: capitalMomentum.momentumState,
+    momentumBias: capitalMomentum.momentumBias,
+    momentumIssues: capitalMomentum.momentumIssues,
 
     issues: freshness.stale
       ? combinedIssues
