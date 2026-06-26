@@ -1,3 +1,4 @@
+import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
 import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
 import fs from "node:fs";
@@ -488,6 +489,28 @@ app.get("/diagnostics/paper-trading-readiness-gate", (_req, res) => {
       monitorOnly: true,
       allowedToCreatePaperIntent: false,
       paperIntentStatus: "blocked"
+    });
+  }
+});
+
+
+
+app.get("/diagnostics/paper-trade-intent-plan", (_req, res) => {
+  try {
+    const result = getPaperTradeIntentPlan({ baseDir: process.cwd() });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      version: "paper-trade-intent-planner-v1",
+      error: err?.message || String(err),
+      monitorOnly: true,
+      brokerContacted: false,
+      orderPlacement: "disabled",
+      accountMutation: "disabled",
+      canCreateIntent: false,
+      paperTradeIntentStatus: "blocked",
+      intent: null
     });
   }
 });
