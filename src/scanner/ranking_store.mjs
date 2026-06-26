@@ -5456,6 +5456,392 @@ function computeCapitalCoachingNarrativeIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalDecisionContractIntelligence(inputs = {}) {
+  const capitalDecisionAssistOutput = inputs.capitalDecisionAssistOutput || {};
+  const capitalUserDecisionPacket = inputs.capitalUserDecisionPacket || {};
+  const capitalRiskWarningPanel = inputs.capitalRiskWarningPanel || {};
+
+  const decisionAssistOutputScore = clampCapitalExitProtectionScore(capitalDecisionAssistOutput.decisionAssistOutputScore);
+  const userDecisionPacketScore = clampCapitalExitProtectionScore(capitalUserDecisionPacket.userDecisionPacketScore);
+  const riskWarningScore = clampCapitalExitProtectionScore(capitalRiskWarningPanel.riskWarningScore);
+
+  const decisionAssistPermission = String(capitalDecisionAssistOutput.decisionAssistPermission || "unknown");
+  const decisionAssistCommand = String(capitalDecisionAssistOutput.decisionAssistCommand || "unknown");
+  const userDecisionPermission = String(capitalUserDecisionPacket.userDecisionPermission || "unknown");
+  const riskWarningLevel = String(capitalRiskWarningPanel.riskWarningLevel || "unknown");
+
+  const issues = [];
+  let score = (decisionAssistOutputScore * 0.45) + (userDecisionPacketScore * 0.35) + (riskWarningScore * 0.2);
+
+  if (decisionAssistPermission === "denied" || decisionAssistCommand === "DO_NOT_TRADE") {
+    score -= 0.45;
+    issues.push("ASSIST_DENIED");
+  }
+
+  if (userDecisionPermission === "denied") {
+    score -= 0.35;
+    issues.push("USER_PACKET_DENIED");
+  }
+
+  if (riskWarningLevel === "critical") {
+    score -= 0.3;
+    issues.push("CRITICAL_RISK_WARNING");
+  }
+
+  if (decisionAssistPermission === "restricted" || userDecisionPermission === "restricted" || riskWarningLevel === "high") {
+    score -= 0.16;
+    issues.push("CONTRACT_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let decisionContractState = "contract_watch";
+  if (decisionAssistPermission === "denied" || decisionAssistCommand === "DO_NOT_TRADE" || userDecisionPermission === "denied" || riskWarningLevel === "critical") {
+    decisionContractState = "contract_denied";
+  } else if (decisionAssistPermission === "restricted" || userDecisionPermission === "restricted" || riskWarningLevel === "high") {
+    decisionContractState = "contract_restricted";
+  } else if (score >= 0.78) {
+    decisionContractState = "contract_clear";
+  } else if (score >= 0.58) {
+    decisionContractState = "contract_conditional";
+  }
+
+  const decisionContractSummary =
+    decisionContractState === "contract_denied"
+      ? "NO_TRADE_CONTRACT"
+      : decisionContractState === "contract_restricted"
+        ? "RESTRICTED_CONTRACT"
+        : decisionContractState === "contract_clear"
+          ? "ACTIONABLE_CONTRACT"
+          : decisionContractState === "contract_conditional"
+            ? "CONDITIONAL_CONTRACT"
+            : "WATCH_CONTRACT";
+
+  const decisionContractPermission =
+    decisionContractState === "contract_denied"
+      ? "denied"
+      : decisionContractState === "contract_restricted"
+        ? "restricted"
+        : decisionContractState === "contract_clear"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    decisionContractScore: score,
+    decisionContractState,
+    decisionContractSummary,
+    decisionContractPermission,
+    decisionContractIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalLCMDeliveryGateIntelligence(inputs = {}) {
+  const capitalDecisionContract = inputs.capitalDecisionContract || {};
+  const capitalLCMMessage = inputs.capitalLCMMessage || {};
+  const capitalActionCard = inputs.capitalActionCard || {};
+
+  const decisionContractScore = clampCapitalExitProtectionScore(capitalDecisionContract.decisionContractScore);
+  const lcmMessageScore = clampCapitalExitProtectionScore(capitalLCMMessage.lcmMessageScore);
+  const actionCardScore = clampCapitalExitProtectionScore(capitalActionCard.actionCardScore);
+
+  const decisionContractPermission = String(capitalDecisionContract.decisionContractPermission || "unknown");
+  const lcmSeverity = String(capitalLCMMessage.lcmSeverity || "unknown");
+  const actionCardState = String(capitalActionCard.actionCardState || "unknown");
+
+  const issues = [];
+  let score = (decisionContractScore * 0.45) + (lcmMessageScore * 0.3) + (actionCardScore * 0.25);
+
+  if (decisionContractPermission === "denied") {
+    score -= 0.4;
+    issues.push("CONTRACT_DENIED");
+  }
+
+  if (lcmSeverity === "critical") {
+    score -= 0.32;
+    issues.push("CRITICAL_LCM_MESSAGE");
+  }
+
+  if (actionCardState === "card_blocked") {
+    score -= 0.32;
+    issues.push("ACTION_CARD_BLOCKED");
+  }
+
+  if (decisionContractPermission === "restricted" || lcmSeverity === "high" || actionCardState === "card_restricted") {
+    score -= 0.15;
+    issues.push("LCM_DELIVERY_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let lcmDeliveryState = "delivery_watch";
+  if (decisionContractPermission === "denied" || lcmSeverity === "critical" || actionCardState === "card_blocked") {
+    lcmDeliveryState = "delivery_defensive";
+  } else if (decisionContractPermission === "restricted" || lcmSeverity === "high" || actionCardState === "card_restricted") {
+    lcmDeliveryState = "delivery_restricted";
+  } else if (score >= 0.78) {
+    lcmDeliveryState = "delivery_clear";
+  } else if (score >= 0.58) {
+    lcmDeliveryState = "delivery_conditional";
+  }
+
+  const lcmDeliveryMode =
+    lcmDeliveryState === "delivery_defensive"
+      ? "deliver_stand_down"
+      : lcmDeliveryState === "delivery_restricted"
+        ? "deliver_restricted_guidance"
+        : lcmDeliveryState === "delivery_clear"
+          ? "deliver_actionable_guidance"
+          : lcmDeliveryState === "delivery_conditional"
+            ? "deliver_confirmation_guidance"
+            : "deliver_watch_guidance";
+
+  const lcmDeliveryPermission =
+    lcmDeliveryState === "delivery_defensive"
+      ? "denied"
+      : lcmDeliveryState === "delivery_restricted"
+        ? "restricted"
+        : lcmDeliveryState === "delivery_clear"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    lcmDeliveryScore: score,
+    lcmDeliveryState,
+    lcmDeliveryMode,
+    lcmDeliveryPermission,
+    lcmDeliveryIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalSafetyEnvelopeIntelligence(inputs = {}) {
+  const capitalLCMDeliveryGate = inputs.capitalLCMDeliveryGate || {};
+  const capitalDecisionContract = inputs.capitalDecisionContract || {};
+  const capitalRiskWarningPanel = inputs.capitalRiskWarningPanel || {};
+
+  const lcmDeliveryScore = clampCapitalExitProtectionScore(capitalLCMDeliveryGate.lcmDeliveryScore);
+  const decisionContractScore = clampCapitalExitProtectionScore(capitalDecisionContract.decisionContractScore);
+  const riskWarningScore = clampCapitalExitProtectionScore(capitalRiskWarningPanel.riskWarningScore);
+
+  const lcmDeliveryPermission = String(capitalLCMDeliveryGate.lcmDeliveryPermission || "unknown");
+  const decisionContractPermission = String(capitalDecisionContract.decisionContractPermission || "unknown");
+  const riskWarningLevel = String(capitalRiskWarningPanel.riskWarningLevel || "unknown");
+
+  const issues = [];
+  let score = (lcmDeliveryScore * 0.35) + (decisionContractScore * 0.35) + (riskWarningScore * 0.3);
+
+  if (lcmDeliveryPermission === "denied" || decisionContractPermission === "denied") {
+    score -= 0.42;
+    issues.push("SAFETY_PERMISSION_DENIED");
+  }
+
+  if (riskWarningLevel === "critical") {
+    score -= 0.35;
+    issues.push("CRITICAL_WARNING");
+  }
+
+  if (lcmDeliveryPermission === "restricted" || decisionContractPermission === "restricted" || riskWarningLevel === "high") {
+    score -= 0.15;
+    issues.push("SAFETY_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let safetyEnvelopeState = "safety_watch";
+  if (lcmDeliveryPermission === "denied" || decisionContractPermission === "denied" || riskWarningLevel === "critical") {
+    safetyEnvelopeState = "safety_locked";
+  } else if (lcmDeliveryPermission === "restricted" || decisionContractPermission === "restricted" || riskWarningLevel === "high") {
+    safetyEnvelopeState = "safety_restricted";
+  } else if (score >= 0.78) {
+    safetyEnvelopeState = "safety_clear";
+  } else if (score >= 0.58) {
+    safetyEnvelopeState = "safety_conditional";
+  }
+
+  const safetyEnvelopeMode =
+    safetyEnvelopeState === "safety_locked"
+      ? "block_risk"
+      : safetyEnvelopeState === "safety_restricted"
+        ? "restrict_risk"
+        : safetyEnvelopeState === "safety_clear"
+          ? "standard_safety"
+          : safetyEnvelopeState === "safety_conditional"
+            ? "conditional_safety"
+            : "watch_safety";
+
+  const safetyEnvelopeSeverity =
+    safetyEnvelopeState === "safety_locked"
+      ? "critical"
+      : safetyEnvelopeState === "safety_restricted"
+        ? "high"
+        : safetyEnvelopeState === "safety_clear"
+          ? "normal"
+          : "watch";
+
+  return {
+    safetyEnvelopeScore: score,
+    safetyEnvelopeState,
+    safetyEnvelopeMode,
+    safetyEnvelopeSeverity,
+    safetyEnvelopeIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalStage2ControlSurfaceIntelligence(inputs = {}) {
+  const capitalSafetyEnvelope = inputs.capitalSafetyEnvelope || {};
+  const capitalDecisionAssistOutput = inputs.capitalDecisionAssistOutput || {};
+  const capitalOperatorGuidance = inputs.capitalOperatorGuidance || {};
+
+  const safetyEnvelopeScore = clampCapitalExitProtectionScore(capitalSafetyEnvelope.safetyEnvelopeScore);
+  const decisionAssistOutputScore = clampCapitalExitProtectionScore(capitalDecisionAssistOutput.decisionAssistOutputScore);
+  const operatorGuidanceScore = clampCapitalExitProtectionScore(capitalOperatorGuidance.operatorGuidanceScore);
+
+  const safetyEnvelopeState = String(capitalSafetyEnvelope.safetyEnvelopeState || "unknown");
+  const decisionAssistPermission = String(capitalDecisionAssistOutput.decisionAssistPermission || "unknown");
+  const operatorGuidanceState = String(capitalOperatorGuidance.operatorGuidanceState || "unknown");
+
+  const issues = [];
+  let score = (safetyEnvelopeScore * 0.4) + (decisionAssistOutputScore * 0.35) + (operatorGuidanceScore * 0.25);
+
+  if (safetyEnvelopeState === "safety_locked") {
+    score -= 0.42;
+    issues.push("SAFETY_LOCKED");
+  }
+
+  if (decisionAssistPermission === "denied") {
+    score -= 0.35;
+    issues.push("ASSIST_DENIED");
+  }
+
+  if (operatorGuidanceState === "operator_stand_down") {
+    score -= 0.32;
+    issues.push("OPERATOR_STAND_DOWN");
+  }
+
+  if (safetyEnvelopeState === "safety_restricted" || decisionAssistPermission === "restricted" || operatorGuidanceState === "operator_micro_only") {
+    score -= 0.15;
+    issues.push("CONTROL_SURFACE_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let stage2ControlState = "stage2_watch";
+  if (safetyEnvelopeState === "safety_locked" || decisionAssistPermission === "denied" || operatorGuidanceState === "operator_stand_down") {
+    stage2ControlState = "stage2_locked";
+  } else if (safetyEnvelopeState === "safety_restricted" || decisionAssistPermission === "restricted" || operatorGuidanceState === "operator_micro_only") {
+    stage2ControlState = "stage2_restricted";
+  } else if (score >= 0.78) {
+    stage2ControlState = "stage2_clear";
+  } else if (score >= 0.58) {
+    stage2ControlState = "stage2_conditional";
+  }
+
+  const stage2ControlMode =
+    stage2ControlState === "stage2_locked"
+      ? "capital_protection_mode"
+      : stage2ControlState === "stage2_restricted"
+        ? "restricted_decision_mode"
+        : stage2ControlState === "stage2_clear"
+          ? "decision_assist_ready"
+          : stage2ControlState === "stage2_conditional"
+            ? "confirmation_mode"
+            : "monitor_mode";
+
+  const stage2ControlPermission =
+    stage2ControlState === "stage2_locked"
+      ? "denied"
+      : stage2ControlState === "stage2_restricted"
+        ? "restricted"
+        : stage2ControlState === "stage2_clear"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    stage2ControlScore: score,
+    stage2ControlState,
+    stage2ControlMode,
+    stage2ControlPermission,
+    stage2ControlIssues: Array.from(new Set(issues)),
+  };
+}
+
+function computeCapitalStage2FinalCommandIntelligence(inputs = {}) {
+  const capitalStage2ControlSurface = inputs.capitalStage2ControlSurface || {};
+  const capitalSafetyEnvelope = inputs.capitalSafetyEnvelope || {};
+  const capitalDecisionContract = inputs.capitalDecisionContract || {};
+  const capitalDecisionAssistOutput = inputs.capitalDecisionAssistOutput || {};
+
+  const stage2ControlScore = clampCapitalExitProtectionScore(capitalStage2ControlSurface.stage2ControlScore);
+  const safetyEnvelopeScore = clampCapitalExitProtectionScore(capitalSafetyEnvelope.safetyEnvelopeScore);
+  const decisionContractScore = clampCapitalExitProtectionScore(capitalDecisionContract.decisionContractScore);
+  const decisionAssistOutputScore = clampCapitalExitProtectionScore(capitalDecisionAssistOutput.decisionAssistOutputScore);
+
+  const stage2ControlPermission = String(capitalStage2ControlSurface.stage2ControlPermission || "unknown");
+  const safetyEnvelopeSeverity = String(capitalSafetyEnvelope.safetyEnvelopeSeverity || "unknown");
+  const decisionContractPermission = String(capitalDecisionContract.decisionContractPermission || "unknown");
+  const decisionAssistCommand = String(capitalDecisionAssistOutput.decisionAssistCommand || "unknown");
+
+  const issues = [];
+  let score = (stage2ControlScore * 0.35) + (safetyEnvelopeScore * 0.25) + (decisionContractScore * 0.2) + (decisionAssistOutputScore * 0.2);
+
+  if (stage2ControlPermission === "denied" || decisionContractPermission === "denied" || decisionAssistCommand === "DO_NOT_TRADE") {
+    score -= 0.5;
+    issues.push("FINAL_COMMAND_DENIED");
+  }
+
+  if (safetyEnvelopeSeverity === "critical") {
+    score -= 0.35;
+    issues.push("CRITICAL_SAFETY_ENVELOPE");
+  }
+
+  if (stage2ControlPermission === "restricted" || decisionContractPermission === "restricted" || safetyEnvelopeSeverity === "high") {
+    score -= 0.16;
+    issues.push("FINAL_COMMAND_RESTRICTED");
+  }
+
+  score = clampCapitalExitProtectionScore(score);
+
+  let stage2FinalCommandState = "stage2_final_watch";
+  if (stage2ControlPermission === "denied" || decisionContractPermission === "denied" || decisionAssistCommand === "DO_NOT_TRADE" || safetyEnvelopeSeverity === "critical") {
+    stage2FinalCommandState = "stage2_final_denied";
+  } else if (stage2ControlPermission === "restricted" || decisionContractPermission === "restricted" || safetyEnvelopeSeverity === "high") {
+    stage2FinalCommandState = "stage2_final_restricted";
+  } else if (score >= 0.78) {
+    stage2FinalCommandState = "stage2_final_allowed";
+  } else if (score >= 0.58) {
+    stage2FinalCommandState = "stage2_final_conditional";
+  }
+
+  const stage2FinalCommand =
+    stage2FinalCommandState === "stage2_final_denied"
+      ? "DO_NOT_TRADE"
+      : stage2FinalCommandState === "stage2_final_restricted"
+        ? "MICRO_ONLY_IF_CONFIRMED"
+        : stage2FinalCommandState === "stage2_final_allowed"
+          ? "MANUAL_DECISION_ALLOWED"
+          : stage2FinalCommandState === "stage2_final_conditional"
+            ? "WAIT_FOR_CONFIRMATION"
+            : "WATCH_ONLY";
+
+  const stage2FinalPermission =
+    stage2FinalCommandState === "stage2_final_denied"
+      ? "denied"
+      : stage2FinalCommandState === "stage2_final_restricted"
+        ? "restricted"
+        : stage2FinalCommandState === "stage2_final_allowed"
+          ? "allowed"
+          : "conditional";
+
+  return {
+    stage2FinalCommandScore: score,
+    stage2FinalCommandState,
+    stage2FinalCommand,
+    stage2FinalPermission,
+    stage2FinalCommandIssues: Array.from(new Set(issues)),
+  };
+}
+
+
 function computeCapitalDecisionAssistOutputIntelligence(inputs = {}) {
   const capitalActionCard = inputs.capitalActionCard || {};
   const capitalCoachingNarrative = inputs.capitalCoachingNarrative || {};
@@ -6883,6 +7269,37 @@ export function readScannerRankings(opts = {}) {
     capitalUserDecisionPacket,
   });
 
+  const capitalDecisionContract = computeCapitalDecisionContractIntelligence({
+    capitalDecisionAssistOutput,
+    capitalUserDecisionPacket,
+    capitalRiskWarningPanel,
+  });
+
+  const capitalLCMDeliveryGate = computeCapitalLCMDeliveryGateIntelligence({
+    capitalDecisionContract,
+    capitalLCMMessage,
+    capitalActionCard,
+  });
+
+  const capitalSafetyEnvelope = computeCapitalSafetyEnvelopeIntelligence({
+    capitalLCMDeliveryGate,
+    capitalDecisionContract,
+    capitalRiskWarningPanel,
+  });
+
+  const capitalStage2ControlSurface = computeCapitalStage2ControlSurfaceIntelligence({
+    capitalSafetyEnvelope,
+    capitalDecisionAssistOutput,
+    capitalOperatorGuidance,
+  });
+
+  const capitalStage2FinalCommand = computeCapitalStage2FinalCommandIntelligence({
+    capitalStage2ControlSurface,
+    capitalSafetyEnvelope,
+    capitalDecisionContract,
+    capitalDecisionAssistOutput,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -7283,6 +7700,31 @@ export function readScannerRankings(opts = {}) {
     decisionAssistCommand: capitalDecisionAssistOutput.decisionAssistCommand,
     decisionAssistPermission: capitalDecisionAssistOutput.decisionAssistPermission,
     decisionAssistOutputIssues: capitalDecisionAssistOutput.decisionAssistOutputIssues,
+    decisionContractScore: capitalDecisionContract.decisionContractScore,
+    decisionContractState: capitalDecisionContract.decisionContractState,
+    decisionContractSummary: capitalDecisionContract.decisionContractSummary,
+    decisionContractPermission: capitalDecisionContract.decisionContractPermission,
+    decisionContractIssues: capitalDecisionContract.decisionContractIssues,
+    lcmDeliveryScore: capitalLCMDeliveryGate.lcmDeliveryScore,
+    lcmDeliveryState: capitalLCMDeliveryGate.lcmDeliveryState,
+    lcmDeliveryMode: capitalLCMDeliveryGate.lcmDeliveryMode,
+    lcmDeliveryPermission: capitalLCMDeliveryGate.lcmDeliveryPermission,
+    lcmDeliveryIssues: capitalLCMDeliveryGate.lcmDeliveryIssues,
+    safetyEnvelopeScore: capitalSafetyEnvelope.safetyEnvelopeScore,
+    safetyEnvelopeState: capitalSafetyEnvelope.safetyEnvelopeState,
+    safetyEnvelopeMode: capitalSafetyEnvelope.safetyEnvelopeMode,
+    safetyEnvelopeSeverity: capitalSafetyEnvelope.safetyEnvelopeSeverity,
+    safetyEnvelopeIssues: capitalSafetyEnvelope.safetyEnvelopeIssues,
+    stage2ControlScore: capitalStage2ControlSurface.stage2ControlScore,
+    stage2ControlState: capitalStage2ControlSurface.stage2ControlState,
+    stage2ControlMode: capitalStage2ControlSurface.stage2ControlMode,
+    stage2ControlPermission: capitalStage2ControlSurface.stage2ControlPermission,
+    stage2ControlIssues: capitalStage2ControlSurface.stage2ControlIssues,
+    stage2FinalCommandScore: capitalStage2FinalCommand.stage2FinalCommandScore,
+    stage2FinalCommandState: capitalStage2FinalCommand.stage2FinalCommandState,
+    stage2FinalCommand: capitalStage2FinalCommand.stage2FinalCommand,
+    stage2FinalPermission: capitalStage2FinalCommand.stage2FinalPermission,
+    stage2FinalCommandIssues: capitalStage2FinalCommand.stage2FinalCommandIssues,
 
     issues: freshness.stale
       ? combinedIssues

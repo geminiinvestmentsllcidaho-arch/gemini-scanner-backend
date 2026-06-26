@@ -3387,3 +3387,95 @@ test("readScannerRankings emits stand-down decision assist output after user pac
   assert.equal(out.decisionAssistPermission, "denied");
 });
 
+test("readScannerRankings exposes capital stage 2 final command stack", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-stage2-final-command-stack-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.88, compositeConfidence: 0.88, qualityOverall: 0.88, setupScore: 0.88 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.decisionContractScore >= 0);
+  assert.ok(out.decisionContractScore <= 1);
+  assert.ok(["contract_denied", "contract_restricted", "contract_clear", "contract_conditional", "contract_watch"].includes(out.decisionContractState));
+  assert.ok(["NO_TRADE_CONTRACT", "RESTRICTED_CONTRACT", "ACTIONABLE_CONTRACT", "CONDITIONAL_CONTRACT", "WATCH_CONTRACT"].includes(out.decisionContractSummary));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.decisionContractPermission));
+  assert.ok(Array.isArray(out.decisionContractIssues));
+
+  assert.ok(out.lcmDeliveryScore >= 0);
+  assert.ok(out.lcmDeliveryScore <= 1);
+  assert.ok(["delivery_defensive", "delivery_restricted", "delivery_clear", "delivery_conditional", "delivery_watch"].includes(out.lcmDeliveryState));
+  assert.ok(["deliver_stand_down", "deliver_restricted_guidance", "deliver_actionable_guidance", "deliver_confirmation_guidance", "deliver_watch_guidance"].includes(out.lcmDeliveryMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.lcmDeliveryPermission));
+  assert.ok(Array.isArray(out.lcmDeliveryIssues));
+
+  assert.ok(out.safetyEnvelopeScore >= 0);
+  assert.ok(out.safetyEnvelopeScore <= 1);
+  assert.ok(["safety_locked", "safety_restricted", "safety_clear", "safety_conditional", "safety_watch"].includes(out.safetyEnvelopeState));
+  assert.ok(["block_risk", "restrict_risk", "standard_safety", "conditional_safety", "watch_safety"].includes(out.safetyEnvelopeMode));
+  assert.ok(["critical", "high", "normal", "watch"].includes(out.safetyEnvelopeSeverity));
+  assert.ok(Array.isArray(out.safetyEnvelopeIssues));
+
+  assert.ok(out.stage2ControlScore >= 0);
+  assert.ok(out.stage2ControlScore <= 1);
+  assert.ok(["stage2_locked", "stage2_restricted", "stage2_clear", "stage2_conditional", "stage2_watch"].includes(out.stage2ControlState));
+  assert.ok(["capital_protection_mode", "restricted_decision_mode", "decision_assist_ready", "confirmation_mode", "monitor_mode"].includes(out.stage2ControlMode));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.stage2ControlPermission));
+  assert.ok(Array.isArray(out.stage2ControlIssues));
+
+  assert.ok(out.stage2FinalCommandScore >= 0);
+  assert.ok(out.stage2FinalCommandScore <= 1);
+  assert.ok(["stage2_final_denied", "stage2_final_restricted", "stage2_final_allowed", "stage2_final_conditional", "stage2_final_watch"].includes(out.stage2FinalCommandState));
+  assert.ok(["DO_NOT_TRADE", "MICRO_ONLY_IF_CONFIRMED", "MANUAL_DECISION_ALLOWED", "WAIT_FOR_CONFIRMATION", "WATCH_ONLY"].includes(out.stage2FinalCommand));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.stage2FinalPermission));
+  assert.ok(Array.isArray(out.stage2FinalCommandIssues));
+});
+
+test("readScannerRankings denies stage 2 final command after decision assist stand down", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-stage2-final-command-denied-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.decisionAssistOutputState, "assist_stand_down");
+  assert.equal(out.decisionAssistOutputState, "assist_stand_down");
+  assert.equal(out.decisionAssistPermission, "denied");
+  assert.equal(out.decisionContractState, "contract_denied");
+  assert.equal(out.decisionContractPermission, "denied");
+  assert.equal(out.lcmDeliveryState, "delivery_defensive");
+  assert.equal(out.lcmDeliveryPermission, "denied");
+  assert.equal(out.safetyEnvelopeState, "safety_locked");
+  assert.equal(out.safetyEnvelopeSeverity, "critical");
+  assert.equal(out.stage2ControlState, "stage2_locked");
+  assert.equal(out.stage2ControlPermission, "denied");
+  assert.equal(out.stage2FinalCommandState, "stage2_final_denied");
+  assert.equal(out.stage2FinalCommand, "DO_NOT_TRADE");
+  assert.equal(out.stage2FinalPermission, "denied");
+});
+
