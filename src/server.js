@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import dotenv from 'dotenv';
 import express from 'express';
 import { startMarketDataStream } from './market_data_stream.js';
@@ -180,6 +181,16 @@ app.get('/', (_req, res) => {
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
+app.get('/diagnostics/alpaca-api-watch', (req, res) => {
+  const reportFile = "runs/alpaca_api_watch_report.json";
+  try {
+    const report = JSON.parse(fs.readFileSync(reportFile, "utf8"));
+    res.json({ ok: true, report });
+  } catch (err) {
+    res.json({ ok: false, error: "WATCH_REPORT_UNAVAILABLE", message: err?.message || String(err) });
+  }
+});
+
 app.get('/diagnostics/alpaca-requests', (req, res) => {
   res.json({
     ok: true,

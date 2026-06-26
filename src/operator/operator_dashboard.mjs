@@ -331,6 +331,18 @@ export function buildOperatorDashboardHtml(payload = buildOperatorDashboardPaylo
       overflow-wrap: anywhere;
     }
     .alpaca-audit-panel strong { color: #f8fafc; }
+  
+    .alpaca-api-watch-panel {
+      margin: 0 0 18px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(15,23,42,.65);
+      border: 1px solid rgba(255,255,255,.12);
+      font-size: 13px;
+      color: #cbd5e1;
+      overflow-wrap: anywhere;
+    }
+    .alpaca-api-watch-panel strong { color: #f8fafc; }
   </style>
 </head>
 <body>
@@ -339,6 +351,7 @@ export function buildOperatorDashboardHtml(payload = buildOperatorDashboardPaylo
       <h1>GeminiScanner Operator</h1>
       <div id="scanner-alert-badge" class="scanner-alert-badge loading">Scanner alert badge loading</div>
       <div id="alpaca-audit-panel" class="alpaca-audit-panel"><strong>Alpaca Audit:</strong> loading latest request ID</div>
+      <div id="alpaca-api-watch-panel" class="alpaca-api-watch-panel"><strong>API Watcher:</strong> loading Alpaca API watch status</div>
       <p class="lead">Live protected operator dashboard for Stage 2 app, LCM, health, readiness, diagnostics, rankings, market data, run logs, and safety state. This surface is read-only: no broker execution and no order placement.</p>
       <div class="bar">
         <span class="pill good">Mode: ${escapeHtml(payload.mode)}</span>
@@ -522,6 +535,31 @@ ${panelCards}
           })
           .catch(function () {
             el.innerHTML = "<strong>Alpaca Audit:</strong> unavailable";
+          });
+      })();
+    </script>
+  
+    <script>
+      (function () {
+        var el = document.getElementById("alpaca-api-watch-panel");
+        if (!el) return;
+        fetch("/diagnostics/alpaca-api-watch")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.ok || !data.report) {
+              el.innerHTML = "<strong>API Watcher:</strong> report unavailable";
+              return;
+            }
+            var s = data.report.summary || {};
+            el.innerHTML = "<strong>API Watcher:</strong> " +
+              "targets=" + (s.targetCount || 0) +
+              " | changed=" + (s.changedCount || 0) +
+              " | high=" + (s.highSeverityCount || 0) +
+              " | unreachable=" + (s.unreachableCount || 0) +
+              " | actionRequired=" + String(!!s.actionRequired);
+          })
+          .catch(function () {
+            el.innerHTML = "<strong>API Watcher:</strong> unavailable";
           });
       })();
     </script>
