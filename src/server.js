@@ -1,3 +1,4 @@
+import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
 import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
 import fs from "node:fs";
 import dotenv from 'dotenv';
@@ -473,6 +474,24 @@ app.get('/diagnostics/operator-approval-workflow', async (req, res) => {
     })
   }
 })
+
+
+app.get("/diagnostics/paper-trading-readiness-gate", (_req, res) => {
+  try {
+    const result = getPaperTradingReadinessGate({ baseDir: process.cwd() });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      version: "paper-trading-readiness-gate-v1",
+      error: err?.message || String(err),
+      monitorOnly: true,
+      allowedToCreatePaperIntent: false,
+      paperIntentStatus: "blocked"
+    });
+  }
+});
+
 
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
