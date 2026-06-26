@@ -2100,6 +2100,75 @@ function computeCapitalDurabilityIntelligence(inputs = {}) {
   };
 }
 
+
+function computeCapitalEnduranceIntelligence(inputs = {}) {
+  const durability = inputs.durability || {};
+  const continuity = inputs.continuity || {};
+  const stability = inputs.stability || {};
+  const resilience = inputs.resilience || {};
+  const recovery = inputs.recovery || {};
+  const execution = inputs.execution || {};
+  const governance = inputs.governance || {};
+
+  const durabilityScore = Number.isFinite(durability.durabilityScore) ? durability.durabilityScore : 0.5;
+  const continuityScore = Number.isFinite(continuity.continuityScore) ? continuity.continuityScore : 0.5;
+  const stabilityScore = Number.isFinite(stability.capitalStabilityScore)
+    ? stability.capitalStabilityScore
+    : Number.isFinite(stability.stabilityScore)
+      ? stability.stabilityScore
+      : 0.5;
+  const resilienceScore = Number.isFinite(resilience.resilienceScore) ? resilience.resilienceScore : 0.5;
+  const recoveryProbability = Number.isFinite(recovery.drawdownRecoveryProbability) ? recovery.drawdownRecoveryProbability : 0.5;
+  const deploymentPressure = Number.isFinite(execution.deploymentPressure) ? execution.deploymentPressure : 0.5;
+  const governanceScore = Number.isFinite(governance.governanceScore) ? governance.governanceScore : 0.5;
+
+  const enduranceScore = roundN(
+    durabilityScore * 0.3 +
+      continuityScore * 0.2 +
+      stabilityScore * 0.17 +
+      resilienceScore * 0.16 +
+      recoveryProbability * 0.08 +
+      governanceScore * 0.06 +
+      (1 - deploymentPressure) * 0.03,
+    4
+  );
+
+  let enduranceState = "balanced";
+  if (
+    enduranceScore >= 0.75 &&
+    durability.durabilityState !== "vulnerable" &&
+    continuity.continuityState !== "disrupted"
+  ) {
+    enduranceState = "extended";
+  } else if (
+    enduranceScore < 0.5 ||
+    durability.durabilityState === "vulnerable" ||
+    stability.stabilityState === "critical"
+  ) {
+    enduranceState = "limited";
+  } else if (enduranceScore >= 0.62) {
+    enduranceState = "sustained";
+  }
+
+  let enduranceBias = "neutral";
+  if (enduranceState === "extended") enduranceBias = "compound";
+  else if (enduranceState === "sustained") enduranceBias = "hold";
+  else if (enduranceState === "limited") enduranceBias = "conserve";
+
+  const enduranceIssues = [];
+  if (enduranceScore < 0.5) enduranceIssues.push("SCANNER_ENDURANCE_WEAK");
+  if (durability.durabilityState === "vulnerable") enduranceIssues.push("SCANNER_DURABILITY_VULNERABLE");
+  if (continuity.continuityState === "disrupted") enduranceIssues.push("SCANNER_CONTINUITY_DISRUPTED");
+  if (stability.stabilityState === "critical") enduranceIssues.push("SCANNER_STABILITY_CRITICAL");
+
+  return {
+    enduranceScore,
+    enduranceState,
+    enduranceBias,
+    enduranceIssues,
+  };
+}
+
 export function readScannerRankings(opts = {}) {
   const dryrunsDir = opts.dryrunsDir || path.resolve(process.cwd(), "dryruns");
   const latestFile = getLatestDryrunFile(dryrunsDir);
@@ -2273,6 +2342,16 @@ export function readScannerRankings(opts = {}) {
     governance,
   });
 
+  const capitalEndurance = computeCapitalEnduranceIntelligence({
+    durability: capitalDurability,
+    continuity: capitalContinuity,
+    stability: capitalStability,
+    resilience: capitalResilience,
+    recovery,
+    execution,
+    governance,
+  });
+
   return {
     ok: true,
     source: latestFile,
@@ -2394,6 +2473,10 @@ export function readScannerRankings(opts = {}) {
     durabilityState: capitalDurability.durabilityState,
     durabilityBias: capitalDurability.durabilityBias,
     durabilityIssues: capitalDurability.durabilityIssues,
+    enduranceScore: capitalEndurance.enduranceScore,
+    enduranceState: capitalEndurance.enduranceState,
+    enduranceBias: capitalEndurance.enduranceBias,
+    enduranceIssues: capitalEndurance.enduranceIssues,
 
     issues: freshness.stale
       ? combinedIssues

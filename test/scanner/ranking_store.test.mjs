@@ -1545,3 +1545,55 @@ test("readScannerRankings exposes vulnerable capital durability intelligence", (
   assert.equal(out.durabilityBias, "defend");
   assert.ok(Array.isArray(out.durabilityIssues));
 });
+
+
+test("readScannerRankings exposes extended capital endurance intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-endurance-extended-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.93, compositeConfidence: 0.93, qualityOverall: 0.93, setupScore: 0.93 }),
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "MSFT", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.89, compositeConfidence: 0.89, qualityOverall: 0.89, setupScore: 0.89 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    configuredSymbols: ["AAPL", "MSFT"],
+  });
+
+  assert.ok(out.enduranceScore >= 0.62);
+  assert.ok(["sustained", "extended"].includes(out.enduranceState));
+  assert.ok(["hold", "compound"].includes(out.enduranceBias));
+  assert.deepEqual(out.enduranceIssues, []);
+});
+
+test("readScannerRankings exposes limited capital endurance intelligence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-endurance-limited-"));
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-00-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "buy", regime: "bullish", confidence: 0.9, compositeConfidence: 0.9, qualityOverall: 0.9, setupScore: 0.9 }),
+    ].join("\\n")
+  );
+
+  fs.writeFileSync(
+    path.join(dir, "dry-scanner-2026-01-01T00-01-00-000Z.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-01-01T00:01:00.000Z", symbol: "AAPL", ok: true, httpStatus: 200, p3GateOk: true, action: "sell", regime: "bearish", confidence: 0, compositeConfidence: 0, qualityOverall: 0, setupScore: 0 }),
+    ].join("\\n")
+  );
+
+  const out = readScannerRankings({
+    dryrunsDir: dir,
+    nowMs: Date.parse("2026-01-01T00:02:00.000Z"),
+    configuredSymbols: ["AAPL"],
+  });
+
+  assert.equal(out.enduranceState, "limited");
+  assert.equal(out.enduranceBias, "conserve");
+  assert.ok(Array.isArray(out.enduranceIssues));
+});
