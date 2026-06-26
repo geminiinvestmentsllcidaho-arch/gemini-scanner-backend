@@ -3564,3 +3564,39 @@ test('readScannerRankings exposes stage 2 app screen payload for mobile UI', asy
   assert.equal(result.stage2AppScreenPayload.banner.text, 'Capital protection active')
   assert.equal(result.stage2AppScreenPayload.diagnostics.issueCount, 2)
 })
+
+
+test('readScannerRankings supports stage 2 app endpoint payload shape', async () => {
+  const result = await readScannerRankings({
+    symbols: ['AAPL', 'MSFT'],
+    nowMs: Date.parse('2026-06-26T12:00:00Z'),
+    session: 'closed',
+    telemetry: {
+      streamConnected: true,
+      streamStale: true,
+      reconnectAttempts: 0,
+      reconnectCountTotal: 3,
+      watchdogTriggerCount: 1,
+      lastEventAgeSec: 120
+    }
+  })
+
+  const payload = {
+    ok: true,
+    endpointVersion: 'scanner_stage2_app_v1',
+    ts: result.ts,
+    scannerHealth: result.scannerHealth,
+    rankingConfidence: result.rankingConfidence,
+    stage2FinalCommand: result.stage2FinalCommand,
+    stage2FinalPermission: result.stage2FinalPermission,
+    stage2AppDisplay: result.stage2AppDisplay,
+    stage2MobileDecisionCard: result.stage2MobileDecisionCard,
+    stage2AppScreenPayload: result.stage2AppScreenPayload
+  }
+
+  assert.equal(payload.endpointVersion, 'scanner_stage2_app_v1')
+  assert.equal(payload.stage2FinalCommand, 'DO_NOT_TRADE')
+  assert.equal(payload.stage2FinalPermission, 'denied')
+  assert.equal(payload.stage2AppScreenPayload.screenVersion, 'stage2_app_screen_v1')
+  assert.equal(payload.stage2MobileDecisionCard.cardVersion, 'stage2_mobile_card_v1')
+})

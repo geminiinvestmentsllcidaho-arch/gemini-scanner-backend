@@ -31,6 +31,31 @@ app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
 app.get('/marketdata', marketDataDump);
 
+
+app.get('/scanner/stage2-app', async (_req, res) => {
+  try {
+    const rankings = await readScannerRankings()
+    res.json({
+      ok: true,
+      endpointVersion: 'scanner_stage2_app_v1',
+      ts: rankings.ts,
+      scannerHealth: rankings.scannerHealth,
+      rankingConfidence: rankings.rankingConfidence,
+      stage2FinalCommand: rankings.stage2FinalCommand,
+      stage2FinalPermission: rankings.stage2FinalPermission,
+      stage2AppDisplay: rankings.stage2AppDisplay,
+      stage2MobileDecisionCard: rankings.stage2MobileDecisionCard,
+      stage2AppScreenPayload: rankings.stage2AppScreenPayload
+    })
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: 'SCANNER_STAGE2_APP_FAILED',
+      message: err && err.message ? err.message : String(err)
+    })
+  }
+})
+
 app.get('/scanner/rankings', (req, res) => {
   try {
     res.json({
