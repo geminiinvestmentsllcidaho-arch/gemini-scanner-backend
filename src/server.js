@@ -28,6 +28,8 @@ import { readPaperTradeIntentCreationDashboard } from './scanner/paper_trade_int
 import { readPaperTradeIntentCreationDashboardPanel } from './scanner/paper_trade_intent_creation_dashboard_panel.mjs';
 import { previewPaperTradeIntentCreationFromPlan } from './scanner/paper_trade_intent_creation_runner.mjs';
 import { readPaperTradeIntentCreationRunnerPanel } from './scanner/paper_trade_intent_creation_runner_panel.mjs';
+import { readPaperTradeIntentCreationRunnerAuditDashboard } from './scanner/paper_trade_intent_creation_runner_audit.mjs';
+import { readPaperTradeIntentCreationRunnerAuditPanel } from './scanner/paper_trade_intent_creation_runner_audit_panel.mjs';
 
 dotenv.config();
 
@@ -550,6 +552,16 @@ app.listen(PORT, HOST, async () => {
 
 
 
+
+
+
+app.get('/diagnostics/paper-trade-intent-creation-runner-audit-panel', (_req, res) => {
+  res.json(readPaperTradeIntentCreationRunnerAuditPanel());
+});
+
+app.get('/diagnostics/paper-trade-intent-creation-runner-audit', (_req, res) => {
+  res.json(readPaperTradeIntentCreationRunnerAuditDashboard());
+});
 
 app.get('/diagnostics/paper-trade-intent-creation-runner-panel', (_req, res) => {
   res.json(readPaperTradeIntentCreationRunnerPanel());
