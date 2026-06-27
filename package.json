@@ -52,7 +52,10 @@
     "dashboard:paper-fill-store": "node scripts/store_paper_trade_fill_simulation.mjs --dashboard=true",
     "panel:paper-fill-store": "node scripts/paper_trade_fill_simulation_store_panel.mjs",
     "preview:paper-position-state": "node scripts/paper_trade_position_state_preview.mjs",
-    "panel:paper-position-state": "node scripts/paper_trade_position_state_preview.mjs --panel=true"
+    "panel:paper-position-state": "node scripts/paper_trade_position_state_preview.mjs --panel=true",
+    "store:paper-position-state": "node scripts/store_paper_trade_position_state.mjs",
+    "dashboard:paper-position-state-store": "node scripts/store_paper_trade_position_state.mjs --dashboard=true",
+    "panel:paper-position-state-store": "node scripts/store_paper_trade_position_state.mjs --panel=true"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
