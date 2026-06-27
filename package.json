@@ -100,7 +100,8 @@
     "submit:first-tiny-paper-order-manual": "node scripts/manual_first_tiny_paper_order_submit_script_dry_run_shell.mjs",
     "wrapper:first-tiny-paper-order-broker-adapter-call": "node scripts/manual_first_tiny_paper_order_broker_adapter_call_wrapper.mjs",
     "executor:first-tiny-paper-order-one-shot": "node scripts/manual_first_tiny_paper_order_one_shot_submit_executor.mjs",
-    "gate:paper-broker-contact-implementation": "node scripts/paper_broker_contact_implementation_decision_gate.mjs"
+    "gate:paper-broker-contact-implementation": "node scripts/paper_broker_contact_implementation_decision_gate.mjs",
+    "approval:paper-broker-network-implementation": "node scripts/separate_explicit_paper_broker_network_implementation_approval.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
