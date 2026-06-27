@@ -26,6 +26,7 @@ import { buildPaperTradeIntentAuditDashboard } from './scanner/paper_trade_inten
 import { getPaperTradeIntentAuditDashboardPanel } from "./scanner/paper_trade_intent_audit_dashboard_panel.mjs";
 import { readPaperTradeIntentCreationDashboard } from './scanner/paper_trade_intent_creation_dashboard.mjs';
 import { readPaperTradeIntentCreationDashboardPanel } from './scanner/paper_trade_intent_creation_dashboard_panel.mjs';
+import { previewPaperTradeIntentCreationFromPlan } from './scanner/paper_trade_intent_creation_runner.mjs';
 
 dotenv.config();
 
@@ -546,6 +547,11 @@ app.listen(PORT, HOST, async () => {
 });
 
 
+
+
+app.get('/diagnostics/paper-trade-intent-creation-runner', (_req, res) => {
+  res.json(previewPaperTradeIntentCreationFromPlan());
+});
 
 app.get('/diagnostics/paper-trade-intent-creation-store-panel', (_req, res) => {
   res.json(readPaperTradeIntentCreationDashboardPanel());
