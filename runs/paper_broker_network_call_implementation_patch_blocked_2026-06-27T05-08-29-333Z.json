@@ -1,0 +1,103 @@
+{
+  "ok": true,
+  "version": "paper_broker_network_call_implementation_patch_v1",
+  "ts": "2026-06-27T05:08:29.333Z",
+  "status": "blocked",
+  "readyForSinglePaperNetworkAttempt": false,
+  "networkCallImplemented": true,
+  "endpointImplementedViaEnvOnly": true,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "session": {
+    "timezone": "America/New_York",
+    "weekday": "Sat",
+    "hour": 1,
+    "minute": 8,
+    "regularSessionTime": false,
+    "marketOpen": false,
+    "note": "Time-only regular-hours check; exchange holidays are not externally queried by this patch."
+  },
+  "approval": {
+    "approvalRecordFound": false,
+    "approvalRecordFile": null,
+    "approvalScope": null,
+    "approvalGrantedForSeparatePatchOnly": false
+  },
+  "priorAttempt": {
+    "found": false,
+    "file": null
+  },
+  "runtimeApproval": {
+    "by": null,
+    "reason": null,
+    "requiredPhrase": "I_APPROVE_ONE_SHOT_PAPER_BROKER_NETWORK_CALL_NOW",
+    "phraseMatched": false
+  },
+  "flags": {
+    "executeNetwork": false,
+    "oneShot": false,
+    "paperOnly": false,
+    "manualOnly": false,
+    "writeAudit": false,
+    "stopAfterSingleAttempt": false
+  },
+  "brokerTarget": {
+    "ok": false,
+    "baseUrlPresent": false,
+    "routePathPresent": false,
+    "urlPreview": null
+  },
+  "credentialState": {
+    "keyPresent": false,
+    "secretPresent": false,
+    "keyPreview": null,
+    "secretPreview": null
+  },
+  "requestEnvelope": null,
+  "safety": {
+    "paperOnly": true,
+    "manualOnly": true,
+    "oneShotOnly": true,
+    "requiresRuntimeApproval": true,
+    "writesPreAttemptAudit": false,
+    "writesPostAttemptAudit": false,
+    "stopAfterSingleAttempt": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "approved_network_implementation_record_missing",
+    "market_open_required",
+    "borac_operator_identity_required",
+    "runtime_network_call_reason_required",
+    "exact_runtime_network_call_approval_phrase_required",
+    "execute_network_flag_required",
+    "one_shot_flag_required",
+    "paper_only_flag_required",
+    "manual_only_flag_required",
+    "write_audit_flag_required",
+    "stop_after_single_attempt_flag_required",
+    "paper_broker_network_target_env_required",
+    "paper_broker_key_env_required",
+    "paper_broker_secret_env_required"
+  ],
+  "nextRequiredAction": "Resolve blockers before any paper broker network attempt can run.",
+  "runStatus": "blocked_before_network",
+  "response": null
+}
