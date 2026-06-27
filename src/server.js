@@ -31,6 +31,7 @@ import { readPaperTradeIntentCreationRunnerPanel } from './scanner/paper_trade_i
 import { readPaperTradeIntentCreationRunnerAuditDashboard } from './scanner/paper_trade_intent_creation_runner_audit.mjs';
 import { readPaperTradeIntentCreationRunnerAuditPanel } from './scanner/paper_trade_intent_creation_runner_audit_panel.mjs';
 import { buildPaperTradeExecutionPayloadPreview, buildPaperTradeExecutionPayloadPreviewPanel } from './scanner/paper_trade_execution_payload_preview.mjs';
+import { buildPaperTradeSizingPreview, buildPaperTradeSizingPreviewPanel } from './scanner/paper_trade_sizing_preview.mjs';
 
 dotenv.config();
 
@@ -556,6 +557,16 @@ app.listen(PORT, HOST, async () => {
 
 
 
+
+
+app.get('/diagnostics/paper-trade-sizing-preview', (_req, res) => {
+  res.json(buildPaperTradeSizingPreview());
+});
+
+
+app.get('/diagnostics/paper-trade-sizing-preview-panel', (_req, res) => {
+  res.json(buildPaperTradeSizingPreviewPanel());
+});
 
 app.get('/diagnostics/paper-trade-execution-payload-preview', (_req, res) => {
   res.json(buildPaperTradeExecutionPayloadPreview());
