@@ -21,6 +21,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
+import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
 
 dotenv.config();
 
@@ -515,6 +516,20 @@ app.get("/diagnostics/paper-trade-intent-plan", (_req, res) => {
   }
 });
 
+
+
+app.get('/diagnostics/paper-trade-intent-dashboard-panel', (_req, res) => {
+  try {
+    res.json(buildPaperTradeIntentDashboardPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      monitorOnly: true,
+      route: '/diagnostics/paper-trade-intent-dashboard-panel',
+      error: error?.message ?? String(error)
+    });
+  }
+});
 
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
