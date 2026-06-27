@@ -1,0 +1,133 @@
+{
+  "ok": true,
+  "version": "final_one_shot_paper_broker_attempt_runbook_v1",
+  "ts": "2026-06-27T05:21:08.058Z",
+  "status": "blocked",
+  "runbookReady": false,
+  "runbookOnly": true,
+  "networkAttempted": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "approval": {
+    "by": null,
+    "reason": null,
+    "requiredRunbookApprovalPhrase": "I_APPROVE_FINAL_ONE_SHOT_PAPER_BROKER_ATTEMPT_RUNBOOK_ONLY",
+    "runbookApprovalPhraseMatched": false
+  },
+  "flags": {
+    "runbookOnly": false,
+    "noNetworkNow": false,
+    "noOrderNow": false,
+    "finalManualReview": false
+  },
+  "runtimePreflight": {
+    "version": "paper_broker_runtime_environment_preflight_v1",
+    "status": "blocked",
+    "runtimeEnvironmentReady": false,
+    "implementationReadiness": {
+      "version": "paper_broker_network_call_implementation_patch_v1",
+      "status": "blocked",
+      "readyForSinglePaperNetworkAttempt": false,
+      "approvalRecordFound": false,
+      "approvalRecordFile": null,
+      "priorAttempt": {
+        "found": false,
+        "file": null
+      },
+      "session": {
+        "timezone": "America/New_York",
+        "weekday": "Sat",
+        "hour": 1,
+        "minute": 21,
+        "regularSessionTime": false,
+        "marketOpen": false,
+        "note": "Time-only regular-hours check; exchange holidays are not externally queried by this patch."
+      },
+      "brokerTarget": {
+        "ok": false,
+        "baseUrlPresent": false,
+        "routePathPresent": false,
+        "urlPreview": null
+      },
+      "credentialState": {
+        "keyPresent": false,
+        "secretPresent": false,
+        "keyPreview": null,
+        "secretPreview": null
+      },
+      "blockers": [
+        "approved_network_implementation_record_missing",
+        "market_open_required",
+        "borac_operator_identity_required",
+        "paper_broker_network_target_env_required",
+        "paper_broker_key_env_required",
+        "paper_broker_secret_env_required"
+      ]
+    },
+    "environment": {
+      "alpacaPaperTradingBaseUrlPresent": false,
+      "alpacaPaperRoutePathPresent": false,
+      "alpacaApiKeyPresent": false,
+      "alpacaApiSecretPresent": false,
+      "keyPreview": null,
+      "secretPreview": null,
+      "routePreview": null,
+      "baseUrlPreview": null
+    },
+    "blockers": [
+      "network_call_implementation_not_ready",
+      "network_call_implementation_blockers_present",
+      "borac_operator_identity_required",
+      "alpaca_paper_trading_base_url_missing",
+      "alpaca_paper_route_path_missing",
+      "alpaca_api_key_missing",
+      "alpaca_api_secret_missing"
+    ]
+  },
+  "commandSequence": [],
+  "stopRules": [
+    "Stop if market_open_required appears.",
+    "Stop if any environment variable is missing.",
+    "Stop if any approval record is missing or blocked.",
+    "Stop if prior_one_shot_attempt_already_recorded appears.",
+    "Stop after the first network attempt result, regardless of success or failure.",
+    "Do not retry without creating a new approval chain."
+  ],
+  "safety": {
+    "runbookOnly": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "oneShotOnly": true,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "networkAttempted": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "runtime_preflight_not_ready",
+    "runtime_preflight_blockers_present",
+    "borac_operator_identity_required",
+    "final_runbook_reason_required",
+    "exact_final_runbook_approval_phrase_required",
+    "runbook_only_flag_required",
+    "no_network_now_flag_required",
+    "no_order_now_flag_required",
+    "final_manual_review_flag_required"
+  ],
+  "nextRequiredAction": "Resolve blockers before using the final one-shot paper broker attempt runbook."
+}
