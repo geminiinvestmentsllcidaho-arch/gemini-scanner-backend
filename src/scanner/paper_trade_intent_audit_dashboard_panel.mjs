@@ -1,7 +1,25 @@
+import * as panelFs from "node:fs";
+import * as panelPath from "node:path";
 import buildPaperTradeIntentAuditDashboard from "./paper_trade_intent_audit_dashboard.mjs";
+
+const PAPER_TRADE_INTENT_AUDIT_LEDGER_PATH = panelPath.resolve(process.cwd(), "runs", "paper_trade_intent_audit_store.jsonl");
+
+function countPaperTradeIntentAuditLedgerRecords(filePath = PAPER_TRADE_INTENT_AUDIT_LEDGER_PATH) {
+  try {
+    if (!panelFs.existsSync(filePath)) return 0;
+    const raw = panelFs.readFileSync(filePath, "utf8").trim();
+    if (!raw) return 0;
+    return raw.split(/\r?\n/).filter(Boolean).length;
+  } catch {
+    return 0;
+  }
+}
+
 
 export async function getPaperTradeIntentAuditDashboardPanel() {
   const dashboard = await buildPaperTradeIntentAuditDashboard();
+  const ledgerRecordCount = countPaperTradeIntentAuditLedgerRecords();
+  const effectiveRecordCount = Number(dashboard.recordCount || 0) || ledgerRecordCount;
 
   const latestStatus = String(dashboard.latestStatus || "unknown");
   const latestReasons = Array.isArray(dashboard.latestReasons)
@@ -16,7 +34,7 @@ export async function getPaperTradeIntentAuditDashboardPanel() {
     title: "Paper Trade Intent Audit",
     latestStatus,
     latestReasons,
-    recordCount: Number(dashboard.recordCount || 0),
+    recordCount: Number(effectiveRecordCount || 0),
     safetyFlags: {
       noOrderPlacement: true,
       noLiveTrading: true,
@@ -30,7 +48,7 @@ export async function getPaperTradeIntentAuditDashboardPanel() {
       statusLabel: latestStatus.toUpperCase(),
       reasonCount: latestReasons.length,
       reasonText: latestReasons.length ? latestReasons.join(", ") : "none",
-      recordCountText: String(dashboard.recordCount || 0),
+      recordCountText: String(effectiveRecordCount || 0),
       severity:
         latestStatus === "blocked" ? "warning" :
         latestStatus === "ready" ? "success" :
