@@ -1,0 +1,84 @@
+{
+  "ok": true,
+  "version": "first_tiny_paper_order_submit_preflight_gate_v1",
+  "ts": "2026-06-27T04:47:46.973Z",
+  "status": "blocked",
+  "gateStatus": "blocked",
+  "readyForSeparateSubmitApproval": false,
+  "finalRequiredBlocker": "separate_borac_submit_approval_required",
+  "approval": {
+    "approvalRecordFound": false,
+    "approvalRecordFile": null,
+    "approvalScope": null,
+    "approvalStatus": null,
+    "approved": false
+  },
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "approvalParameterMismatches": [],
+  "controlledPreflight": {
+    "version": "controlled_first_tiny_paper_order_preflight_v1",
+    "status": "blocked",
+    "dryRunOnly": true,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false,
+    "orderPreview": {
+      "symbol": "AAPL",
+      "qty": 1,
+      "side": "buy",
+      "type": "market",
+      "timeInForce": "day",
+      "paperOnly": true,
+      "tinyOrder": true,
+      "submitIntent": false,
+      "submitAttempted": false
+    },
+    "blockers": [
+      "manual_operator_confirmation_required",
+      "market_open_required",
+      "paper_trading_kill_switch_active",
+      "broker_adapter_approval_lock_not_passed",
+      "broker_adapter_env_disabled",
+      "broker_adapter_request_env_missing",
+      "order_submit_not_enabled",
+      "paper_order_submit_dry_run_only"
+    ],
+    "unexpectedBlockers": [
+      "manual_operator_confirmation_required",
+      "market_open_required",
+      "paper_trading_kill_switch_active",
+      "broker_adapter_approval_lock_not_passed",
+      "broker_adapter_env_disabled",
+      "broker_adapter_request_env_missing",
+      "order_submit_not_enabled"
+    ]
+  },
+  "safety": {
+    "dryRunOnly": true,
+    "paperOnly": true,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "finalSubmitApprovalRequired": true
+  },
+  "issueBlockers": [
+    "approved_first_tiny_paper_order_record_missing",
+    "controlled_preflight_gate_blocked"
+  ],
+  "gateBlockers": [
+    "approved_first_tiny_paper_order_record_missing",
+    "controlled_preflight_gate_blocked",
+    "separate_borac_submit_approval_required"
+  ],
+  "nextRequiredAction": "Resolve issue blockers before requesting separate explicit Borac submit approval."
+}
