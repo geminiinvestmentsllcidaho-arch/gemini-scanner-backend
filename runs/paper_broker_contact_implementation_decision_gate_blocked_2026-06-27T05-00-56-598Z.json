@@ -1,0 +1,106 @@
+{
+  "ok": true,
+  "version": "paper_broker_contact_implementation_decision_gate_v1",
+  "ts": "2026-06-27T05:00:56.598Z",
+  "status": "blocked",
+  "readyForSeparateImplementationStage": false,
+  "implementationApprovedNow": false,
+  "implementationDecisionOnly": true,
+  "networkImplementationIncluded": false,
+  "networkCallImplemented": false,
+  "endpointImplemented": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "approval": {
+    "by": null,
+    "reason": null,
+    "requiredDecisionApprovalPhrase": "I_APPROVE_PAPER_BROKER_CONTACT_IMPLEMENTATION_DECISION_REVIEW_ONLY",
+    "decisionApprovalPhraseMatched": false
+  },
+  "flags": {
+    "reviewOnly": false,
+    "implementationDecisionOnly": false,
+    "noNetworkImplementation": false,
+    "noBrokerContactNow": false
+  },
+  "executor": {
+    "version": "manual_first_tiny_paper_order_one_shot_submit_executor_v1",
+    "status": "blocked",
+    "executorArmedForManualBrokerContactAttempt": false,
+    "executorEnvelope": null,
+    "safety": {
+      "oneShotOnly": true,
+      "paperOnly": true,
+      "manualOnly": true,
+      "shellOnly": true,
+      "endpointImplemented": false,
+      "networkCallImplemented": false,
+      "liveTradingAllowed": false,
+      "autoTradingAllowed": false,
+      "accountMutationAllowed": false,
+      "brokerAdapterCallAttempted": false,
+      "brokerContactAttempted": false,
+      "orderSubmitAttempted": false,
+      "orderSubmitted": false,
+      "accountMutationAttempted": false
+    },
+    "blockers": [
+      "broker_adapter_wrapper_not_ready",
+      "broker_adapter_wrapper_blockers_present",
+      "borac_operator_identity_required"
+    ]
+  },
+  "decision": {
+    "canProceedToSeparateImplementationStage": false,
+    "requiresNewPatch": true,
+    "requiresNewExplicitBoracApproval": true,
+    "mustRemainPaperOnly": true,
+    "mustRemainOneShotOnly": true,
+    "mustRemainManualOnly": true,
+    "mustUseAdapterOnly": true,
+    "mustWriteAuditBeforeAndAfterAttempt": true,
+    "mustStopAfterSingleAttempt": true
+  },
+  "safety": {
+    "decisionGateOnly": true,
+    "reviewOnly": true,
+    "shellOnly": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "oneShotOnly": true,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "implementationApprovedNow": false,
+    "networkImplementationIncluded": false,
+    "endpointImplemented": false,
+    "networkCallImplemented": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "one_shot_executor_not_armed",
+    "one_shot_executor_blockers_present",
+    "borac_operator_identity_required",
+    "implementation_decision_reason_required",
+    "exact_implementation_decision_phrase_required",
+    "review_only_flag_required",
+    "implementation_decision_only_flag_required",
+    "no_network_implementation_flag_required",
+    "no_broker_contact_now_flag_required"
+  ],
+  "nextRequiredAction": "Resolve blockers before preparing a separate paper broker contact implementation patch."
+}
