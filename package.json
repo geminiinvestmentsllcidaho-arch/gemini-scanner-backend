@@ -72,7 +72,11 @@
     "report:paper-readiness": "node scripts/paper_trade_readiness_report.mjs",
     "panel:paper-readiness": "node scripts/paper_trade_readiness_report.mjs --panel=true",
     "preflight:paper-broker-integration": "node scripts/paper_trade_broker_integration_preflight_stack.mjs",
-    "panel:paper-broker-integration-preflight": "node scripts/paper_trade_broker_integration_preflight_stack.mjs --panel=true"
+    "panel:paper-broker-integration-preflight": "node scripts/paper_trade_broker_integration_preflight_stack.mjs --panel=true",
+    "report:paper-module-completion": "node scripts/paper_trade_module_completion_report.mjs",
+    "panel:paper-module-completion": "node scripts/paper_trade_module_completion_report.mjs --panel=true",
+    "decision:paper-go-no-go": "node scripts/paper_trade_operator_go_no_go.mjs",
+    "panel:paper-go-no-go": "node scripts/paper_trade_operator_go_no_go.mjs --panel=true"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
