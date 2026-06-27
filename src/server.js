@@ -52,6 +52,10 @@ import { evaluatePaperTradeBrokerIntegrationPreflightStack, readPaperTradeBroker
 import { buildPaperTradeModuleCompletionReport, buildPaperTradeModuleCompletionReportPanel } from './scanner/paper_trade_module_completion_report.mjs';
 import { buildPaperTradeOperatorGoNoGo, buildPaperTradeOperatorGoNoGoPanel } from './scanner/paper_trade_operator_go_no_go.mjs';
 
+import { buildPaperBrokerAdapterApprovalLock } from './scanner/paper_broker_adapter_approval_lock.mjs';
+
+import { buildPaperBrokerAdapterApprovalLockPanel } from './scanner/paper_broker_adapter_approval_lock_panel.mjs';
+
 dotenv.config();
 
 
@@ -773,6 +777,15 @@ app.get('/diagnostics/paper-trade-intent-audit-dashboard', (_req, res) => {
   res.json(buildPaperTradeIntentAuditDashboard());
 });
 
+
+
+app.get('/diagnostics/paper-broker-adapter-approval-lock', (_req, res) => {
+  res.json(buildPaperBrokerAdapterApprovalLock());
+});
+
+app.get('/diagnostics/paper-broker-adapter-approval-lock-panel', (_req, res) => {
+  res.json(buildPaperBrokerAdapterApprovalLockPanel());
+});
 
 app.get('/diagnostics/paper-trade-intent-audit-dashboard-panel', async (_req, res) => {
   try {
