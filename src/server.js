@@ -56,6 +56,7 @@ import { buildPaperBrokerAdapterApprovalLock } from './scanner/paper_broker_adap
 
 import { buildPaperBrokerAdapterApprovalLockPanel } from './scanner/paper_broker_adapter_approval_lock_panel.mjs';
 import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_null_adapter.mjs';
+import { getPaperBrokerAdapterContractDiagnostics } from './scanner/paper_broker_adapter_contract.mjs';
 
 dotenv.config();
 
@@ -580,6 +581,27 @@ app.get('/diagnostics/paper-broker-null-adapter', (req, res) => {
     res.status(500).json({
       ok: false,
       route: '/diagnostics/paper-broker-null-adapter',
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
+
+app.get('/diagnostics/paper-broker-adapter-contract', (req, res) => {
+  try {
+    res.json(getPaperBrokerAdapterContractDiagnostics({
+      symbol: req.query.symbol,
+      side: req.query.side,
+      qty: req.query.qty,
+      notional: req.query.notional,
+      orderType: req.query.orderType,
+      timeInForce: req.query.timeInForce,
+      auditId: req.query.auditId
+    }));
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      route: '/diagnostics/paper-broker-adapter-contract',
       error: error?.message ?? String(error)
     });
   }

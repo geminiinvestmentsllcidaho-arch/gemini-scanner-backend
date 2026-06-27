@@ -79,7 +79,8 @@
     "panel:paper-go-no-go": "node scripts/paper_trade_operator_go_no_go.mjs --panel=true",
     "lock:paper-broker-adapter": "node scripts/paper_broker_adapter_approval_lock.mjs",
     "panel:paper-broker-adapter-lock": "node scripts/paper_broker_adapter_approval_lock_panel.mjs",
-    "diagnostics:paper-broker-null-adapter": "node -e \"import('./src/scanner/paper_broker_null_adapter.mjs').then(m=>console.log(JSON.stringify(m.getPaperBrokerNullAdapterDiagnostics(), null, 2)))\""
+    "diagnostics:paper-broker-null-adapter": "node -e \"import('./src/scanner/paper_broker_null_adapter.mjs').then(m=>console.log(JSON.stringify(m.getPaperBrokerNullAdapterDiagnostics(), null, 2)))\"",
+    "diagnostics:paper-broker-adapter-contract": "node -e \"import('./src/scanner/paper_broker_adapter_contract.mjs').then(m=>console.log(JSON.stringify(m.getPaperBrokerAdapterContractDiagnostics(), null, 2)))\""
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
