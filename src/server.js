@@ -41,6 +41,7 @@ import { readPaperTradeFillSimulationStorePanel } from './scanner/paper_trade_fi
 import { buildPaperTradePositionStatePreview, buildPaperTradePositionStatePreviewPanel } from './scanner/paper_trade_position_state_preview.mjs';
 import { readPaperTradePositionStateStoreDashboard } from './scanner/paper_trade_position_state_store.mjs';
 import { readPaperTradePositionStateStorePanel } from './scanner/paper_trade_position_state_store_panel.mjs';
+import { readPaperTradeLifecycleDashboard, readPaperTradeLifecycleDashboardPanel } from './scanner/paper_trade_lifecycle_dashboard.mjs';
 
 dotenv.config();
 
@@ -573,6 +574,16 @@ app.listen(PORT, HOST, async () => {
 
 
 
+
+
+app.get('/diagnostics/paper-trade-lifecycle-dashboard', (_req, res) => {
+  res.json(readPaperTradeLifecycleDashboard());
+});
+
+
+app.get('/diagnostics/paper-trade-lifecycle-dashboard-panel', (_req, res) => {
+  res.json(readPaperTradeLifecycleDashboardPanel());
+});
 
 app.get('/diagnostics/paper-trade-position-state-store', (_req, res) => {
   res.json(readPaperTradePositionStateStoreDashboard());
