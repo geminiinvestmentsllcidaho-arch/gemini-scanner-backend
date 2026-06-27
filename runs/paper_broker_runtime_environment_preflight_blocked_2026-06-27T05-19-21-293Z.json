@@ -1,0 +1,114 @@
+{
+  "ok": true,
+  "version": "paper_broker_runtime_environment_preflight_v1",
+  "ts": "2026-06-27T05:19:21.293Z",
+  "status": "blocked",
+  "runtimeEnvironmentReady": false,
+  "preflightOnly": true,
+  "networkAttempted": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "approval": {
+    "by": null,
+    "reason": null,
+    "requiredPreflightApprovalPhrase": "I_APPROVE_PAPER_BROKER_RUNTIME_ENVIRONMENT_PREFLIGHT_ONLY",
+    "preflightApprovalPhraseMatched": false
+  },
+  "flags": {
+    "preflightOnly": false,
+    "noNetworkAttempt": false,
+    "noOrderAttempt": false,
+    "noBrokerContact": false
+  },
+  "environment": {
+    "alpacaPaperTradingBaseUrlPresent": false,
+    "alpacaPaperRoutePathPresent": false,
+    "alpacaApiKeyPresent": false,
+    "alpacaApiSecretPresent": false,
+    "keyPreview": null,
+    "secretPreview": null,
+    "routePreview": null,
+    "baseUrlPreview": null
+  },
+  "implementationReadiness": {
+    "version": "paper_broker_network_call_implementation_patch_v1",
+    "status": "blocked",
+    "readyForSinglePaperNetworkAttempt": false,
+    "approvalRecordFound": false,
+    "approvalRecordFile": null,
+    "priorAttempt": {
+      "found": false,
+      "file": null
+    },
+    "session": {
+      "timezone": "America/New_York",
+      "weekday": "Sat",
+      "hour": 1,
+      "minute": 19,
+      "regularSessionTime": false,
+      "marketOpen": false,
+      "note": "Time-only regular-hours check; exchange holidays are not externally queried by this patch."
+    },
+    "brokerTarget": {
+      "ok": false,
+      "baseUrlPresent": false,
+      "routePathPresent": false,
+      "urlPreview": null
+    },
+    "credentialState": {
+      "keyPresent": false,
+      "secretPresent": false,
+      "keyPreview": null,
+      "secretPreview": null
+    },
+    "blockers": [
+      "approved_network_implementation_record_missing",
+      "market_open_required",
+      "borac_operator_identity_required",
+      "paper_broker_network_target_env_required",
+      "paper_broker_key_env_required",
+      "paper_broker_secret_env_required"
+    ]
+  },
+  "safety": {
+    "preflightOnly": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "oneShotOnly": true,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "networkAttempted": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "network_call_implementation_not_ready",
+    "network_call_implementation_blockers_present",
+    "borac_operator_identity_required",
+    "runtime_preflight_reason_required",
+    "exact_runtime_preflight_approval_phrase_required",
+    "preflight_only_flag_required",
+    "no_network_attempt_flag_required",
+    "no_order_attempt_flag_required",
+    "no_broker_contact_flag_required",
+    "alpaca_paper_trading_base_url_missing",
+    "alpaca_paper_route_path_missing",
+    "alpaca_api_key_missing",
+    "alpaca_api_secret_missing"
+  ],
+  "nextRequiredAction": "Resolve blockers before the first one-shot paper broker network attempt."
+}
