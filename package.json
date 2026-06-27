@@ -42,7 +42,9 @@
     "preview:paper-sizing": "node scripts/paper_trade_sizing_preview.mjs",
     "panel:paper-sizing": "node scripts/paper_trade_sizing_preview.mjs --panel=true",
     "preview:paper-order-ticket": "node scripts/paper_trade_order_ticket_preview.mjs",
-    "panel:paper-order-ticket": "node scripts/paper_trade_order_ticket_preview.mjs --panel=true"
+    "panel:paper-order-ticket": "node scripts/paper_trade_order_ticket_preview.mjs --panel=true",
+    "store:paper-order-ticket": "node scripts/store_paper_trade_order_ticket.mjs",
+    "dashboard:paper-order-ticket-store": "node scripts/store_paper_trade_order_ticket.mjs --dashboard=true"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
