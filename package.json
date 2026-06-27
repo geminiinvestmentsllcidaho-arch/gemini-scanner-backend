@@ -49,7 +49,8 @@
     "preview:paper-fill": "node scripts/paper_trade_fill_simulation_preview.mjs",
     "panel:paper-fill": "node scripts/paper_trade_fill_simulation_preview.mjs --panel=true",
     "store:paper-fill": "node scripts/store_paper_trade_fill_simulation.mjs",
-    "dashboard:paper-fill-store": "node scripts/store_paper_trade_fill_simulation.mjs --dashboard=true"
+    "dashboard:paper-fill-store": "node scripts/store_paper_trade_fill_simulation.mjs --dashboard=true",
+    "panel:paper-fill-store": "node scripts/paper_trade_fill_simulation_store_panel.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
