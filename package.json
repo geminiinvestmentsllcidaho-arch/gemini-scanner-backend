@@ -106,7 +106,8 @@
     "preflight:paper-broker-runtime-env": "node scripts/paper_broker_runtime_environment_preflight.mjs",
     "runbook:final-one-shot-paper-broker-attempt": "node scripts/final_one_shot_paper_broker_attempt_runbook.mjs",
     "checklist:manual-market-hours-paper-attempt": "node scripts/manual_market_hours_paper_attempt_checklist.mjs",
-    "decision:borac-final-manual-paper-attempt": "node scripts/borac_final_manual_paper_attempt_decision.mjs"
+    "decision:borac-final-manual-paper-attempt": "node scripts/borac_final_manual_paper_attempt_decision.mjs",
+    "report:paper-attempt-control-center": "node scripts/paper_attempt_control_center_report.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

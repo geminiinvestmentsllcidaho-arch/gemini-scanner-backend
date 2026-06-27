@@ -1,3 +1,4 @@
+import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
 import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
 import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
@@ -706,6 +707,12 @@ app.get('/diagnostics/real-trading-conversion-lock', (req, res) => {
   } catch (error) {
     res.status(500).json({ ok: false, route: '/diagnostics/real-trading-conversion-lock', error: error?.message ?? String(error) });
   }
+});
+
+
+app.get("/diagnostics/paper-attempt-control-center", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  return res.status(200).json(buildPaperAttemptControlCenter());
 });
 
 app.listen(PORT, HOST, async () => {
