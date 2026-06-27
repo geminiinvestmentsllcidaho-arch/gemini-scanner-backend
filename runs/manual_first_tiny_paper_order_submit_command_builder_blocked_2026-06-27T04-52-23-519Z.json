@@ -1,0 +1,108 @@
+{
+  "ok": true,
+  "version": "manual_first_tiny_paper_order_submit_command_builder_v1",
+  "ts": "2026-06-27T04:52:23.519Z",
+  "status": "blocked",
+  "commandPreviewAllowed": false,
+  "commandPreview": null,
+  "commandDoesNotExistYet": true,
+  "commandPurpose": "Preview the exact manual-only first tiny paper order submit command. This builder does not run the command.",
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "lock": {
+    "version": "first_tiny_paper_order_final_submit_approval_lock_v1",
+    "status": "blocked",
+    "lockStatus": "locked",
+    "submitPathUnlocked": false,
+    "blockers": [
+      "borac_operator_identity_required",
+      "final_submit_approval_reason_required",
+      "exact_final_submit_approval_phrase_required",
+      "submit_preflight_gate_not_clean",
+      "submit_preflight_issue_blockers_present"
+    ],
+    "gate": {
+      "version": "first_tiny_paper_order_submit_preflight_gate_v1",
+      "status": "blocked",
+      "gateStatus": "blocked",
+      "readyForSeparateSubmitApproval": false,
+      "approvalRecordFound": false,
+      "approvalRecordFile": null,
+      "issueBlockers": [
+        "approved_first_tiny_paper_order_record_missing",
+        "controlled_preflight_gate_blocked"
+      ],
+      "gateBlockers": [
+        "approved_first_tiny_paper_order_record_missing",
+        "controlled_preflight_gate_blocked",
+        "separate_borac_submit_approval_required"
+      ],
+      "controlledPreflight": {
+        "version": "controlled_first_tiny_paper_order_preflight_v1",
+        "status": "blocked",
+        "dryRunOnly": true,
+        "brokerContactAttempted": false,
+        "orderSubmitAttempted": false,
+        "orderSubmitted": false,
+        "accountMutationAttempted": false,
+        "orderPreview": {
+          "symbol": "AAPL",
+          "qty": 1,
+          "side": "buy",
+          "type": "market",
+          "timeInForce": "day",
+          "paperOnly": true,
+          "tinyOrder": true,
+          "submitIntent": false,
+          "submitAttempted": false
+        },
+        "blockers": [
+          "manual_operator_confirmation_required",
+          "market_open_required",
+          "paper_trading_kill_switch_active",
+          "broker_adapter_approval_lock_not_passed",
+          "broker_adapter_env_disabled",
+          "broker_adapter_request_env_missing",
+          "order_submit_not_enabled",
+          "paper_order_submit_dry_run_only"
+        ],
+        "unexpectedBlockers": [
+          "manual_operator_confirmation_required",
+          "market_open_required",
+          "paper_trading_kill_switch_active",
+          "broker_adapter_approval_lock_not_passed",
+          "broker_adapter_env_disabled",
+          "broker_adapter_request_env_missing",
+          "order_submit_not_enabled"
+        ]
+      }
+    }
+  },
+  "safety": {
+    "paperOnly": true,
+    "manualOnly": true,
+    "previewOnly": true,
+    "dryRunOnly": true,
+    "brokerContactAllowed": false,
+    "orderPlacementAllowed": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false,
+    "commandExecuted": false
+  },
+  "blockers": [
+    "final_submit_lock_not_unlocked",
+    "final_submit_lock_status_not_unlocked",
+    "final_submit_lock_blockers_present"
+  ],
+  "nextRequiredAction": "Unlock the final submit approval lock before showing the manual submit command preview."
+}
