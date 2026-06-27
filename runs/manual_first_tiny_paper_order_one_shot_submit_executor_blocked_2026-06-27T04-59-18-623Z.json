@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "version": "manual_first_tiny_paper_order_one_shot_submit_executor_v1",
+  "ts": "2026-06-27T04:59:18.623Z",
+  "status": "blocked",
+  "executorArmedForManualBrokerContactAttempt": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "approval": {
+    "by": null,
+    "reason": null,
+    "requiredExecutorApprovalPhrase": "I_APPROVE_FIRST_TINY_PAPER_ORDER_ONE_SHOT_EXECUTOR_ARM_ONLY",
+    "executorApprovalPhraseMatched": false
+  },
+  "flags": {
+    "oneShot": false,
+    "paperOnly": false,
+    "manualOnly": false,
+    "finalArmOnly": false,
+    "allowBrokerContactAttempt": false
+  },
+  "wrapper": {
+    "version": "manual_first_tiny_paper_order_broker_adapter_call_wrapper_v1",
+    "status": "blocked",
+    "brokerAdapterEnvelopeReady": false,
+    "brokerContactPermittedForNextManualStep": false,
+    "session": {
+      "timezone": "America/New_York",
+      "weekday": "Sat",
+      "hour": 24,
+      "minute": 59,
+      "regularSessionTime": false,
+      "marketOpen": false,
+      "note": "Time-only regular-hours check; exchange holidays are not externally queried by this wrapper."
+    },
+    "approval": {
+      "by": null,
+      "reason": "Actual paper broker contact attempt approval for first tiny paper order only",
+      "requiredApprovalPhrase": "I_APPROVE_FIRST_TINY_PAPER_ORDER_ACTUAL_PAPER_BROKER_CONTACT_ATTEMPT",
+      "phraseMatched": true,
+      "actualPaperSubmitApproval": true
+    },
+    "blockers": [
+      "dry_run_shell_not_ready",
+      "dry_run_shell_blockers_present",
+      "market_open_required",
+      "borac_operator_identity_required"
+    ]
+  },
+  "executorEnvelope": null,
+  "safety": {
+    "oneShotOnly": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "shellOnly": true,
+    "endpointImplemented": false,
+    "networkCallImplemented": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "broker_adapter_wrapper_not_ready",
+    "broker_adapter_wrapper_blockers_present",
+    "borac_operator_identity_required",
+    "one_shot_executor_reason_required",
+    "exact_one_shot_executor_approval_phrase_required",
+    "one_shot_flag_required",
+    "paper_only_flag_required",
+    "manual_only_flag_required",
+    "final_arm_only_flag_required",
+    "allow_broker_contact_attempt_flag_required"
+  ],
+  "nextRequiredAction": "Resolve blockers before arming the one-shot manual executor shell."
+}
