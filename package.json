@@ -44,7 +44,8 @@
     "preview:paper-order-ticket": "node scripts/paper_trade_order_ticket_preview.mjs",
     "panel:paper-order-ticket": "node scripts/paper_trade_order_ticket_preview.mjs --panel=true",
     "store:paper-order-ticket": "node scripts/store_paper_trade_order_ticket.mjs",
-    "dashboard:paper-order-ticket-store": "node scripts/store_paper_trade_order_ticket.mjs --dashboard=true"
+    "dashboard:paper-order-ticket-store": "node scripts/store_paper_trade_order_ticket.mjs --dashboard=true",
+    "panel:paper-order-ticket-store": "node scripts/paper_trade_order_ticket_store_panel.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
