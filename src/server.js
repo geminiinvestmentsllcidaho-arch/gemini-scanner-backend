@@ -57,6 +57,7 @@ import { buildPaperBrokerAdapterApprovalLock } from './scanner/paper_broker_adap
 import { buildPaperBrokerAdapterApprovalLockPanel } from './scanner/paper_broker_adapter_approval_lock_panel.mjs';
 import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_null_adapter.mjs';
 import { getPaperBrokerAdapterContractDiagnostics } from './scanner/paper_broker_adapter_contract.mjs';
+import { getPaperOrderIntentAdapterPreviewBridgeDiagnostics } from './scanner/paper_order_intent_adapter_preview_bridge.mjs';
 
 dotenv.config();
 
@@ -602,6 +603,27 @@ app.get('/diagnostics/paper-broker-adapter-contract', (req, res) => {
     res.status(500).json({
       ok: false,
       route: '/diagnostics/paper-broker-adapter-contract',
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
+
+app.get('/diagnostics/paper-order-intent-adapter-preview-bridge', async (req, res) => {
+  try {
+    res.json(await getPaperOrderIntentAdapterPreviewBridgeDiagnostics({
+      symbol: req.query.symbol,
+      side: req.query.side,
+      qty: req.query.qty,
+      notional: req.query.notional,
+      orderType: req.query.orderType,
+      timeInForce: req.query.timeInForce,
+      auditId: req.query.auditId
+    }));
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      route: '/diagnostics/paper-order-intent-adapter-preview-bridge',
       error: error?.message ?? String(error)
     });
   }
