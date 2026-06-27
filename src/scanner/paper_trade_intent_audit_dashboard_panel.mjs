@@ -2,7 +2,7 @@ import buildPaperTradeIntentAuditDashboard from "./paper_trade_intent_audit_dash
 
 export async function getPaperTradeIntentAuditDashboardPanel() {
   const dashboard = await buildPaperTradeIntentAuditDashboard();
-  const effectiveRecordCount = Number(dashboard.recordCount ?? (dashboard.latestStatus ? 1 : 0));
+  const effectiveRecordCount = Number(dashboard.recordCount ?? 0);
 
   const latestStatus = String(dashboard.latestStatus || "unknown");
   const latestReasons = Array.isArray(dashboard.latestReasons)

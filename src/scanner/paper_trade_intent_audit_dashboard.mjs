@@ -1,5 +1,21 @@
+import * as auditDashboardFs from "node:fs";
+import * as auditDashboardPath from "node:path";
 import fs from 'node:fs';
 import path from 'node:path';
+
+const PAPER_TRADE_INTENT_AUDIT_DASHBOARD_LEDGER_PATH = auditDashboardPath.resolve(process.cwd(), "runs", "paper_trade_intent_audit_store.jsonl");
+
+function getPaperTradeIntentAuditDashboardLedgerRecordCount(filePath = PAPER_TRADE_INTENT_AUDIT_DASHBOARD_LEDGER_PATH) {
+  try {
+    if (!auditDashboardFs.existsSync(filePath)) return 0;
+    const raw = auditDashboardFs.readFileSync(filePath, "utf8").trim();
+    if (!raw) return 0;
+    return raw.split(/\r?\n/).filter(Boolean).length;
+  } catch {
+    return 0;
+  }
+}
+
 
 export const PAPER_TRADE_INTENT_AUDIT_DASHBOARD_VERSION = 'paper_trade_intent_audit_dashboard_v1';
 export const DEFAULT_PAPER_TRADE_INTENT_AUDIT_LEDGER = path.join(process.cwd(), 'runs', 'paper_trade_intent_audit_store.jsonl');
