@@ -97,7 +97,8 @@
     "gate:first-tiny-paper-order-submit-preflight": "node scripts/first_tiny_paper_order_submit_preflight_gate.mjs",
     "lock:first-tiny-paper-order-final-submit-approval": "node scripts/first_tiny_paper_order_final_submit_approval_lock.mjs",
     "build:first-tiny-paper-order-submit-command": "node scripts/manual_first_tiny_paper_order_submit_command_builder.mjs",
-    "submit:first-tiny-paper-order-manual": "node scripts/manual_first_tiny_paper_order_submit_script_dry_run_shell.mjs"
+    "submit:first-tiny-paper-order-manual": "node scripts/manual_first_tiny_paper_order_submit_script_dry_run_shell.mjs",
+    "wrapper:first-tiny-paper-order-broker-adapter-call": "node scripts/manual_first_tiny_paper_order_broker_adapter_call_wrapper.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "version": "manual_first_tiny_paper_order_broker_adapter_call_wrapper_v1",
+  "ts": "2026-06-27T04:56:06.374Z",
+  "status": "blocked",
+  "brokerAdapterEnvelopeReady": false,
+  "brokerContactPermittedForNextManualStep": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "session": {
+    "timezone": "America/New_York",
+    "weekday": "Sat",
+    "hour": 24,
+    "minute": 56,
+    "regularSessionTime": false,
+    "marketOpen": false,
+    "note": "Time-only regular-hours check; exchange holidays are not externally queried by this wrapper."
+  },
+  "approval": {
+    "by": null,
+    "reason": null,
+    "requiredApprovalPhrase": "I_APPROVE_FIRST_TINY_PAPER_ORDER_ACTUAL_PAPER_BROKER_CONTACT_ATTEMPT",
+    "phraseMatched": false,
+    "actualPaperSubmitApproval": false
+  },
+  "dryRunShell": {
+    "version": "manual_first_tiny_paper_order_submit_script_dry_run_shell_v1",
+    "status": "blocked",
+    "readyForManualSubmitImplementation": false,
+    "finalLock": {
+      "found": false,
+      "file": null,
+      "lockStatus": null,
+      "submitPathUnlocked": false,
+      "approvalScope": null
+    },
+    "blockers": [
+      "unlocked_final_submit_approval_lock_missing"
+    ],
+    "dryRunOrderEnvelope": null
+  },
+  "brokerAdapterCallEnvelope": null,
+  "safety": {
+    "paperOnly": true,
+    "manualOnly": true,
+    "wrapperOnly": true,
+    "brokerContactAllowedForNextManualStepOnly": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "dry_run_shell_not_ready",
+    "dry_run_shell_blockers_present",
+    "market_open_required",
+    "borac_operator_identity_required",
+    "actual_paper_submit_approval_reason_required",
+    "exact_actual_broker_contact_approval_phrase_required",
+    "actual_paper_submit_approval_flag_required"
+  ],
+  "nextRequiredAction": "Resolve blockers before the broker adapter call envelope can be used."
+}
