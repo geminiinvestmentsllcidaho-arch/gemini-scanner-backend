@@ -92,7 +92,8 @@
     "paper:kill-switch:disable": "node src/scanner/paper_trading_monitoring_kill_switch.mjs disable",
     "paper:kill-switch:enable-preview-only": "node src/scanner/paper_trading_monitoring_kill_switch.mjs enable-preview-only",
     "diagnostics:real-trading-conversion-lock": "node -e \"import('./src/scanner/real_trading_conversion_lock.mjs').then(m=>console.log(JSON.stringify(m.getRealTradingConversionLockDiagnostics(), null, 2)))\"",
-    "preflight:first-tiny-paper-order": "node scripts/controlled_first_tiny_paper_order_preflight.mjs"
+    "preflight:first-tiny-paper-order": "node scripts/controlled_first_tiny_paper_order_preflight.mjs",
+    "approval:first-tiny-paper-order": "node scripts/first_tiny_paper_order_approval_record.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

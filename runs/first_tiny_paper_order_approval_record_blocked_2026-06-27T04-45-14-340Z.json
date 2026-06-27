@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "version": "first_tiny_paper_order_approval_record_v1",
+  "ts": "2026-06-27T04:45:14.340Z",
+  "approvalScope": "first_tiny_paper_order_submit_preflight_only",
+  "approved": false,
+  "approvalStatus": "blocked",
+  "status": "blocked",
+  "by": null,
+  "reason": null,
+  "requiredApprovalPhrase": "I_APPROVE_FIRST_TINY_PAPER_ORDER_SUBMIT_PREFLIGHT_ONLY",
+  "approvalPhraseMatched": false,
+  "parameters": {
+    "symbol": "",
+    "qty": 0,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "safety": {
+    "paperOnly": true,
+    "dryRunOnly": true,
+    "brokerContactAllowed": false,
+    "orderPlacementAllowed": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false
+  },
+  "blockers": [
+    "borac_operator_identity_required",
+    "approval_reason_required",
+    "exact_approval_phrase_required",
+    "tiny_order_parameters_required"
+  ],
+  "nextRequiredAction": "Provide Borac identity, exact approval phrase, tiny order parameters, and approval reason."
+}
