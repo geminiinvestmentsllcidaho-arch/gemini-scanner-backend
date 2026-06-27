@@ -1,0 +1,72 @@
+{
+  "ok": true,
+  "version": "controlled_first_tiny_paper_order_preflight_v1",
+  "ts": "2026-06-27T04:41:06.088Z",
+  "status": "blocked",
+  "dryRunOnly": true,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "safety": {
+    "brokerContactAllowed": false,
+    "orderPlacementAllowed": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerAdapterEnabled": false,
+    "brokerAdapterRequested": false,
+    "paperTradingKillSwitchActive": true,
+    "paperOrderSubmitEnabled": false
+  },
+  "session": {
+    "timezone": "America/New_York",
+    "weekday": "Sat",
+    "hour": 24,
+    "minute": 41,
+    "regularSessionTime": false,
+    "marketOpen": false,
+    "note": "Time-only regular-hours check; exchange holidays are not externally queried by this dry-run preflight."
+  },
+  "approval": {
+    "approvalRecordFound": false,
+    "approvalRecordFile": null,
+    "approvalLockPassed": false
+  },
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day",
+    "maxTinyQty": 1
+  },
+  "orderPreview": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day",
+    "paperOnly": true,
+    "tinyOrder": true,
+    "submitIntent": false,
+    "submitAttempted": false
+  },
+  "guards": [
+    "dry_run_only",
+    "no_broker_contact",
+    "no_order_submission"
+  ],
+  "blockers": [
+    "manual_operator_confirmation_required",
+    "market_open_required",
+    "paper_trading_kill_switch_active",
+    "broker_adapter_approval_lock_not_passed",
+    "explicit_approval_record_missing",
+    "broker_adapter_env_disabled",
+    "broker_adapter_request_env_missing",
+    "order_submit_not_enabled",
+    "paper_order_submit_dry_run_only"
+  ],
+  "nextRequiredAction": "Separate explicit Borac approval is required before any first tiny paper order submit path can be enabled."
+}
