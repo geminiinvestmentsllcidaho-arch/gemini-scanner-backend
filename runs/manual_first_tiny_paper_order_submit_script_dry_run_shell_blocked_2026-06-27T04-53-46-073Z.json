@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "version": "manual_first_tiny_paper_order_submit_script_dry_run_shell_v1",
+  "ts": "2026-06-27T04:53:46.073Z",
+  "status": "blocked",
+  "readyForManualSubmitImplementation": false,
+  "brokerAdapterCallPlanned": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "flags": {
+    "dryRun": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "noAutoSubmit": true,
+    "executeRequested": false
+  },
+  "finalLock": {
+    "found": false,
+    "file": null,
+    "lockStatus": null,
+    "submitPathUnlocked": false,
+    "approvalScope": null
+  },
+  "dryRunOrderEnvelope": null,
+  "safety": {
+    "dryRunOnly": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "brokerContactAllowed": false,
+    "orderPlacementAllowed": false,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "unlocked_final_submit_approval_lock_missing"
+  ],
+  "nextRequiredAction": "Resolve blockers before any manual submit implementation can be prepared."
+}
