@@ -1,0 +1,152 @@
+{
+  "ok": true,
+  "version": "borac_final_manual_paper_attempt_decision_v1",
+  "ts": "2026-06-27T05:32:37.766Z",
+  "status": "blocked",
+  "finalCommandVisible": false,
+  "decisionOnly": true,
+  "commandDisplayedOnly": false,
+  "commandAutoExecuted": false,
+  "networkAttempted": false,
+  "brokerAdapterCallAttempted": false,
+  "brokerContactAttempted": false,
+  "orderSubmitAttempted": false,
+  "orderSubmitted": false,
+  "accountMutationAttempted": false,
+  "parameters": {
+    "symbol": "AAPL",
+    "qty": 1,
+    "side": "buy",
+    "type": "market",
+    "timeInForce": "day"
+  },
+  "approval": {
+    "by": null,
+    "reason": null,
+    "requiredFinalDecisionApprovalPhrase": "I_APPROVE_SHOW_FINAL_ONE_SHOT_PAPER_BROKER_COMMAND_ONLY",
+    "finalDecisionApprovalPhraseMatched": false,
+    "boracAcceptsRisk": false
+  },
+  "flags": {
+    "decisionOnly": false,
+    "showCommandOnly": false,
+    "manualExecutionOnly": false,
+    "noAutoRun": false,
+    "boracAcceptsRisk": false
+  },
+  "checklist": {
+    "version": "manual_market_hours_paper_attempt_checklist_v1",
+    "status": "blocked",
+    "checklistReady": false,
+    "finalNetworkCommandIncluded": false,
+    "finalNetworkCommandWithheld": true,
+    "runtimePreflight": {
+      "version": "paper_broker_runtime_environment_preflight_v1",
+      "status": "blocked",
+      "runtimeEnvironmentReady": false,
+      "implementationReadiness": {
+        "version": "paper_broker_network_call_implementation_patch_v1",
+        "status": "blocked",
+        "readyForSinglePaperNetworkAttempt": false,
+        "approvalRecordFound": false,
+        "approvalRecordFile": null,
+        "priorAttempt": {
+          "found": false,
+          "file": null
+        },
+        "session": {
+          "timezone": "America/New_York",
+          "weekday": "Sat",
+          "hour": 1,
+          "minute": 32,
+          "regularSessionTime": false,
+          "marketOpen": false,
+          "note": "Time-only regular-hours check; exchange holidays are not externally queried by this patch."
+        },
+        "brokerTarget": {
+          "ok": false,
+          "baseUrlPresent": false,
+          "routePathPresent": false,
+          "urlPreview": null
+        },
+        "credentialState": {
+          "keyPresent": false,
+          "secretPresent": false,
+          "keyPreview": null,
+          "secretPreview": null
+        },
+        "blockers": [
+          "approved_network_implementation_record_missing",
+          "market_open_required",
+          "borac_operator_identity_required",
+          "paper_broker_network_target_env_required",
+          "paper_broker_key_env_required",
+          "paper_broker_secret_env_required"
+        ]
+      },
+      "environment": {
+        "alpacaPaperTradingBaseUrlPresent": false,
+        "alpacaPaperRoutePathPresent": false,
+        "alpacaApiKeyPresent": false,
+        "alpacaApiSecretPresent": false,
+        "keyPreview": null,
+        "secretPreview": null,
+        "routePreview": null,
+        "baseUrlPreview": null
+      },
+      "blockers": [
+        "network_call_implementation_not_ready",
+        "network_call_implementation_blockers_present",
+        "borac_operator_identity_required",
+        "alpaca_paper_trading_base_url_missing",
+        "alpaca_paper_route_path_missing",
+        "alpaca_api_key_missing",
+        "alpaca_api_secret_missing"
+      ]
+    },
+    "blockers": [
+      "final_runbook_not_ready",
+      "final_runbook_blockers_present",
+      "borac_operator_identity_required"
+    ]
+  },
+  "finalManualCommand": null,
+  "finalWarnings": [
+    "This command may contact the Alpaca paper broker if copied and executed.",
+    "Run only during regular market hours.",
+    "Run only once.",
+    "Do not retry without creating a new approval chain.",
+    "This remains paper-only, manual-only, one-shot only.",
+    "Stop immediately after the first success, failure, or error result."
+  ],
+  "safety": {
+    "decisionOnly": true,
+    "showCommandOnly": true,
+    "paperOnly": true,
+    "manualOnly": true,
+    "oneShotOnly": true,
+    "liveTradingAllowed": false,
+    "autoTradingAllowed": false,
+    "accountMutationAllowed": false,
+    "commandAutoExecuted": false,
+    "networkAttempted": false,
+    "brokerAdapterCallAttempted": false,
+    "brokerContactAttempted": false,
+    "orderSubmitAttempted": false,
+    "orderSubmitted": false,
+    "accountMutationAttempted": false
+  },
+  "blockers": [
+    "manual_market_hours_checklist_not_ready",
+    "manual_market_hours_checklist_blockers_present",
+    "borac_operator_identity_required",
+    "final_decision_reason_required",
+    "exact_final_decision_approval_phrase_required",
+    "decision_only_flag_required",
+    "show_command_only_flag_required",
+    "manual_execution_only_flag_required",
+    "no_auto_run_flag_required",
+    "borac_accepts_paper_risk_flag_required"
+  ],
+  "nextRequiredAction": "Resolve blockers before displaying the final one-shot paper broker command."
+}

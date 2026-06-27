@@ -105,7 +105,8 @@
     "network:paper-broker-call": "node scripts/paper_broker_network_call_implementation_patch.mjs",
     "preflight:paper-broker-runtime-env": "node scripts/paper_broker_runtime_environment_preflight.mjs",
     "runbook:final-one-shot-paper-broker-attempt": "node scripts/final_one_shot_paper_broker_attempt_runbook.mjs",
-    "checklist:manual-market-hours-paper-attempt": "node scripts/manual_market_hours_paper_attempt_checklist.mjs"
+    "checklist:manual-market-hours-paper-attempt": "node scripts/manual_market_hours_paper_attempt_checklist.mjs",
+    "decision:borac-final-manual-paper-attempt": "node scripts/borac_final_manual_paper_attempt_decision.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
