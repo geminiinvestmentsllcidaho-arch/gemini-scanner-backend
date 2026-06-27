@@ -1,46 +1,31 @@
-import * as plannerModule from "./paper_trade_intent_planner.mjs";
+import { getPaperTradeIntentPlan } from "./paper_trade_intent_planner.mjs";
 
 const PANEL_VERSION = "paper_trade_intent_dashboard_v1";
 
-function resolvePlanner() {
-  const preferred = [
-    "buildPaperTradeIntentPlan",
-    "buildPaperTradeIntentPlanner",
-    "planPaperTradeIntent",
-    "createPaperTradeIntentPlan",
-    "default"
-  ];
-
-  for (const name of preferred) {
-    if (typeof plannerModule[name] === "function") return plannerModule[name];
-  }
-
-  for (const [name, value] of Object.entries(plannerModule)) {
-    if (
-      typeof value === "function" &&
-      /paper/i.test(name) &&
-      /intent/i.test(name) &&
-      /(plan|planner|build|create)/i.test(name)
-    ) {
-      return value;
-    }
-  }
-
-  throw new Error("No compatible paper trade intent planner export found.");
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function normalizePlan(plan = {}) {
-  const blockReasons = Array.isArray(plan.blockReasons)
-    ? plan.blockReasons
-    : Array.isArray(plan.reasons)
-      ? plan.reasons
-      : [];
+  const blockReasons = [
+    ...asArray(plan.blockReasons),
+    ...asArray(plan.reasons),
+    ...asArray(plan.readinessGate?.blockReasons),
+    ...asArray(plan.readinessGate?.reasons)
+  ].filter((value, index, array) => value && array.indexOf(value) === index);
+
+  const readinessGateStatus =
+    plan.readinessGateStatus ??
+    plan.readiness_gate_status ??
+    plan.readinessGate?.status ??
+    plan.readinessGate?.readinessGateStatus ??
+    (blockReasons.includes("readiness_gate_blocked") ? "blocked" : null);
 
   const canCreateIntent = plan.canCreateIntent === true;
 
   return {
     ok: plan.ok === true,
-    readinessGateStatus: plan.readinessGateStatus ?? plan.readiness_gate_status ?? null,
+    readinessGateStatus,
     canCreateIntent,
     paperTradeIntentStatus: plan.paperTradeIntentStatus ?? (canCreateIntent ? "would_create" : "blocked"),
     blockReasons,
@@ -58,8 +43,12 @@ function normalizePlan(plan = {}) {
 }
 
 export function buildPaperTradeIntentDashboardPanel(input = {}) {
-  const planner = resolvePlanner();
-  const plan = planner(input);
+  const plan = getPaperTradeIntentPlan({
+    baseDir: process.cwd(),
+    write: false,
+    input
+  });
+
   const normalized = normalizePlan(plan);
 
   return {
