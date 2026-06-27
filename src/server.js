@@ -35,6 +35,7 @@ import { buildPaperTradeSizingPreview, buildPaperTradeSizingPreviewPanel } from 
 import { buildPaperTradeOrderTicketPreview, buildPaperTradeOrderTicketPreviewPanel } from './scanner/paper_trade_order_ticket_preview.mjs';
 import { readPaperTradeOrderTicketStoreDashboard } from './scanner/paper_trade_order_ticket_store.mjs';
 import { readPaperTradeOrderTicketStorePanel } from './scanner/paper_trade_order_ticket_store_panel.mjs';
+import { buildPaperTradeFillSimulationPreview, buildPaperTradeFillSimulationPreviewPanel } from './scanner/paper_trade_fill_simulation_preview.mjs';
 
 dotenv.config();
 
@@ -563,6 +564,16 @@ app.listen(PORT, HOST, async () => {
 
 
 
+
+
+app.get('/diagnostics/paper-trade-fill-simulation-preview', (_req, res) => {
+  res.json(buildPaperTradeFillSimulationPreview());
+});
+
+
+app.get('/diagnostics/paper-trade-fill-simulation-preview-panel', (_req, res) => {
+  res.json(buildPaperTradeFillSimulationPreviewPanel());
+});
 
 app.get('/diagnostics/paper-trade-order-ticket-store', (_req, res) => {
   res.json(readPaperTradeOrderTicketStoreDashboard());
