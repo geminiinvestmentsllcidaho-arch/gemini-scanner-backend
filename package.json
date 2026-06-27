@@ -63,7 +63,8 @@
     "panel:paper-lifecycle-runner": "node scripts/run_paper_trade_lifecycle.mjs --panel=true",
     "audit:paper-lifecycle-runner": "node scripts/audit_paper_trade_lifecycle_runner.mjs",
     "dashboard:paper-lifecycle-runner-audit": "node scripts/audit_paper_trade_lifecycle_runner.mjs --dashboard=true",
-    "panel:paper-lifecycle-runner-audit": "node scripts/audit_paper_trade_lifecycle_runner.mjs --panel=true"
+    "panel:paper-lifecycle-runner-audit": "node scripts/audit_paper_trade_lifecycle_runner.mjs --panel=true",
+    "validate:paper-local-e2e": "node scripts/validate_paper_trade_local_lifecycle_e2e.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
