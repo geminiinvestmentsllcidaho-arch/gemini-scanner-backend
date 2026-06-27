@@ -1,0 +1,133 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import {
+  PAPER_TRADE_LIFECYCLE_RUNNER_VERSION,
+  previewPaperTradeLifecycleRun,
+  readPaperTradeLifecycleRunnerPanel,
+  runPaperTradeLifecycle
+} from '../src/scanner/paper_trade_lifecycle_runner.mjs';
+
+function tmpLedger(name) {
+  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), name)), 'ledger.jsonl');
+}
+
+function paths() {
+  return {
+    intentLedgerPath: tmpLedger('paper-lifecycle-runner-intent-'),
+    ticketLedgerPath: tmpLedger('paper-lifecycle-runner-ticket-'),
+    fillLedgerPath: tmpLedger('paper-lifecycle-runner-fill-'),
+    positionLedgerPath: tmpLedger('paper-lifecycle-runner-position-')
+  };
+}
+
+test('paper lifecycle runner preview never writes local ledgers', () => {
+  const p = paths();
+
+  const preview = previewPaperTradeLifecycleRun(p);
+
+  assert.equal(preview.ok, true);
+  assert.equal(preview.version, PAPER_TRADE_LIFECYCLE_RUNNER_VERSION);
+  assert.equal(preview.mode, 'preview');
+  assert.equal(preview.intentCreated, false);
+  assert.equal(preview.ticketStored, false);
+  assert.equal(preview.fillStored, false);
+  assert.equal(preview.positionStored, false);
+  assert.equal(preview.wroteAnyRecord, false);
+  assert.equal(fs.existsSync(p.intentLedgerPath), false);
+  assert.equal(fs.existsSync(p.ticketLedgerPath), false);
+  assert.equal(fs.existsSync(p.fillLedgerPath), false);
+  assert.equal(fs.existsSync(p.positionLedgerPath), false);
+  assert.equal(preview.safety.brokerContact, false);
+  assert.equal(preview.safety.orderPlacement, false);
+  assert.equal(preview.safety.accountMutation, false);
+});
+
+test('paper lifecycle runner blocks safely when planner intent is not ready', () => {
+  const p = paths();
+
+  const result = runPaperTradeLifecycle({
+    ...p,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    plan: {
+      readinessGateStatus: 'blocked'
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 'blocked_or_partial');
+  assert.equal(result.lifecycleComplete, false);
+  assert.equal(result.intentCreated, false);
+  assert.equal(result.ticketStored, false);
+  assert.equal(result.fillStored, false);
+  assert.equal(result.positionStored, false);
+  assert.equal(result.wroteAnyRecord, false);
+  assert.equal(fs.existsSync(p.intentLedgerPath), false);
+  assert.equal(fs.existsSync(p.ticketLedgerPath), false);
+  assert.equal(fs.existsSync(p.fillLedgerPath), false);
+  assert.equal(fs.existsSync(p.positionLedgerPath), false);
+  assert.equal(result.safety.brokerContact, false);
+  assert.equal(result.safety.orderPlacement, false);
+  assert.equal(result.safety.accountMutation, false);
+});
+
+test('paper lifecycle runner completes full local simulation when gates pass', () => {
+  const p = paths();
+
+  const result = runPaperTradeLifecycle({
+    ...p,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  });
+
+  assert.equal(result.status, 'complete_local_simulation');
+  assert.equal(result.lifecycleComplete, true);
+  assert.equal(result.intentCreated, true);
+  assert.equal(result.ticketStored, true);
+  assert.equal(result.fillStored, true);
+  assert.equal(result.positionStored, true);
+  assert.equal(result.wroteAnyRecord, true);
+  assert.equal(result.stages.orderTicketStore.record.symbol, 'AAPL');
+  assert.equal(result.stages.orderTicketStore.record.qty, '10');
+  assert.equal(result.stages.fillSimulationStore.record.symbol, 'AAPL');
+  assert.equal(result.stages.fillSimulationStore.record.qty, 10);
+  assert.equal(result.stages.fillSimulationStore.record.fillPrice, 101);
+  assert.equal(result.stages.positionStateStore.record.positionCount, 1);
+  assert.equal(result.stages.positionStateStore.record.openPositionCount, 1);
+  assert.equal(result.stages.positionStateStore.record.totalCostBasis, 1010);
+  assert.equal(result.safety.brokerContact, false);
+  assert.equal(result.safety.orderPlacement, false);
+  assert.equal(result.safety.accountMutation, false);
+
+  assert.equal(fs.existsSync(p.intentLedgerPath), true);
+  assert.equal(fs.existsSync(p.ticketLedgerPath), true);
+  assert.equal(fs.existsSync(p.fillLedgerPath), true);
+  assert.equal(fs.existsSync(p.positionLedgerPath), true);
+});
+
+test('paper lifecycle runner panel exposes preview-only dashboard card', () => {
+  const panel = readPaperTradeLifecycleRunnerPanel(paths());
+
+  assert.equal(panel.ok, true);
+  assert.equal(panel.version, 'paper_trade_lifecycle_runner_panel_v1');
+  assert.equal(panel.panelType, 'operator_dashboard_card');
+  assert.equal(panel.monitorOnly, true);
+  assert.equal(panel.previewOnly, true);
+  assert.equal(panel.summary.wroteAnyRecord, false);
+  assert.equal(panel.safety.brokerContact, false);
+  assert.equal(panel.safety.orderPlacement, false);
+  assert.equal(panel.safety.accountMutation, false);
+});

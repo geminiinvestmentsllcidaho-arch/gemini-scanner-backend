@@ -57,7 +57,10 @@
     "dashboard:paper-position-state-store": "node scripts/store_paper_trade_position_state.mjs --dashboard=true",
     "panel:paper-position-state-store": "node scripts/store_paper_trade_position_state.mjs --panel=true",
     "dashboard:paper-lifecycle": "node scripts/paper_trade_lifecycle_dashboard.mjs",
-    "panel:paper-lifecycle": "node scripts/paper_trade_lifecycle_dashboard.mjs --panel=true"
+    "panel:paper-lifecycle": "node scripts/paper_trade_lifecycle_dashboard.mjs --panel=true",
+    "run:paper-lifecycle": "node scripts/run_paper_trade_lifecycle.mjs",
+    "preview:paper-lifecycle-runner": "node scripts/run_paper_trade_lifecycle.mjs --preview=true",
+    "panel:paper-lifecycle-runner": "node scripts/run_paper_trade_lifecycle.mjs --panel=true"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
