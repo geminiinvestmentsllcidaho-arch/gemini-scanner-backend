@@ -64,7 +64,9 @@
     "audit:paper-lifecycle-runner": "node scripts/audit_paper_trade_lifecycle_runner.mjs",
     "dashboard:paper-lifecycle-runner-audit": "node scripts/audit_paper_trade_lifecycle_runner.mjs --dashboard=true",
     "panel:paper-lifecycle-runner-audit": "node scripts/audit_paper_trade_lifecycle_runner.mjs --panel=true",
-    "validate:paper-local-e2e": "node scripts/validate_paper_trade_local_lifecycle_e2e.mjs"
+    "validate:paper-local-e2e": "node scripts/validate_paper_trade_local_lifecycle_e2e.mjs",
+    "guard:paper-broker-adapter": "node scripts/paper_trade_broker_adapter_guard.mjs",
+    "panel:paper-broker-adapter-guard": "node scripts/paper_trade_broker_adapter_guard.mjs --panel=true"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
