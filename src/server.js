@@ -58,6 +58,13 @@ import { buildPaperBrokerAdapterApprovalLockPanel } from './scanner/paper_broker
 import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_null_adapter.mjs';
 import { getPaperBrokerAdapterContractDiagnostics } from './scanner/paper_broker_adapter_contract.mjs';
 import { getPaperOrderIntentAdapterPreviewBridgeDiagnostics } from './scanner/paper_order_intent_adapter_preview_bridge.mjs';
+import { getPaperBrokerAdapterApprovalRecordDiagnostics } from './scanner/paper_broker_adapter_approval_record_tool.mjs';
+import { getAlpacaPaperBrokerAdapterDiagnostics } from './scanner/alpaca_paper_broker_adapter.mjs';
+import { getPaperOrderSubmitDryRunDiagnostics } from './scanner/paper_order_submit_dry_run_preview.mjs';
+import { getPaperTradingFinalGoNoGoDiagnostics } from './scanner/paper_trading_final_go_no_go.mjs';
+import { getFirstRealPaperOrderTestGateDiagnostics } from './scanner/first_real_paper_order_test_gate.mjs';
+import { getPaperTradingMonitoringDiagnostics } from './scanner/paper_trading_monitoring_kill_switch.mjs';
+import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_conversion_lock.mjs';
 
 dotenv.config();
 
@@ -626,6 +633,78 @@ app.get('/diagnostics/paper-order-intent-adapter-preview-bridge', async (req, re
       route: '/diagnostics/paper-order-intent-adapter-preview-bridge',
       error: error?.message ?? String(error)
     });
+  }
+});
+
+
+app.get('/diagnostics/paper-broker-adapter-approval-record-tool', async (req, res) => {
+  try {
+    res.json(await getPaperBrokerAdapterApprovalRecordDiagnostics());
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-broker-adapter-approval-record-tool', error: error?.message ?? String(error) });
+  }
+});
+
+app.get('/diagnostics/alpaca-paper-broker-adapter', async (req, res) => {
+  try {
+    res.json(await getAlpacaPaperBrokerAdapterDiagnostics({
+      symbol: req.query.symbol,
+      side: req.query.side,
+      qty: req.query.qty,
+      notional: req.query.notional,
+      orderType: req.query.orderType,
+      timeInForce: req.query.timeInForce
+    }));
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/alpaca-paper-broker-adapter', error: error?.message ?? String(error) });
+  }
+});
+
+app.get('/diagnostics/paper-order-submit-dry-run', async (req, res) => {
+  try {
+    res.json(await getPaperOrderSubmitDryRunDiagnostics({
+      symbol: req.query.symbol,
+      side: req.query.side,
+      qty: req.query.qty,
+      notional: req.query.notional,
+      orderType: req.query.orderType,
+      timeInForce: req.query.timeInForce,
+      marketSession: req.query.marketSession
+    }));
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-order-submit-dry-run', error: error?.message ?? String(error) });
+  }
+});
+
+app.get('/diagnostics/paper-trading-final-go-no-go', async (req, res) => {
+  try {
+    res.json(await getPaperTradingFinalGoNoGoDiagnostics());
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-trading-final-go-no-go', error: error?.message ?? String(error) });
+  }
+});
+
+app.get('/diagnostics/first-real-paper-order-test-gate', async (req, res) => {
+  try {
+    res.json(await getFirstRealPaperOrderTestGateDiagnostics());
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/first-real-paper-order-test-gate', error: error?.message ?? String(error) });
+  }
+});
+
+app.get('/diagnostics/paper-trading-monitoring-kill-switch', async (req, res) => {
+  try {
+    res.json(await getPaperTradingMonitoringDiagnostics());
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-trading-monitoring-kill-switch', error: error?.message ?? String(error) });
+  }
+});
+
+app.get('/diagnostics/real-trading-conversion-lock', (req, res) => {
+  try {
+    res.json(getRealTradingConversionLockDiagnostics());
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/real-trading-conversion-lock', error: error?.message ?? String(error) });
   }
 });
 
