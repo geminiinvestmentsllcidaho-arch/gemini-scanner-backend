@@ -6,22 +6,46 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function normalizePlan(plan = {}) {
-  const blockReasons = [
+function unique(values) {
+  return values.filter((value, index, array) => value && array.indexOf(value) === index);
+}
+
+function hasEntryPrice(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  return Number.isFinite(Number(entry.price ?? entry.entryPrice ?? entry.limitPrice));
+}
+
+function deriveBlockReasons(plan = {}) {
+  const reasons = [
     ...asArray(plan.blockReasons),
     ...asArray(plan.reasons),
     ...asArray(plan.readinessGate?.blockReasons),
     ...asArray(plan.readinessGate?.reasons)
-  ].filter((value, index, array) => value && array.indexOf(value) === index);
+  ];
+
+  const canCreateIntent = plan.canCreateIntent === true;
+  const symbol = plan.symbol ?? plan.candidate?.symbol ?? plan.intent?.symbol ?? null;
+  const side = plan.side ?? plan.action ?? plan.intent?.side ?? plan.intent?.action ?? null;
+  const entry = plan.entry ?? plan.intent?.entry ?? null;
+
+  if (!canCreateIntent) reasons.push("readiness_gate_blocked");
+  if (!symbol) reasons.push("candidate_symbol_missing");
+  if (!["buy", "sell"].includes(String(side ?? "").toLowerCase())) reasons.push("action_not_tradeable");
+  if (!hasEntryPrice(entry)) reasons.push("entry_price_missing");
+
+  return unique(reasons);
+}
+
+function normalizePlan(plan = {}) {
+  const blockReasons = deriveBlockReasons(plan);
+  const canCreateIntent = plan.canCreateIntent === true;
 
   const readinessGateStatus =
     plan.readinessGateStatus ??
     plan.readiness_gate_status ??
     plan.readinessGate?.status ??
     plan.readinessGate?.readinessGateStatus ??
-    (blockReasons.includes("readiness_gate_blocked") ? "blocked" : null);
-
-  const canCreateIntent = plan.canCreateIntent === true;
+    (canCreateIntent ? "passed" : "blocked");
 
   return {
     ok: plan.ok === true,

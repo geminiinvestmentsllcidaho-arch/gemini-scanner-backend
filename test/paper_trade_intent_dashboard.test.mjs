@@ -17,14 +17,20 @@ test("paper trade intent dashboard panel exposes monitor-only safety state", () 
   assert.equal(panel.safety.accountMutation, "disabled");
 });
 
-test("paper trade intent dashboard panel exposes planner readiness and block reasons", () => {
+test("paper trade intent dashboard panel derives visible block reasons from planner state", () => {
   const panel = buildPaperTradeIntentDashboardPanel();
 
-  assert.equal(typeof panel.summary.canCreateIntent, "boolean");
-  assert.equal(typeof panel.summary.intentWouldBeCreated, "boolean");
-  assert.equal(typeof panel.summary.blocked, "boolean");
+  assert.equal(panel.summary.readinessGateStatus, "blocked");
+  assert.equal(panel.summary.paperTradeIntentStatus, "blocked");
+  assert.equal(panel.summary.canCreateIntent, false);
+  assert.equal(panel.summary.intentWouldBeCreated, false);
+  assert.equal(panel.summary.blocked, true);
   assert.equal(Array.isArray(panel.blockReasons), true);
   assert.equal(panel.summary.blockReasonCount, panel.blockReasons.length);
+  assert.ok(panel.blockReasons.includes("readiness_gate_blocked"));
+  assert.ok(panel.blockReasons.includes("candidate_symbol_missing"));
+  assert.ok(panel.blockReasons.includes("action_not_tradeable"));
+  assert.ok(panel.blockReasons.includes("entry_price_missing"));
   assert.ok(panel.planner);
   assert.ok(panel.readinessGate);
   assert.equal(panel.source.route, "/diagnostics/paper-trade-intent-dashboard-panel");
