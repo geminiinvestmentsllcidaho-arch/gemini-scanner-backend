@@ -46,6 +46,7 @@ import { previewPaperTradeLifecycleRun, readPaperTradeLifecycleRunnerPanel } fro
 import { readPaperTradeLifecycleRunnerAuditDashboard } from './scanner/paper_trade_lifecycle_runner_audit.mjs';
 import { readPaperTradeLifecycleRunnerAuditPanel } from './scanner/paper_trade_lifecycle_runner_audit_panel.mjs';
 import { evaluatePaperTradeBrokerAdapterGuard, readPaperTradeBrokerAdapterGuardPanel } from './scanner/paper_trade_broker_adapter_guard.mjs';
+import { evaluatePaperTradeExecutionControlStack, readPaperTradeExecutionControlStackPanel } from './scanner/paper_trade_execution_control_stack.mjs';
 
 dotenv.config();
 
@@ -582,6 +583,16 @@ app.listen(PORT, HOST, async () => {
 
 
 
+
+
+app.get('/diagnostics/paper-trade-execution-control-stack', (_req, res) => {
+  res.json(evaluatePaperTradeExecutionControlStack());
+});
+
+
+app.get('/diagnostics/paper-trade-execution-control-stack-panel', (_req, res) => {
+  res.json(readPaperTradeExecutionControlStackPanel());
+});
 
 app.get('/diagnostics/paper-trade-broker-adapter-guard', (_req, res) => {
   res.json(evaluatePaperTradeBrokerAdapterGuard());
