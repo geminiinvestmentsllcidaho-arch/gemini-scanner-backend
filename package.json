@@ -36,7 +36,9 @@
     "panel:paper-intent-creation-runner": "node scripts/paper_trade_intent_creation_runner_panel.mjs",
     "audit:paper-intent-creation-runner": "node scripts/audit_paper_trade_intent_creation_runner.mjs",
     "dashboard:paper-intent-creation-runner-audit": "node scripts/audit_paper_trade_intent_creation_runner.mjs --dashboard=true",
-    "panel:paper-intent-creation-runner-audit": "node scripts/paper_trade_intent_creation_runner_audit_panel.mjs"
+    "panel:paper-intent-creation-runner-audit": "node scripts/paper_trade_intent_creation_runner_audit_panel.mjs",
+    "preview:paper-execution-payload": "node scripts/paper_trade_execution_payload_preview.mjs",
+    "panel:paper-execution-payload": "node scripts/paper_trade_execution_payload_preview.mjs --panel=true"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
