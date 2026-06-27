@@ -27,7 +27,8 @@
     "validate:operator-approval-dashboard-panel": "node scripts/validate_operator_approval_dashboard_panel.mjs",
     "gate:paper-trading-readiness": "node scripts/paper_trading_readiness_gate.mjs",
     "plan:paper-trade-intent": "node scripts/paper_trade_intent_planner.mjs",
-    "audit:paper-intent": "node scripts/audit_paper_trade_intent.mjs"
+    "audit:paper-intent": "node scripts/audit_paper_trade_intent.mjs",
+    "panel:paper-intent-audit": "node scripts/paper_trade_intent_audit_dashboard_panel.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
