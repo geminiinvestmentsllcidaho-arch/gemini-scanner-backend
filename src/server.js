@@ -22,6 +22,7 @@ import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
+import { buildPaperTradeIntentAuditDashboard } from './scanner/paper_trade_intent_audit_dashboard.mjs';
 
 dotenv.config();
 
@@ -539,4 +540,8 @@ app.listen(PORT, HOST, async () => {
   } catch (e) {
     console.error('[server] market data stream failed to start:', e);
   }
+});
+
+app.get('/diagnostics/paper-trade-intent-audit-dashboard', (_req, res) => {
+  res.json(buildPaperTradeIntentAuditDashboard());
 });
