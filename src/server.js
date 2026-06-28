@@ -1,3 +1,4 @@
+import { buildPaperAttemptOperatorReviewPacketPanel, renderPaperAttemptOperatorReviewPacketPanelHtml } from "./scanner/paper_attempt_operator_review_packet_panel.mjs";
 import { buildPaperAttemptControlCenterPanel, buildPaperAttemptControlCenterPanelHtml } from "./scanner/paper_attempt_control_center_panel.mjs";
 import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
 import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
@@ -728,6 +729,16 @@ app.get("/diagnostics/paper-attempt-control-center-panel.html", (_req, res) => {
 app.get("/diagnostics/paper-attempt-control-center", (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   return res.status(200).json(buildPaperAttemptControlCenter());
+});
+
+
+// Paper Attempt Operator Review Packet Panel v1 - review-only diagnostics
+app.get("/diagnostics/paper-attempt-operator-review-packet-panel", (req, res) => {
+  res.json(buildPaperAttemptOperatorReviewPacketPanel());
+});
+
+app.get("/diagnostics/paper-attempt-operator-review-packet-panel-view", (req, res) => {
+  res.type("html").send(renderPaperAttemptOperatorReviewPacketPanelHtml());
 });
 
 app.listen(PORT, HOST, async () => {
