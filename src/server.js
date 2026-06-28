@@ -741,6 +741,32 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-panel-view", (req, re
   res.type("html").send(renderPaperAttemptOperatorReviewPacketPanelHtml());
 });
 
+
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit", async (req, res) => {
+  try {
+    const mod = await import("./scanner/paper_attempt_operator_review_packet_audit.mjs");
+    const result = mod.buildPaperAttemptOperatorReviewPacketAudit({ persist: false });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_operator_review_packet_audit_v1",
+      error: error?.message || String(error),
+    });
+  }
+});
+
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit-view", async (req, res) => {
+  try {
+    const mod = await import("./scanner/paper_attempt_operator_review_packet_audit.mjs");
+    const result = mod.buildPaperAttemptOperatorReviewPacketAudit({ persist: false });
+    res.type("html").send(mod.renderPaperAttemptOperatorReviewPacketAuditHtml(result));
+  } catch (error) {
+    res.status(500).type("html").send("<pre>paper_attempt_operator_review_packet_audit_v1 failed</pre>");
+  }
+});
+
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
