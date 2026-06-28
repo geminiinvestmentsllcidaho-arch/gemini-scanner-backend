@@ -869,6 +869,20 @@ app.get("/diagnostics/paper-attempt-module-complete-selector-panel-view", async 
   }
 });
 
+
+app.get("/diagnostics/paper-attempt-read-only-planning-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyPlanningDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_planning_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyPlanningDiagnosticPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_planning_diagnostic_panel_v1",
+      error: error?.message ?? String(error),
+    });
+  }
+});
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
