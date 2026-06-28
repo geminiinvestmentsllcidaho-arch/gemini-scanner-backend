@@ -1104,3 +1104,29 @@ app.get('/diagnostics/paper-trade-intent-audit-dashboard-panel', async (_req, re
     });
   }
 });
+
+
+// BEGIN PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_PANEL_V1
+app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel", async (req, res, next) => {
+  try {
+    const { buildPaperAttemptReadOnlyOperatorSummaryPanel } = await import("./scanner/paper_attempt_read_only_operator_summary_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOperatorSummaryPanel());
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel-view", async (req, res, next) => {
+  try {
+    const {
+      buildPaperAttemptReadOnlyOperatorSummaryPanel,
+      renderPaperAttemptReadOnlyOperatorSummaryPanelView,
+    } = await import("./scanner/paper_attempt_read_only_operator_summary_panel.mjs");
+    const panel = buildPaperAttemptReadOnlyOperatorSummaryPanel();
+    res.type("html").send(renderPaperAttemptReadOnlyOperatorSummaryPanelView(panel));
+  } catch (err) {
+    next(err);
+  }
+});
+// END PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_PANEL_V1
+

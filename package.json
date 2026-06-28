@@ -116,7 +116,8 @@
     "report:paper-attempt-operator-review-packet-audit-panel": "node scripts/paper_attempt_operator_review_packet_audit_panel_report.mjs",
     "report:paper-attempt-operator-review-packet-audit-dashboard": "node scripts/paper_attempt_operator_review_packet_audit_dashboard_report.mjs",
     "report:paper-attempt-operator-review-packet-audit-dashboard-panel": "node scripts/paper_attempt_operator_review_packet_audit_dashboard_panel_report.mjs",
-    "report:paper-attempt-module-complete-selector-panel": "node scripts/paper_attempt_module_complete_selector_panel_report.mjs"
+    "report:paper-attempt-module-complete-selector-panel": "node scripts/paper_attempt_module_complete_selector_panel_report.mjs",
+    "diagnostics:paper-attempt-read-only-operator-summary-panel": "node scripts/paper_attempt_read_only_operator_summary_panel_report.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
