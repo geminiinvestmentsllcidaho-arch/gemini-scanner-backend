@@ -113,7 +113,8 @@
     "report:paper-attempt-operator-review-packet": "node scripts/paper_attempt_operator_review_packet_report.mjs",
     "report:paper-attempt-operator-review-packet-panel": "node scripts/paper_attempt_operator_review_packet_panel_report.mjs",
     "report:paper-attempt-operator-review-packet-audit": "node scripts/paper_attempt_operator_review_packet_audit_report.mjs",
-    "report:paper-attempt-operator-review-packet-audit-panel": "node scripts/paper_attempt_operator_review_packet_audit_panel_report.mjs"
+    "report:paper-attempt-operator-review-packet-audit-panel": "node scripts/paper_attempt_operator_review_packet_audit_panel_report.mjs",
+    "report:paper-attempt-operator-review-packet-audit-dashboard": "node scripts/paper_attempt_operator_review_packet_audit_dashboard_report.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
