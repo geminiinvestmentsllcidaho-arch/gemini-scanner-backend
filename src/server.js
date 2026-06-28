@@ -845,6 +845,30 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-panel
 });
 
 
+
+app.get("/diagnostics/paper-attempt-module-complete-selector-panel", async (_req, res) => {
+  try {
+    const mod = await import("./scanner/paper_attempt_module_complete_selector_panel.mjs");
+    res.json(mod.buildPaperAttemptModuleCompleteSelectorPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_module_complete_selector_panel_v1",
+      error: error?.message || String(error),
+    });
+  }
+});
+
+app.get("/diagnostics/paper-attempt-module-complete-selector-panel-view", async (_req, res) => {
+  try {
+    const mod = await import("./scanner/paper_attempt_module_complete_selector_panel.mjs");
+    const panel = mod.buildPaperAttemptModuleCompleteSelectorPanel();
+    res.type("html").send(mod.renderPaperAttemptModuleCompleteSelectorPanelHtml(panel));
+  } catch (error) {
+    res.status(500).type("html").send("<pre>paper_attempt_module_complete_selector_panel_v1 failed</pre>");
+  }
+});
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
