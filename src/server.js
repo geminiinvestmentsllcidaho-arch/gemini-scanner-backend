@@ -913,6 +913,21 @@ app.get("/diagnostics/paper-attempt-read-only-approval-record-diagnostic-panel",
 });
 
 
+
+app.get("/diagnostics/paper-attempt-read-only-execution-authorization-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyExecutionAuthorizationDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_execution_authorization_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyExecutionAuthorizationDiagnosticPanel());
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      route: "/diagnostics/paper-attempt-read-only-execution-authorization-diagnostic-panel",
+      error: err?.message || String(err)
+    });
+  }
+});
+
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
