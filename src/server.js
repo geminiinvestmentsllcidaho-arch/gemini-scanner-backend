@@ -961,6 +961,21 @@ app.get("/diagnostics/paper-attempt-read-only-order-placement-diagnostic-panel",
 
 
 
+
+app.get("/diagnostics/paper-attempt-read-only-order-submission-lifecycle-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionLifecycleDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_order_submission_lifecycle_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionLifecycleDiagnosticPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_order_submission_lifecycle_diagnostic_panel_v1",
+      route: "/diagnostics/paper-attempt-read-only-order-submission-lifecycle-diagnostic-panel",
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
 app.get("/diagnostics/paper-attempt-read-only-order-submission-response-diagnostic-panel", async (_req, res) => {
   try {
     const { buildPaperAttemptReadOnlyOrderSubmissionResponseDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_order_submission_response_diagnostic_panel.mjs");
