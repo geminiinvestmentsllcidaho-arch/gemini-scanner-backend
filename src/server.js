@@ -943,6 +943,21 @@ app.get("/diagnostics/paper-attempt-read-only-broker-execution-path-diagnostic-p
 });
 
 
+
+app.get("/diagnostics/paper-attempt-read-only-order-placement-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderPlacementDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_order_placement_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderPlacementDiagnosticPanel());
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      route: "/diagnostics/paper-attempt-read-only-order-placement-diagnostic-panel",
+      error: err?.message || String(err)
+    });
+  }
+});
+
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
