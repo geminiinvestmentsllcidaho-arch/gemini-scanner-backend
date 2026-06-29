@@ -883,6 +883,21 @@ app.get("/diagnostics/paper-attempt-read-only-planning-diagnostic-panel", async 
   }
 });
 
+
+app.get("/diagnostics/paper-attempt-read-only-go-no-go-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyGoNoGoDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_go_no_go_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyGoNoGoDiagnosticPanel());
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      route: "/diagnostics/paper-attempt-read-only-go-no-go-diagnostic-panel",
+      error: err?.message || String(err)
+    });
+  }
+});
+
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
