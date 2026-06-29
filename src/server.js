@@ -959,6 +959,21 @@ app.get("/diagnostics/paper-attempt-read-only-order-placement-diagnostic-panel",
 
 
 
+
+app.get("/diagnostics/paper-attempt-read-only-order-submission-transport-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionTransportDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_order_submission_transport_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionTransportDiagnosticPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_order_submission_transport_diagnostic_panel_v1",
+      route: "/diagnostics/paper-attempt-read-only-order-submission-transport-diagnostic-panel",
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
 app.get("/diagnostics/paper-attempt-read-only-order-submission-payload-diagnostic-panel", async (_req, res) => {
   try {
     const { buildPaperAttemptReadOnlyOrderSubmissionPayloadDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_order_submission_payload_diagnostic_panel.mjs");
