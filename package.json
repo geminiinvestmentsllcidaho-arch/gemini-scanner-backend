@@ -128,7 +128,8 @@
     "diagnostics:paper-attempt-read-only-order-submission-transport-diagnostic-panel": "node scripts/paper_attempt_read_only_order_submission_transport_diagnostic_panel.mjs",
     "diagnostics:paper-attempt-read-only-order-submission-response-diagnostic-panel": "node scripts/paper_attempt_read_only_order_submission_response_diagnostic_panel.mjs",
     "diagnostics:paper-attempt-read-only-order-submission-lifecycle-diagnostic-panel": "node scripts/paper_attempt_read_only_order_submission_lifecycle_diagnostic_panel.mjs",
-    "diagnostics:paper-attempt-read-only-order-submission-operator-checklist-panel": "node scripts/paper_attempt_read_only_order_submission_operator_checklist_panel.mjs"
+    "diagnostics:paper-attempt-read-only-order-submission-operator-checklist-panel": "node scripts/paper_attempt_read_only_order_submission_operator_checklist_panel.mjs",
+    "diagnostics:paper-attempt-read-only-order-submission-operator-decision-panel": "node scripts/paper_attempt_read_only_order_submission_operator_decision_panel.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",
