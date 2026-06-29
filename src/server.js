@@ -1206,6 +1206,21 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-attestat
     });
   }
 });
+app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-certification-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionOperatorCertificationPanel } = await import("./scanner/paper_attempt_read_only_order_submission_operator_certification_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionOperatorCertificationPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_order_submission_operator_certification_panel_v1",
+      route: "/diagnostics/paper-attempt-read-only-order-submission-operator-certification-panel",
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
+
 
 
 
