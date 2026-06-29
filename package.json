@@ -121,7 +121,8 @@
     "diagnostics:paper-attempt-read-only-planning-diagnostic-panel": "node scripts/paper_attempt_read_only_planning_diagnostic_panel.mjs",
     "diagnostics:paper-attempt-read-only-go-no-go-diagnostic-panel": "node scripts/paper_attempt_read_only_go_no_go_diagnostic_panel.mjs",
     "diagnostics:paper-attempt-read-only-approval-record-diagnostic-panel": "node scripts/paper_attempt_read_only_approval_record_diagnostic_panel.mjs",
-    "diagnostics:paper-attempt-read-only-execution-authorization-diagnostic-panel": "node scripts/paper_attempt_read_only_execution_authorization_diagnostic_panel.mjs"
+    "diagnostics:paper-attempt-read-only-execution-authorization-diagnostic-panel": "node scripts/paper_attempt_read_only_execution_authorization_diagnostic_panel.mjs",
+    "diagnostics:paper-attempt-read-only-broker-execution-path-diagnostic-panel": "node scripts/paper_attempt_read_only_broker_execution_path_diagnostic_panel.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

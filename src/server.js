@@ -928,6 +928,21 @@ app.get("/diagnostics/paper-attempt-read-only-execution-authorization-diagnostic
 });
 
 
+
+app.get("/diagnostics/paper-attempt-read-only-broker-execution-path-diagnostic-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyBrokerExecutionPathDiagnosticPanel } = await import("./scanner/paper_attempt_read_only_broker_execution_path_diagnostic_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyBrokerExecutionPathDiagnosticPanel());
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      route: "/diagnostics/paper-attempt-read-only-broker-execution-path-diagnostic-panel",
+      error: err?.message || String(err)
+    });
+  }
+});
+
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
