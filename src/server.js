@@ -1016,6 +1016,16 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-payload-diagnosti
     });
   }
 });
+app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-checklist-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionOperatorChecklistPanel } = await import("./scanner/paper_attempt_read_only_order_submission_operator_checklist_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionOperatorChecklistPanel());
+  } catch (error) {
+    res.status(500).json({ ok: false, version: "paper_attempt_read_only_order_submission_operator_checklist_panel_v1", route: "/diagnostics/paper-attempt-read-only-order-submission-operator-checklist-panel", error: error?.message ?? String(error) });
+  }
+});
+
+
 
 
 app.listen(PORT, HOST, async () => {
