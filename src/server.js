@@ -1258,6 +1258,21 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-ledger-p
     });
   }
 });
+app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-journal-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionOperatorJournalPanel } = await import("./scanner/paper_attempt_read_only_order_submission_operator_journal_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionOperatorJournalPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_order_submission_operator_journal_panel_v1",
+      route: "/diagnostics/paper-attempt-read-only-order-submission-operator-journal-panel",
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
+
 
 
 
