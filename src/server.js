@@ -1141,6 +1141,21 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-retentio
     });
   }
 });
+app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-seal-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionOperatorSealPanel } = await import("./scanner/paper_attempt_read_only_order_submission_operator_seal_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionOperatorSealPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_order_submission_operator_seal_panel_v1",
+      route: "/diagnostics/paper-attempt-read-only-order-submission-operator-seal-panel",
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
+
 
 
 
