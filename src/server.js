@@ -1089,6 +1089,21 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-audit-tr
     });
   }
 });
+app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-evidence-packet-panel", async (_req, res) => {
+  try {
+    const { buildPaperAttemptReadOnlyOrderSubmissionOperatorEvidencePacketPanel } = await import("./scanner/paper_attempt_read_only_order_submission_operator_evidence_packet_panel.mjs");
+    res.json(buildPaperAttemptReadOnlyOrderSubmissionOperatorEvidencePacketPanel());
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      version: "paper_attempt_read_only_order_submission_operator_evidence_packet_panel_v1",
+      route: "/diagnostics/paper-attempt-read-only-order-submission-operator-evidence-packet-panel",
+      error: error?.message ?? String(error)
+    });
+  }
+});
+
+
 
 
 
