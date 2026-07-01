@@ -70,6 +70,7 @@ import { getPaperTradingMonitoringDiagnostics } from './scanner/paper_trading_mo
 import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_conversion_lock.mjs';
 import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } from "./scanner/market_closed_scanner_snapshot_diagnostics.mjs";
 import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanner_snapshot_store.mjs";
+import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_snapshot_store_reader.mjs";
 
 dotenv.config();
 
@@ -1352,6 +1353,28 @@ app.post("/diagnostics/market-closed-scanner-snapshot-store/append", (_req, res)
     });
   }
 });
+
+
+app.get("/diagnostics/market-closed-scanner-snapshot-store/history", (req, res) => {
+  try {
+    const limit = req.query?.limit ?? 25;
+    res.json(getStoreHistory({ limit }));
+  } catch (err) {
+    console.error("[market-closed-snapshot-store] history route error", err);
+    res.status(500).json({ ok: false, error: "market_closed_snapshot_store_history_failed" });
+  }
+});
+
+app.get("/diagnostics/market-closed-scanner-snapshot-store-panel", (req, res) => {
+  try {
+    const limit = req.query?.limit ?? 25;
+    res.json(getStorePanel({ limit }));
+  } catch (err) {
+    console.error("[market-closed-snapshot-store] panel route error", err);
+    res.status(500).json({ ok: false, error: "market_closed_snapshot_store_panel_failed" });
+  }
+});
+
 
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
