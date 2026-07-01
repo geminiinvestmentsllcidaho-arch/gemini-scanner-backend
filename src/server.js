@@ -507,6 +507,27 @@ app.get('/diagnostics/paper-lifecycle-operator-handoff-packet-digest-readonly-pa
   }
 });
 
+app.get('/diagnostics/paper-lifecycle-operator-handoff-packet-digest-seal-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_digest_seal_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel({ runsDir: 'runs', markPrice }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle digest seal readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-operator-handoff-packet-digest-seal-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_digest_seal_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle digest seal readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
