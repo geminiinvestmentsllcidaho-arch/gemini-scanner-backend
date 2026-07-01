@@ -528,6 +528,27 @@ app.get('/diagnostics/paper-lifecycle-operator-handoff-packet-digest-seal-readon
   }
 });
 
+app.get('/diagnostics/paper-trading-completion-certificate-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trading_completion_certificate_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperTradingCompletionCertificateReadOnlyPanel({ runsDir: 'runs', markPrice }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper trading completion certificate readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-trading-completion-certificate-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trading_completion_certificate_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperTradingCompletionCertificateReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperTradingCompletionCertificateReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper trading completion certificate readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
