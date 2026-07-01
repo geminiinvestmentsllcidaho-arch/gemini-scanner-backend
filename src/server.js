@@ -287,6 +287,28 @@ app.get('/diagnostics/paper-lifecycle-operator-summary-readonly-panel', async (r
   }
 });
 
+
+app.get('/diagnostics/paper-lifecycle-operator-review-checklist-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_review_checklist_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleOperatorReviewChecklistReadOnlyPanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle operator review checklist readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-operator-review-checklist-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_review_checklist_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorReviewChecklistReadOnlyPanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperLifecycleOperatorReviewChecklistReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator review checklist readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
