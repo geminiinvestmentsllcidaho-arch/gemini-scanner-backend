@@ -179,6 +179,26 @@ h1{font-size:clamp(34px,6vw,64px);line-height:1;margin:18px 0 14px}.lead{max-wid
 </body>
 </html>`);
 });
+
+app.get('/diagnostics/paper-order-readonly-status-dashboard', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_order_readonly_status_dashboard_panel.mjs');
+    res.json(mod.buildPaperOrderReadonlyStatusDashboardPanel({ runsDir: 'runs' }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper order readonly status dashboard failed' });
+  }
+});
+
+app.get('/diagnostics/paper-order-readonly-status-dashboard-panel', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_order_readonly_status_dashboard_panel.mjs');
+    const report = mod.buildPaperOrderReadonlyStatusDashboardPanel({ runsDir: 'runs' });
+    res.type('html').send(mod.renderPaperOrderReadonlyStatusDashboardPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper order readonly status dashboard panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
