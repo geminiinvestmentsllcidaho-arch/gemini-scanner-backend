@@ -144,110 +144,41 @@ const P3_ENABLED = process.env.P3_ENABLED === '1';
 // Health / Readiness / Diagnostics / Marketdata / Runlog
 // --------------------
 app.get('/', (_req, res) => {
-  res.set('Cache-Control', 'no-store')
+  res.set('Cache-Control', 'no-store');
   res.type('html').send(`<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#070b1f" />
-<title>GeminiScanner | Decision-Assist Trading Intelligence</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GeminiScanner | Paper Trading Readiness</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;overflow-x:hidden;background:#070b1f;color:#f6f8ff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{min-height:100vh;background:radial-gradient(circle at 18% 0%,rgba(96,120,255,.38),transparent 370px),radial-gradient(circle at 92% 10%,rgba(38,208,111,.20),transparent 340px),linear-gradient(180deg,#111846 0%,#081026 48%,#050713 100%)}a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100vw - 28px));margin:0 auto;padding:18px 0 56px}.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:22px}.brand{display:flex;align-items:center;gap:10px;font-weight:950;font-size:clamp(24px,7vw,38px);letter-spacing:-.06em}.logo{width:42px;height:42px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16)}.pill{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#cfd8f5;font-weight:750}.dot{width:11px;height:11px;border-radius:999px;background:#27d875;box-shadow:0 0 0 7px rgba(39,216,117,.13),0 0 22px rgba(39,216,117,.7)}.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:18px;align-items:stretch}.card{border:1px solid rgba(255,255,255,.15);background:linear-gradient(180deg,rgba(255,255,255,.105),rgba(255,255,255,.045));border-radius:28px;box-shadow:0 24px 80px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.10);backdrop-filter:blur(14px)}.hero-main{padding:clamp(24px,6vw,54px);min-height:500px;display:flex;flex-direction:column;justify-content:space-between}.eyebrow{width:fit-content;margin-bottom:18px;color:#dffff0;background:rgba(39,216,117,.12);border:1px solid rgba(39,216,117,.28);border-radius:999px;padding:9px 12px;font-weight:850}h1{margin:0;font-size:clamp(48px,13vw,98px);line-height:.91;letter-spacing:-.08em}.grad{background:linear-gradient(135deg,#fff 0%,#8eeaff 45%,#a3ffc9 100%);-webkit-background-clip:text;background-clip:text;color:transparent}.lead{color:#aeb8d6;font-size:clamp(17px,4.4vw,22px);line-height:1.58;max-width:700px;margin:22px 0 0}.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}.btn{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);border-radius:999px;padding:12px 15px;font-weight:900}.primary{background:linear-gradient(135deg,rgba(102,228,255,.22),rgba(39,216,117,.18));border-color:rgba(102,228,255,.34)}.side{display:grid;gap:16px}.status{padding:22px}.label{color:#aeb8d6;text-transform:uppercase;letter-spacing:.14em;font-size:12px;font-weight:950}.command{margin:10px 0;color:#ffdce3;font-size:clamp(30px,8vw,48px);font-weight:950;letter-spacing:-.06em}.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}.metric{padding:13px;border-radius:17px;border:1px solid rgba(255,255,255,.13);background:rgba(0,0,0,.18)}.metric span{display:block;color:#aeb8d6;font-size:13px}.metric b{display:block;margin-top:4px;font-size:22px;letter-spacing:-.04em}.phone{padding:16px;background:rgba(3,6,16,.82);border-radius:34px;border:1px solid rgba(255,255,255,.16)}.screen{min-height:390px;border-radius:24px;padding:22px;background:radial-gradient(circle at 50% 0%,rgba(102,228,255,.16),transparent 240px),rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.11)}.lock{width:78px;height:78px;border-radius:26px;display:grid;place-items:center;background:rgba(255,92,122,.12);border:1px solid rgba(255,92,122,.25);font-size:34px;margin:16px 0}h2{margin:0 0 8px;font-size:clamp(28px,7vw,38px);line-height:1;letter-spacing:-.06em}p{color:#aeb8d6;line-height:1.55}.disabled{margin-top:20px;padding:14px;text-align:center;border-radius:17px;background:rgba(255,92,122,.13);border:1px solid rgba(255,92,122,.25);color:#ffdce3;font-weight:950}.section-title{margin:42px 0 16px;display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}.section-title h2{max-width:680px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.feature{padding:20px;min-height:170px}.icon{width:44px;height:44px;display:grid;place-items:center;border-radius:15px;background:rgba(102,228,255,.10);border:1px solid rgba(102,228,255,.22);margin-bottom:12px}h3{margin:0 0 8px;font-size:20px;letter-spacing:-.03em}.stack{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.stack div{padding:15px;min-height:82px;display:flex;align-items:end;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);font-weight:850;color:#dde5fb}.endpoints{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.endpoint{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:15px;margin-top:10px;border-radius:17px;border:1px solid rgba(255,255,255,.13);background:rgba(0,0,0,.18)}code{color:#eef2ff;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}.tag{color:#aeb8d6;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);padding:6px 9px;border-radius:999px;white-space:nowrap;font-size:12px}footer{color:#aeb8d6;text-align:center;padding-top:28px;margin-top:44px;border-top:1px solid rgba(255,255,255,.13)}@media(max-width:900px){.hero,.grid,.endpoints,.stack{grid-template-columns:1fr}.hero-main{min-height:auto}}@media(max-width:520px){.wrap{width:min(100vw - 20px,1120px);padding-top:12px}.metrics{grid-template-columns:1fr}.card{border-radius:22px}.endpoint{align-items:flex-start;flex-direction:column}}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#070b12;color:#eef4ff}
+main{max-width:1100px;margin:auto;padding:28px 18px 42px}.brand{font-weight:800;color:#b9c8ff;letter-spacing:.04em}.hero{padding:42px 0 28px}.pill{display:inline-block;border:1px solid #2f4b68;border-radius:999px;padding:8px 12px;background:#0b1420;color:#c7d7ff}
+h1{font-size:clamp(34px,6vw,64px);line-height:1;margin:18px 0 14px}.lead{max-width:820px;color:#c7d2e4;font-size:20px;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.card{grid-column:span 4;background:linear-gradient(180deg,#111a27,#0c111a);border:1px solid #243044;border-radius:20px;padding:20px}.wide{grid-column:span 8}.full{grid-column:1/-1}
+.k{font-size:12px;color:#9ca8b8;text-transform:uppercase;letter-spacing:.12em}.v{font-size:28px;font-weight:850;margin-top:8px}.ok{color:#45d483}.warn{color:#f5c542}p,ul{color:#d7e2f2;line-height:1.65}ul{padding-left:20px}.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}a{color:#9ee4ff;text-decoration:none;border:1px solid #27435a;border-radius:12px;padding:12px;background:#0b1420}footer{margin-top:28px;color:#8fa0b7;font-size:14px}@media(max-width:800px){.card,.wide{grid-column:1/-1}}
 </style>
 </head>
 <body>
-<main class="wrap">
-<nav class="nav">
-  <div class="brand"><span class="logo">◇</span><span>GeminiScanner</span></div>
-  <div class="pill"><span class="dot"></span>Live • Decision-assist only</div>
-</nav>
-
-<section class="hero">
-  <div class="card hero-main">
-    <div>
-      <div class="eyebrow">Stage 2 app + LCM integration active</div>
-      <h1><span class="grad">Trading intelligence</span><br>for protected decisions.</h1>
-      <p class="lead">GeminiScanner turns live scanner data into app-ready rankings, capital-protection commands, mobile decision cards, and LCM coaching packets.</p>
-      <div class="buttons">
-        <a class="btn primary" href="/scanner/stage2-app">Open App Payload</a>
-        <a class="btn" href="/scanner/rankings">Scanner Rankings</a>
-        <a class="btn" href="/health">Health Check</a>
-      </div>
-    </div>
-  </div>
-
-  <div class="side">
-    <div class="card status">
-      <div class="label">Current command</div>
-      <div class="command">DO NOT TRADE</div>
-      <div class="pill">Capital protection active</div>
-      <div class="metrics">
-        <div class="metric"><span>Permission</span><b>Denied</b></div>
-        <div class="metric"><span>Mode</span><b>Watch-only</b></div>
-        <div class="metric"><span>Safety</span><b>Locked</b></div>
-        <div class="metric"><span>LCM</span><b>Connected</b></div>
-      </div>
-    </div>
-
-    <div class="phone">
-      <div class="screen">
-        <div class="label">Mobile app preview</div>
-        <div class="lock">🛡️</div>
-        <h2>No entry authorized right now</h2>
-        <p>Defensive capital protection is active. No entry is authorized until scanner conditions improve.</p>
-        <div class="disabled">Do Not Enter</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="section-title"><h2>App-ready features.</h2><p>Clean outputs for mobile screens, coaching, diagnostics, and operator validation.</p></div>
-  <div class="grid">
-    <div class="card feature"><div class="icon">📊</div><h3>Scanner rankings</h3><p>Quality, confidence, freshness, and defensive scanner state.</p></div>
-    <div class="card feature"><div class="icon">🧠</div><h3>LCM coaching</h3><p>Coach responses include the Stage 2 decision packet.</p></div>
-    <div class="card feature"><div class="icon">🛡️</div><h3>Capital protection</h3><p>Exit, invalidation, reentry, restart, and deployment controls.</p></div>
-    <div class="card feature"><div class="icon">📱</div><h3>Mobile decision card</h3><p>Buttons, severity, disabled state, issue count, and safety mode.</p></div>
-    <div class="card feature"><div class="icon">🧩</div><h3>Screen payload</h3><p>Hero, controls, banner, copy, diagnostics, and command fields.</p></div>
-    <div class="card feature"><div class="icon">🔒</div><h3>No execution</h3><p>Decision-assist only. No auto-trading from this scanner.</p></div>
-  </div>
-</section>
-
-<section>
-  <div class="section-title"><h2>Stage 2 command stack.</h2><p>Each layer blocks weak or unsafe entries before they reach the user.</p></div>
-  <div class="stack">
-    <div>Exit protection</div><div>Invalidation</div><div>Protection command</div><div>Reentry control</div><div>Restart governance</div>
-    <div>Deployment authorization</div><div>Final directive</div><div>User packet</div><div>Decision assist</div><div>Final command</div>
-  </div>
-</section>
-
-<section>
-  <div class="section-title"><h2>Operational endpoints.</h2><p>Protected by Basic Auth except the public landing and uptime health path.</p></div>
-  <div class="endpoints">
-    <div class="card feature">
-      <h3>App payloads</h3>
-      <div class="endpoint"><code>GET /scanner/stage2-app</code><span class="tag">mobile</span></div>
-      <div class="endpoint"><code>GET /scanner/rankings</code><span class="tag">full</span></div>
-      <div class="endpoint"><code>POST /coach</code><span class="tag">LCM</span></div>
-      <div class="endpoint"><code>POST /ops/run</code><span class="tag">ops</span></div>
-    </div>
-    <div class="card feature">
-      <h3>System checks</h3>
-      <div class="endpoint"><code>GET /health</code><span class="tag">health</span></div>
-      <div class="endpoint"><code>GET /readiness</code><span class="tag">ready</span></div>
-      <div class="endpoint"><code>GET /diagnostics</code><span class="tag">diag</span></div>
-      <div class="endpoint"><code>GET /marketdata</code><span class="tag">snapshot</span></div>
-    </div>
-  </div>
-</section>
-
-<footer><strong>GeminiScanner</strong><br>Decision-assist trading intelligence. Operator-controlled. No execution.</footer>
+<main>
+  <div class="brand">◇ GeminiScanner</div>
+  <section class="hero">
+    <div class="pill">Paper trading control layer staged and audited</div>
+    <h1>Decision-assist trading intelligence with paper-trading readiness.</h1>
+    <p class="lead">GeminiScanner now shows the paper trading path built so far: local lifecycle testing, mock buy simulation, first-tiny-order preflight, approval locks, runtime environment checks, and one-shot manual broker attempt readiness. Live trading and auto trading remain disabled.</p>
+  </section>
+  <section class="grid">
+    <div class="card"><div class="k">Local lifecycle</div><div class="v ok">Complete</div><p>Intent, ticket, simulated fill, and position snapshot are stored locally in JSONL.</p></div>
+    <div class="card"><div class="k">Mock buy test</div><div class="v ok">Validated</div><p>SOFI local lifecycle and SPY first-tiny paper order preflight path were exercised safely.</p></div>
+    <div class="card"><div class="k">Broker execution</div><div class="v warn">Manual only</div><p>One-shot Alpaca paper network attempt is gated by runtime approval and stop rules.</p></div>
+    <div class="card wide"><div class="k">What is ready</div><ul><li>Paper trade readiness report and lifecycle dashboards.</li><li>Order ticket sizing, simulated fill, and position state stores.</li><li>First tiny order approval, final submit unlock preview, dry-run shell, wrapper envelope, and executor shell.</li><li>Runtime environment preflight confirms paper URL, route, API key, and secret presence when env mapping is loaded.</li><li>Final runbook can produce the exact one-shot manual paper broker attempt sequence.</li></ul></div>
+    <div class="card"><div class="k">Safety state</div><ul><li>Order submitted: false</li><li>Broker contact attempted: false</li><li>Live trading: disabled</li><li>Auto trading: disabled</li><li>Account mutation: disabled</li></ul></div>
+    <div class="card full"><div class="k">Diagnostics</div><div class="links"><a href="/diagnostics/paper-trade-readiness-report">Paper trade readiness report</a><a href="/diagnostics/paper-trading-final-go-no-go">Final paper go/no-go</a><a href="/diagnostics/first-real-paper-order-test-gate">First real paper order gate</a><a href="/diagnostics/paper-broker-adapter-approval-lock">Broker adapter approval lock</a><a href="/diagnostics/paper-trade-intent-creation-store">Intent store</a><a href="/diagnostics/paper-trade-order-ticket-store">Order ticket store</a><a href="/diagnostics/paper-trade-fill-simulation-store">Fill simulation store</a><a href="/diagnostics/paper-trade-position-state-store">Position state store</a></div></div>
+  </section>
+  <footer><strong>GeminiScanner</strong><br>Operator-controlled. Paper-only readiness staged. No automatic execution.</footer>
 </main>
 </body>
-</html>`)
+</html>`);
 });
-
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
