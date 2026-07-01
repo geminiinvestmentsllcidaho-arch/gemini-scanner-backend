@@ -220,6 +220,29 @@ app.get('/diagnostics/paper-position-readonly-dashboard-panel', async (_req, res
 });
 
 
+
+app.get('/diagnostics/paper-position-pnl-readonly-baseline', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_position_pnl_readonly_baseline_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperPositionPnlReadOnlyBaselinePanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper position pnl readonly baseline failed' });
+  }
+});
+
+app.get('/diagnostics/paper-position-pnl-readonly-baseline-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_position_pnl_readonly_baseline_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperPositionPnlReadOnlyBaselinePanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperPositionPnlReadOnlyBaselinePanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper position pnl readonly baseline panel failed');
+  }
+});
+
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
