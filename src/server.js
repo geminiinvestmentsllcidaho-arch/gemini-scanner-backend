@@ -1316,14 +1316,6 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-journal-
 
 
 app.get("/diagnostics/market-closed-scanner-snapshot", (_req, res) => {
-  res.json(buildMarketClosedSnapshotDiagnostics());
-});
-
-app.get("/diagnostics/market-closed-scanner-snapshot-panel", (_req, res) => {
-  res.json(buildMarketClosedSnapshotPanel());
-});
-
-app.get("/diagnostics/market-closed-scanner-snapshot", (_req, res) => {
   try {
     const result = buildMarketClosedSnapshotDiagnostics({ skipScriptCheck: true });
     return res.json(result);
