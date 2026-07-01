@@ -463,6 +463,28 @@ app.get('/diagnostics/paper-lifecycle-operator-handoff-readonly-panel', async (r
   }
 });
 
+
+app.get('/diagnostics/paper-lifecycle-operator-handoff-packet-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle operator handoff packet readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-operator-handoff-packet-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperLifecycleOperatorHandoffPacketReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator handoff packet readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
