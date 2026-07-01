@@ -265,6 +265,28 @@ app.get('/diagnostics/paper-lifecycle-readonly-dashboard-panel', async (req, res
   }
 });
 
+
+app.get('/diagnostics/paper-lifecycle-operator-summary-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_summary_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleOperatorSummaryReadOnlyPanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle operator summary readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-operator-summary-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_summary_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorSummaryReadOnlyPanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperLifecycleOperatorSummaryReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator summary readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
