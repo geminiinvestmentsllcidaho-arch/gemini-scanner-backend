@@ -419,6 +419,28 @@ app.get('/diagnostics/paper-lifecycle-evidence-bundle-readonly-panel', async (re
   }
 });
 
+
+app.get('/diagnostics/paper-lifecycle-completion-seal-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_completion_seal_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleCompletionSealReadOnlyPanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle completion seal readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-completion-seal-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_completion_seal_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleCompletionSealReadOnlyPanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperLifecycleCompletionSealReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle completion seal readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
