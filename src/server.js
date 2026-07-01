@@ -69,6 +69,7 @@ import { getFirstRealPaperOrderTestGateDiagnostics } from './scanner/first_real_
 import { getPaperTradingMonitoringDiagnostics } from './scanner/paper_trading_monitoring_kill_switch.mjs';
 import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_conversion_lock.mjs';
 import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } from "./scanner/market_closed_scanner_snapshot_diagnostics.mjs";
+import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanner_snapshot_store.mjs";
 
 dotenv.config();
 
@@ -1334,6 +1335,24 @@ app.get("/diagnostics/market-closed-scanner-snapshot-panel", (_req, res) => {
     return res.status(500).json({ ok: false, error: "market_closed_snapshot_panel_route_error", monitorOnly: true, diagnosticsOnly: true, readyForOrderPlacement: false });
   }
 });
+
+app.post("/diagnostics/market-closed-scanner-snapshot-store/append", (_req, res) => {
+  try {
+    const result = appendMarketClosedSnapshotRecord({}, { skipScriptCheck: true });
+    return res.json(result);
+  } catch (err) {
+    console.error("market-closed-snapshot-store] append route error", err);
+    return res.status(500).json({
+      ok: false,
+      error: "market_closed_snapshot_store_append_route_error",
+      monitorOnly: true,
+      diagnosticsOnly: true,
+      localStoreOnly: true,
+      orderPlacementAllowed: false
+    });
+  }
+});
+
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
