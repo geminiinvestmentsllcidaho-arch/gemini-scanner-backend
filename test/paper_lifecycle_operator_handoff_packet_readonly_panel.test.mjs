@@ -47,6 +47,7 @@ test("paper lifecycle operator handoff packet is read-only and ready", () => {
   assert.equal(report.operatorHandoffPacket.symbol, "SPY");
   assert.equal(report.operatorHandoffPacket.markPrice, "750.19");
   assert.equal(report.operatorHandoffPacket.nextAllowedAction, "review_handoff_only_no_order_placement");
+  assert.equal(report.operatorHandoffPacket.retryAllowed, false);
   assert.equal(report.operatorHandoffPacket.orderPlacementAllowed, false);
   assert.equal(report.operatorHandoffPacket.brokerContactAllowed, false);
   assert.equal(report.operatorHandoffPacket.accountMutationAllowed, false);

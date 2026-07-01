@@ -99,7 +99,7 @@ export function buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel({ runsDir 
       nextAllowedAction: "review_handoff_only_no_order_placement",
       orderPlacementAllowed: false,
       brokerContactAllowed: false,
-      retryAlllowed: false,
+      retryAllowed: false,
       accountMutationAllowed: false,
       safetyLocked: handoff.safetyLocked === true,
       packetSectionCount: packetSections.length,
@@ -116,7 +116,7 @@ export function buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel({ runsDir 
       liveTradingAllowed: false,
       autoTradingAllowed: false,
       orderSubmitAllowed: false,
-      retryAlllowed: false,
+      retryAllowed: false,
       accountMutationAllowed: false
     },
     noRetryGuard: handoffReport.noRetryGuard
