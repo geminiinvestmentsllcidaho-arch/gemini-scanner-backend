@@ -243,6 +243,28 @@ app.get('/diagnostics/paper-position-pnl-readonly-baseline-panel', async (req, r
 });
 
 
+
+app.get('/diagnostics/paper-lifecycle-readonly-dashboard', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_readonly_dashboard_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleReadonlyDashboardPanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle readonly dashboard failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-readonly-dashboard-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_readonly_dashboard_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleReadonlyDashboardPanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperLifecycleReadonlyDashboardPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle readonly dashboard panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
