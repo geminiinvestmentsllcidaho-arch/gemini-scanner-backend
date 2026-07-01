@@ -148,7 +148,8 @@
     "diagnostics:paper-attempt-read-only-order-submission-operator-manifest-panel": "node scripts/paper_attempt_read_only_order_submission_operator_manifest_panel.mjs",
     "diagnostics:paper-attempt-read-only-order-submission-operator-ledger-panel": "node scripts/paper_attempt_read_only_order_submission_operator_ledger_panel.mjs",
     "diagnostics:paper-attempt-read-only-order-submission-operator-journal-panel": "node scripts/paper_attempt_read_only_order_submission_operator_journal_panel.mjs",
-    "snapshot:market-closed-scanner": "node scripts/market_closed_scanner_snapshot.mjs"
+    "snapshot:market-closed-scanner": "node scripts/market_closed_scanner_snapshot.mjs",
+    "diagnostics:market-closed-scanner-snapshot": "node scripts/market_closed_scanner_snapshot_diagnostics.mjs"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^3.1.3",

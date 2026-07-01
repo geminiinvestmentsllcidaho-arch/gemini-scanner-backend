@@ -68,6 +68,7 @@ import { getPaperTradingFinalGoNoGoDiagnostics } from './scanner/paper_trading_f
 import { getFirstRealPaperOrderTestGateDiagnostics } from './scanner/first_real_paper_order_test_gate.mjs';
 import { getPaperTradingMonitoringDiagnostics } from './scanner/paper_trading_monitoring_kill_switch.mjs';
 import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_conversion_lock.mjs';
+import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } from "./scanner/market_closed_scanner_snapshot_diagnostics.mjs";
 
 dotenv.config();
 
@@ -1313,6 +1314,34 @@ app.get("/diagnostics/paper-attempt-read-only-order-submission-operator-journal-
 
 
 
+
+app.get("/diagnostics/market-closed-scanner-snapshot", (_req, res) => {
+  res.json(buildMarketClosedSnapshotDiagnostics());
+});
+
+app.get("/diagnostics/market-closed-scanner-snapshot-panel", (_req, res) => {
+  res.json(buildMarketClosedSnapshotPanel());
+});
+
+app.get("/diagnostics/market-closed-scanner-snapshot", (_req, res) => {
+  try {
+    const result = buildMarketClosedSnapshotDiagnostics({ skipScriptCheck: true });
+    return res.json(result);
+  } catch (err) {
+    console.error("[market-closed-snapshot] diagnostics route error", err);
+    return res.status(500).json({ ok: false, error: "market_closed_snapshot_diagnostics_route_error", monitorOnly: true, diagnosticsOnly: true, orderPlacementAllowed: false });
+  }
+});
+
+app.get("/diagnostics/market-closed-scanner-snapshot-panel", (_req, res) => {
+  try {
+    const result = buildMarketClosedSnapshotPanel({ skipScriptCheck: true });
+    return res.json(result);
+  } catch (err) {
+    console.error("[market-closed-snapshot] panel route error", err);
+    return res.status(500).json({ ok: false, error: "market_closed_snapshot_panel_route_error", monitorOnly: true, diagnosticsOnly: true, readyForOrderPlacement: false });
+  }
+});
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
