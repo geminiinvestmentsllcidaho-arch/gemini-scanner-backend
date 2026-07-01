@@ -353,6 +353,28 @@ app.get('/diagnostics/paper-lifecycle-final-status-readonly-panel', async (req, 
   }
 });
 
+
+app.get('/diagnostics/paper-lifecycle-route-registry-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_route_registry_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperLifecycleRouteRegistryReadOnlyPanel({ runsDir: 'runs', markPrice: mark }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper lifecycle route registry readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-lifecycle-route-registry-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_route_registry_readonly_panel.mjs');
+    const mark = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleRouteRegistryReadOnlyPanel({ runsDir: 'runs', markPrice: mark });
+    res.type('html').send(mod.renderPaperLifecycleRouteRegistryReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle route registry readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
