@@ -199,6 +199,27 @@ app.get('/diagnostics/paper-order-readonly-status-dashboard-panel', async (_req,
   }
 });
 
+
+app.get('/diagnostics/paper-position-readonly-dashboard', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_position_readonly_dashboard_panel.mjs');
+    res.json(mod.buildPaperPositionReadOnlyDashboardPanel({ runsDir: 'runs' }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper position readonly dashboard failed' });
+  }
+});
+
+app.get('/diagnostics/paper-position-readonly-dashboard-panel', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_position_readonly_dashboard_panel.mjs');
+    const report = mod.buildPaperPositionReadOnlyDashboardPanel({ runsDir: 'runs' });
+    res.type('html').send(mod.renderPaperPositionReadOnlyDashboardPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper position readonly dashboard panel failed');
+  }
+});
+
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
