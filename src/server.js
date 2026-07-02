@@ -75,6 +75,7 @@ import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_
 import { buildSnapshotStoreAppScreen, renderSnapshotStoreAppScreenHtml } from "./scanner/snapshot_store_app_screen.mjs";
 import { buildSnapshotHistoryAppScreen, renderSnapshotHistoryAppScreenHtml } from "./scanner/snapshot_history_app_screen.mjs";
 import { buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics, buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./scanner/market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
+import { buildRetentionCleanupAppScreen, renderRetentionCleanupAppScreenHtml } from "./scanner/retention_cleanup_app_screen.mjs";
 import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs";
 import { buildTodaysIntradaySetupsAppCard, renderTodaysIntradaySetupsAppCardHtml } from "./scanner/todays_intraday_setups_app_card.mjs";
 import { buildTodaysIntradaySetupDetailAppCard, renderTodaysIntradaySetupDetailAppCardHtml } from "./scanner/todays_intraday_setup_detail_app_card.mjs";
@@ -1764,6 +1765,27 @@ app.get("/diagnostics/market-closed-scanner-snapshot-store-panel", (req, res) =>
 });
 
 
+
+
+
+app.get("/diagnostics/retention-cleanup-app-screen", (req, res) => {
+  res.json(buildRetentionCleanupAppScreen({
+    limit: req.query?.limit,
+    retentionDays: req.query?.retentionDays,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/retention-cleanup", (req, res) => {
+  const screen = buildRetentionCleanupAppScreen({
+    limit: req.query?.limit,
+    retentionDays: req.query?.retentionDays,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  });
+  res.type("html").send(renderRetentionCleanupAppScreenHtml(screen));
+});
 
 app.get("/diagnostics/market-closed-scanner-snapshot-store-retention-cleanup", (req, res) => {
   res.json(buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics({ limit: req.query?.limit, retentionDays: req.query?.retentionDays }));
