@@ -9,7 +9,7 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   const nav = buildAppNavigationReadonly({ now: new Date("2026-07-02T13:00:00Z") });
   assert.equal(nav.displayState, "GEMINISCANNER_APP_NAVIGATION_READY_READONLY");
   assert.equal(nav.panelType, "main_app_navigation");
-  assert.equal(nav.entryCount, 2);
+  assert.ok(nav.entryCount >= 13);
   assert.equal(nav.readOnly, true);
   assert.equal(nav.noExecutionControls, true);
   assert.equal(nav.orderSubmitAttempted, false);
@@ -45,4 +45,37 @@ test("renders app navigation html", () => {
   assert.match(html, /\/app\/todays-intraday-setups\?session=regular/);
   assert.match(html, /No execution controls/);
   assert.match(html, /Order submitted/);
+});
+
+
+test("app navigation exposes all built website options", () => {
+  const nav = buildAppNavigationReadonly({ now: new Date("2026-07-02T19:30:00Z") });
+  const ids = new Set(nav.entries.map((entry) => entry.id));
+  for (const id of [
+    "todays_intraday_setups",
+    "watchlist_settings",
+    "market_closed_snapshot",
+    "snapshot_history",
+    "snapshot_store_panel",
+    "retention_cleanup_preview",
+    "paper_readiness_gate",
+    "paper_trade_intent_plan",
+    "paper_attempt_control_center",
+    "operator_review_packet",
+    "audit_dashboard",
+    "module_complete_selector",
+    "readonly_operator_summary",
+  ]) {
+    assert.equal(ids.has(id), true, id);
+  }
+
+  for (const entry of nav.entries) {
+    assert.equal(entry.readOnly, true);
+    assert.equal(entry.monitorOnly, true);
+    assert.equal(entry.noExecutionControls, true);
+    assert.equal(entry.orderSubmitAllowed, false);
+    assert.equal(entry.orderPlacementAllowed, false);
+    assert.equal(entry.brokerContactAllowed, false);
+    assert.equal(entry.accountMutationAllowed, false);
+  }
 });
