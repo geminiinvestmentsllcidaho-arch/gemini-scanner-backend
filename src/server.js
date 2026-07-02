@@ -570,6 +570,27 @@ app.get('/diagnostics/paper-trading-module-route-index-readonly-panel', async (r
   }
 });
 
+app.get('/diagnostics/paper-trading-module-final-status-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trading_module_final_status_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperTradingModuleFinalStatusReadOnlyPanel({ runsDir: 'runs', markPrice }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper trading module final status readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-trading-module-final-status-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trading_module_final_status_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperTradingModuleFinalStatusReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperTradingModuleFinalStatusReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper trading module final status readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
