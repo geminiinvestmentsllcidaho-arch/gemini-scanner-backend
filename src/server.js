@@ -549,6 +549,27 @@ app.get('/diagnostics/paper-trading-completion-certificate-readonly-panel', asyn
   }
 });
 
+app.get('/diagnostics/paper-trading-module-route-index-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trading_module_route_index_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    res.json(mod.buildPaperTradingModuleRouteIndexReadOnlyPanel({ runsDir: 'runs', markPrice }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err?.message ?? 'paper trading module route index readonly failed' });
+  }
+});
+
+app.get('/diagnostics/paper-trading-module-route-index-readonly-panel', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trading_module_route_index_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperTradingModuleRouteIndexReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperTradingModuleRouteIndexReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper trading module route index readonly panel failed');
+  }
+});
+
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
