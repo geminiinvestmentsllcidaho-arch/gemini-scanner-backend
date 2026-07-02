@@ -44,6 +44,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "exit_all_control",
+    title: "Exit All / Auto-Buy Pause",
+    subtitle: "Locked emergency exit and auto-buy pause control preview.",
+    description: "Read-only future safety control for stopping automatic buying, planning inventory liquidation, and keeping auto-buy locked until manual resume.",
+    category: "safety_controls",
+    href: "/app/exit-all",
+    diagnosticHref: "/diagnostics/exit-all-control-readonly",
+    routeHref: "/diagnostics/exit-all-control-readonly",
+    displayState: "EXIT_ALL_CONTROL_LOCKED_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "market_closed_snapshot",
     title: "Market Closed Snapshot",
     subtitle: "Closed-market scanner snapshot.",

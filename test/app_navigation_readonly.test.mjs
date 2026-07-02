@@ -9,7 +9,7 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   const nav = buildAppNavigationReadonly({ now: new Date("2026-07-02T13:00:00Z") });
   assert.equal(nav.displayState, "GEMINISCANNER_APP_NAVIGATION_READY_READONLY");
   assert.equal(nav.panelType, "main_app_navigation");
-  assert.ok(nav.entryCount >= 13);
+  assert.ok(nav.entryCount >= 14);
   assert.equal(nav.readOnly, true);
   assert.equal(nav.noExecutionControls, true);
   assert.equal(nav.orderSubmitAttempted, false);
@@ -54,6 +54,7 @@ test("app navigation exposes all built website options", () => {
   for (const id of [
     "todays_intraday_setups",
     "watchlist_settings",
+    "exit_all_control",
     "market_closed_snapshot",
     "snapshot_history",
     "snapshot_store_panel",

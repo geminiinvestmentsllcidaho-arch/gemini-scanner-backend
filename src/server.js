@@ -77,6 +77,7 @@ import { buildTodaysIntradaySetupsAppCard, renderTodaysIntradaySetupsAppCardHtml
 import { buildTodaysIntradaySetupDetailAppCard, renderTodaysIntradaySetupDetailAppCardHtml } from "./scanner/todays_intraday_setup_detail_app_card.mjs";
 import { buildAppNavigationReadonly, renderAppNavigationReadonlyHtml } from "./scanner/app_navigation_readonly.mjs";
 import { buildWatchlistSettingsReadonly, renderWatchlistSettingsReadonlyHtml } from "./scanner/watchlist_settings_readonly.mjs";
+import { buildExitAllControlReadonly, renderExitAllControlReadonlyHtml } from "./scanner/exit_all_control_readonly.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 
 dotenv.config();
@@ -1862,6 +1863,26 @@ app.get("/app/watchlist-settings", (req, res) => {
     now: new Date(),
   });
   res.type("html").send(renderWatchlistSettingsReadonlyHtml(panel));
+});
+
+app.get("/diagnostics/exit-all-control-readonly", (req, res) => {
+  const payload = buildExitAllControlReadonly({
+    now: new Date(),
+    requestedAction: req.query.action,
+    inventorySource: req.query.source,
+    futureAutoModeKnown: req.query.futureAutoModeKnown,
+  });
+  res.json(payload);
+});
+
+app.get("/app/exit-all", (req, res) => {
+  const payload = buildExitAllControlReadonly({
+    now: new Date(),
+    requestedAction: req.query.action,
+    inventorySource: req.query.source,
+    futureAutoModeKnown: req.query.futureAutoModeKnown,
+  });
+  res.type("html").send(renderExitAllControlReadonlyHtml(payload));
 });
 
 app.get("/diagnostics/app-navigation-readonly", (req, res) => {
