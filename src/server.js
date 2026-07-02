@@ -73,6 +73,7 @@ import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanne
 import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_snapshot_store_reader.mjs";
 import { buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics, buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./scanner/market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
 import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs";
+import { buildTodaysIntradaySetupsAppCard, renderTodaysIntradaySetupsAppCardHtml } from "./scanner/todays_intraday_setups_app_card.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 
 dotenv.config();
@@ -1813,6 +1814,14 @@ app.get("/diagnostics/todays-intraday-setups-readonly", (req, res) => {
 
 app.get("/diagnostics/todays-intraday-setups-readonly-panel", (req, res) => {
   res.type("html").send(renderTodaysIntradaySetupsPanel(buildTodaysIntradaySetupsDiagnosticReport(req)));
+});
+
+app.get("/diagnostics/todays-intraday-setups-app-card", (req, res) => {
+  res.json(buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req)));
+});
+
+app.get("/app/todays-intraday-setups", (req, res) => {
+  res.type("html").send(renderTodaysIntradaySetupsAppCardHtml(buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req))));
 });
 
 
