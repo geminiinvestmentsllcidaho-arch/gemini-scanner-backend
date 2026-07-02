@@ -72,6 +72,7 @@ import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } 
 import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanner_snapshot_store.mjs";
 import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_snapshot_store_reader.mjs";
 import { buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics, buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./scanner/market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
+import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs";
 
 dotenv.config();
 
@@ -1728,6 +1729,85 @@ app.get("/diagnostics/market-closed-scanner-snapshot-store-retention-cleanup", (
 app.get("/diagnostics/market-closed-scanner-snapshot-store-retention-cleanup-panel", (req, res) => {
   res.json(buildMarketClosedSnapshotStoreRetentionCleanupPanel({ limit: req.query?.limit, retentionDays: req.query?.retentionDays }));
 });
+
+
+function escapeTodaysIntradaySetupsHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function renderTodaysIntradaySetupsPanel(report) {
+  const setupRows = report.setupUniverse
+    .map((label) => `<li>${escapeTodaysIntradaySetupsHtml(label)}: ${escapeTodaysIntradaySetupsHtml(report.setupCounts?.[label] ?? 0)}</li>`)
+    .join("\n");
+
+  const candidateRows = report.candidates.length
+    ? report.candidates.map((candidate) => {
+        return `<tr><td>${escapeTodaysIntradaySetupsHtml(candidate.symbol)}</td><td>${escapeTodaysIntradaySetupsHtml(candidate.primarySetup)}</td><td>${escapeTodaysIntradaySetupsHtml(candidate.setupLabels.join(", "))}</td><td>${escapeTodaysIntradaySetupsHtml(candidate.reasons.join(", "))}</td></tr>`;
+      }).join("\n")
+    : '<tr><td colspan="4">No intraday candidates available in this diagnostic snapshot.</td></tr>';
+
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Today&apos;s Intraday Setups Read-Only</title></head><body>
+<h1>Today&apos;s Intraday Setups Read-Only</h1>
+<ul>
+<li>Display state: ${escapeTodaysIntradaySetupsHtml(report.displayState)}</li>
+<li>Session: ${escapeTodaysIntradaySetupsHtml(report.session)}</li>
+<li>Trade candidate count: ${escapeTodaysIntradaySetupsHtml(report.tradeCandidateCount)}</li>
+<li>No-trade count: ${escapeTodaysIntradaySetupsHtml(report.noTradeCount)}</li>
+<li>Read only: ${escapeTodaysIntradaySetupsHtml(report.readOnly)}</li>
+<li>Order submitted: ${escapeTodaysIntradaySetupsHtml(report.orderSubmitted)}</li>
+<li>Broker contact attempted: ${escapeTodaysIntradaySetupsHtml(report.brokerContactAttempted)}</li>
+<li>Account mutation attempted: ${escapeTodaysIntradaySetupsHtml(report.accountMutationAttempted)}</li>
+</ul>
+<h2>Setup Counts</h2>
+<ul>
+${setupRows}
+</ul>
+<h2>Candidates</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<thead><tr><th>Symbol</th><th>Primary setup</th><th>Labels</th><th>Reasons</th></tr></thead>
+<tbody>
+${candidateRows}
+</tbody>
+</table>
+</body></html>`;
+}
+
+function buildTodaysIntradaySetupsDiagnosticReport(req) {
+  const requestedSession = typeof req.query?.session === "string" ? req.query.session : "unknown";
+  const rankingRoot = readScannerRankings();
+  const rankings = Array.isArray(rankingRoot?.rankings) ? rankingRoot.rankings : [];
+  const session = typeof rankingRoot?.session === "string" ? rankingRoot.session : requestedSession;
+
+  const report = buildTodaysIntradaySetups({
+    rankings,
+    session,
+    now: new Date()
+  });
+
+  return {
+    ...report,
+    source: "scanner_rankings",
+    scannerHealth: rankingRoot?.scannerHealth ?? null,
+    rankingConfidence: rankingRoot?.rankingConfidence ?? null,
+    rankingCount: rankings.length,
+    sourceTs: rankingRoot?.sourceTs ?? rankingRoot?.ts ?? null,
+    sourceAgeSec: rankingRoot?.sourceAgeSec ?? null,
+    sourceStale: rankingRoot?.stale ?? null
+  };
+}
+
+app.get("/diagnostics/todays-intraday-setups-readonly", (req, res) => {
+  res.json(buildTodaysIntradaySetupsDiagnosticReport(req));
+});
+
+app.get("/diagnostics/todays-intraday-setups-readonly-panel", (req, res) => {
+  res.type("html").send(renderTodaysIntradaySetupsPanel(buildTodaysIntradaySetupsDiagnosticReport(req)));
+});
+
 
 app.listen(PORT, HOST, async () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
