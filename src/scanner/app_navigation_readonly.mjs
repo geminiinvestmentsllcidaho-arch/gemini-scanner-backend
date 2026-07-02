@@ -31,6 +31,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     displayState: "TODAYS_INTRADAY_SETUPS_APP_CARD_READY_READONLY",
     refreshFriendly: true,
   }),
+  Object.freeze({
+    id: "watchlist_settings",
+    title: "Watchlist & Settings",
+    subtitle: "Symbol universe, session, and refresh controls.",
+    description: "Read-only compact settings panel for scanner app display preferences.",
+    category: "settings",
+    href: "/app/watchlist-settings",
+    diagnosticHref: "/diagnostics/watchlist-settings-readonly",
+    routeHref: "/diagnostics/watchlist-settings-readonly",
+    displayState: "WATCHLIST_SETTINGS_READY_READONLY",
+    refreshFriendly: true,
+  }),
 ]);
 
 export function buildAppNavigationReadonly(options = {}) {

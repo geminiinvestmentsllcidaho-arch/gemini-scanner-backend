@@ -76,6 +76,7 @@ import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs"
 import { buildTodaysIntradaySetupsAppCard, renderTodaysIntradaySetupsAppCardHtml } from "./scanner/todays_intraday_setups_app_card.mjs";
 import { buildTodaysIntradaySetupDetailAppCard, renderTodaysIntradaySetupDetailAppCardHtml } from "./scanner/todays_intraday_setup_detail_app_card.mjs";
 import { buildAppNavigationReadonly, renderAppNavigationReadonlyHtml } from "./scanner/app_navigation_readonly.mjs";
+import { buildWatchlistSettingsReadonly, renderWatchlistSettingsReadonlyHtml } from "./scanner/watchlist_settings_readonly.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 
 dotenv.config();
@@ -1842,6 +1843,26 @@ app.get("/app/todays-intraday-setups/:symbol", (req, res) => {
 });
 
 
+
+
+app.get("/diagnostics/watchlist-settings-readonly", (req, res) => {
+  res.json(buildWatchlistSettingsReadonly({
+    symbols: req.query.symbols ?? process.env.ALPACA_SYMBOLS,
+    session: req.query.session ?? "regular",
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/watchlist-settings", (req, res) => {
+  const panel = buildWatchlistSettingsReadonly({
+    symbols: req.query.symbols ?? process.env.ALPACA_SYMBOLS,
+    session: req.query.session ?? "regular",
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+    now: new Date(),
+  });
+  res.type("html").send(renderWatchlistSettingsReadonlyHtml(panel));
+});
 
 app.get("/diagnostics/app-navigation-readonly", (req, res) => {
   res.json(buildAppNavigationReadonly({ now: new Date() }));

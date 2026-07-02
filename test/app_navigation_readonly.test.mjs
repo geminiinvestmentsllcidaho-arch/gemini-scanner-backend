@@ -9,7 +9,7 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   const nav = buildAppNavigationReadonly({ now: new Date("2026-07-02T13:00:00Z") });
   assert.equal(nav.displayState, "GEMINISCANNER_APP_NAVIGATION_READY_READONLY");
   assert.equal(nav.panelType, "main_app_navigation");
-  assert.equal(nav.entryCount, 1);
+  assert.equal(nav.entryCount, 2);
   assert.equal(nav.readOnly, true);
   assert.equal(nav.noExecutionControls, true);
   assert.equal(nav.orderSubmitAttempted, false);
@@ -25,6 +25,16 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   assert.equal(entry.orderPlacementAllowed, false);
   assert.equal(entry.brokerContactAllowed, false);
   assert.equal(entry.accountMutationAllowed, false);
+
+  const settingsEntry = nav.entries.find((item) => item.id === "watchlist_settings");
+  assert.ok(settingsEntry);
+  assert.equal(settingsEntry.title, "Watchlist & Settings");
+  assert.equal(settingsEntry.href, "/app/watchlist-settings");
+  assert.equal(settingsEntry.diagnosticHref, "/diagnostics/watchlist-settings-readonly");
+  assert.equal(settingsEntry.routeHref, "/diagnostics/watchlist-settings-readonly");
+  assert.equal(settingsEntry.displayState, "WATCHLIST_SETTINGS_READY_READONLY");
+  assert.equal(settingsEntry.readOnly, true);
+  assert.equal(settingsEntry.orderPlacementAllowed, false);
 });
 
 test("renders app navigation html", () => {
