@@ -69,6 +69,7 @@ import { getFirstRealPaperOrderTestGateDiagnostics } from './scanner/first_real_
 import { getPaperTradingMonitoringDiagnostics } from './scanner/paper_trading_monitoring_kill_switch.mjs';
 import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_conversion_lock.mjs';
 import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } from "./scanner/market_closed_scanner_snapshot_diagnostics.mjs";
+import { buildMarketClosedSnapshotAppScreen, renderMarketClosedSnapshotAppScreenHtml } from "./scanner/market_closed_snapshot_app_screen.mjs";
 import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanner_snapshot_store.mjs";
 import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_snapshot_store_reader.mjs";
 import { buildSnapshotHistoryAppScreen, renderSnapshotHistoryAppScreenHtml } from "./scanner/snapshot_history_app_screen.mjs";
@@ -1687,6 +1688,22 @@ app.get("/diagnostics/market-closed-scanner-snapshot-panel", (_req, res) => {
     console.error("[market-closed-snapshot] panel route error", err);
     return res.status(500).json({ ok: false, error: "market_closed_snapshot_panel_route_error", monitorOnly: true, diagnosticsOnly: true, readyForOrderPlacement: false });
   }
+});
+
+
+app.get("/diagnostics/market-closed-snapshot-app-screen", (req, res) => {
+  res.json(buildMarketClosedSnapshotAppScreen({
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/market-closed-snapshot", (req, res) => {
+  const screen = buildMarketClosedSnapshotAppScreen({
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
+    now: new Date(),
+  });
+  res.type("html").send(renderMarketClosedSnapshotAppScreenHtml(screen));
 });
 
 app.post("/diagnostics/market-closed-scanner-snapshot-store/append", (_req, res) => {
