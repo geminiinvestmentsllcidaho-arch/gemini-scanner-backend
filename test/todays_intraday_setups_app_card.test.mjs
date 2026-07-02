@@ -43,3 +43,24 @@ test("renders mobile app card html", () => {
   assert.match(html, /No execution controls/);
   assert.match(html, /Order submitted/);
 });
+
+
+test("renders candidate detail links", () => {
+  const card = buildTodaysIntradaySetupsAppCard({
+    candidates: [{
+      symbol: "AAPL",
+      primarySetup: "OPENING_RANGE_BREAKOUT",
+      setupLabels: ["OPENING_RANGE_BREAKOUT"],
+      reasons: ["opening_range_high_break"],
+      inputs: { confidence: 0.81 }
+    }],
+    rankingCount: 1
+  });
+
+  const html = renderTodaysIntradaySetupsAppCardHtml(card);
+
+  assert.equal(card.candidates[0].detailHref, "/app/todays-intraday-setups/AAPL?session=regular");
+  assert.match(html, /href="\/app\/todays-intraday-setups\/AAPL\?session=regular"/);
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+});

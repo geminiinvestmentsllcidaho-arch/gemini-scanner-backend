@@ -87,6 +87,7 @@ export function buildTodaysIntradaySetupsAppCard(report = {}, options = {}) {
     const primarySetup = candidate?.primarySetup ?? "NO_TRADE";
     return {
       symbol: candidate?.symbol ?? null,
+      detailHref: candidate?.symbol ? `/app/todays-intraday-setups/${encodeURIComponent(String(candidate.symbol).toUpperCase())}?session=regular` : null,
       status: primarySetup === "NO_TRADE" ? "NO_TRADE_READONLY" : "SETUP_CANDIDATE_READONLY",
       primarySetup,
       primarySetupText: human(primarySetup),
@@ -164,8 +165,10 @@ function renderCandidate(candidate) {
   const chips = candidate.setupLabelText.map((label) => `<span class="chip">${esc(label)}</span>`).join("");
   const reasons = candidate.reasonText.map((reason) => `<li>${esc(reason)}</li>`).join("");
   const i = candidate.inputs;
+  const symbolText = esc(candidate.symbol);
+  const symbolHtml = candidate.detailHref ? `<a href="${esc(candidate.detailHref)}">${symbolText}</a>` : symbolText;
   return `<article class="candidate">
-<h2>${esc(candidate.symbol)} <small>${esc(candidate.status)}</small></h2>
+<h2>${symbolHtml} <small>${esc(candidate.status)}</small></h2>
 <h3>${esc(candidate.primarySetupText)}</h3>
 <div>${chips}</div>
 <ul>${reasons}</ul>

@@ -74,6 +74,7 @@ import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_
 import { buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics, buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./scanner/market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
 import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs";
 import { buildTodaysIntradaySetupsAppCard, renderTodaysIntradaySetupsAppCardHtml } from "./scanner/todays_intraday_setups_app_card.mjs";
+import { buildTodaysIntradaySetupDetailAppCard, renderTodaysIntradaySetupDetailAppCardHtml } from "./scanner/todays_intraday_setup_detail_app_card.mjs";
 import { buildAppNavigationReadonly, renderAppNavigationReadonlyHtml } from "./scanner/app_navigation_readonly.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 
@@ -1821,8 +1822,23 @@ app.get("/diagnostics/todays-intraday-setups-app-card", (req, res) => {
   res.json(buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req)));
 });
 
+app.get("/diagnostics/todays-intraday-setup-detail", (req, res) => {
+  const card = buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req));
+  res.json(buildTodaysIntradaySetupDetailAppCard(card, {
+    symbol: req.query.symbol ?? req.query.ticker ?? ""
+  }));
+});
+
 app.get("/app/todays-intraday-setups", (req, res) => {
   res.type("html").send(renderTodaysIntradaySetupsAppCardHtml(buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req))));
+});
+
+app.get("/app/todays-intraday-setups/:symbol", (req, res) => {
+  const card = buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req));
+  const detail = buildTodaysIntradaySetupDetailAppCard(card, {
+    symbol: req.params.symbol ?? "",
+  });
+  res.type("html").send(renderTodaysIntradaySetupDetailAppCardHtml(detail));
 });
 
 
