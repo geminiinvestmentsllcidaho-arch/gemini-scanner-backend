@@ -57,6 +57,15 @@ function esc(value) {
     .replaceAll("'", "&#39;");
 }
 
+function refreshIntervalSec(source = {}) {
+  const n = Number(source?.refreshIntervalSec);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 30;
+}
+
+function generatedAt(options = {}) {
+  return options.now instanceof Date ? options.now.toISOString() : new Date().toISOString();
+}
+
 function inputSummary(inputs = {}) {
   return {
     lastPrice: round(inputs.lastPrice),
@@ -73,7 +82,7 @@ function inputSummary(inputs = {}) {
   };
 }
 
-export function buildTodaysIntradaySetupsAppCard(report = {}) {
+export function buildTodaysIntradaySetupsAppCard(report = {}, options = {}) {
   const candidates = list(report.candidates).map((candidate) => {
     const primarySetup = candidate?.primarySetup ?? "NO_TRADE";
     return {
@@ -105,6 +114,8 @@ export function buildTodaysIntradaySetupsAppCard(report = {}) {
   const headline = firstTrade
     ? `${firstTrade.symbol}: ${firstTrade.primarySetupText}`
     : "No supported intraday setup confirmed";
+  const refreshSec = refreshIntervalSec(report);
+  const cardGeneratedAt = generatedAt(options);
 
   return {
     ok: true,
@@ -112,6 +123,12 @@ export function buildTodaysIntradaySetupsAppCard(report = {}) {
     panelType: "mobile_app_card",
     title: "Today's Intraday Setups",
     displayState: "TODAYS_INTRADAY_SETUPS_APP_CARD_READY_READONLY",
+    generatedAt: cardGeneratedAt,
+    lastUpdatedAt: cardGeneratedAt,
+    sourceUpdatedAt: report?.sourceTs ?? report?.ts ?? report?.generatedAt ?? null,
+    autoRefreshEnabled: report?.autoRefreshEnabled !== false,
+    refreshIntervalSec: refreshSec,
+    refreshHint: "Refresh this read-only card to update scanner rankings and live snapshot bars.",
     sourceDisplayState: report?.displayState ?? null,
     headline,
     source: report?.source ?? null,

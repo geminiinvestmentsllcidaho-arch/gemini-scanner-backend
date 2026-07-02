@@ -4,6 +4,11 @@ function list(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function refreshIntervalSec(source = {}) {
+  const n = Number(source?.refreshIntervalSec);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 30;
+}
+
 function esc(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -29,6 +34,8 @@ const DEFAULT_ENTRIES = Object.freeze([
 ]);
 
 export function buildAppNavigationReadonly(options = {}) {
+  const navGeneratedAt = options.now instanceof Date ? options.now.toISOString() : new Date().toISOString();
+  const navRefreshSec = refreshIntervalSec(options);
   const entries = (list(options.entries).length ? list(options.entries) : DEFAULT_ENTRIES)
     .filter(Boolean)
     .map((entry) => ({
@@ -63,6 +70,11 @@ export function buildAppNavigationReadonly(options = {}) {
     monitorOnly: true,
     diagnosticsOnly: true,
     noExecutionControls: true,
+    generatedAt: navGeneratedAt,
+    lastUpdatedAt: navGeneratedAt,
+    autoRefreshEnabled: options.autoRefreshEnabled !== false,
+    refreshIntervalSec: navRefreshSec,
+    refreshHint: "Refresh this read-only navigation to discover the latest available app views.",
     orderSubmitAttempted: false,
     orderSubmitted: false,
     brokerContactAttempted: false,
@@ -70,7 +82,7 @@ export function buildAppNavigationReadonly(options = {}) {
     liveTradingAllowed: false,
     autoTradingAllowed: false,
     accountMutationAllowed: false,
-    generatedAt: options.now instanceof Date ? options.now.toISOString() : new Date().toISOString(),
+
   };
 }
 
@@ -94,7 +106,7 @@ export function renderAppNavigationReadonlyHtml(nav = {}) {
 <style>
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
-<section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p></section>
+<section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSeg)}s</p></section>
 ${entries}
 <section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
 </main></body></html>`;
