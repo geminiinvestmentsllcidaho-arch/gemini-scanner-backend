@@ -177,6 +177,23 @@ function renderCandidate(candidate) {
 </article>`;
 }
 
+
+function renderReadOnlyAutoRefreshScript(source = {}) {
+  if (source?.autoRefreshEnabled !== true) return "";
+  const seconds = Number(source?.refreshIntervalSec);
+  const intervalSec = Number.isFinite(seconds) && seconds > 0 ? Math.max(5, Math.round(seconds)) : 30;
+  const delayMs = intervalSec * 1000;
+  return `<script data-readonly-auto-refresh="true">
+(() => {
+  const delayMs = ${JSON.stringify(delayMs)};
+  if (!Number.isFinite(delayMs) || delayMs <= 0) return;
+  window.setTimeout(() => {
+    window.location.reload();
+  }, delayMs);
+})();
+</script>`;
+}
+
 export function renderTodaysIntradaySetupsAppCardHtml(card = {}) {
   const chips = list(card.setupChips).map((chip) => `<span class="chip">${esc(chip.text)}: ${esc(chip.count)}</span>`).join("");
   const candidates = list(card.candidates).map(renderCandidate).join("") || "<p>No candidates.</p>";
@@ -185,9 +202,10 @@ export function renderTodaysIntradaySetupsAppCardHtml(card = {}) {
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.card,.candidate{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.chip{display:inline-block;background:#eee;border-radius:999px;padding:7px 10px;margin:4px;font-size:12px}.candidate h2{margin:0}.candidate h3{margin:4px 0 8px;color:#444}table{width:100%;border-collapse:collapse}td{padding:7px;border-bottom:1px solid #eee}small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(card.title)}</h1><p>${esc(card.headline)}</p><p>${esc(card.displayState)}</p></section>
-<section class="card"><b>Source:</b> ${esc(card.source)} | <b>Features:</b> ${esc(card.intradayFeatureSource)}<br><b>Rankings:</b> ${esc(card.rankingCount)} | <b>Setup candidates:</b> ${esc(card.tradeCandidateCount)} | <b>No trade:</b> ${esc(card.noTradeCount)}</section>
+<section class="card"><b>Last updated:</b> ${esc(card.lastUpdatedAt)} | Refresh: ${esc(card.refreshIntervalSec ?? 30)}s<br><b>Source:</b> ${esc(card.source)} | <b>Features: </b> ${esc(card.intradayFeatureSource)}<br><b>Rankings:</b> ${esc(card.rankingCount)} | <b>Setup candidates:</b> ${esc(card.tradeCandidateCount)} | <b>No trade:</b> ${esc(card.noTradeCount)}</section>
 <section class="card">${chips}</section>
 ${candidates}
 <section class="card"><b>No execution controls:</b> ${esc(card.noExecutionControls)}<br><b>Order submitted:</b> ${esc(card.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(card.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(card.accountMutationAttempted)}</section>
+${renderReadOnlyAutoRefreshScript(card)}
 </main></body></html>`;
 }

@@ -100,14 +100,32 @@ function renderEntry(entry) {
 </article>`;
 }
 
+
+function renderReadOnlyAutoRefreshScript(source = {}) {
+  if (source?.autoRefreshEnabled !== true) return "";
+  const seconds = Number(source?.refreshIntervalSec);
+  const intervalSec = Number.isFinite(seconds) && seconds > 0 ? Math.max(5, Math.round(seconds)) : 30;
+  const delayMs = intervalSec * 1000;
+  return `<script data-readonly-auto-refresh="true">
+(() => {
+  const delayMs = ${JSON.stringify(delayMs)};
+  if (!Number.isFinite(delayMs) || delayMs <= 0) return;
+  window.setTimeout(() => {
+    window.location.reload();
+  }, delayMs);
+})();
+</script>`;
+}
+
 export function renderAppNavigationReadonlyHtml(nav = {}) {
   const entries = list(nav.entries).map(renderEntry).join("") || "<p>No app entries registered.</p>";
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
 <style>
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
-<section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSeg)}s</p></section>
+<section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</p></section>
 ${entries}
 <section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
+${renderReadOnlyAutoRefreshScript(nav)}
 </main></body></html>`;
 }
