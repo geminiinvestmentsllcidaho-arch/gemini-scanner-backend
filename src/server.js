@@ -71,6 +71,7 @@ import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_
 import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } from "./scanner/market_closed_scanner_snapshot_diagnostics.mjs";
 import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanner_snapshot_store.mjs";
 import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_snapshot_store_reader.mjs";
+import { buildSnapshotHistoryAppScreen, renderSnapshotHistoryAppScreenHtml } from "./scanner/snapshot_history_app_screen.mjs";
 import { buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics, buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./scanner/market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
 import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs";
 import { buildTodaysIntradaySetupsAppCard, renderTodaysIntradaySetupsAppCardHtml } from "./scanner/todays_intraday_setups_app_card.mjs";
@@ -1863,6 +1864,24 @@ app.get("/app/watchlist-settings", (req, res) => {
     now: new Date(),
   });
   res.type("html").send(renderWatchlistSettingsReadonlyHtml(panel));
+});
+
+
+app.get("/diagnostics/snapshot-history-app-screen", (req, res) => {
+  res.json(buildSnapshotHistoryAppScreen({
+    limit: req.query.limit,
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/snapshot-history", (req, res) => {
+  const screen = buildSnapshotHistoryAppScreen({
+    limit: req.query.limit,
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
+    now: new Date(),
+  });
+  res.type("html").send(renderSnapshotHistoryAppScreenHtml(screen));
 });
 
 app.get("/diagnostics/exit-all-control-readonly", (req, res) => {
