@@ -73,6 +73,7 @@ import { appendMarketClosedSnapshotRecord } from "./scanner/market_closed_scanne
 import { getStoreHistory, getStorePanel } from "./scanner/market_closed_scanner_snapshot_store_reader.mjs";
 import { buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics, buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./scanner/market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
 import { buildTodaysIntradaySetups } from "./scanner/todays_intraday_setups.mjs";
+import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 
 dotenv.config();
 
@@ -1780,10 +1781,15 @@ function buildTodaysIntradaySetupsDiagnosticReport(req) {
   const requestedSession = typeof req.query?.session === "string" ? req.query.session : "unknown";
   const rankingRoot = readScannerRankings();
   const rankings = Array.isArray(rankingRoot?.rankings) ? rankingRoot.rankings : [];
+  const enrichedRankings = rankings.map((ranking) => {
+    const symbol = String(ranking?.symbol ?? "").toUpperCase();
+    const snapshot = symbol ? buildLiveSnapshot(symbol, { symbol }) : {};
+    return enrichScannerRankingWithIntradayFeatures(ranking, snapshot);
+  });
   const session = typeof rankingRoot?.session === "string" ? rankingRoot.session : requestedSession;
 
   const report = buildTodaysIntradaySetups({
-    rankings,
+    rankings: enrichedRankings,
     session,
     now: new Date()
   });
@@ -1791,6 +1797,7 @@ function buildTodaysIntradaySetupsDiagnosticReport(req) {
   return {
     ...report,
     source: "scanner_rankings",
+    intradayFeatureSource: "live_snapshot_bars",
     scannerHealth: rankingRoot?.scannerHealth ?? null,
     rankingConfidence: rankingRoot?.rankingConfidence ?? null,
     rankingCount: rankings.length,
