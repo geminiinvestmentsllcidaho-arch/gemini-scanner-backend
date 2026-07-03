@@ -1,5 +1,6 @@
 import { buildPaperAttemptOperatorReviewPacketPanel, renderPaperAttemptOperatorReviewPacketPanelHtml } from "./scanner/paper_attempt_operator_review_packet_panel.mjs";
 import { buildPaperAttemptControlCenterPanel, buildPaperAttemptControlCenterPanelHtml } from "./scanner/paper_attempt_control_center_panel.mjs";
+import { buildPaperAttemptControlCenterAppScreen, renderPaperAttemptControlCenterAppScreenHtml } from "./scanner/paper_attempt_control_center_app_screen.mjs";
 import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
 import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
 import { buildPaperTradeIntentPlanAppScreen, renderPaperTradeIntentPlanAppScreenHtml } from "./scanner/paper_trade_intent_plan_app_screen.mjs";
@@ -1113,6 +1114,24 @@ app.get('/diagnostics/real-trading-conversion-lock', (req, res) => {
 
 
 
+
+
+app.get("/diagnostics/paper-attempt-control-center-app-screen", (req, res) => {
+  res.json(buildPaperAttemptControlCenterAppScreen({
+    limit: req.query?.limit,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/paper-attempt-control-center", (req, res) => {
+  const screen = buildPaperAttemptControlCenterAppScreen({
+    limit: req.query?.limit,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  });
+  res.type("html").send(renderPaperAttemptControlCenterAppScreenHtml(screen));
+});
 
 app.get("/diagnostics/paper-attempt-control-center-panel", (_req, res) => {
   res.json(buildPaperAttemptControlCenterPanel());
