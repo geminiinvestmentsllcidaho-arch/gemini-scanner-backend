@@ -1061,6 +1061,18 @@ app.get('/diagnostics/operator-approval-dashboard-panel', (req, res) => {
     });
   }
 });
+app.get('/app/operator-approval-workflow', async (req, res) => {
+  try {
+    const workflowMod = await import('./scanner/operator_approval_workflow.mjs');
+    const appMod = await import('./scanner/operator_approval_workflow_app_screen.mjs');
+    const workflow = await workflowMod.loadOperatorApprovalWorkflow();
+    const screen = appMod.buildOperatorApprovalWorkflowAppScreen({ workflow });
+    res.type('html').send(appMod.renderOperatorApprovalWorkflowAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'operator approval workflow app screen failed');
+  }
+});
+
 app.get('/diagnostics/operator-approval-workflow', async (req, res) => {
   try {
     const { loadOperatorApprovalWorkflow } = await import('./scanner/operator_approval_workflow.mjs')

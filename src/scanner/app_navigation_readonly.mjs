@@ -140,6 +140,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "operator_approval_workflow",
+    title: "Operator Approval Workflow",
+    subtitle: "Read-only operator approval workflow.",
+    description: "Operator approval workflow app screen with monitor-only safety locks and no execution controls.",
+    category: "operator_workflow",
+    href: "/app/operator-approval-workflow",
+    diagnosticHref: "/diagnostics/operator-approval-workflow",
+    routeHref: "/app/operator-approval-workflow",
+    displayState: "OPERATOR_APPROVAL_WORKFLOW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_attempt_control_center",
     title: "Paper Attempt Control Center",
     subtitle: "Main paper-attempt safety center.",
