@@ -1141,9 +1141,9 @@ app.get("/diagnostics/paper-attempt-control-center-panel", (_req, res) => {
 });
 
 
-app.get("/diagnostics/paper-attempt-control-center-panel.html", (_req, res) => {
-  res.setHeader("content-type", "text/html; charset=utf-8");
-  res.send(buildPaperAttemptControlCenterPanelHtml());
+app.get("/diagnostics/paper-attempt-control-center-panel.html", (req, res) => {
+  const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  res.redirect(302, `/app/paper-attempt-control-center${query}`);
 });
 
 
