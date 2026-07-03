@@ -1,5 +1,6 @@
 import { buildPaperAttemptOperatorReviewPacketPanel, renderPaperAttemptOperatorReviewPacketPanelHtml } from "./scanner/paper_attempt_operator_review_packet_panel.mjs";
 import { buildPaperAttemptOperatorReviewPacketAppScreen, renderPaperAttemptOperatorReviewPacketAppScreenHtml } from "./scanner/paper_attempt_operator_review_packet_app_screen.mjs";
+import { buildPaperAttemptOperatorReviewPacketAuditDashboardAppScreen, renderPaperAttemptOperatorReviewPacketAuditDashboardAppScreenHtml } from "./scanner/paper_attempt_operator_review_packet_audit_dashboard_app_screen.mjs";
 import { buildPaperAttemptControlCenterPanel, buildPaperAttemptControlCenterPanelHtml } from "./scanner/paper_attempt_control_center_panel.mjs";
 import { buildPaperAttemptControlCenterAppScreen, renderPaperAttemptControlCenterAppScreenHtml } from "./scanner/paper_attempt_control_center_app_screen.mjs";
 import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
@@ -1231,6 +1232,22 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-audit-panel-view", as
 });
 
 
+
+
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-app-screen", (req, res) => {
+  res.json(buildPaperAttemptOperatorReviewPacketAuditDashboardAppScreen({
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date()
+  }));
+});
+
+app.get("/app/audit-dashboard", (req, res) => {
+  const screen = buildPaperAttemptOperatorReviewPacketAuditDashboardAppScreen({
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date()
+  });
+  res.type("html").send(renderPaperAttemptOperatorReviewPacketAuditDashboardAppScreenHtml(screen));
+});
 
 app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard", async (req, res) => {
   try {
