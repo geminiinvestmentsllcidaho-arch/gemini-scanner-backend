@@ -31,7 +31,7 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   assert.equal(settingsEntry.title, "Watchlist & Settings");
   assert.equal(settingsEntry.href, "/app/watchlist-settings");
   assert.equal(settingsEntry.diagnosticHref, "/diagnostics/watchlist-settings-readonly");
-  assert.equal(settingsEntry.routeHref, "/diagnostics/watchlist-settings-readonly");
+  assert.equal(settingsEntry.routeHref, "/app/watchlist-settings");
   assert.equal(settingsEntry.displayState, "WATCHLIST_SETTINGS_READY_READONLY");
   assert.equal(settingsEntry.readOnly, true);
   assert.equal(settingsEntry.orderPlacementAllowed, false);

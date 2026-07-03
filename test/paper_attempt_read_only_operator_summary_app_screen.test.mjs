@@ -93,5 +93,5 @@ test("app navigation points operator summary to app screen routes", () => {
   assert.ok(entry);
   assert.equal(entry.href, "/app/readonly-operator-summary");
   assert.equal(entry.diagnosticHref, "/diagnostics/paper-attempt-read-only-operator-summary-app-screen");
-  assert.equal(entry.routeHref, "/diagnostics/paper-attempt-read-only-operator-summary-app-screen");
+  assert.equal(entry.routeHref, "/app/readonly-operator-summary");
 });
