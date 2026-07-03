@@ -415,6 +415,106 @@ app.get('/app/paper-lifecycle-route-registry', async (req, res) => {
   }
 });
 
+app.get('/app/paper-lifecycle-evidence-index', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_evidence_index_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleEvidenceIndexReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleEvidenceIndexReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle evidence index app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-evidence-bundle', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_evidence_bundle_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleEvidenceBundleReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleEvidenceBundleReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle evidence bundle app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-completion-seal', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_completion_seal_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleCompletionSealReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleCompletionSealReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle completion seal app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-operator-review-checklist', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_review_checklist_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorReviewChecklistReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorReviewChecklistReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator review checklist app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-operator-review-packet', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_review_packet_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorReviewPacketReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorReviewPacketReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator review packet app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-operator-handoff', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorHandoffReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorHandoffReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator handoff app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-operator-handoff-packet', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorHandoffPacketReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator handoff packet app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-operator-handoff-packet-digest', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_digest_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorHandoffPacketDigestReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorHandoffPacketDigestReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator handoff packet digest app screen failed');
+  }
+});
+
+app.get('/app/paper-lifecycle-operator-handoff-packet-digest-seal', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_handoff_packet_digest_seal_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator handoff packet digest seal app screen failed');
+  }
+});
+
+
 app.get('/diagnostics/paper-lifecycle-route-registry-readonly', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_lifecycle_route_registry_readonly_panel.mjs');
