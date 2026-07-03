@@ -2,6 +2,7 @@ import { buildPaperAttemptOperatorReviewPacketPanel, renderPaperAttemptOperatorR
 import { buildPaperAttemptControlCenterPanel, buildPaperAttemptControlCenterPanelHtml } from "./scanner/paper_attempt_control_center_panel.mjs";
 import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
 import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
+import { buildPaperTradeIntentPlanAppScreen, renderPaperTradeIntentPlanAppScreenHtml } from "./scanner/paper_trade_intent_plan_app_screen.mjs";
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
 import { buildPaperReadinessGateAppScreen, renderPaperReadinessGateAppScreenHtml } from "./scanner/paper_readiness_gate_app_screen.mjs";
 import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
@@ -920,6 +921,26 @@ app.get("/diagnostics/paper-trading-readiness-gate", (_req, res) => {
 });
 
 
+
+
+app.get("/diagnostics/paper-trade-intent-plan-app-screen", (req, res) => {
+  res.json(buildPaperTradeIntentPlanAppScreen({
+    baseDir: process.cwd(),
+    limit: req.query?.limit,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/paper-trade-intent-plan", (req, res) => {
+  const screen = buildPaperTradeIntentPlanAppScreen({
+    baseDir: process.cwd(),
+    limit: req.query?.limit,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  });
+  res.type("html").send(renderPaperTradeIntentPlanAppScreenHtml(screen));
+});
 
 app.get("/diagnostics/paper-trade-intent-plan", (_req, res) => {
   try {
