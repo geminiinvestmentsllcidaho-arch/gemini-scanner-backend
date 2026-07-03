@@ -261,6 +261,17 @@ app.get('/diagnostics/paper-position-pnl-readonly-baseline-panel', async (req, r
 
 
 
+app.get('/app/paper-lifecycle-dashboard', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_readonly_dashboard_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleReadOnlyDashboardPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleReadOnlyDashboardPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle dashboard app screen failed');
+  }
+});
+
 app.get('/diagnostics/paper-lifecycle-readonly-dashboard', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_lifecycle_readonly_dashboard_panel.mjs');
@@ -282,6 +293,17 @@ app.get('/diagnostics/paper-lifecycle-readonly-dashboard-panel', async (req, res
   }
 });
 
+
+app.get('/app/paper-lifecycle-operator-summary', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_operator_summary_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleOperatorSummaryReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleOperatorSummaryReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle operator summary app screen failed');
+  }
+});
 
 app.get('/diagnostics/paper-lifecycle-operator-summary-readonly', async (req, res) => {
   try {
@@ -349,6 +371,17 @@ app.get('/diagnostics/paper-lifecycle-operator-review-packet-readonly-panel', as
 });
 
 
+app.get('/app/paper-lifecycle-final-status', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_final_status_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleFinalStatusReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleFinalStatusReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle final status app screen failed');
+  }
+});
+
 app.get('/diagnostics/paper-lifecycle-final-status-readonly', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_lifecycle_final_status_readonly_panel.mjs');
@@ -370,6 +403,17 @@ app.get('/diagnostics/paper-lifecycle-final-status-readonly-panel', async (req, 
   }
 });
 
+
+app.get('/app/paper-lifecycle-route-registry', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_lifecycle_route_registry_readonly_panel.mjs');
+    const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    const report = mod.buildPaperLifecycleRouteRegistryReadOnlyPanel({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperLifecycleRouteRegistryReadOnlyPanel(report));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper lifecycle route registry app screen failed');
+  }
+});
 
 app.get('/diagnostics/paper-lifecycle-route-registry-readonly', async (req, res) => {
   try {
