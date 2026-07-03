@@ -143,7 +143,7 @@ export function buildPaperAttemptOperatorReviewPacketAudit({
     safety,
     source: {
       route: "/diagnostics/paper-attempt-operator-review-packet-panel",
-      viewRoute: "/diagnostics/paper-attempt-operator-review-packet-panel-view",
+      viewRoute: "/app/operator-review-packet",
       version: source.version,
       panelType: source.panelType,
       status: source.status,

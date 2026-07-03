@@ -46,7 +46,7 @@ function normalizeAudit(audit) {
     },
     source: {
       route: safeString(source.source?.route, "/diagnostics/paper-attempt-operator-review-packet-panel"),
-      viewRoute: safeString(source.source?.viewRoute, "/diagnostics/paper-attempt-operator-review-packet-panel-view"),
+      viewRoute: safeString(source.source?.viewRoute, "/app/operator-review-packet"),
       version: safeString(source.source?.version, "paper_attempt_operator_review_packet_panel_v1"),
       panelType: safeString(source.source?.panelType, "operator_dashboard_card"),
       status: safeString(source.source?.status, "review_blocked_no_go"),
