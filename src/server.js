@@ -1960,7 +1960,8 @@ app.get("/diagnostics/todays-intraday-setups-readonly", (req, res) => {
 });
 
 app.get("/diagnostics/todays-intraday-setups-readonly-panel", (req, res) => {
-  res.type("html").send(renderTodaysIntradaySetupsPanel(buildTodaysIntradaySetupsDiagnosticReport(req)));
+  const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  res.redirect(302, `/app/todays-intraday-setups${query}`);
 });
 
 app.get("/diagnostics/todays-intraday-setups-app-card", (req, res) => {
