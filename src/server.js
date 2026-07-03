@@ -3,6 +3,7 @@ import { buildPaperAttemptControlCenterPanel, buildPaperAttemptControlCenterPane
 import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
 import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
+import { buildPaperReadinessGateAppScreen, renderPaperReadinessGateAppScreenHtml } from "./scanner/paper_readiness_gate_app_screen.mjs";
 import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
 import fs from "node:fs";
 import dotenv from 'dotenv';
@@ -881,6 +882,26 @@ app.get('/diagnostics/operator-approval-workflow', async (req, res) => {
   }
 })
 
+
+
+app.get("/diagnostics/paper-readiness-gate-app-screen", (req, res) => {
+  res.json(buildPaperReadinessGateAppScreen({
+    baseDir: process.cwd(),
+    limit: req.query?.limit,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  }));
+});
+
+app.get("/app/paper-readiness-gate", (req, res) => {
+  const screen = buildPaperReadinessGateAppScreen({
+    baseDir: process.cwd(),
+    limit: req.query?.limit,
+    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+    now: new Date(),
+  });
+  res.type("html").send(renderPaperReadinessGateAppScreenHtml(screen));
+});
 
 app.get("/diagnostics/paper-trading-readiness-gate", (_req, res) => {
   try {
