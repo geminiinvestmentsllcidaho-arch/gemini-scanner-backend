@@ -2322,6 +2322,37 @@ app.get('/diagnostics/paper-trade-intent-audit-dashboard-panel', async (_req, re
 });
 
 
+
+// BEGIN PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_APP_SCREEN_V1
+app.get("/diagnostics/paper-attempt-read-only-operator-summary-app-screen", async (req, res, next) => {
+  try {
+    const { buildPaperAttemptReadOnlyOperatorSummaryAppScreen } = await import("./scanner/paper_attempt_read_only_operator_summary_app_screen.mjs");
+    res.json(buildPaperAttemptReadOnlyOperatorSummaryAppScreen({
+      refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+      now: new Date()
+    }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/app/readonly-operator-summary", async (req, res, next) => {
+  try {
+    const {
+      buildPaperAttemptReadOnlyOperatorSummaryAppScreen,
+      renderPaperAttemptReadOnlyOperatorSummaryAppScreenHtml,
+    } = await import("./scanner/paper_attempt_read_only_operator_summary_app_screen.mjs");
+    const screen = buildPaperAttemptReadOnlyOperatorSummaryAppScreen({
+      refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
+      now: new Date()
+    });
+    res.type("html").send(renderPaperAttemptReadOnlyOperatorSummaryAppScreenHtml(screen));
+  } catch (err) {
+    next(err);
+  }
+});
+// END PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_APP_SCREEN_V1
+
 // BEGIN PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_PANEL_V1
 app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel", async (req, res, next) => {
   try {
