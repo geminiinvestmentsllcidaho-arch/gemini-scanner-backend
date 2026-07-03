@@ -259,7 +259,7 @@ function renderEntry(entry) {
 <div class="links">
 <a href="${esc(entry.href)}">Open</a>
 <a href="${esc(entry.diagnosticHref)}">JSON</a>
-<a href="${esc(entry.routeHref)}">Diagnostics</a>
+<a href="${esc(entry.routeHref)}">App Route</a>
 </div>
 <small>${esc(entry.displayState)} | readOnly=${esc(entry.readOnly)}</small>
 </article>`;
