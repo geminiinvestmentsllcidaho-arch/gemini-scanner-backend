@@ -1038,6 +1038,17 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
 
 
 
+app.get('/app/operator-approval-dashboard', async (req, res) => {
+  try {
+    const mod = await import('./scanner/operator_approval_dashboard_app_screen.mjs');
+    const screen = mod.buildOperatorApprovalDashboardAppScreen();
+    res.type('html').send(mod.renderOperatorApprovalDashboardAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'operator approval dashboard app screen failed');
+  }
+});
+
+
 app.get('/diagnostics/operator-approval-dashboard-panel', (req, res) => {
   try {
     const panel = buildOperatorApprovalDashboardPanel();

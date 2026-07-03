@@ -10,7 +10,7 @@ test("app navigation routeHref links are labeled as app routes", () => {
   const nav = buildAppNavigationReadonly();
   const html = renderAppNavigationReadonlyHtml(nav);
 
-  assert.equal(nav.entries.length, 30);
+  assert.equal(nav.entries.length, 31);
   assert.equal(nav.entries.every((entry) => String(entry.routeHref || "").startsWith("/app/")), true);
   assert.match(html, />App Route<\/a>/);
   assert.doesNotMatch(html, />Diagnostics<\/a>/);
