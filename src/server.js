@@ -1177,8 +1177,8 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-panel", (req, res) =>
   res.json(buildPaperAttemptOperatorReviewPacketPanel());
 });
 
-app.get("/diagnostics/paper-attempt-operator-review-packet-panel-view", (req, res) => {
-  res.type("html").send(renderPaperAttemptOperatorReviewPacketPanelHtml());
+app.get("/diagnostics/paper-attempt-operator-review-packet-panel-view", (_req, res) => {
+  res.redirect(302, "/app/operator-review-packet");
 });
 
 
@@ -1196,14 +1196,8 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-audit", async (req, r
   }
 });
 
-app.get("/diagnostics/paper-attempt-operator-review-packet-audit-view", async (req, res) => {
-  try {
-    const mod = await import("./scanner/paper_attempt_operator_review_packet_audit.mjs");
-    const result = mod.buildPaperAttemptOperatorReviewPacketAudit({ persist: false });
-    res.type("html").send(mod.renderPaperAttemptOperatorReviewPacketAuditHtml(result));
-  } catch (error) {
-    res.status(500).type("html").send("<pre>paper_attempt_operator_review_packet_audit_v1 failed</pre>");
-  }
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit-view", (_req, res) => {
+  res.redirect(302, "/app/operator-review-packet");
 });
 
 
@@ -1222,14 +1216,8 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-audit-panel", async (
   }
 });
 
-app.get("/diagnostics/paper-attempt-operator-review-packet-audit-panel-view", async (req, res) => {
-  try {
-    const mod = await import("./scanner/paper_attempt_operator_review_packet_audit_panel.mjs");
-    const result = mod.buildPaperAttemptOperatorReviewPacketAuditPanel();
-    res.type("html").send(mod.renderPaperAttemptOperatorReviewPacketAuditPanelHtml(result));
-  } catch (error) {
-    res.status(500).type("html").send("<pre>paper_attempt_operator_review_packet_audit_panel_v1 failed</pre>");
-  }
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit-panel-view", (_req, res) => {
+  res.redirect(302, "/app/operator-review-packet");
 });
 
 
@@ -1264,14 +1252,8 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard", asy
   }
 });
 
-app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-view", async (req, res) => {
-  try {
-    const mod = await import("./scanner/paper_attempt_operator_review_packet_audit_dashboard.mjs");
-    const result = mod.buildPaperAttemptOperatorReviewPacketAuditDashboard();
-    res.type("html").send(mod.renderPaperAttemptOperatorReviewPacketAuditDashboardHtml(result));
-  } catch (error) {
-    res.status(500).type("html").send("<pre>paper_attempt_operator_review_packet_audit_dashboard_v1 failed</pre>");
-  }
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-view", (_req, res) => {
+  res.redirect(302, "/app/audit-dashboard");
 });
 
 
@@ -1290,14 +1272,8 @@ app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-panel
   }
 });
 
-app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-panel-view", async (req, res) => {
-  try {
-    const mod = await import("./scanner/paper_attempt_operator_review_packet_audit_dashboard_panel.mjs");
-    const result = mod.buildPaperAttemptOperatorReviewPacketAuditDashboardPanel();
-    res.type("html").send(mod.renderPaperAttemptOperatorReviewPacketAuditDashboardPanelHtml(result));
-  } catch (error) {
-    res.status(500).type("html").send("<pre>paper_attempt_operator_review_packet_audit_dashboard_panel_v1 failed</pre>");
-  }
+app.get("/diagnostics/paper-attempt-operator-review-packet-audit-dashboard-panel-view", (_req, res) => {
+  res.redirect(302, "/app/audit-dashboard");
 });
 
 
@@ -1331,14 +1307,8 @@ app.get("/diagnostics/paper-attempt-module-complete-selector-panel", async (_req
   }
 });
 
-app.get("/diagnostics/paper-attempt-module-complete-selector-panel-view", async (_req, res) => {
-  try {
-    const mod = await import("./scanner/paper_attempt_module_complete_selector_panel.mjs");
-    const panel = mod.buildPaperAttemptModuleCompleteSelectorPanel();
-    res.type("html").send(mod.renderPaperAttemptModuleCompleteSelectorPanelHtml(panel));
-  } catch (error) {
-    res.status(500).type("html").send("<pre>paper_attempt_module_complete_selector_panel_v1 failed</pre>");
-  }
+app.get("/diagnostics/paper-attempt-module-complete-selector-panel-view", (_req, res) => {
+  res.redirect(302, "/app/module-complete-selector");
 });
 
 
@@ -2363,17 +2333,8 @@ app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel", async (re
   }
 });
 
-app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel-view", async (req, res, next) => {
-  try {
-    const {
-      buildPaperAttemptReadOnlyOperatorSummaryPanel,
-      renderPaperAttemptReadOnlyOperatorSummaryPanelView,
-    } = await import("./scanner/paper_attempt_read_only_operator_summary_panel.mjs");
-    const panel = buildPaperAttemptReadOnlyOperatorSummaryPanel();
-    res.type("html").send(renderPaperAttemptReadOnlyOperatorSummaryPanelView(panel));
-  } catch (err) {
-    next(err);
-  }
+app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel-view", (_req, res) => {
+  res.redirect(302, "/app/readonly-operator-summary");
 });
 // END PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_PANEL_V1
 
