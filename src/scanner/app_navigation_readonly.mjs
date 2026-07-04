@@ -128,6 +128,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_order_readonly_status",
+    title: "Paper Order Read-Only Status",
+    subtitle: "Read-only paper order status app screen.",
+    description: "Paper order read-only status app screen with no submit, retry, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-order-readonly-status",
+    diagnosticHref: "/diagnostics/paper-order-readonly-status-dashboard",
+    routeHref: "/app/paper-order-readonly-status",
+    displayState: "PAPER_ORDER_STATUS_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "operator_approval_dashboard",
     title: "Operator Approval Dashboard",
     subtitle: "Read-only operator approval workflow.",

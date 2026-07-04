@@ -197,6 +197,16 @@ h1{font-size:clamp(34px,6vw,64px);line-height:1;margin:18px 0 14px}.lead{max-wid
 </html>`);
 });
 
+app.get('/app/paper-order-readonly-status', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_order_readonly_status_app_screen.mjs');
+    const screen = mod.buildPaperOrderReadonlyStatusAppScreen({ runsDir: 'runs' });
+    res.type('html').send(mod.renderPaperOrderReadonlyStatusAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper order readonly status app screen failed');
+  }
+});
+
 app.get('/diagnostics/paper-order-readonly-status-dashboard', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_order_readonly_status_dashboard_panel.mjs');
