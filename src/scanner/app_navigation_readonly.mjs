@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_operator_go_no_go",
+    title: "Paper Trade Operator Go / No-Go",
+    subtitle: "Read-only final operator go/no-go app screen.",
+    description: "Final paper-trade operator decision screen that keeps broker integration, live paper trading, and final go blocked until explicit future approval.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-operator-go-no-go",
+    diagnosticHref: "/diagnostics/paper-trade-operator-go-no-go",
+    routeHref: "/app/paper-trade-operator-go-no-go",
+    displayState: "PAPER_TRADE_OPERATOR_GO_NO_GO_READONLY",
+    refreshFriendly: false
+  }),
+  Object.freeze({
     id: "paper_trade_readiness_report",
     title: "Paper Trade Readiness Report",
     subtitle: "Read-only paper trade readiness app screen.",
