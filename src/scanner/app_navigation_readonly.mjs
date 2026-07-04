@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_readiness_report",
+    title: "Paper Trade Readiness Report",
+    subtitle: "Read-only paper trade readiness app screen.",
+    description: "Broker-blocked paper trade readiness report app screen with no broker contact, order placement, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-readiness-report",
+    diagnosticHref: "/diagnostics/paper-trade-readiness-report",
+    routeHref: "/app/paper-trade-readiness-report",
+    displayState: "PAPER_TRADE_READINESS_REPORT_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "operator_approval_dashboard",
     title: "Operator Approval Dashboard",
     subtitle: "Read-only operator approval workflow.",

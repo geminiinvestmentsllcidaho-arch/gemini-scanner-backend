@@ -2347,6 +2347,16 @@ app.get('/diagnostics/paper-trade-operator-go-no-go-panel', (_req, res) => {
   res.json(buildPaperTradeOperatorGoNoGoPanel());
 });
 
+app.get('/app/paper-trade-readiness-report', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trade_readiness_report_app_screen.mjs');
+    const screen = mod.buildPaperTradeReadinessReportAppScreen({});
+    res.type('html').send(mod.renderPaperTradeReadinessReportAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper trade readiness report app screen failed');
+  }
+});
+
 app.get('/diagnostics/paper-trade-readiness-report', (_req, res) => {
   res.json(buildPaperTradeReadinessReport());
 });
