@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_broker_adapter_guard",
+    title: "Paper Trade Broker Adapter Guard",
+    subtitle: "Read-only broker adapter guard app screen.",
+    description: "Read-only broker adapter guard screen showing disabled broker contact, disabled order placement, disabled account mutation, and blocked broker execution.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-broker-adapter-guard",
+    diagnosticHref: "/diagnostics/paper-trade-broker-adapter-guard",
+    routeHref: "/app/paper-trade-broker-adapter-guard",
+    displayState: "PAPER_TRADE_BROKER_ADAPTER_GUARD_READONLY",
+    refreshFriendly: false
+  }),
+  Object.freeze({
     id: "paper_trade_execution_control_stack",
     title: "Paper Trade Execution Control Stack",
     subtitle: "Read-only 20-layer execution-control app screen.",
