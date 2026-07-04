@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_broker_integration_preflight_stack",
+    title: "Paper Trade Broker Integration Preflight Stack",
+    subtitle: "Read-only broker integration preflight stack app screen.",
+    description: "Read-only app screen for the 50 planned broker integration preflight builds with broker contact, order placement, account mutation, and execution blocked by design.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-broker-integration-preflight-stack",
+    diagnosticHref: "/diagnostics/paper-trade-broker-integration-preflight-stack",
+    routeHref: "/app/paper-trade-broker-integration-preflight-stack",
+    displayState: "PAPER_TRADE_BROKER_INTEGRATION_PREFLIGHT_STACK_READONLY",
+    refreshFriendly: false
+  }),
+  Object.freeze({
     id: "paper_trade_broker_adapter_guard",
     title: "Paper Trade Broker Adapter Guard",
     subtitle: "Read-only broker adapter guard app screen.",
