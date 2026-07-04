@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_execution_control_stack",
+    title: "Paper Trade Execution Control Stack",
+    subtitle: "Read-only 20-layer execution-control app screen.",
+    description: "Read-only execution-control stack screen showing blocked broker contact, order placement, account mutation, and all paper execution safety layers.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-execution-control-stack",
+    diagnosticHref: "/diagnostics/paper-trade-execution-control-stack",
+    routeHref: "/app/paper-trade-execution-control-stack",
+    displayState: "PAPER_TRADE_EXECUTION_CONTROL_STACK_READONLY",
+    refreshFriendly: false
+  }),
+  Object.freeze({
     id: "paper_trade_operator_go_no_go",
     title: "Paper Trade Operator Go / No-Go",
     subtitle: "Read-only final operator go/no-go app screen.",
