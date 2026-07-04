@@ -293,6 +293,16 @@ app.get('/diagnostics/paper-position-pnl-readonly-baseline-panel', async (req, r
 
 
 
+app.get('/app/paper-trade-lifecycle-runner', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_trade_lifecycle_runner_app_screen.mjs');
+    const screen = mod.buildPaperTradeLifecycleRunnerAppScreen();
+    res.type('html').send(mod.renderPaperTradeLifecycleRunnerAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'paper_trade_lifecycle_runner_app_screen_failed', message: err?.message || String(err) });
+  }
+});
+
 app.get('/app/paper-trade-lifecycle-dashboard', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_trade_lifecycle_dashboard_app_screen.mjs');

@@ -296,6 +296,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_lifecycle_runner",
+    title: "Paper Trade Lifecycle Runner",
+    subtitle: "Read-only local paper trade lifecycle runner preview.",
+    description: "Preview-only local paper trade lifecycle runner app screen showing runner readiness and safety locks while writing no records and keeping broker contact, order placement, account mutation, and execution blocked.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-lifecycle-runner",
+    diagnosticHref: "/diagnostics/paper-trade-lifecycle-runner-panel",
+    routeHref: "/app/paper-trade-lifecycle-runner",
+    displayState: "PAPER_TRADE_LIFECYCLE_RUNNER_READONLY",
+    refreshFriendly: false
+  }),
+  Object.freeze({
     id: "paper_trade_lifecycle_dashboard",
     title: "Paper Trade Lifecycle Dashboard",
     subtitle: "Read-only local paper trade lifecycle dashboard app screen.",
