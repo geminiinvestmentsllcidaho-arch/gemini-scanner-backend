@@ -296,6 +296,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_trade_lifecycle_dashboard",
+    title: "Paper Trade Lifecycle Dashboard",
+    subtitle: "Read-only local paper trade lifecycle dashboard app screen.",
+    description: "Local JSONL-only paper trade lifecycle dashboard showing intent, order ticket, fill simulation, and position state while broker contact, order placement, account mutation, and execution remain blocked by design.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trade-lifecycle-dashboard",
+    diagnosticHref: "/diagnostics/paper-trade-lifecycle-dashboard-panel",
+    routeHref: "/app/paper-trade-lifecycle-dashboard",
+    displayState: "PAPER_TRADE_LIFECYCLE_DASHBOARD_READONLY",
+    refreshFriendly: false
+  }),
+  Object.freeze({
     id: "paper_lifecycle_dashboard",
     title: "Paper Lifecycle Dashboard",
     subtitle: "Read-only lifecycle dashboard.",
