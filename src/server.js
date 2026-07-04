@@ -258,6 +258,18 @@ app.get('/diagnostics/paper-position-readonly-dashboard-panel', async (_req, res
 
 
 
+app.get('/app/paper-position-pnl-readonly-baseline', async (req, res) => {
+  try {
+    const mod = await import('./scanner/paper_position_pnl_readonly_baseline_app_screen.mjs');
+    const markRaw = req.query?.markPrice ?? req.query?.mark ?? null;
+    const markPrice = markRaw === null || markRaw === undefined || markRaw === '' ? null : Number(markRaw);
+    const screen = mod.buildPaperPositionPnlReadOnlyBaselineAppScreen({ runsDir: 'runs', markPrice });
+    res.type('html').send(mod.renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper position pnl read-only baseline app screen failed');
+  }
+});
+
 app.get('/diagnostics/paper-position-pnl-readonly-baseline', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_position_pnl_readonly_baseline_panel.mjs');

@@ -152,6 +152,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_position_pnl_readonly_baseline",
+    title: "Paper Position P/L Read-Only Baseline",
+    subtitle: "Read-only paper position P/L baseline app screen.",
+    description: "Paper position P/L read-only baseline app screen with no broker read, submit, retry, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-position-pnl-readonly-baseline",
+    diagnosticHref: "/diagnostics/paper-position-pnl-readonly-baseline",
+    routeHref: "/app/paper-position-pnl-readonly-baseline",
+    displayState: "PAPER_POSITION_PNL_BASELINE_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "operator_approval_dashboard",
     title: "Operator Approval Dashboard",
     subtitle: "Read-only operator approval workflow.",
