@@ -227,6 +227,16 @@ app.get('/diagnostics/paper-order-readonly-status-dashboard-panel', async (_req,
 });
 
 
+app.get('/app/paper-position-readonly-dashboard', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_position_readonly_dashboard_app_screen.mjs');
+    const screen = mod.buildPaperPositionReadonlyDashboardAppScreen({ runsDir: 'runs' });
+    res.type('html').send(mod.renderPaperPositionReadonlyDashboardAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).type('text').send(err?.message ?? 'paper position read-only dashboard app screen failed');
+  }
+});
+
 app.get('/diagnostics/paper-position-readonly-dashboard', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_position_readonly_dashboard_panel.mjs');

@@ -140,6 +140,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_position_readonly_dashboard",
+    title: "Paper Position Read-Only Dashboard",
+    subtitle: "Read-only paper position dashboard app screen.",
+    description: "Paper position read-only dashboard app screen with no broker read, submit, retry, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-position-readonly-dashboard",
+    diagnosticHref: "/diagnostics/paper-position-readonly-dashboard",
+    routeHref: "/app/paper-position-readonly-dashboard",
+    displayState: "PAPER_POSITION_DASHBOARD_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "operator_approval_dashboard",
     title: "Operator Approval Dashboard",
     subtitle: "Read-only operator approval workflow.",
