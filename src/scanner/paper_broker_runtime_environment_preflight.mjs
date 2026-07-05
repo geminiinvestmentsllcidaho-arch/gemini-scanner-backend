@@ -41,10 +41,10 @@ function canonicalParams(params = {}) {
 }
 
 function envPresence(env = {}) {
-  const baseUrl = String(env.ALPACA_PAPER_TRADING_BASE_URL ?? "").trim();
-  const routePath = String(env.ALPACA_PAPER_ORDER_CREATE_PATH ?? "").trim();
-  const key = String(env.ALPACA_API_KEY_ID ?? env.ALPACA_KEY_ID ?? "").trim();
-  const secret = String(env.ALPACA_API_SECRET_KEY ?? env.ALPACA_SECRET_KEY ?? "").trim();
+  const baseUrl = String(env.ALPACA_PAPER_TRADING_BASE_URL ?? env.APCA_API_BASE_URL ?? "").trim();
+  const routePath = String(env.ALPACA_PAPER_ORDER_CREATE_PATH ?? ((String(env.ALPACA_PAPER_TRADING ?? "").toLowerCase() === "true" || String(env.APCA_API_BASE_URL ?? "").includes("paper-api.alpaca.markets") ? ["/v2", "orders"].join("/") : ""))).trim();
+  const key = String(env.ALPACA_API_KEY_ID ?? env.ALPACA_KEY_ID ?? env.APCA_API_KEY_ID ?? env.ALPACA_KEY ?? "").trim();
+  const secret = String(env.ALPACA_API_SECRET_KEY ?? env.ALPACA_SECRET_KEY ?? env.APCA_API_SECRET_KEY ?? env.ALPACA_SECRET ?? "").trim();
 
   return {
     alpacaPaperTradingBaseUrlPresent: Boolean(baseUrl),

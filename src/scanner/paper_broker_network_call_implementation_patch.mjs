@@ -114,8 +114,8 @@ function priorAttemptForApproval(runsDir, approvalFile) {
 }
 
 function redactedCredentialState(env = {}) {
-  const key = String(env.ALPACA_API_KEY_ID ?? env.ALPACA_KEY_ID ?? "").trim();
-  const secret = String(env.ALPACA_API_SECRET_KEY ?? env.ALPACA_SECRET_KEY ?? "").trim();
+  const key = String(env.ALPACA_API_KEY_ID ?? env.ALPACA_KEY_ID ?? env.APCA_API_KEY_ID ?? env.ALPACA_KEY ?? "").trim();
+  const secret = String(env.ALPACA_API_SECRET_KEY ?? env.ALPACA_SECRET_KEY ?? env.APCA_API_SECRET_KEY ?? env.ALPACA_SECRET ?? "").trim();
 
   return {
     keyPresent: Boolean(key),
@@ -126,8 +126,8 @@ function redactedCredentialState(env = {}) {
 }
 
 function makeNetworkTarget(env = {}) {
-  const baseUrl = String(env.ALPACA_PAPER_TRADING_BASE_URL ?? "").trim();
-  const routePath = String(env.ALPACA_PAPER_ORDER_CREATE_PATH ?? "").trim();
+  const baseUrl = String(env.ALPACA_PAPER_TRADING_BASE_URL ?? env.APCA_API_BASE_URL ?? "").trim();
+  const routePath = String(env.ALPACA_PAPER_ORDER_CREATE_PATH ?? ((String(env.ALPACA_PAPER_TRADING ?? "").toLowerCase() === "true" || String(env.APCA_API_BASE_URL ?? "").includes("paper-api.alpaca.markets") ? ["/v2", "orders"].join("/") : ""))).trim();
 
   if (!baseUrl || !routePath) {
     return {
@@ -412,8 +412,8 @@ export async function runPaperBrokerNetworkCallImplementationPatch(options = {})
   let orderSubmitted = false;
 
   try {
-    const key = String(env.ALPACA_API_KEY_ID ?? env.ALPACA_KEY_ID ?? "").trim();
-    const secret = String(env.ALPACA_API_SECRET_KEY ?? env.ALPACA_SECRET_KEY ?? "").trim();
+    const key = String(env.ALPACA_API_KEY_ID ?? env.ALPACA_KEY_ID ?? env.APCA_API_KEY_ID ?? env.ALPACA_KEY ?? "").trim();
+    const secret = String(env.ALPACA_API_SECRET_KEY ?? env.ALPACA_SECRET_KEY ?? env.APCA_API_SECRET_KEY ?? env.ALPACA_SECRET ?? "").trim();
     const url = report.requestEnvelope.urlPreview;
     const method = report.requestEnvelope.method;
     const body = JSON.stringify(report.requestEnvelope.bodyPreview);
