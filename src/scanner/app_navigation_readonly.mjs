@@ -176,6 +176,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_broker_runtime_environment_preflight",
+    title: "Paper Broker Runtime Environment Preflight",
+    subtitle: "Read-only runtime environment and one-shot blocker status.",
+    description: "Shows Alpaca paper env mapping, latest runtime preflight report, prior one-shot attempt status, market-hours blocker, and safety locks while execution remains blocked.",
+    category: "paper_lifecycle",
+    href: "/app/paper-broker-runtime-environment-preflight",
+    diagnosticHref: "/app/paper-broker-runtime-environment-preflight",
+    routeHref: "/app/paper-broker-runtime-environment-preflight",
+    displayState: "PAPER_BROKER_RUNTIME_ENVIRONMENT_PREFLIGHT_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "paper_trade_broker_integration_preflight_stack",
     title: "Paper Trade Broker Integration Preflight Stack",
     subtitle: "Read-only broker integration preflight stack app screen.",
