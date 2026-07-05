@@ -188,6 +188,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_app_route_health_status",
+    title: "Paper App Route Health Status",
+    subtitle: "Read-only paper app route health status.",
+    description: "Summarizes paper, broker, runtime, safety, readiness, operator, and Alpaca app route coverage without route execution, broker contact, order submit, retry, reset, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-app-route-health-status",
+    diagnosticHref: "/app/paper-app-route-health-status",
+    routeHref: "/app/paper-app-route-health-status",
+    displayState: "PAPER_APP_ROUTE_HEALTH_STATUS_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "paper_broker_runtime_environment_preflight",
     title: "Paper Broker Runtime Environment Preflight",
     subtitle: "Read-only runtime environment and one-shot blocker status.",
