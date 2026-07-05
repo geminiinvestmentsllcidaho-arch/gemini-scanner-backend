@@ -2394,6 +2394,16 @@ app.get('/app/paper-broker-runtime-environment-preflight', async (_req, res) => 
   }
 });
 
+app.get('/app/paper-broker-network-attempt-status', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_broker_network_attempt_status_app_screen.mjs');
+    const screen = mod.buildPaperBrokerNetworkAttemptStatusAppScreen();
+    res.type('html').send(mod.renderPaperBrokerNetworkAttemptStatusAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'paper_broker_network_attempt_status_app_screen_failed', message: err?.message || String(err) });
+  }
+});
+
 app.get('/app/paper-trade-broker-integration-preflight-stack', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_trade_broker_integration_preflight_stack_app_screen.mjs');
