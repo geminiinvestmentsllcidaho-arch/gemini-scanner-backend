@@ -9,6 +9,7 @@ import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mj
 import { buildPaperTradeIntentPlanAppScreen, renderPaperTradeIntentPlanAppScreenHtml } from "./scanner/paper_trade_intent_plan_app_screen.mjs";
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
 import { buildPaperReadinessGateAppScreen, renderPaperReadinessGateAppScreenHtml } from "./scanner/paper_readiness_gate_app_screen.mjs";
+import { buildAlpacaPaperAccountStatusAppScreen, renderAlpacaPaperAccountStatusAppScreenHtml } from "./scanner/alpaca_paper_account_status_app_screen.mjs";
 import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
 import fs from "node:fs";
 import dotenv from 'dotenv';
@@ -1091,6 +1092,12 @@ app.post('/ops/run', async (req, res) => {
 // --------------------
 // Startup
 // --------------------
+
+app.get('/app/alpaca-paper-account-status', (_req, res) => {
+  const screen = buildAlpacaPaperAccountStatusAppScreen();
+  res.type('html').send(renderAlpacaPaperAccountStatusAppScreenHtml(screen));
+});
+
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 

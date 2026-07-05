@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "alpaca_paper_account_status",
+    title: "Alpaca Paper Account Status",
+    subtitle: "Read-only Alpaca paper account connection status.",
+    description: "Shows that the Alpaca paper account is connected and active while broker execution, order placement, and account mutation remain blocked.",
+    category: "paper_lifecycle",
+    href: "/app/alpaca-paper-account-status",
+    diagnosticHref: "/app/alpaca-paper-account-status",
+    routeHref: "/app/alpaca-paper-account-status",
+    displayState: "ALPACA_PAPER_ACCOUNT_CONNECTED_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "paper_trade_broker_integration_preflight_stack",
     title: "Paper Trade Broker Integration Preflight Stack",
     subtitle: "Read-only broker integration preflight stack app screen.",
