@@ -176,6 +176,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_trading_overview_status",
+    title: "Paper Trading Overview Status",
+    subtitle: "Read-only paper trading overview status.",
+    description: "Overview screen showing Alpaca paper account readiness, runtime preflight, one-shot network attempt status, readiness report, operator go/no-go state, and safety locks without retry, reset, submit, broker contact, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-trading-overview-status",
+    diagnostichref: "/app/paper-trading-overview-status",
+    routeHref: "/app/paper-trading-overview-status",
+    displayState: "PAPER_TRADING_OVERVIEW_STATUS_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "paper_broker_runtime_environment_preflight",
     title: "Paper Broker Runtime Environment Preflight",
     subtitle: "Read-only runtime environment and one-shot blocker status.",
