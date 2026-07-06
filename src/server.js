@@ -139,6 +139,17 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 
 const app = express();
 
+app.get('/app/paper-app-readiness-status', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_app_readiness_status_app_screen.mjs');
+    const screen = mod.buildPaperAppReadinessStatusAppScreen({});
+    res.type('html').send(mod.renderPaperAppReadinessStatusAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'paper_app_readiness_status_app_screen_failed', message: err?.message ?? String(err) });
+  }
+});
+
+
 const API_PATCH_PLAN_DASHBOARD_ROUTE = "/diagnostics/alpaca-api-patch-plan";
 
 app.get(API_PATCH_PLAN_DASHBOARD_ROUTE, async (_req, res) => {
