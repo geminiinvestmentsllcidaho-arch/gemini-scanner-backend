@@ -36,6 +36,20 @@ function renderBool(value) {
   return value ? "true" : "false";
 }
 
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`)
+    .join("");
+}
+
 function normalizeBadge(badge) {
   const b = objectValue(badge);
   return {
@@ -126,6 +140,10 @@ export function renderPaperTradeBrokerIntegrationPreflightStackAppScreenHtml(scr
 <main>
   <p><a href="/app">App</a> / ${esc(screen.title)}</p>
   <h1>${esc(screen.title)}</h1>
+  <section class="card">
+    <div class="k">Related broker readiness routes</div>
+    <ul>${renderRelatedBrokerReadinessRoutes()}</ul>
+  </section>
   <section class="card">
     <div class="k">Read-only safety state</div>
     <p class="blocked">No broker contact, no order placement, no account mutation.</p>

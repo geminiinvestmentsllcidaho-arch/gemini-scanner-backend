@@ -46,6 +46,11 @@ test("paper broker integration preflight stack app screen reads panel and stays 
   assert.equal(html.includes("Paper Trade Broker Integration Preflight Stack"), true);
   assert.equal(html.includes("50 planned broker integration preflight builds"), true);
   assert.equal(html.includes("No broker contact, no order placement, no account mutation."), true);
+  assert.equal(html.includes("Related broker readiness routes"), true);
+  assert.equal(html.includes("/app/paper-app-broker-readiness-index"), true);
+  assert.equal(html.includes("/app/paper-broker-runtime-environment-preflight"), true);
+  assert.equal(html.includes("/app/paper-broker-network-attempt-status"), true);
+  assert.equal(html.includes("/app/paper-trade-readiness-report"), true);
   assert.equal(html.includes("Broker integration allowed: <strong>false</strong>"), true);
   assert.equal(html.includes("Broker contact allowed: <strong>false</strong>"), true);
   assert.equal(html.includes("Order placement allowed: <strong>false</strong>"), true);
