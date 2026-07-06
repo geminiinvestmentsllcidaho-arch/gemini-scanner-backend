@@ -570,8 +570,12 @@ app.get('/app/paper-lifecycle-route-registry', async (req, res) => {
 
 app.get('/app/paper-lifecycle-evidence-index', async (req, res) => {
   try {
-    const mod = await import('./scanner/paper_lifecycle_evidence_index_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    if (!appRouteLoadSourceReportRequested(req)) {
+      res.type('html').send(renderFastLifecyclePreviewHtml('Paper Lifecycle Evidence Index Read-Only'));
+      return;
+    }
+    const mod = await import('./scanner/paper_lifecycle_evidence_index_readonly_panel.mjs');
     const report = mod.buildPaperLifecycleEvidenceIndexReadOnlyPanel({ runsDir: 'runs', markPrice });
     res.type('html').send(mod.renderPaperLifecycleEvidenceIndexReadOnlyPanel(report));
   } catch (err) {
