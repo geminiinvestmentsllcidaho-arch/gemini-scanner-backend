@@ -198,10 +198,58 @@ h1{font-size:clamp(34px,6vw,64px);line-height:1;margin:18px 0 14px}.lead{max-wid
 </html>`);
 });
 
-app.get('/app/paper-order-readonly-status', async (_req, res) => {
+
+function appRouteLoadSourceReportRequested(req) {
+  return ["1", "true", "yes", "full"].includes(
+    String(req.query?.loadSources ?? req.query?.loadSourceReport ?? "").toLowerCase()
+  );
+}
+
+function fastReadonlyAppPanel(title, status = "fast_preview_readonly") {
+  const now = new Date().toISOString();
+  return {
+    ok: true,
+    version: "fast_readonly_app_route_panel_v1",
+    ts: now,
+    panelType: "operator_dashboard_card",
+    title,
+    displayState: "FAST_PREVIEW_READONLY",
+    status,
+    readOnly: true,
+    monitorOnly: true,
+    diagnosticsOnly: true,
+    noExecutionControls: true,
+    brokerReadAttempted: false,
+    brokerContactAttempted: false,
+    orderSubmitAttempted: false,
+    orderSubmitted: false,
+    retryAttempted: false,
+    accountMutationAttempted: false,
+    latestFiles: {},
+    order: {},
+    position: {},
+    sourceOrder: {},
+    pnl: { pnlAvailable: false, markSource: "source_report_not_loaded" },
+    readiness: {},
+    noRetryGuard: { active: true, reason: "source_report_not_loaded_fast_preview" },
+    safety: {
+      readOnly: true,
+      liveTradingAllowed: false,
+      autoTradingAllowed: false,
+      orderSubmitAllowed: false,
+      retryAllowed: false,
+      accountMutationAllowed: false
+    }
+  };
+}
+
+app.get('/app/paper-order-readonly-status', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_order_readonly_status_app_screen.mjs');
-    const screen = mod.buildPaperOrderReadonlyStatusAppScreen({ runsDir: 'runs' });
+    const input = appRouteLoadSourceReportRequested(req)
+      ? { runsDir: 'runs' }
+      : { panel: fastReadonlyAppPanel('Paper Order Read-Only Status') };
+    const screen = mod.buildPaperOrderReadonlyStatusAppScreen(input);
     res.type('html').send(mod.renderPaperOrderReadonlyStatusAppScreenHtml(screen));
   } catch (err) {
     res.status(500).type('text').send(err?.message ?? 'paper order readonly status app screen failed');
@@ -228,10 +276,13 @@ app.get('/diagnostics/paper-order-readonly-status-dashboard-panel', async (_req,
 });
 
 
-app.get('/app/paper-position-readonly-dashboard', async (_req, res) => {
+app.get('/app/paper-position-readonly-dashboard', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_position_readonly_dashboard_app_screen.mjs');
-    const screen = mod.buildPaperPositionReadonlyDashboardAppScreen({ runsDir: 'runs' });
+    const input = appRouteLoadSourceReportRequested(req)
+      ? { runsDir: 'runs' }
+      : { panel: fastReadonlyAppPanel('Paper Position Read-Only Dashboard') };
+    const screen = mod.buildPaperPositionReadonlyDashboardAppScreen(input);
     res.type('html').send(mod.renderPaperPositionReadonlyDashboardAppScreenHtml(screen));
   } catch (err) {
     res.status(500).type('text').send(err?.message ?? 'paper position read-only dashboard app screen failed');
@@ -264,7 +315,10 @@ app.get('/app/paper-position-pnl-readonly-baseline', async (req, res) => {
     const mod = await import('./scanner/paper_position_pnl_readonly_baseline_app_screen.mjs');
     const markRaw = req.query?.markPrice ?? req.query?.mark ?? null;
     const markPrice = markRaw === null || markRaw === undefined || markRaw === '' ? null : Number(markRaw);
-    const screen = mod.buildPaperPositionPnlReadOnlyBaselineAppScreen({ runsDir: 'runs', markPrice });
+    const input = appRouteLoadSourceReportRequested(req)
+      ? { runsDir: 'runs', markPrice }
+      : { panel: fastReadonlyAppPanel('Paper Position P/L Read-Only Baseline'), markPrice };
+    const screen = mod.buildPaperPositionPnlReadOnlyBaselineAppScreen(input);
     res.type('html').send(mod.renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen));
   } catch (err) {
     res.status(500).type('text').send(err?.message ?? 'paper position pnl read-only baseline app screen failed');
@@ -328,7 +382,9 @@ app.get('/app/paper-lifecycle-dashboard', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_lifecycle_readonly_dashboard_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-    const report = mod.buildPaperLifecycleReadOnlyDashboardPanel({ runsDir: 'runs', markPrice });
+    const report = appRouteLoadSourceReportRequested(req)
+      ? mod.buildPaperLifecycleReadOnlyDashboardPanel({ runsDir: 'runs', markPrice })
+      : fastReadonlyAppPanel('Paper Lifecycle Read-Only Dashboard');
     res.type('html').send(mod.renderPaperLifecycleReadOnlyDashboardPanel(report));
   } catch (err) {
     res.status(500).type('text').send(err?.message ?? 'paper lifecycle dashboard app screen failed');
@@ -798,7 +854,12 @@ app.get('/app/paper-trading-module-route-index', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_trading_module_route_index_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-    const report = mod.buildPaperTradingModuleRouteIndexReadOnlyPanel({ runsDir: 'runs', markPrice });
+    const report = appRouteLoadSourceReportRequested(req)
+      ? mod.buildPaperTradingModuleRouteIndexReadOnlyPanel({ runsDir: 'runs', markPrice })
+      : {
+          ...fastReadonlyAppPanel('Paper Trading Module Route Index Read-Only'),
+          paperTradingModuleRouteIndex: { routes: [], routeCount: 0, routeIndexStatus: 'fast_preview_readonly' }
+        };
     res.type('html').send(mod.renderPaperTradingModuleRouteIndexReadOnlyPanel(report));
   } catch (err) {
     res.status(500).type('text').send(err?.message ?? 'paper trading module route index app screen failed');
@@ -830,7 +891,12 @@ app.get('/app/paper-trading-module-final-status', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_trading_module_final_status_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-    const report = mod.buildPaperTradingModuleFinalStatusReadOnlyPanel({ runsDir: 'runs', markPrice });
+    const report = appRouteLoadSourceReportRequested(req)
+      ? mod.buildPaperTradingModuleFinalStatusReadOnlyPanel({ runsDir: 'runs', markPrice })
+      : {
+          ...fastReadonlyAppPanel('Paper Trading Module Final Status Read-Only'),
+          paperTradingModuleFinalStatus: { milestones: [], finalStatus: 'fast_preview_readonly' }
+        };
     res.type('html').send(mod.renderPaperTradingModuleFinalStatusReadOnlyPanel(report));
   } catch (err) {
     res.status(500).type('text').send(err?.message ?? 'paper trading module final status app screen failed');
