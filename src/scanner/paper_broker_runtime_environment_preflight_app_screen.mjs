@@ -51,7 +51,11 @@ function readJson(file) {
 
 export function buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input = {}) {
   const runsDir = textValue(input.runsDir, "runs");
-  const reportFile = input.report ? null : latestReportFile(runsDir);
+  const shouldLoadReport =
+    Boolean(input.report) ||
+    input.loadSourceReport === true ||
+    Object.prototype.hasOwnProperty.call(input, "runsDir");
+  const reportFile = input.report || !shouldLoadReport ? null : latestReportFile(runsDir);
   const report = input.report ?? (reportFile ? readJson(reportFile) : null);
 
   const base = {
