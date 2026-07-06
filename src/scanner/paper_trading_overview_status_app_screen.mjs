@@ -42,19 +42,70 @@ function safeBuild(label, fn) {
   }
 }
 
+function fastReadinessSource() {
+  return {
+    route: "/app/paper-trade-readiness-report",
+    status: "fast_preview_readonly",
+    readinessPct: 0,
+    safety: { liveTrading: false, autoTrading: false, accountMutation: false }
+  };
+}
+
+function fastGoNoGoSource() {
+  return {
+    route: "/app/paper-trade-operator-go-no-go",
+    status: "fast_preview_no_go",
+    finalGo: false,
+    reasons: ["source_panel_not_loaded"],
+    safety: { liveTrading: false, autoTrading: false, accountMutation: false }
+  };
+}
+
+function fastRuntimeSource() {
+  return {
+    route: "/app/paper-broker-runtime-environment-preflight",
+    status: "fast_preview_readonly",
+    runtimeEnvironmentReady: false,
+    blockers: ["runtime_source_not_loaded"],
+    safety: { liveTradingAllowed: false, autoTradingAllowed: false, accountMutationAllowed: false }
+  };
+}
+
+function fastNetworkAttemptSource() {
+  return {
+    route: "/app/paper-broker-network-attempt-status",
+    status: "fast_preview_no_network_attempt",
+    reportFound: false,
+    brokerContactAttempted: false,
+    orderSubmitAttempted: false,
+    orderSubmitted: false,
+    accountMutationAttempted: false,
+    safety: { liveTradingAllowed: false, autoTradingAllowed: false, accountMutationAllowed: false }
+  };
+}
+
 export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
+  const loadSources = input.loadSources === true;
   const readinessResult = input.readiness
     ? { ok: true, label: "readiness", value: input.readiness }
-    : safeBuild("readiness", () => buildPaperTradeReadinessReportAppScreen(input.readinessInput ?? {}));
+    : (loadSources || input.readinessInput
+      ? safeBuild("readiness", () => buildPaperTradeReadinessReportAppScreen(input.readinessInput ?? {}))
+      : { ok: true, label: "readiness", value: fastReadinessSource() });
   const goNoGoResult = input.goNoGo
     ? { ok: true, label: "go_no_go", value: input.goNoGo }
-    : safeBuild("go_no_go", () => buildPaperTradeOperatorGoNoGoAppScreen(input.goNoGoInput ?? {}));
+    : (loadSources || input.goNoGoInput
+      ? safeBuild("go_no_go", () => buildPaperTradeOperatorGoNoGoAppScreen(input.goNoGoInput ?? {}))
+      : { ok: true, label: "go_no_go", value: fastGoNoGoSource() });
   const runtimeResult = input.runtime
     ? { ok: true, label: "runtime", value: input.runtime }
-    : safeBuild("runtime", () => buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input.runtimeInput ?? {}));
+    : (loadSources || input.runtimeInput
+      ? safeBuild("runtime", () => buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input.runtimeInput ?? {}))
+      : { ok: true, label: "runtime", value: fastRuntimeSource() });
   const networkResult = input.networkAttempt
     ? { ok: true, label: "network_attempt", value: input.networkAttempt }
-    : safeBuild("network_attempt", () => buildPaperBrokerNetworkAttemptStatusAppScreen(input.networkAttemptInput ?? {}));
+    : (loadSources || input.networkAttemptInput
+      ? safeBuild("network_attempt", () => buildPaperBrokerNetworkAttemptStatusAppScreen(input.networkAttemptInput ?? {}))
+      : { ok: true, label: "network_attempt", value: fastNetworkAttemptSource() });
 
   const readiness = objectValue(readinessResult.value);
   const goNoGo = objectValue(goNoGoResult.value);
