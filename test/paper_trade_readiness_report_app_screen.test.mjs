@@ -62,6 +62,10 @@ test("paper trade readiness app screen is read-only and broker-blocked", () => {
   const html = renderPaperTradeReadinessReportAppScreenHtml(screen);
   assert.match(html, /Paper Trade Readiness Report/);
   assert.match(html, /No broker contact, no order placement, no account mutation/);
+  assert.match(html, /Related Broker Readiness Routes/);
+  assert.match(html, /\/app\/paper-app-broker-readiness-index/);
+  assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
+  assert.match(html, /\/app\/paper-broker-network-attempt-status/);
   assert.doesNotMatch(html, /<form\b/i);
   assert.doesNotMatch(html, /<button\b/i);
 });

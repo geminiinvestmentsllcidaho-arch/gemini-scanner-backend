@@ -19,6 +19,19 @@ function esc(value) {
     .replaceAll("'", "&#39;");
 }
 
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`)
+    .join("");
+}
+
 export function buildPaperTradeReadinessReportAppScreen(input = {}) {
   const panel = object(input.panel).version
     ? object(input.panel)
@@ -109,6 +122,7 @@ body{margin:0;background:#080b12;color:#edf4ff;font-family:system-ui,-apple-syst
 <p><a href="/app">Back to App Navigation</a></p>
 <h1>${esc(screen.title || "Paper Trade Readiness Report")}</h1>
 <p class="muted">${esc(screen.subtitle || "Read-only paper trade readiness report app screen.")}</p>
+<section class="card"><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <section class="card"><div class="k">Status</div><div class="v warn">${esc(screen.status || screen.displayState || "not_ready_broker_blocked")}</div><p>No broker contact, no order placement, no account mutation. This app screen is read-only, monitor-only, preview-only, and paper-only.</p></section>
 <section class="grid">
 <div class="item"><div class="k">Readiness</div><h2>${esc(screen.readinessPct)}</h2></div>
