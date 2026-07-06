@@ -413,10 +413,40 @@ app.get('/diagnostics/paper-lifecycle-readonly-dashboard-panel', async (req, res
 });
 
 
+
+function renderFastLifecyclePreviewHtml(title) {
+  const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[c]));
+  return [
+    "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>",
+    "<title>", safe(title), "</title></head><body><main>",
+    "<p><a href='/app'>Back to App Navigation</a></p>",
+    "<h1>", safe(title), "</h1>",
+    "<p>Fast read-only app preview. Source report not loaded unless requested.</p>",
+    "<section><h2>Display State</h2><p>FAST_PREVIEW_READONLY</p>",
+    "<p>Read-only, monitor-only, diagnostics-only. No broker contact, no order submit, no retry, no account mutation, no execution controls.</p></section>",
+    "<section><h2>Source Report</h2><p>Add <code>?loadSources=true</code> to load the full read-only diagnostic source.</p></section>",
+    "<section><h2>Safety Locks</h2><ul>",
+    "<li>Read only: true</li><li>Live trading allowed: false</li><li>Auto trading allowed: false</li>",
+    "<li>Order submit allowed: false</li><li>Retry allowed: false</li><li>Account mutation allowed: false</li>",
+    "</ul></section></main></body></html>"
+  ].join("");
+}
+
 app.get('/app/paper-lifecycle-operator-summary', async (req, res) => {
   try {
-    const mod = await import('./scanner/paper_lifecycle_operator_summary_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    if (!appRouteLoadSourceReportRequested(req)) {
+      res.type('html').send(renderFastLifecyclePreviewHtml('Paper Lifecycle Operator Summary Read-Only'));
+      return;
+    }
+    const mod = await import('./scanner/paper_lifecycle_operator_summary_readonly_panel.mjs');
     const report = mod.buildPaperLifecycleOperatorSummaryReadOnlyPanel({ runsDir: 'runs', markPrice });
     res.type('html').send(mod.renderPaperLifecycleOperatorSummaryReadOnlyPanel(report));
   } catch (err) {
