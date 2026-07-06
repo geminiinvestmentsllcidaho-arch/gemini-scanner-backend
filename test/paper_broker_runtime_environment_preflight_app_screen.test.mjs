@@ -105,6 +105,10 @@ test("paper broker runtime environment preflight app screen renders latest repor
   assert.equal(html.includes("Paper Broker Runtime Environment Preflight"), true);
   assert.equal(html.includes("No broker contact, no order submit, no account mutation, no execution controls."), true);
   assert.equal(html.includes("Paper base URL"), true);
+  assert.equal(html.includes("Related broker readiness routes"), true);
+  assert.equal(html.includes("/app/paper-app-broker-readiness-index"), true);
+  assert.equal(html.includes("/app/paper-broker-network-attempt-status"), true);
+  assert.equal(html.includes("/app/paper-trade-readiness-report"), true);
   assert.equal(html.includes("prior_one_shot_attempt_already_recorded"), true);
   assert.equal(html.includes("market_open_required"), true);
   assert.equal(html.includes("PKC3...redacted"), true);

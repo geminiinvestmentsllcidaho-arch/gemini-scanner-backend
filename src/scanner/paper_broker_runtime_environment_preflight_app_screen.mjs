@@ -32,6 +32,19 @@ function renderBool(value) {
   return value ? "true" : "false";
 }
 
+const RELATED_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"]
+]);
+
+function renderRelatedRoutes() {
+  return RELATED_ROUTES
+    .map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`)
+    .join("");
+}
+
 function latestReportFile(runsDir = "runs") {
   if (!fs.existsSync(runsDir)) return null;
   const files = fs.readdirSync(runsDir)
@@ -165,6 +178,7 @@ export function renderPaperBrokerRuntimeEnvironmentPreflightAppScreenHtml(input 
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><title>${esc(screen.title)}</title><style>
 body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background:#0b1020;color:#eef3ff}main{max-width:1080px;margin:0 auto;padding:24px}a{color:#93c5fd}.card{border:1px solid #263452;background:#111a2e;border-radius:16px;padding:18px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.metric{border:1px solid #263452;border-radius:12px;padding:12px;background:#0e172a}.k{color:#aab7d4;font-size:12px;text-transform:uppercase;letter-spacing:.08em}.v{font-size:20px;font-weight:700;margin-top:4px}.blocked{color:#fecaca}code{color:#bfdbfe;overflow-wrap:anywhere}</style></head><body><main>
 <p><a href="/app">App</a> / ${esc(screen.title)}</p><h1>${esc(screen.title)}</h1>
+<section class="card"><div class="k">Related broker readiness routes</div><ul>${renderRelatedRoutes()}</ul></section>
 <section class="card"><div class="k">Read-only runtime state</div><p class="blocked">No broker contact, no order submit, no account mutation, no execution controls.</p><p>Status: <strong>${esc(screen.status)}</strong></p><p>Runtime environment ready: <strong>${renderBool(screen.runtimeEnvironmentReady)}</strong></p><p>Latest report: <code>${esc(screen.reportFile ?? "")}</code></p></section>
 <section class="card"><div class="k">Environment mapping</div><div class="grid"><div class="metric"><div class="k">Paper base URL</div><div class="v">${renderBool(env.alpacaPaperTradingBaseUrlPresent)}</div></div><div class="metric"><div class="k">Paper route path</div><div class="v">${renderBool(env.alpacaPaperRoutePathPresent)}</div></div><div class="metric"><div class="k">API key present</div><div class="v">${renderBool(env.alpacaApiKeyPresent)}</div></div><div class="metric"><div class="k">API secret present</div><div class="v">${renderBool(env.alpacaApiSecretPresent)}</div></div></div><p>Key preview: <code>${esc(env.keyPreview)}</code></p><p>Secret preview: <code>${esc(env.secretPreview)}</code></p></section>
 <section class="card"><div class="k">One-shot implementation blockers</div><p>Ready for single paper network attempt: <strong>${renderBool(impl.readyForSinglePaperNetworkAttempt)}</strong></p><p>Approval record found: <strong>${renderBool(impl.approvalRecordFound)}</strong></p><p>Prior attempt found: <strong>${renderBool(impl.priorAttemptFound)}</strong></p><p>Market open: <strong>${renderBool(impl.marketOpen)}</strong></p><ul>${implBlockers.length ? implBlockers.map((b) => `<li>${esc(b)}</li>`).join("") : "<li>none</li>"}</ul></section>
