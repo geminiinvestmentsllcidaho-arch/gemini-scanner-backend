@@ -112,9 +112,13 @@ function normalizePostAttempt(report, file) {
 
 export function buildPaperBrokerNetworkAttemptStatusAppScreen(input = {}) {
   const runsDir = textValue(input.runsDir, "runs");
-  const postFile = input.report ? null : latestFile(runsDir, "paper_broker_network_call_post_attempt_");
-  const preFile = input.report ? null : latestFile(runsDir, "paper_broker_network_call_pre_attempt_");
-  const approvalFile = input.report ? null : latestApprovedFile(runsDir);
+  const shouldLoadReport =
+    Boolean(input.report) ||
+    input.loadSourceReport === true ||
+    Object.prototype.hasOwnProperty.call(input, "runsDir");
+  const postFile = input.report || !shouldLoadReport ? null : latestFile(runsDir, "paper_broker_network_call_post_attempt_");
+  const preFile = input.report || !shouldLoadReport ? null : latestFile(runsDir, "paper_broker_network_call_pre_attempt_");
+  const approvalFile = input.report || !shouldLoadReport ? null : latestApprovedFile(runsDir);
   const report = input.report ?? (postFile ? readJson(postFile) : null);
 
   const base = {
