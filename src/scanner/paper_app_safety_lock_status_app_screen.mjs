@@ -36,6 +36,20 @@ const CLOSED_SAFETY_LOCKS = Object.freeze({
   routeExecutionAllowed: false
 });
 
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${safe(href)}">${safe(label)}</a></li>`)
+    .join("");
+}
+
 function normalizeEntry(entry = {}) {
   return {
     id: stableString(entry.id),
@@ -134,6 +148,8 @@ export function renderPaperAppSafetyLockStatusAppScreenHtml(input = {}) {
 <h1>${safe(report.title)}</h1>
 <p>Read-only safety lock status for paper app routes.</p>
 <p>No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
+<h2>Related Broker Readiness Routes</h2>
+<ul>${renderRelatedBrokerReadinessRoutes()}</ul>
 <ul>
 <li>Status: ${safe(report.status)}</li>
 <li>Display state: ${safe(report.displayState)}</li>

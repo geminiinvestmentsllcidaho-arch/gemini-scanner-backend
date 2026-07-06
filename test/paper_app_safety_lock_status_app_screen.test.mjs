@@ -60,6 +60,11 @@ test("paper app safety lock status html has no mutation controls", () => {
 
   assert.ok(html.includes("Paper App Safety Lock Status"));
   assert.ok(html.includes("No route execution, no broker contact, no order submit, no retry, no reset, no account mutation."));
+  assert.ok(html.includes("Related Broker Readiness Routes"));
+  assert.ok(html.includes("/app/paper-app-broker-readiness-index"));
+  assert.ok(html.includes("/app/paper-broker-runtime-environment-preflight"));
+  assert.ok(html.includes("/app/paper-broker-network-attempt-status"));
+  assert.ok(html.includes("/app/paper-trade-readiness-report"));
   assert.equal(lower.includes("<form"), false);
   assert.equal(lower.includes("<button"), false);
   assert.equal(lower.includes("type=\"submit\""), false);
