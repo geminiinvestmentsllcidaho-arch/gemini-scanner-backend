@@ -592,8 +592,12 @@ app.get('/app/paper-lifecycle-evidence-bundle', async (req, res) => {
 
 app.get('/app/paper-lifecycle-completion-seal', async (req, res) => {
   try {
-    const mod = await import('./scanner/paper_lifecycle_completion_seal_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    if (!appRouteLoadSourceReportRequested(req)) {
+      res.type('html').send(renderFastLifecyclePreviewHtml('Paper Lifecycle Completion Seal Read-Only'));
+      return;
+    }
+    const mod = await import('./scanner/paper_lifecycle_completion_seal_readonly_panel.mjs');
     const report = mod.buildPaperLifecycleCompletionSealReadOnlyPanel({ runsDir: 'runs', markPrice });
     res.type('html').send(mod.renderPaperLifecycleCompletionSealReadOnlyPanel(report));
   } catch (err) {
