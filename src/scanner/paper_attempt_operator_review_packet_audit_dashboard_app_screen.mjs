@@ -8,8 +8,23 @@ const S = (value, fallback = "") => String(value ?? "").trim() || fallback;
 const E = (value) => S(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 const U = (values) => [...new Set(values.flat().map((value) => S(value)).filter(Boolean))];
 
+function fastDefaultPanel() {
+  return {
+    ok: false,
+    version: "paper_attempt_operator_review_packet_audit_dashboard_panel_fast_preview_v1",
+    displayState: "AUDIT_DASHBOARD_FAST_PREVIEW_READONLY",
+    rows: [],
+    blockers: ["source_panel_not_supplied"],
+    blockerCount: 1,
+  };
+}
+
 function sourcePanel(options = {}) {
-  return options.panel ?? options.dashboardPanel ?? options.source ?? buildPaperAttemptOperatorReviewPacketAuditDashboardPanel(options);
+  if (options.panel) return options.panel;
+  if (options.dashboardPanel) return options.dashboardPanel;
+  if (options.source) return options.source;
+  if (options.loadSourcePanel === true) return buildPaperAttemptOperatorReviewPacketAuditDashboardPanel(options);
+  return fastDefaultPanel();
 }
 
 function normalizeRows(panel) {

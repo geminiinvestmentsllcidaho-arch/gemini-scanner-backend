@@ -8,8 +8,23 @@ const S = (value, fallback = "") => String(value ?? "").trim() || fallback;
 const E = (value) => S(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 const U = (values) => [...new Set(values.flat().map((value) => S(value)).filter(Boolean))];
 
+function fastDefaultPanel() {
+  return {
+    ok: false,
+    version: "paper_attempt_module_complete_selector_panel_fast_preview_v1",
+    displayState: "MODULE_COMPLETE_SELECTOR_FAST_PREVIEW_READONLY",
+    rows: [],
+    blockers: ["source_panel_not_supplied"],
+    blockerCount: 1,
+  };
+}
+
 function sourcePanel(options = {}) {
-  return options.panel ?? options.selectorPanel ?? options.source ?? buildPaperAttemptModuleCompleteSelectorPanel(options);
+  if (options.panel) return options.panel;
+  if (options.selectorPanel) return options.selectorPanel;
+  if (options.source) return options.source;
+  if (options.loadSourcePanel === true) return buildPaperAttemptModuleCompleteSelectorPanel(options);
+  return fastDefaultPanel();
 }
 
 function normalizeRows(panel) {

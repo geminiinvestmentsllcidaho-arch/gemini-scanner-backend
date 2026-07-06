@@ -11,19 +11,35 @@ const esc = (value) => String(value ?? "")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#39;");
 
+function fastDefaultPanel() {
+  return {
+    ok: true,
+    version: "market_closed_snapshot_panel_fast_preview_v1",
+    title: "Market Closed Snapshot",
+    displayState: "MARKET_CLOSED_SNAPSHOT_FAST_PREVIEW_READONLY",
+    scannerHealth: "preview",
+    rankingConfidence: 0,
+    totalRankings: 0,
+    rankings: [],
+  };
+}
+
 function sourcePanel(options = {}) {
   if (options.panel && typeof options.panel === "object") return options.panel;
-  try {
-    return buildMarketClosedSnapshotPanel({ skipScriptCheck: true, ...(options.panelOptions ?? {}) });
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-      title: "Market Closed Snapshot",
-      displayState: "MARKET_CLOSED_SNAPSHOT_APP_SOURCE_UNAVAILABLE",
-      snapshot: null,
-    };
+  if (options.loadSourcePanel === true) {
+    try {
+      return buildMarketClosedSnapshotPanel({ skipScriptCheck: true, ...(options.panelOptions ?? {}) });
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+        title: "Market Closed Snapshot",
+        displayState: "MARKET_CLOSED_SNAPSHOT_APP_SOURCE_UNAVAILABLE",
+        snapshot: null,
+      };
+    }
   }
+  return fastDefaultPanel();
 }
 
 function topSymbolsFrom(panel = {}) {
