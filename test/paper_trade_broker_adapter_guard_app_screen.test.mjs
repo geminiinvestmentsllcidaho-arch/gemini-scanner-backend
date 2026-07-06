@@ -30,6 +30,11 @@ test("paper broker adapter guard app screen reads panel and stays blocked", () =
   const html = renderPaperTradeBrokerAdapterGuardAppScreenHtml(screen);
   assert.equal(html.includes("Paper Trade Broker Adapter Guard"), true);
   assert.equal(html.includes("No broker contact, no order placement, no account mutation"), true);
+  assert.equal(html.includes("Related Broker Readiness Routes"), true);
+  assert.equal(html.includes("/app/paper-app-broker-readiness-index"), true);
+  assert.equal(html.includes("/app/paper-broker-runtime-environment-preflight"), true);
+  assert.equal(html.includes("/app/paper-broker-network-attempt-status"), true);
+  assert.equal(html.includes("/app/paper-trade-broker-integration-preflight-stack"), true);
   assert.equal(html.includes("Broker adapter enabled: <strong>false</strong>"), true);
   assert.equal(html.includes("Execution allowed: <strong>false</strong>"), true);
   assert.equal(html.includes("broker_adapter_disabled"), true);
