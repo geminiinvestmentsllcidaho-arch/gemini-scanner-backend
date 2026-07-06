@@ -41,6 +41,11 @@ test("paper app broker readiness index html has no mutation controls", () => {
 
   assert.ok(html.includes("Paper App Broker Readiness Index"));
   assert.ok(html.includes("No route execution, no broker contact, no order submit"));
+  assert.ok(html.includes("Required Broker Readiness Routes"));
+  assert.ok(html.includes("Broker Readiness Route Links"));
+  assert.ok(html.includes("Safety Locks"));
+  assert.ok(html.includes("/app/paper-broker-runtime-environment-preflight"));
+  assert.ok(html.includes("/app/paper-trade-readiness-report"));
   assert.equal(lower.includes("<form"), false);
   assert.equal(lower.includes("<button"), false);
   assert.equal(lower.includes("type=\"submit\""), false);
