@@ -2245,7 +2245,36 @@ app.get("/diagnostics/todays-intraday-setup-detail", (req, res) => {
 });
 
 app.get("/app/todays-intraday-setups", (req, res) => {
-  res.type("html").send(renderTodaysIntradaySetupsAppCardHtml(buildTodaysIntradaySetupsAppCard(buildTodaysIntradaySetupsDiagnosticReport(req))));
+  const loadSourceReport = ["1", "true", "yes", "full"].includes(
+    String(req.query.loadSources ?? req.query.loadSourceReport ?? "").toLowerCase()
+  );
+  const now = new Date();
+  const report = loadSourceReport ? buildTodaysIntradaySetupsDiagnosticReport(req) : {
+    ok: true,
+    version: "todays_intraday_setups_fast_preview_v1",
+    ts: now.toISOString(),
+    generatedAt: now.toISOString(),
+    title: "Today's Intraday Setups",
+    displayState: "TODAYS_INTRADAY_SETUPS_FAST_PREVIEW_READONLY",
+    status: "fast_preview_readonly",
+    session: req.query.session ?? "regular",
+    candidates: [],
+    tradeCandidates: [],
+    noTrade: [],
+    source: "fast_preview",
+    intradayFeatureSource: "source_report_not_loaded",
+    scannerHealth: null,
+    rankingConfidence: null,
+    rankingCount: 0,
+    sourceTs: null,
+    sourceAgeSec: null,
+    sourceStale: null,
+    refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+    readOnly: true,
+    monitorOnly: true,
+    noExecutionControls: true
+  };
+  res.type("html").send(renderTodaysIntradaySetupsAppCardHtml(buildTodaysIntradaySetupsAppCard(report)));
 });
 
 app.get("/app/todays-intraday-setups/:symbol", (req, res) => {
