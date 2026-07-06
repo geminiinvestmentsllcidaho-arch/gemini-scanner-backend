@@ -19,6 +19,23 @@ function esc(value) {
     .replaceAll("'", "&#39;");
 }
 
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
+  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
+  ["/app/paper-trade-execution-control-stack", "Paper Trade Execution Control Stack"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`)
+    .join("");
+}
+
 export function buildPaperTradeOperatorGoNoGoAppScreen(input = {}) {
   const panel = object(input.panel).version
     ? object(input.panel)
@@ -87,6 +104,7 @@ export function renderPaperTradeOperatorGoNoGoAppScreenHtml(screen = {}) {
 <p><a href="/app">Back to App Navigation</a></p>
 <h1>${esc(screen.title || "Paper Trade Operator Go / No-Go")}</h1>
 <p>Read-only final operator decision app screen. No broker contact, no order placement, no account mutation.</p>
+<h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul>
 <hr>
 <h2>Operator Status</h2><p>${esc(screen.status)}</p>
 <h2>Go / No-Go Flags:</h2><ul>

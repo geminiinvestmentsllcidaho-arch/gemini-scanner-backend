@@ -81,6 +81,12 @@ test("paper trade operator go/no-go app html has no mutation controls", () => {
   assert.match(html, /Paper Trade Operator Go \/ No-Go/);
   assert.match(html, /No broker contact, no order placement, no account mutation/);
   assert.match(html, /Final go: false/);
+  assert.match(html, /Related Broker Readiness Routes/);
+  assert.match(html, /\/app\/paper-app-broker-readiness-index/);
+  assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
+  assert.match(html, /\/app\/paper-broker-network-attempt-status/);
+  assert.match(html, /\/app\/paper-trade-broker-integration-preflight-stack/);
+  assert.match(html, /\/app\/paper-trade-execution-control-stack/);
   assert.doesNotMatch(html, /<form\b/i);
   assert.doesNotMatch(html, /<button\b/i);
   assert.doesNotMatch(html, /type=["']submit["']/i);
