@@ -95,6 +95,10 @@ test("paper broker network attempt status app screen renders latest attempt safe
   const html = renderPaperBrokerNetworkAttemptStatusAppScreenHtml(screen);
   assert.equal(html.includes("Paper Broker Network Attempt Status"), true);
   assert.equal(html.includes("No retry, no new broker contact, no order submit, no account mutation, no reset controls."), true);
+  assert.equal(html.includes("Related broker readiness routes"), true);
+  assert.equal(html.includes("/app/paper-app-broker-readiness-index"), true);
+  assert.equal(html.includes("/app/paper-broker-runtime-environment-preflight"), true);
+  assert.equal(html.includes("/app/paper-trade-readiness-report"), true);
   assert.equal(html.includes("network_attempt_completed"), true);
   assert.equal(html.includes("paper-test-order"), true);
   assert.equal(/<form\b/i.test(html), false);
