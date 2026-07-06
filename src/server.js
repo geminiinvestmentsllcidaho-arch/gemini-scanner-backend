@@ -894,6 +894,10 @@ app.get('/diagnostics/paper-trading-completion-certificate-readonly', async (req
 
 app.get('/app/paper-trading-completion-certificate', async (req, res) => {
   try {
+    if (!appRouteLoadSourceReportRequested(req)) {
+      res.type('html').send(renderFastLifecyclePreviewHtml('Paper Trading Completion Certificate Read-Only'));
+      return;
+    }
     const mod = await import('./scanner/paper_trading_completion_certificate_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
     const report = mod.buildPaperTradingCompletionCertificateReadOnlyPanel({ runsDir: 'runs', markPrice });
