@@ -23,6 +23,22 @@ function bool(value) {
   return value === true;
 }
 
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
+  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`)
+    .join("");
+}
+
 export function buildPaperTradeExecutionControlStackAppScreen(input = {}) {
   const panel = input.panel && typeof input.panel === "object" && !Array.isArray(input.panel)
     ? input.panel
@@ -109,6 +125,7 @@ code{background:#f6f6f6;padding:2px 5px;border-radius:6px}
 <body>
 <p><a href="/app">Back to app navigation</a></p>
 <h1>${esc(screen.title || "Paper Trade Execution Control Stack")}</h1>
+<section class="card"><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <section class="card"><h2>Status</h2><div class="grid">
 <div class="badge">Status: <strong>${esc(screen.status || "blocked")}</strong></div>
 <div class="badge">Severity: <strong>${esc(screen.severity || "blocked")}</strong></div>

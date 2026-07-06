@@ -31,6 +31,12 @@ test("paper trade execution control stack app screen reads panel and stays block
   assert.match(html, /Execution allowed: <strong>false<\/strong>/);
   assert.match(html, /\/diagnostics\/paper-trade-execution-control-stack/);
   assert.match(html, /\/app\/paper-trade-readiness-report/);
+  assert.match(html, /Related Broker Readiness Routes/);
+  assert.match(html, /\/app\/paper-app-broker-readiness-index/);
+  assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
+  assert.match(html, /\/app\/paper-broker-network-attempt-status/);
+  assert.match(html, /\/app\/paper-trade-broker-integration-preflight-stack/);
+  assert.match(html, /\/app\/paper-trade-broker-adapter-guard/);
   assert.doesNotMatch(html, /<form\b/i);
   assert.doesNotMatch(html, /<button\b/i);
   assert.doesNotMatch(html, /type=["']submit["']/i);
