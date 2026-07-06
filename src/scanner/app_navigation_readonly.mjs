@@ -212,6 +212,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_app_broker_readiness_index",
+    title: "Paper App Broker Readiness Index",
+    subtitle: "Read-only broker readiness route index.",
+    description: "Indexes broker readiness app routes without route execution, broker contact, order submit, retry, reset, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-app-broker-readiness-index",
+    diagnosticHref: "/app/paper-app-broker-readiness-index",
+    routeHref: "/app/paper-app-broker-readiness-index",
+    displayState: "PAPER_APP_BROKER_READINESS_INDEX_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "paper_broker_runtime_environment_preflight",
     title: "Paper Broker Runtime Environment Preflight",
     subtitle: "Read-only runtime environment and one-shot blocker status.",
