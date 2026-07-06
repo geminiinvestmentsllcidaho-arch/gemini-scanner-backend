@@ -4,7 +4,8 @@ const A=v=>Array.isArray(v)?v:[];
 const S=(v,f="")=>String(v??"").trim()||f;
 const F=false;
 const E=v=>S(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
-const P=o=>o.panel??o.source??o.result??buildPaperAttemptOperatorReviewPacketPanel(o);
+const fastDefaultPanel=()=>({ok:false,version:"paper_attempt_operator_review_packet_panel_fast_preview_v1",status:"fast_preview_readonly",displayState:"OPERATOR_REVIEW_PACKET_FAST_PREVIEW_READONLY",blockers:["source_panel_not_supplied"],blockerCount:1,checklist:[]});
+const P=o=>o.panel??o.source??o.result??(o.loadSourcePanel===true?buildPaperAttemptOperatorReviewPacketPanel(o):fastDefaultPanel());
 const U=v=>[...new Set(v.flat().map(x=>S(x)).filter(Boolean))];
 export function buildPaperAttemptOperatorReviewPacketAppScreen(o={}){
  const p=P(o);
