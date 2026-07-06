@@ -11,6 +11,33 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function escHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
+  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
+  ["/app/paper-trade-execution-control-stack", "Paper Trade Execution Control Stack"],
+  ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${escHtml(href)}">${escHtml(label)}</a></li>`)
+    .join("");
+}
+
 export function buildPaperLifecycleReadonlyDashboardPanel({ runsDir = "runs", now = new Date(), markPrice = null } = {}) {
   const pnlReport = buildPaperPositionPnlReadOnlyBaselinePanel({ runsDir, now, markPrice });
   const position = pnlReport.position ?? {};
@@ -73,6 +100,7 @@ export function renderPaperLifecycleReadonlyDashboardPanel(report) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(report.title)}</title></head><body>
 <h1>Paper Lifecycle Read-Only Dashboard</h1>
 <p>Read-only lifecycle view from stored paper order, position, and P/L reports. No broker read, no order submit, no retry, no account mutation.</p>
+<section><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <ul>
 <li>Display state: ${safe(report.displayState)}</li>
 <li>Order filled: ${safe(ready.orderFilled)}</li>
