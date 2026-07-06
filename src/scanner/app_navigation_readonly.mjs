@@ -200,6 +200,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_app_safety_lock_status",
+    title: "Paper App Safety Lock Status",
+    subtitle: "Read-only paper app safety lock status.",
+    description: "Summarizes closed safety locks across paper app routes without route execution, broker contact, order submit, retry, reset, or account mutation controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-app-safety-lock-status",
+    diagnosticHref: "/app/paper-app-safety-lock-status",
+    routeHref: "/app/paper-app-safety-lock-status",
+    displayState: "PAPER_APP_SAFETY_LOCK_STATUS_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "paper_broker_runtime_environment_preflight",
     title: "Paper Broker Runtime Environment Preflight",
     subtitle: "Read-only runtime environment and one-shot blocker status.",

@@ -2405,6 +2405,17 @@ app.get('/app/paper-app-route-health-status', async (req, res) => {
 });
 
 
+app.get('/app/paper-app-safety-lock-status', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_app_safety_lock_status_app_screen.mjs');
+    const screen = mod.buildPaperAppSafetyLockStatusAppScreen();
+    res.type('html').send(mod.renderPaperAppSafetyLockStatusAppScreenHtml(screen));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'paper_app_safety_lock_status_app_screen_failed', message: err?.message ?? String(err) });
+  }
+});
+
+
 app.get('/app/paper-broker-runtime-environment-preflight', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_broker_runtime_environment_preflight_app_screen.mjs');
