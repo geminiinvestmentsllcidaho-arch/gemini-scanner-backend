@@ -614,8 +614,12 @@ app.get('/app/paper-lifecycle-operator-review-checklist', async (req, res) => {
 
 app.get('/app/paper-lifecycle-operator-review-packet', async (req, res) => {
   try {
-    const mod = await import('./scanner/paper_lifecycle_operator_review_packet_readonly_panel.mjs');
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
+    if (!appRouteLoadSourceReportRequested(req)) {
+      res.type('html').send(renderFastLifecyclePreviewHtml('Paper Lifecycle Operator Review Packet Read-Only'));
+      return;
+    }
+    const mod = await import('./scanner/paper_lifecycle_operator_review_packet_readonly_panel.mjs');
     const report = mod.buildPaperLifecycleOperatorReviewPacketReadOnlyPanel({ runsDir: 'runs', markPrice });
     res.type('html').send(mod.renderPaperLifecycleOperatorReviewPacketReadOnlyPanel(report));
   } catch (err) {
