@@ -737,6 +737,12 @@ function formatCategoryLabel(category) {
     .join(" ");
 }
 
+function categoryAnchor(category) {
+  const raw = String(category ?? "uncategorized").toLowerCase();
+  const safe = raw.replace(/[^a-z0-9_]+/g, "-").replace(/^-+|-+$/g, "");
+  return `app-nav-${safe.replace(/_/g, "-") || "uncategorized"}`;
+}
+
 function groupEntriesByCategory(entries = []) {
   const groups = new Map();
   for (const entry of list(entries)) {
@@ -747,6 +753,16 @@ function groupEntriesByCategory(entries = []) {
   return groups;
 }
 
+function renderNavigationSections(entries = []) {
+  const groups = groupEntriesByCategory(entries);
+  if (!groups.size) return "<p>No app entries registered.</p>";
+  return [...groups.entries()]
+    .map(([category, groupEntries]) => `<section class="entry-group" id="${esc(categoryAnchor(category))}" data-app-navigation-category="${esc(category)}" data-app-navigation-entry-count="${esc(groupEntries.length)}">
+<h2>${esc(formatCategoryLabel(category))} <small class="entry-count">${esc(groupEntries.length)} entries</small></h2>
+${groupEntries.map(renderEntry).join("")}
+</section>`)
+    .join("");
+}
 
 function renderNavigationSummary(nav = {}) {
   const entries = list(nav.entries);
@@ -760,24 +776,17 @@ function renderNavigationSummary(nav = {}) {
     "/app/paper-app-safety-lock-status",
     "/app/paper-trading-module-final-status",
   ].filter((href) => entries.some((entry) => entry.href === href)).length;
+  const categoryLinks = [...groups.entries()]
+    .map(([category, groupEntries]) => `<li><a href="#${esc(categoryAnchor(category))}">${esc(formatCategoryLabel(category))}</a> <small>${esc(groupEntries.length)} entries</small></li>`)
+    .join("");
 
   return `<section class="safety" data-app-navigation-summary="true">
 <h2>Navigation Summary</h2>
 <p><b>Registered Views:</b> ${esc(entryCount)} | <b>Categories:</b> ${esc(categoryCount)} | <b>Readiness Quick Links:</b> ${esc(quickLinks)}</p>
 <p><b>Read-only Locks:</b> no execution controls, no broker contact, no order placement, no account mutation.</p>
+<div class="links" data-app-navigation-jump-links="true"><b>Jump to section:</b> <ul>${categoryLinks}</ul></div>
 <p><b>No execution controls:</b> ${esc(nav.noExecutionControls)} | <b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)} | <b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</p>
 </section>`;
-}
-
-function renderNavigationSections(entries = []) {
-  const groups = groupEntriesByCategory(entries);
-  if (!groups.size) return "<p>No app entries registered.</p>";
-  return [...groups.entries()]
-    .map(([category, groupEntries]) => `<section class="entry-group" data-app-navigation-category="${esc(category)}" data-app-navigation-entry-count="${esc(groupEntries.length)}">
-<h2>${esc(formatCategoryLabel(category))} <small class="entry-count">${esc(groupEntries.length)} entries</small></h2>
-${groupEntries.map(renderEntry).join("")}
-</section>`)
-    .join("");
 }
 
 function renderReadinessQuickLinks(entries = []) {
@@ -813,7 +822,7 @@ export function renderAppNavigationReadonlyHtml(nav = {}) {
   const summary = renderNavigationSummary(nav);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
 <style>
-body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}small{font-size:11px;color:#777}
+body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.entry-group,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2,.entry-group h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}.links ul{display:flex;gap:8px;flex-wrap:wrap;list-style:none;padding:0;margin:8px 0 0}.entry-count,small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</p></section>
 ${summary}
@@ -823,3 +832,4 @@ ${sections}
 ${renderReadOnlyAutoRefreshScript(nav)}
 </main></body></html>`;
 }
+
