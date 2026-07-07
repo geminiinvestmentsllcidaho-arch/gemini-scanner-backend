@@ -34,6 +34,7 @@ function renderBool(value) {
 
 const RELATED_ROUTES = Object.freeze([
   ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-adapter-approval-lock", "Paper Broker Adapter Approval Lock"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
   ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"]
