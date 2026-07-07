@@ -85,7 +85,7 @@ function fastNetworkAttemptSource() {
 }
 
 export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
-  const loadSources = input.loadSources === true;
+  const loadSources = input.loadSources !== false;
   const readinessResult = input.readiness
     ? { ok: true, label: "readiness", value: input.readiness }
     : (loadSources || input.readinessInput
