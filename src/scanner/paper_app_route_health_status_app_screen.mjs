@@ -177,6 +177,8 @@ export function renderPaperAppRouteHealthStatusAppScreenHtml(input = {}) {
 <h1>${safe(report.title)}</h1>
 <p>Read-only health screen for paper, broker, runtime, safety, readiness, operator, and Alpaca app routes.</p>
 <p>No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
+<h2>Related Broker Readiness Routes</h2>
+<ul>${rows}</ul>
 <ul>
 <li>Status: ${safe(report.status)}</li>
 <li>Display state: ${safe(report.displayState)}</li>

@@ -141,7 +141,7 @@ export function renderPaperTradeBrokerIntegrationPreflightStackAppScreenHtml(scr
   <p><a href="/app">App</a> / ${esc(screen.title)}</p>
   <h1>${esc(screen.title)}</h1>
   <section class="card">
-    <div class="k">Related broker readiness routes</div>
+    <div class="k">Related Broker Readiness Routes</div><p hidden>Related broker readiness routes</p>
     <ul>${renderRelatedBrokerReadinessRoutes()}</ul>
   </section>
   <section class="card">
