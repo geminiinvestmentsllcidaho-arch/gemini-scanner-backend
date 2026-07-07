@@ -4,6 +4,38 @@ import { buildPaperLifecycleRouteRegistryReadOnlyPanel } from "./paper_lifecycle
 
 export const VERSION = "paper_lifecycle_evidence_index_readonly_panel_v1";
 
+function escHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
+  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
+  ["/app/paper-trade-execution-control-stack", "Paper Trade Execution Control Stack"],
+  ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
+  ["/app/paper-lifecycle-dashboard", "Paper Lifecycle Read-Only Dashboard"],
+  ["/app/paper-lifecycle-operator-summary", "Paper Lifecycle Operator Summary Read-Only"],
+  ["/app/paper-lifecycle-final-status", "Paper Lifecycle Final Status Read-Only"],
+  ["/app/paper-lifecycle-route-registry", "Paper Lifecycle Route Registry Read-Only"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${escHtml(href)}">${escHtml(label)}</a></li>`)
+    .join("");
+}
+
+
 export const EVIDENCE_ITEMS = [
   {
     key: "readonly_dashboard",
@@ -130,6 +162,7 @@ export function renderPaperLifecycleEvidenceIndexReadOnlyPanel(report) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(report.title)}</title></head><body>
 <h1>Paper Lifecycle Evidence Index Read-Only</h1>
 <p>Read-only evidence index. No broker read, no broker contact, no order submit, no retry, no account mutation.</p>
+<section><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <ul>
 <li>Display state: ${safe(report.displayState)}</li>
 <li>Evidence count: ${safe(evidenceIndex.evidenceCount)}</li>
