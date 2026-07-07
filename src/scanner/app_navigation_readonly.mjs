@@ -727,6 +727,35 @@ function renderReadOnlyAutoRefreshScript(source = {}) {
 </script>`;
 }
 
+
+function renderReadinessQuickLinks(entries = []) {
+  const source = list(entries);
+  const lookup = new Map(source.map((entry) => [entry.href, entry]));
+  const links = [
+    { href: "/app/paper-app-broker-readiness-index", label: "Paper App Broker Readiness Index" },
+    { href: "/app/paper-app-readiness-status", label: "Paper App Readiness Status" },
+    { href: "/app/paper-app-route-health-status", label: "Paper App Route Health Status" },
+    { href: "/app/paper-app-safety-lock-status", label: "Paper App Safety Lock Status" },
+    { href: "/app/paper-trading-module-final-status", label: "Paper Trading Module Final Status" },
+  ];
+
+  const rendered = links
+    .map((link) => {
+      const entry = lookup.get(link.href) ?? {};
+      const title = entry.title ?? link.label;
+      return `<a href="${esc(link.href)}">${esc(title)}</a>`;
+    })
+    .join("");
+
+  return `<section class="safety" data-paper-readiness-quick-links="true">
+<h2>Related Broker Readiness Routes</h2>
+<p>Read-only paper app readiness, broker readiness, route health, safety lock, and final module status links.</p>
+<div class="links">${rendered}</div>
+<small>Read-only | no broker contact | no order placement | no account mutation</small>
+</section>`;
+}
+
+
 export function renderAppNavigationReadonlyHtml(nav = {}) {
   const entries = list(nav.entries).map(renderEntry).join("") || "<p>No app entries registered.</p>";
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
@@ -734,6 +763,7 @@ export function renderAppNavigationReadonlyHtml(nav = {}) {
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</p></section>
+${renderReadinessQuickLinks(nav.entries)}
 ${entries}
 <section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
 ${renderReadOnlyAutoRefreshScript(nav)}
