@@ -55,6 +55,41 @@ test("builds read-only operator review packet app screen from supplied panel", (
   assert.equal(screen.accountMutationAttempted, false);
 });
 
+
+test("operator review packet app screen loads source panel by default", () => {
+  const screen = buildPaperAttemptOperatorReviewPacketAppScreen({
+    now: new Date("2026-07-07T08:35:00Z"),
+    autoRefreshEnabled: false,
+  });
+
+  assert.equal(screen.ok, true);
+  assert.notEqual(screen.sourceVersion, "paper_attempt_operator_review_packet_panel_fast_preview_v1");
+  assert.equal(screen.blockers.includes("source_panel_not_supplied"), false);
+  assert.equal(screen.readyForOrderPlacement, false);
+  assert.equal(screen.readOnly, true);
+  assert.equal(screen.noExecutionControls, true);
+  assert.equal(screen.brokerContactAllowed, false);
+  assert.equal(screen.orderPlacementAllowed, false);
+  assert.equal(screen.accountMutationAllowed, false);
+});
+
+test("operator review packet app screen can still render fast preview when source loading is disabled", () => {
+  const screen = buildPaperAttemptOperatorReviewPacketAppScreen({
+    now: new Date("2026-07-07T08:36:00Z"),
+    autoRefreshEnabled: false,
+    loadSourcePanel: false,
+  });
+
+  assert.equal(screen.sourceVersion, "paper_attempt_operator_review_packet_panel_fast_preview_v1");
+  assert.equal(screen.blockers.includes("source_panel_not_supplied"), true);
+  assert.equal(screen.readyForOrderPlacement, false);
+  assert.equal(screen.readOnly, true);
+  assert.equal(screen.noExecutionControls, true);
+  assert.equal(screen.brokerContactAllowed, false);
+  assert.equal(screen.orderPlacementAllowed, false);
+  assert.equal(screen.accountMutationAllowed, false);
+});
+
 test("renders operator review packet html without mutation controls", () => {
   const screen = buildPaperAttemptOperatorReviewPacketAppScreen({
     panel: {
