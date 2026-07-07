@@ -52,6 +52,28 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
+
+const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
+  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
+  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
+  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
+  ["/app/paper-trade-execution-control-stack", "Paper Trade Execution Control Stack"],
+  ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
+  ["/app/paper-trading-completion-certificate", "Paper Trading Completion Certificate"],
+  ["/app/paper-trading-module-route-index", "Paper Trading Module Route Index"],
+  ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"]
+]);
+
+function renderRelatedBrokerReadinessRoutes() {
+  return RELATED_BROKER_READINESS_ROUTES
+    .map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`)
+    .join("");
+}
+
 function safeRouteHealth(input) {
   try {
     return input.routeHealth ?? buildPaperAppRouteHealthStatusAppScreen({});
@@ -174,6 +196,7 @@ export function renderPaperAppReadinessStatusAppScreenHtml(input = {}) {
 <h1>${esc(screen.title)}</h1>
 <p>${esc(screen.subtitle)}</p>
 <p>Read-only status. No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
+<h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul>
 <ul>
 <li>Status: ${esc(screen.status)}</li>
 <li>Display state: ${esc(screen.displayState)}</li>
