@@ -178,7 +178,7 @@ export function renderPaperAppRouteHealthStatusAppScreenHtml(input = {}) {
 <p>Read-only health screen for paper, broker, runtime, safety, readiness, operator, and Alpaca app routes.</p>
 <p>No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
 <h2>Related Broker Readiness Routes</h2>
-<p><a href="/app/paper-broker-adapter-approval-lock">Paper Broker Adapter Approval Lock</a></p><p><a href="/app/paper-broker-adapter-approval-record-tool">Paper Broker Adapter Approval Record Tool</a></p>
+<p><a href="/app/paper-broker-adapter-approval-lock">Paper Broker Adapter Approval Lock</a></p><p><a href="/app/paper-operator-start-here">Paper Operator Start Here</a> · <a href="/app/paper-broker-adapter-approval-record-tool">Paper Broker Adapter Approval Record Tool</a></p>
 <ul>${rows}</ul>
 <ul>
 <li>Status: ${safe(report.status)}</li>

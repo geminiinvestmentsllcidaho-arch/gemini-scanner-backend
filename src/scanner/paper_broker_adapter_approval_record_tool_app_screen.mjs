@@ -47,6 +47,7 @@ export async function buildPaperBrokerAdapterApprovalRecordToolAppScreen(input =
     previewOnly: true,
     paperOnly: true,
     noExecutionControls: true,
+  ["/app/paper-operator-start-here", "Paper Operator Start Here"],
     title: "Paper Broker Adapter Approval Record Tool",
     route: "/app/paper-broker-adapter-approval-record-tool",
     diagnosticRoute: "/diagnostics/paper-broker-adapter-approval-record-tool",
