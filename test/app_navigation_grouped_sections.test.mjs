@@ -18,14 +18,23 @@ test("app navigation groups entries by category and keeps readiness quick links 
   }
 
   for (const heading of ["Scanner App", "Paper Lifecycle", "Paper Trading", "Operator Workflow", "Paper Attempt"]) {
-    assert.ok(html.includes(`<h2>${heading}</h2>`), heading);
+    assert.ok(html.includes(heading), heading);
   }
+
+  assert.ok(html.includes('data-app-navigation-entry-count="'));
+  assert.ok(html.includes('class="entry-count"'));
+  assert.ok(html.includes("entries</small>"));
 
   assert.ok(html.includes("Related Broker Readiness Routes"));
   assert.ok(html.includes('data-paper-readiness-quick-links="true"'));
   assert.ok(html.includes("/app/paper-app-broker-readiness-index"));
   assert.ok(html.includes("/app/paper-app-readiness-status"));
-  assert.ok(html.includes("No execution controls"));
+  assert.ok(html.includes("/app/paper-app-route-health-status"));
+  assert.ok(html.includes("/app/paper-app-safety-lock-status"));
+  assert.ok(html.includes("/app/paper-trading-module-final-status"));
+
+  assert.ok(html.includes("Read-only Locks"));
+  assert.ok(html.includes("no execution controls"));
   assert.ok(!html.includes("<form"));
   assert.ok(!html.includes("<button"));
   assert.ok(!html.includes('type="submit"'));

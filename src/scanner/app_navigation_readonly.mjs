@@ -773,8 +773,8 @@ function renderNavigationSections(entries = []) {
   const groups = groupEntriesByCategory(entries);
   if (!groups.size) return "<p>No app entries registered.</p>";
   return [...groups.entries()]
-    .map(([category, groupEntries]) => `<section class="entry-group" data-app-navigation-category="${esc(category)}">
-<h2>${esc(formatCategoryLabel(category))}</h2>
+    .map(([category, groupEntries]) => `<section class="entry-group" data-app-navigation-category="${esc(category)}" data-app-navigation-entry-count="${esc(groupEntries.length)}">
+<h2>${esc(formatCategoryLabel(category))} <small class="entry-count">${esc(groupEntries.length)} entries</small></h2>
 ${groupEntries.map(renderEntry).join("")}
 </section>`)
     .join("");
