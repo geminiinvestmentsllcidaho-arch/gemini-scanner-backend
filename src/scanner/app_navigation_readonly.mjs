@@ -747,6 +747,28 @@ function groupEntriesByCategory(entries = []) {
   return groups;
 }
 
+
+function renderNavigationSummary(nav = {}) {
+  const entries = list(nav.entries);
+  const groups = groupEntriesByCategory(entries);
+  const categoryCount = groups.size;
+  const entryCount = entries.length;
+  const quickLinks = [
+    "/app/paper-app-broker-readiness-index",
+    "/app/paper-app-readiness-status",
+    "/app/paper-app-route-health-status",
+    "/app/paper-app-safety-lock-status",
+    "/app/paper-trading-module-final-status",
+  ].filter((href) => entries.some((entry) => entry.href === href)).length;
+
+  return `<section class="safety" data-app-navigation-summary="true">
+<h2>Navigation Summary</h2>
+<p><b>Registered Views:</b> ${esc(entryCount)} | <b>Categories:</b> ${esc(categoryCount)} | <b>Readiness Quick Links:</b> ${esc(quickLinks)}</p>
+<p><b>Read-only Locks:</b> no execution controls, no broker contact, no order placement, no account mutation.</p>
+<p><b>No execution controls:</b> ${esc(nav.noExecutionControls)} | <b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)} | <b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</p>
+</section>`;
+}
+
 function renderNavigationSections(entries = []) {
   const groups = groupEntriesByCategory(entries);
   if (!groups.size) return "<p>No app entries registered.</p>";
@@ -788,11 +810,13 @@ function renderReadinessQuickLinks(entries = []) {
 
 export function renderAppNavigationReadonlyHtml(nav = {}) {
   const sections = renderNavigationSections(nav.entries);
+  const summary = renderNavigationSummary(nav);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
 <style>
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</p></section>
+${summary}
 ${renderReadinessQuickLinks(nav.entries)}
 ${sections}
 <section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
