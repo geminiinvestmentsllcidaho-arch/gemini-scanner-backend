@@ -2663,6 +2663,29 @@ app.get('/app/paper-trade-broker-integration-preflight-stack', async (_req, res)
   }
 });
 
+app.get('/app/paper-broker-adapter-approval-lock', async (_req, res) => {
+  try {
+    const panel = buildPaperBrokerAdapterApprovalLockPanel();
+    const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+    const reasons = Array.isArray(panel.lockReasons) ? panel.lockReasons : [];
+    res.type('html').send([
+      "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Paper Broker Adapter Approval Lock</title></head><body><main>",
+      "<p><a href='/app'>Back to GeminiScanner App</a></p><h1>", esc(panel.title), "</h1><p>", esc(panel.summary), "</p>",
+      "<section><h2>Approval Lock Status</h2>",
+      "<p>Status: <strong>", esc(panel.status), "</strong></p><p>Broker adapter enabled: <strong>", esc(panel.brokerAdapterEnabled), "</strong></p>",
+      "<p>Approval lock passed: <strong>", esc(panel.approvalLockPassed), "</strong></p><p>Explicit approval record found: <strong>", esc(panel.hasExplicitApprovalRecord), "</strong></p>",
+      "<p>Valid approval record count: <strong>", esc(panel.validApprovalRecordCount), "</strong></p></section>",
+      "<section><h2>Safety Locks</h2><p>brokerContactAllowed=", esc(panel.brokerContactAllowed), "</p><p>orderPlacementAllowed=", esc(panel.orderPlacementAllowed), "</p><p>accountMutationAllowed=", esc(panel.accountMutationAllowed), "</p></section>",
+      "<section><h2>Lock Reasons</h2><ul>", reasons.length ? reasons.map((r) => `<li>${esc(r)}</li>`).join("") : "<li>none</li>", "</ul></section>",
+      "<section><h2>Related Broker Readiness Routes</h2><ul><li><a href='/app/paper-app-broker-readiness-index'>Paper App Broker Readiness Index</a></li><li><a href='/app/paper-trade-broker-adapter-guard'>Paper Trade Broker Adapter Guard</a></li><li><a href='/app/paper-trade-operator-go-no-go'>Paper Trade Operator Go / No-Go</a></li><li><a href='/diagnostics/paper-broker-adapter-approval-lock-panel'>Diagnostic panel payload</a></li></ul></section>",
+      "<section><h2>Display State</h2><p>PAPER_BROKER_ADAPTER_APPROVAL_LOCK_READONLY</p><p>Read-only. Monitor-only. Diagnostics-only. No broker contact, no order placement, no account mutation, no execution controls.</p></section>",
+      "</main></body></html>"
+    ].join(''));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'paper_broker_adapter_approval_lock_app_route_failed', message: err?.message ?? String(err) });
+  }
+});
+
 app.get('/app/paper-trade-broker-adapter-guard', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_trade_broker_adapter_guard_app_screen.mjs');

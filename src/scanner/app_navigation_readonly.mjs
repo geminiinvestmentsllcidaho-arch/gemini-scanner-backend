@@ -273,6 +273,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false
   }),
   Object.freeze({
+    id: "paper_broker_adapter_approval_lock",
+    title: "Paper Broker Adapter Approval Lock",
+    subtitle: "Read-only broker adapter approval lock status.",
+    description: "Read-only approval lock screen showing explicit approval record status, broker adapter enablement, and safety locks while order placement and account mutation remain blocked.",
+    category: "paper_lifecycle",
+    href: "/app/paper-broker-adapter-approval-lock",
+    diagnosticHref: "/diagnostics/paper-broker-adapter-approval-lock-panel",
+    routeHref: "/app/paper-broker-adapter-approval-lock",
+    displayState: "PAPER_BROKER_ADAPTER_APPROVAL_LOCK_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_trade_broker_adapter_guard",
     title: "Paper Trade Broker Adapter Guard",
     subtitle: "Read-only broker adapter guard app screen.",
