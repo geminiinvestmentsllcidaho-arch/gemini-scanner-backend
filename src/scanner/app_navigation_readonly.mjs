@@ -176,6 +176,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_operator_start_here",
+    title: "Paper Operator Start Here",
+    subtitle: "Read-only start point for the paper trading readiness workflow.",
+    description: "Read-only operator start screen linking broker readiness, safety locks, approval record tool, approval lock, diagnostics, and final go/no-go workflow state.",
+    category: "paper_lifecycle",
+    href: "/app/paper-operator-start-here",
+    diagnosticHref: "/diagnostics/paper-trading-final-go-no-go",
+    routeHref: "/app/paper-operator-start-here",
+    displayState: "PAPER_OPERATOR_START_HERE_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_trading_overview_status",
     title: "Paper Trading Overview Status",
     subtitle: "Read-only paper trading overview status.",

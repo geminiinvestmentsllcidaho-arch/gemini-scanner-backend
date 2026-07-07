@@ -91,6 +91,7 @@ import { buildAppNavigationReadonly, renderAppNavigationReadonlyHtml } from "./s
 import { buildWatchlistSettingsReadonly, renderWatchlistSettingsReadonlyHtml } from "./scanner/watchlist_settings_readonly.mjs";
 import { buildExitAllControlReadonly, renderExitAllControlReadonlyHtml } from "./scanner/exit_all_control_readonly.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
+import { buildPaperOperatorStartHereAppScreen, renderPaperOperatorStartHereAppScreenHtml } from "./scanner/paper_operator_start_here_app_screen.mjs";
 
 dotenv.config();
 
@@ -1482,6 +1483,15 @@ app.get('/diagnostics/paper-order-intent-adapter-preview-bridge', async (req, re
 });
 
 
+
+app.get('/app/paper-operator-start-here', (_req, res) => {
+  try {
+    const screen = buildPaperOperatorStartHereAppScreen();
+    res.type('html').send(renderPaperOperatorStartHereAppScreenHtml(screen));
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/app/paper-operator-start-here', error: error instanceof Error ? error.message : String(error) });
+  }
+});
 
 app.get('/app/paper-broker-adapter-approval-record-tool', async (req, res) => {
   try {
