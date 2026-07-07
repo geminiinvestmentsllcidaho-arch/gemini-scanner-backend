@@ -442,6 +442,7 @@ function renderFastLifecyclePreviewHtml(title) {
     "<p>Fast read-only app preview. Source report not loaded unless requested.</p>",
     "<section><h2>Related Broker Readiness Routes</h2><ul>",
     "<li><a href='/app/paper-app-broker-readiness-index'>Paper App Broker Readiness Index</a></li>",
+    "<li><a href='/app/paper-broker-adapter-approval-lock'>Paper Broker Adapter Approval Lock</a></li>",
     "<li><a href='/app/paper-broker-runtime-environment-preflight'>Paper Broker Runtime Environment Preflight</a></li>",
     "<li><a href='/app/paper-broker-network-attempt-status'>Paper Broker Network Attempt Status</a></li>",
     "<li><a href='/app/paper-trade-readiness-report'>Paper Trade Readiness Report</a></li>",
