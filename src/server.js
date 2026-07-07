@@ -69,6 +69,7 @@ import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_nul
 import { getPaperBrokerAdapterContractDiagnostics } from './scanner/paper_broker_adapter_contract.mjs';
 import { getPaperOrderIntentAdapterPreviewBridgeDiagnostics } from './scanner/paper_order_intent_adapter_preview_bridge.mjs';
 import { getPaperBrokerAdapterApprovalRecordDiagnostics } from './scanner/paper_broker_adapter_approval_record_tool.mjs';
+import { buildPaperBrokerAdapterApprovalRecordToolAppScreen, renderPaperBrokerAdapterApprovalRecordToolAppScreenHtml } from './scanner/paper_broker_adapter_approval_record_tool_app_screen.mjs';
 import { getAlpacaPaperBrokerAdapterDiagnostics } from './scanner/alpaca_paper_broker_adapter.mjs';
 import { getPaperOrderSubmitDryRunDiagnostics } from './scanner/paper_order_submit_dry_run_preview.mjs';
 import { getPaperTradingFinalGoNoGoDiagnostics } from './scanner/paper_trading_final_go_no_go.mjs';
@@ -1480,6 +1481,16 @@ app.get('/diagnostics/paper-order-intent-adapter-preview-bridge', async (req, re
   }
 });
 
+
+
+app.get('/app/paper-broker-adapter-approval-record-tool', async (req, res) => {
+  try {
+    const screen = await buildPaperBrokerAdapterApprovalRecordToolAppScreen();
+    res.type('html').send(renderPaperBrokerAdapterApprovalRecordToolAppScreenHtml(screen));
+  } catch (error) {
+    res.status(500).type('text').send(error?.message ?? String(error));
+  }
+});
 
 app.get('/diagnostics/paper-broker-adapter-approval-record-tool', async (req, res) => {
   try {
