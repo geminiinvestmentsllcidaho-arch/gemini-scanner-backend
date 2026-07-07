@@ -728,6 +728,36 @@ function renderReadOnlyAutoRefreshScript(source = {}) {
 }
 
 
+
+function formatCategoryLabel(category) {
+  return String(category ?? "uncategorized")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function groupEntriesByCategory(entries = []) {
+  const groups = new Map();
+  for (const entry of list(entries)) {
+    const category = entry?.category ?? "uncategorized";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(entry);
+  }
+  return groups;
+}
+
+function renderNavigationSections(entries = []) {
+  const groups = groupEntriesByCategory(entries);
+  if (!groups.size) return "<p>No app entries registered.</p>";
+  return [...groups.entries()]
+    .map(([category, groupEntries]) => `<section class="entry-group" data-app-navigation-category="${esc(category)}">
+<h2>${esc(formatCategoryLabel(category))}</h2>
+${groupEntries.map(renderEntry).join("")}
+</section>`)
+    .join("");
+}
+
 function renderReadinessQuickLinks(entries = []) {
   const source = list(entries);
   const lookup = new Map(source.map((entry) => [entry.href, entry]));
@@ -757,14 +787,14 @@ function renderReadinessQuickLinks(entries = []) {
 
 
 export function renderAppNavigationReadonlyHtml(nav = {}) {
-  const entries = list(nav.entries).map(renderEntry).join("") || "<p>No app entries registered.</p>";
+  const sections = renderNavigationSections(nav.entries);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
 <style>
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}small{font-size:11px;color:#777}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</p></section>
 ${renderReadinessQuickLinks(nav.entries)}
-${entries}
+${sections}
 <section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
 ${renderReadOnlyAutoRefreshScript(nav)}
 </main></body></html>`;
