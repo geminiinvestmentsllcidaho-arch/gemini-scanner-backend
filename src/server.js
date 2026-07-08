@@ -2675,6 +2675,10 @@ app.get('/app/paper-broker-network-attempt-status', async (_req, res) => {
   }
 });
 
+app.get('/app/paper-trade-broker-integration-preflight', async (_req, res) => {
+  res.redirect(302, '/app/paper-trade-broker-integration-preflight-stack');
+});
+
 app.get('/app/paper-trade-broker-integration-preflight-stack', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_trade_broker_integration_preflight_stack_app_screen.mjs');
