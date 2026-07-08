@@ -67,7 +67,7 @@ export function buildPaperReadinessGateAppScreen(options = {}) {
     version: VERSION,
     panelType: "mobile_app_screen",
     title: "Paper Trading Readiness Gate",
-    subtitle: "read-only readiness status. No broker contact and no order placement.",
+    subtitle: "read-only readiness status. No broker contact, no order placement, no account mutation, no execution controls.",
     displayState: ready ? "PAPER_READINESS_GATE_APP_SCREEN_READY_REVIEW_ONLY" : "PAPER_READINESS_GATE_APP_SCREEN_BLOCKED_READONLY",
     sourceVersion: gate.version ?? null,
     sourceDisplayState: gate.displayState ?? null,

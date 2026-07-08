@@ -99,7 +99,7 @@ export function renderPaperLifecycleReadonlyDashboardPanel(report) {
   const safe = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(report.title)}</title></head><body>
 <h1>Paper Lifecycle Read-Only Dashboard</h1>
-<p>Read-only lifecycle view from stored paper order, position, and P/L reports. No broker read, no order submit, no retry, no account mutation.</p>
+<p>Read-only lifecycle view from stored paper order, position, and P/L reports. No broker read, no order submit, no retry, no account mutation. No broker contact. No execution controls.</p>
 <section><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <ul>
 <li>Display state: ${safe(report.displayState)}</li>

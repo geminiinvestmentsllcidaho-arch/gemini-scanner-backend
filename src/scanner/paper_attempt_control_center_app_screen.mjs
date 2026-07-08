@@ -103,7 +103,7 @@ export function buildPaperAttemptControlCenterAppScreen(options = {}) {
     version: VERSION,
     panelType: "mobile_app_screen",
     title: "Paper Attempt Control Center",
-    subtitle: "read-only paper attempt control status. No broker contact and no order placement.",
+    subtitle: "read-only paper attempt control status. No broker contact, no order placement, no account mutation, no execution controls.",
     displayState: allowed ? "PAPER_ATTEMPT_CONTROL_CENTER_APP_SCREEN_READY_REVIEW_ONLY" : "PAPER_ATTEMPT_CONTROL_CENTER_APP_SCREEN_BLOCKED_READONLY",
     sourceVersion: panel.version ?? null,
     sourceDisplayState: panel.displayState ?? null,

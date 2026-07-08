@@ -36,7 +36,7 @@ export function buildPaperPositionPnlReadOnlyBaselineAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-position-pnl-readonly-baseline",
     title: "Paper Position P/L Read-Only Baseline",
-    subtitle: "read-only paper position P/L baseline app screen with no broker read, submit, retry, or mutation controls.",
+    subtitle: "read-only paper position P/L baseline app screen with no broker read, submit, retry, or mutation controls. No broker contact. No order submit, no retry, no account mutation. No execution controls.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.displayState ?? "PNL_MARK_MISSING",
     status: panel.status ?? "paper_position_pnl_waiting_for_mark",
@@ -105,7 +105,7 @@ export function renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen = {})
 <section>
 <h2>Display State</h2>
 <p>${esc(screen.displayState || "PNL_MARK_MISSING")}</p>
-<p>read-only P/L baseline from stored paper position. No broker read, no order submit, no retry, no account mutation.</p>
+<p>read-only P/L baseline from stored paper position. No broker read, no order submit, no retry, no account mutation. No broker contact. No execution controls.</p>
 </section>
 <section>
 <h2>Position</h2>

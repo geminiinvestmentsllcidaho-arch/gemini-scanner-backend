@@ -180,7 +180,7 @@ export function renderPaperTradingModuleRouteIndexReadOnlyPanel(report) {
   const items = (idx.routes ?? []).map((route) => `<li>${safe(route)}</li>`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(report.title)}</title></head><body>
 <h1>Paper Trading Module Route Index Read-Only</h1>
-<p>Read-only route index for the completed paper trading module. No broker read, no broker contact, no order submit, no retry, no account mutation.</p>
+<p>Read-only route index for the completed paper trading module. No broker read, no broker contact, no order submit, no retry, no account mutation. No execution controls.</p>
 <section><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <ul>
 <li>Display state: ${safe(report.displayState)}</li>

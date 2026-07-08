@@ -109,7 +109,7 @@ export function buildPaperTradeIntentPlanAppScreen(options = {}) {
     version: VERSION,
     panelType: "mobile_app_screen",
     title: "Paper Trade Intent Plan",
-    subtitle: "read-only paper intent planning status. No broker contact and no order placement.",
+    subtitle: "read-only paper intent planning status. No broker contact, no order placement, no account mutation, no execution controls.",
     displayState: ready ? "PAPER_TRADE_INTENT_PLAN_APP_SCREEN_READY_REVIEW_ONLY" : "PAPER_TRADE_INTENT_PLAN_APP_SCREEN_BLOCKED_READONLY",
     sourceVersion: plan.version ?? null,
     sourceDisplayState: plan.displayState ?? null,

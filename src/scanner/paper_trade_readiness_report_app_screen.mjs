@@ -50,7 +50,7 @@ export function buildPaperTradeReadinessReportAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-trade-readiness-report",
     title: "Paper Trade Readiness Report",
-    subtitle: "read-only broker-blocked readiness report app screen. No broker contact, no order placement, no account mutation.",
+    subtitle: "read-only broker-blocked readiness report app screen. No broker contact, no order placement, no account mutation. No execution controls.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.status ?? "not_ready_broker_blocked",
     status: panel.status ?? "not_ready_broker_blocked",
@@ -126,7 +126,7 @@ body{margin:0;background:#080b12;color:#edf4ff;font-family:system-ui,-apple-syst
 <h1>${esc(screen.title || "Paper Trade Readiness Report")}</h1>
 <p class="muted">${esc(screen.subtitle || "read-only paper trade readiness report app screen.")}</p>
 <section class="card"><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
-<section class="card"><div class="k">Status</div><div class="v warn">${esc(screen.status || screen.displayState || "not_ready_broker_blocked")}</div><p>No broker contact, no order placement, no account mutation. This app screen is read-only, monitor-only, preview-only, and paper-only.</p></section>
+<section class="card"><div class="k">Status</div><div class="v warn">${esc(screen.status || screen.displayState || "not_ready_broker_blocked")}</div><p>No broker contact, no order placement, no account mutation. No execution controls. This app screen is read-only, monitor-only, preview-only, and paper-only.</p></section>
 <section class="grid">
 <div class="item"><div class="k">Readiness</div><h2>${esc(screen.readinessPct)}</h2></div>
 <div class="item"><div class="k">Paper Live Ready</div><h2>${esc(screen.paperTradingLiveReady ? "true" : "false")}</h2></div>

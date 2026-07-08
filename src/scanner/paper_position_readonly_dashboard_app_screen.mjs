@@ -35,7 +35,7 @@ export function buildPaperPositionReadonlyDashboardAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-position-readonly-dashboard",
     title: "Paper Position Read-Only Dashboard",
-    subtitle: "read-only paper position dashboard app screen with no broker read, submit, retry, or mutation controls.",
+    subtitle: "read-only paper position dashboard app screen with no broker read, submit, retry, or mutation controls. No broker contact. No order submit, no retry, no account mutation. No execution controls.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.displayState ?? "READ_ONLY",
     status: panel.status ?? "paper_position_read_only",
@@ -121,7 +121,7 @@ export function renderPaperPositionReadonlyDashboardAppScreenHtml(screen = {}) {
     <section class="card">
       <div class="k">Display state</div>
       <div class="v ${open ? "ok" : "warn"}">${esc(screen.displayState || "READ_ONLY")}</div>
-      <p>read-only position view from stored paper order status. No broker read, no order submit, no retry, no account mutation.</p>
+      <p>read-only position view from stored paper order status. No broker read, no order submit, no retry, no account mutation. No broker contact. No execution controls.</p>
     </section>
 
     <section class="grid">

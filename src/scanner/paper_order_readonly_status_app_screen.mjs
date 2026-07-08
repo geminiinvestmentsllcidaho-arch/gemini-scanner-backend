@@ -34,7 +34,7 @@ export function buildPaperOrderReadonlyStatusAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-order-readonly-status",
     title: "Paper Order Read-Only Status",
-    subtitle: "read-only paper order status app screen with no submit, retry, or mutation controls.",
+    subtitle: "read-only paper order status app screen with no submit, retry, or mutation controls. No broker contact. No order submit, no retry, no account mutation. No execution controls.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.displayState ?? "READ_ONLY",
     status: panel.status ?? "paper_order_status_read_only",
@@ -116,7 +116,7 @@ export function renderPaperOrderReadonlyStatusAppScreenHtml(screen = {}) {
     <section class="card">
       <div class="k">Display state</div>
       <div class="v ${filled ? "ok" : "warn"}">${esc(screen.displayState || "READ_ONLY")}</div>
-      <p>read-only dashboard. No order submit, no retry, no account mutation.</p>
+      <p>read-only dashboard. No order submit, no retry, no account mutation. No broker contact. No execution controls.</p>
     </section>
 
     <section class="grid">
