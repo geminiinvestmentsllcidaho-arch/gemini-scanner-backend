@@ -5810,6 +5810,9 @@ function computeCapitalStage2FinalCommandIntelligence(inputs = {}) {
     stage2FinalCommandState = "stage2_final_allowed";
   } else if (score >= 0.58) {
     stage2FinalCommandState = "stage2_final_conditional";
+  } else {
+    stage2FinalCommandState = "stage2_final_denied";
+    issues.push("LOW_STAGE2_FINAL_COMMAND_SCORE");
   }
 
   const stage2FinalCommand =
