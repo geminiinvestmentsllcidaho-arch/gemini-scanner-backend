@@ -11,7 +11,7 @@ const FEED = (process.env.ALPACA_DATA_FEED || 'iex').toLowerCase();
 const SYMBOLS = ['AAPL', 'MSFT', 'NVDA', 'SPY'];
 
 if (!KEY || !SECRET) {
-  console.error('Missing ALPACA_KEY / ALPACA_SECRET in .env');
+  console.log('[alpaca] credentials present:', { keyPresent: Boolean(KEY), secretPresent: Boolean(SECRET) });
   process.exit(1);
 }
 
