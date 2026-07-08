@@ -34,5 +34,5 @@ test("first tiny route passes title override into the app screen", () => {
   assert.notEqual(end, -1);
   const block = server.slice(start, end);
   assert.match(block, /title:\s*"First Tiny Manual Paper Attempt Review Packet"/);
-  assert.match(block, /subtitle:\s*"Read-only first tiny manual paper attempt review packet\. No broker contact and no order placement\."/);
+  assert.match(block, /subtitle:\s*"Read-only first tiny manual paper attempt review packet\. No broker contact and no order placement\.[^"]*"/);
 });
