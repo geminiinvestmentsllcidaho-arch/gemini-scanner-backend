@@ -2605,6 +2605,29 @@ app.get('/diagnostics/paper-trade-broker-integration-preflight-stack-panel', (_r
 });
 
 
+
+app.get('/diagnostics/paper-trading-final-go-no-go-panel', async (_req, res) => {
+  try {
+    const payload = await getPaperTradingFinalGoNoGoDiagnostics();
+    res.json({
+      ...payload,
+      version: 'paper_trading_final_go_no_go_panel_v1',
+      panelType: 'operator_dashboard_card',
+      title: 'Paper Trading Final Go / No-Go',
+      route: '/diagnostics/paper-trading-final-go-no-go-panel',
+      refreshRoute: '/diagnostics/paper-trading-final-go-no-go',
+      readOnly: true,
+      monitorOnly: true,
+      noExecutionControls: true,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-trading-final-go-no-go-panel', error: error?.message ?? String(error) });
+  }
+});
+
 app.get('/diagnostics/paper-trade-operator-go-no-go', (_req, res) => {
   res.json(buildPaperTradeOperatorGoNoGo());
 });
