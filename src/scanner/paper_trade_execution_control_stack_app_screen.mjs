@@ -127,7 +127,7 @@ code{background:#f6f6f6;padding:2px 5px;border-radius:6px}
 </head>
 <body>
 <p><a href="/app">Back to app navigation</a></p>
-<h1>${esc(screen.title || "Paper Trade Execution Control Stack")}</h1><p>No execution controls.</p>
+<h1>${esc(screen.title || "Paper Trade Execution Control Stack")}</h1><p>read-only. No execution controls.</p>
 <section class="card"><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <section class="card"><h2>Status</h2><div class="grid">
 <div class="badge">Status: <strong>${esc(screen.status || "blocked")}</strong></div>
