@@ -8,7 +8,7 @@ test("paper broker runtime and network diagnostic aliases are registered read-on
   assert.match(server, /app\.get\('\/diagnostics\/paper-broker-runtime-environment-preflight'/);
   assert.match(server, /buildPaperBrokerRuntimeEnvironmentPreflight\(\{ preflightOnly: true \}\)/);
   assert.match(server, /app\.get\('\/diagnostics\/paper-broker-network-attempt-status'/);
-  assert.match(server, /buildPaperBrokerNetworkAttemptStatusAppScreen\(\{ loadReport: false \}\)/);
+  assert.match(server, /buildPaperBrokerNetworkAttemptStatusAppScreen\(\{ loadSourceReport: false \}\)/);
 
   const runtimeStart = server.indexOf("app.get('/diagnostics/paper-broker-runtime-environment-preflight'");
   const networkStart = server.indexOf("app.get('/diagnostics/paper-broker-network-attempt-status'");
@@ -25,4 +25,5 @@ test("paper broker runtime and network diagnostic aliases are registered read-on
   assert.doesNotMatch(combined, /brokerContactAllowed:\s*true/);
   assert.doesNotMatch(combined, /accountMutationAllowed:\s*true/);
   assert.doesNotMatch(combined, /loadReport:\s*true/);
+  assert.doesNotMatch(combined, /loadReport:\s*false/);
 });

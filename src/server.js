@@ -2689,7 +2689,7 @@ app.get('/app/paper-broker-network-attempt-status', async (_req, res) => {
 app.get('/diagnostics/paper-broker-network-attempt-status', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_broker_network_attempt_status_app_screen.mjs');
-    const payload = await mod.buildPaperBrokerNetworkAttemptStatusAppScreen({ loadReport: false });
+    const payload = await mod.buildPaperBrokerNetworkAttemptStatusAppScreen({ loadSourceReport: false });
     res.json({ ...payload, route: '/diagnostics/paper-broker-network-attempt-status' });
   } catch (err) {
     res.status(500).json({ ok: false, route: '/diagnostics/paper-broker-network-attempt-status', error: err?.message ?? String(err) });
