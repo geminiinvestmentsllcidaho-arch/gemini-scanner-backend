@@ -50,7 +50,7 @@ export function buildPaperTradeReadinessReportAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-trade-readiness-report",
     title: "Paper Trade Readiness Report",
-    subtitle: "Read-only broker-blocked readiness report app screen. No broker contact, no order placement, no account mutation.",
+    subtitle: "read-only broker-blocked readiness report app screen. No broker contact, no order placement, no account mutation.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.status ?? "not_ready_broker_blocked",
     status: panel.status ?? "not_ready_broker_blocked",
@@ -124,7 +124,7 @@ export function renderPaperTradeReadinessReportAppScreenHtml(screen = {}) {
 body{margin:0;background:#080b12;color:#edf4ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:980px;margin:auto;padding:28px 18px}a{color:#9ee4ff}.card{background:#111827;border:1px solid #263244;border-radius:20px;padding:20px;margin:14px 0}.k+{}.k{color:#9ca8b8;text-transform:uppercase;letter-spacing:.12em;font-size:12px}.v{font-size:32px;font-weight:850;margin:8px 0}.warn{color:#f5c542}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.item{background:#0b1220;border:1px solid #243044;border-radius:14px;padding:14px}.muted{color:#9ca8b8}</style></head><body><main>
 <p><a href="/app">Back to App Navigation</a></p>
 <h1>${esc(screen.title || "Paper Trade Readiness Report")}</h1>
-<p class="muted">${esc(screen.subtitle || "Read-only paper trade readiness report app screen.")}</p>
+<p class="muted">${esc(screen.subtitle || "read-only paper trade readiness report app screen.")}</p>
 <section class="card"><h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul></section>
 <section class="card"><div class="k">Status</div><div class="v warn">${esc(screen.status || screen.displayState || "not_ready_broker_blocked")}</div><p>No broker contact, no order placement, no account mutation. This app screen is read-only, monitor-only, preview-only, and paper-only.</p></section>
 <section class="grid">

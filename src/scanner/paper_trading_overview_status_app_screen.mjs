@@ -153,7 +153,7 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-trading-overview-status",
     title: "Paper Trading Overview Status",
-    subtitle: "Read-only overview of Alpaca paper account readiness, runtime preflight, one-shot network attempt status, and operator go/no-go.",
+    subtitle: "read-only overview of Alpaca paper account readiness, runtime preflight, one-shot network attempt status, and operator go/no-go.",
     readOnly: true,
     monitorOnly: true,
     previewOnly: true,
@@ -224,15 +224,15 @@ export function renderPaperTradingOverviewStatusAppScreenHtml(input = {}) {
     ["Readiness Report", sources.readiness?.status ?? "unknown", links.readinessReport],
     ["Operator Go / No-Go", sources.goNoGo?.status ?? "unknown", links.operatorGoNoGo],
     ["Lifecycle Dashboard", "Local lifecycle dashboard.", links.lifecycleDashboard],
-    ["Module Final Status", "Read-only module final status.", links.moduleFinalStatus],
-    ["Route Index", "Read-only route index.", links.routeIndex]
+    ["Module Final Status", "read-only module final status.", links.moduleFinalStatus],
+    ["Route Index", "read-only route index.", links.routeIndex]
   ];
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><title>${esc(screen.title)}</title><style>
 body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background:#0b1020;color:#eef3ff}main{max-width:1120px;margin:0 auto;padding:24px}a{color:#93c5fd}.card{border:1px solid #263452;background:#111a2e;border-radius:16px;padding:18px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.metric{border:1px solid #263452;border-radius:12px;padding:12px;background:#0e172a}.k{color:#aab7d4;font-size:12px;text-transform:uppercase;letter-spacing:.08em}.v{font-size:20px;font-weight:700;margin-top:4px}.blocked{color:#fecaca}.ok{color:#bbf7d0}code{color:#bfdbfe;overflow-wrap:anywhere}</style></head><body><main>
 <p><a href="${esc(links.app ?? "/app")}">App</a> / ${esc(screen.title)}</p><h1>${esc(screen.title)}</h1><p>${esc(screen.subtitle)}</p>
-<section class="card"><div class="k">Overview state</div><p class="blocked">Read-only only. No retry, no reset, no new broker contact, no order submit, no account mutation, no execution controls.</p><p>Status: <strong>${esc(screen.status)}</strong></p><p>Display state: <code>${esc(screen.displayState)}</code></p></section>
+<section class="card"><div class="k">Overview state</div><p class="blocked">read-only only. No retry, no reset, no new broker contact, no order submit, no account mutation, no execution controls.</p><p>Status: <strong>${esc(screen.status)}</strong></p><p>Display state: <code>${esc(screen.displayState)}</code></p></section>
 <section class="grid">
 <div class="metric"><div class="k">Readiness status</div><div class="v">${esc(summary.readinessStatus)}</div></div>
 <div class="metric"><div class="k">Readiness %</div><div class="v">${esc(summary.readinessPct)}</div></div>

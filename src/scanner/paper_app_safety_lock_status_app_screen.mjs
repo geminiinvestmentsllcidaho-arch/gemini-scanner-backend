@@ -149,7 +149,7 @@ export function renderPaperAppSafetyLockStatusAppScreenHtml(input = {}) {
 </head>
 <body>
 <h1>${safe(report.title)}</h1>
-<p>Read-only safety lock status for paper app routes.</p>
+<p>read-only safety lock status for paper app routes.</p>
 <p>No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
 <h2>Related Broker Readiness Routes</h2>
 <ul>${renderRelatedBrokerReadinessRoutes()}</ul>
@@ -160,7 +160,7 @@ export function renderPaperAppSafetyLockStatusAppScreenHtml(input = {}) {
 <li>Paper navigation entries: ${safe(report.summary?.paperNavigationEntries)}</li>
 <li>Locked safety flag count: ${safe(report.summary?.lockedSafetyFlagCount)}</li>
 <li>Unsafe open lock count: ${safe(report.summary?.unsafeOpenLockCount)}</li>
-<li>Read only: ${safe(report.readOnly)}</li>
+<li>read-only: ${safe(report.readOnly)}</li>
 <li>No execution controls: ${safe(report.noExecutionControls)}</li>
 </ul>
 <h2>Safety Locks</h2>

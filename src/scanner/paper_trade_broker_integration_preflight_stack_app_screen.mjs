@@ -148,7 +148,7 @@ export function renderPaperTradeBrokerIntegrationPreflightStackAppScreenHtml(scr
     <ul>${renderRelatedBrokerReadinessRoutes()}</ul>
   </section>
   <section class="card">
-    <div class="k">Read-only safety state</div>
+    <div class="k">read-only safety state</div>
     <p class="blocked">No broker contact, no order placement, no account mutation.</p>
     <p>Status: <strong>${esc(screen.status)}</strong> - Severity: <strong>${esc(screen.severity)}</strong></p>
     <p>Stack type: <code>${esc(screen.stackType)}</code></p>

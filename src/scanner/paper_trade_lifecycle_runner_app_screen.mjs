@@ -119,7 +119,7 @@ export function renderPaperTradeLifecycleRunnerAppScreenHtml(
 <body>
   <main>
     <h1>${esc(safe.title)}</h1>
-    <p>Read-only app screen for the local paper trade lifecycle runner preview. No broker contact, no order placement, no account mutation, and no execution controls are available.</p>
+    <p>read-only app screen for the local paper trade lifecycle runner preview. No broker contact, no order placement, no account mutation, and no execution controls are available.</p>
 
     <section>
       <h2>Runner Status</h2>

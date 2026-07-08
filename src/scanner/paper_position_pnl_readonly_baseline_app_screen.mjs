@@ -36,7 +36,7 @@ export function buildPaperPositionPnlReadOnlyBaselineAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-position-pnl-readonly-baseline",
     title: "Paper Position P/L Read-Only Baseline",
-    subtitle: "Read-only paper position P/L baseline app screen with no broker read, submit, retry, or mutation controls.",
+    subtitle: "read-only paper position P/L baseline app screen with no broker read, submit, retry, or mutation controls.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.displayState ?? "PNL_MARK_MISSING",
     status: panel.status ?? "paper_position_pnl_waiting_for_mark",
@@ -101,11 +101,11 @@ export function renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen = {})
 <main>
 <p><a href="/app">Back to App Navigation</a></p>
 <h1>${esc(screen.title || "Paper Position P/L Read-Only Baseline")}</h1>
-<p>${esc(screen.subtitle || "Read-only paper position P/L baseline app screen.")}</p>
+<p>${esc(screen.subtitle || "read-only paper position P/L baseline app screen.")}</p>
 <section>
 <h2>Display State</h2>
 <p>${esc(screen.displayState || "PNL_MARK_MISSING")}</p>
-<p>Read-only P/L baseline from stored paper position. No broker read, no order submit, no retry, no account mutation.</p>
+<p>read-only P/L baseline from stored paper position. No broker read, no order submit, no retry, no account mutation.</p>
 </section>
 <section>
 <h2>Position</h2>
@@ -132,7 +132,7 @@ export function renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen = {})
 <section>
 <h2>Safety Locks</h2>
 <ul>
-<li>Read only: ${esc(safety.readOnly ? "true" : "false")}</li>
+<li>read-only: ${esc(safety.readOnly ? "true" : "false")}</li>
 <li>Live trading allowed: ${esc(safety.liveTradingAllowed ? "true" : "false")}</li>
 <li>Auto trading allowed: ${esc(safety.autoTradingAllowed ? "true" : "false")}</li>
 <li>Order submit allowed: ${esc(safety.orderSubmitAllowed ? "true" : "false")}</li>

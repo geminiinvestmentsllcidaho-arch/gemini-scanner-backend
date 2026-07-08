@@ -30,7 +30,7 @@ export function buildOperatorApprovalDashboardAppScreen(input = {}) {
     appScreen: true,
     route: '/app/operator-approval-dashboard',
     title: 'Operator Approval Dashboard',
-    subtitle: 'Read-only operator approval workflow app screen.',
+    subtitle: 'read-only operator approval workflow app screen.',
     statusLabel: panel.statusLabel || approval.status || 'UNKNOWN',
     mode: panel.mode || 'monitor_only',
     risk: panel.risk || 'unknown',
@@ -46,6 +46,7 @@ export function buildOperatorApprovalDashboardAppScreen(input = {}) {
     },
     safety: {
       readOnly: true,
+    noExecutionControls: true,
       monitorOnly: true,
       noAutoPatching: safety.noAutoPatching !== false,
       noProductionEdits: safety.noProductionEdits !== false,
@@ -102,7 +103,7 @@ export function renderOperatorApprovalDashboardAppScreenHtml(screen = {}) {
   <main>
     <p><a href="/app">Back to App Navigation</a></p>
     <h1>${esc(screen.title || 'Operator Approval Dashboard')}</h1>
-    <p class="muted">${esc(screen.subtitle || 'Read-only operator approval workflow app screen.')}</p>
+    <p class="muted">${esc(screen.subtitle || 'read-only operator approval workflow app screen.')}</p>
 
     <section class="card">
       <span class="badge ${cls}">${esc(screen.statusLabel || 'UNKNOWN')}</span>
@@ -120,12 +121,12 @@ export function renderOperatorApprovalDashboardAppScreenHtml(screen = {}) {
     <section class="card">
       <h2>Safety Locks</h2>
       <ul>
-        <li>Read only: ${esc(safety.readOnly ? 'true' : 'false')}</li>
+        <li>read-only: ${esc(safety.readOnly ? 'true' : 'false')}</li>
         <li>Monitor only: ${esc(safety.monitorOnly ? 'true' : 'false')}</li>
         <li>No auto patching: ${esc(safety.noAutoPatching ? 'true' : 'false')}</li>
         <li>No production edits: ${esc(safety.noProductionEdits ? 'true' : 'false')}</li>
         <li>No broker execution: ${esc(safety.noBrokerExecution ? 'true' : 'false')}</li>
-        <li>No order placement: ${esc(safety.noOrderPlacement ? 'true' : 'false')}</li>
+        <li>No execution controls: true</li><li>No order placement: ${esc(safety.noOrderPlacement ? 'true' : 'false')}</li>
         <li>No OAuth user connection: ${esc(safety.noOAuthUserConnection ? 'true' : 'false')}</li>
       </ul>
     </section>

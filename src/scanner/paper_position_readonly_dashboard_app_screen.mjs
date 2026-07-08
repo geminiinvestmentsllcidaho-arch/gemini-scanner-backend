@@ -35,7 +35,7 @@ export function buildPaperPositionReadonlyDashboardAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-position-readonly-dashboard",
     title: "Paper Position Read-Only Dashboard",
-    subtitle: "Read-only paper position dashboard app screen with no broker read, submit, retry, or mutation controls.",
+    subtitle: "read-only paper position dashboard app screen with no broker read, submit, retry, or mutation controls.",
     panelVersion: panel.version ?? "unknown",
     displayState: panel.displayState ?? "READ_ONLY",
     status: panel.status ?? "paper_position_read_only",
@@ -116,12 +116,12 @@ export function renderPaperPositionReadonlyDashboardAppScreenHtml(screen = {}) {
   <main>
     <p><a href="/app">Back to App Navigation</a></p>
     <h1>${esc(screen.title || "Paper Position Read-Only Dashboard")}</h1>
-    <p class="muted">${esc(screen.subtitle || "Read-only paper position dashboard app screen.")}</p>
+    <p class="muted">${esc(screen.subtitle || "read-only paper position dashboard app screen.")}</p>
 
     <section class="card">
       <div class="k">Display state</div>
       <div class="v ${open ? "ok" : "warn"}">${esc(screen.displayState || "READ_ONLY")}</div>
-      <p>Read-only position view from stored paper order status. No broker read, no order submit, no retry, no account mutation.</p>
+      <p>read-only position view from stored paper order status. No broker read, no order submit, no retry, no account mutation.</p>
     </section>
 
     <section class="grid">
@@ -136,7 +136,7 @@ export function renderPaperPositionReadonlyDashboardAppScreenHtml(screen = {}) {
     <section class="card">
       <h2>Safety Locks</h2>
       <ul>
-        <li>Read only: ${esc(safety.readOnly ? "true" : "false")}</li>
+        <li>read-only: ${esc(safety.readOnly ? "true" : "false")}</li>
         <li>Live trading allowed: ${esc(safety.liveTradingAllowed ? "true" : "false")}</li>
         <li>Auto trading allowed: ${esc(safety.autoTradingAllowed ? "true" : "false")}</li>
         <li>Order submit allowed: ${esc(safety.orderSubmitAllowed ? "true" : "false")}</li>

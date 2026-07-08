@@ -130,7 +130,7 @@ export function renderPaperTradeLifecycleDashboardAppScreenHtml(screen = buildPa
 <body>
   <main>
     <h1>${esc(safe.title)}</h1>
-    <p>Read-only app screen for the local paper trade lifecycle dashboard. No broker contact, no order placement, no account mutation, and no execution controls are available.</p>
+    <p>read-only app screen for the local paper trade lifecycle dashboard. No broker contact, no order placement, no account mutation, and no execution controls are available.</p>
 
     <section>
       <h2>Lifecycle Status</h2>

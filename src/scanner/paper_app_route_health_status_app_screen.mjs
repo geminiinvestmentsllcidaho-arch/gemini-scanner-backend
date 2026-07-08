@@ -175,7 +175,7 @@ export function renderPaperAppRouteHealthStatusAppScreenHtml(input = {}) {
 </head>
 <body>
 <h1>${safe(report.title)}</h1>
-<p>Read-only health screen for paper, broker, runtime, safety, readiness, operator, and Alpaca app routes.</p>
+<p>read-only health screen for paper, broker, runtime, safety, readiness, operator, and Alpaca app routes.</p>
 <p>No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
 <h2>Related Broker Readiness Routes</h2>
 <p><a href="/app/paper-broker-adapter-approval-lock">Paper Broker Adapter Approval Lock</a></p><p><a href="/app/paper-operator-start-here">Paper Operator Start Here</a> · <a href="/app/paper-broker-adapter-approval-record-tool">Paper Broker Adapter Approval Record Tool</a></p>
@@ -189,7 +189,7 @@ export function renderPaperAppRouteHealthStatusAppScreenHtml(input = {}) {
 <li>Unique paper route count: ${safe(report.summary?.uniquePaperRouteCount)}</li>
 <li>Server-backed paper route count: ${safe(report.summary?.serverBackedPaperRouteCount)}</li>
 <li>Missing server route count: ${safe(report.summary?.missingServerRouteCount)}</li>
-<li>Read only: ${safe(report.readOnly)}</li>
+<li>read-only: ${safe(report.readOnly)}</li>
 <li>No execution controls: ${safe(report.noExecutionControls)}</li>
 </ul>
 <h2>Checks</h2>

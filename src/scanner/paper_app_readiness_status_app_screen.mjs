@@ -128,7 +128,7 @@ export function buildPaperAppReadinessStatusAppScreen(input = {}) {
     appScreen: true,
     route: ROUTE,
     title: "Paper App Readiness Status",
-    subtitle: "Read-only operator summary for app-route fast defaults, freeze tag, validation status, source mode, and paper-trading safety locks.",
+    subtitle: "read-only operator summary for app-route fast defaults, freeze tag, validation status, source mode, and paper-trading safety locks.",
     ts: now.toISOString(),
     status: ready ? "paper_app_readiness_status_ready_readonly" : "paper_app_readiness_status_incomplete_readonly",
     displayState,
@@ -198,7 +198,7 @@ export function renderPaperAppReadinessStatusAppScreenHtml(input = {}) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(screen.title)}</title></head><body>
 <h1>${esc(screen.title)}</h1>
 <p>${esc(screen.subtitle)}</p>
-<p>Read-only status. No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
+<p>read-only status. No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
 <h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul>
 <ul>
 <li>Status: ${esc(screen.status)}</li>

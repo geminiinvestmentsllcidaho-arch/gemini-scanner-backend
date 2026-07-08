@@ -33,7 +33,7 @@ export function buildOperatorApprovalWorkflowAppScreen(input = {}) {
     appScreen: true,
     route: '/app/operator-approval-workflow',
     title: 'Operator Approval Workflow',
-    subtitle: 'Read-only operator approval workflow app screen.',
+    subtitle: 'read-only operator approval workflow app screen.',
     workflowVersion: workflow.version || 'unknown',
     mode: workflow.mode || 'monitor_only',
     approvalStatus: workflow.approvalStatus || 'unknown',
@@ -46,6 +46,7 @@ export function buildOperatorApprovalWorkflowAppScreen(input = {}) {
     operatorSafe: workflow.operatorSafe !== false,
     safety: {
       readOnly: true,
+    noExecutionControls: true,
       monitorOnly: true,
       autoPatching: safety.autoPatching === true,
       productionEdits: safety.productionEdits === true,
@@ -103,7 +104,7 @@ export function renderOperatorApprovalWorkflowAppScreenHtml(screen = {}) {
 <body><main>
   <p><a href="/app">Back to App Navigation</a></p>
   <h1>${esc(screen.title || 'Operator Approval Workflow')}</h1>
-  <p class="muted">${esc(screen.subtitle || 'Read-only operator approval workflow app screen.')}</p>
+  <p class="muted">${esc(screen.subtitle || 'read-only operator approval workflow app screen.')}</p>
   <section class="card">
     <span class="badge ${statusClass}">${esc(screen.approvalStatus || 'unknown')}</span>
     <div class="grid">
@@ -116,12 +117,12 @@ export function renderOperatorApprovalWorkflowAppScreenHtml(screen = {}) {
     </div>
   </section>
   <section class="card"><h2>Safety Locks</h2><ul>
-    <li>Read only: ${esc(safety.readOnly ? 'true' : 'false')}</li>
+    <li>read-only: ${esc(safety.readOnly ? 'true' : 'false')}</li>
     <li>Monitor only: ${esc(safety.monitorOnly ? 'true' : 'false')}</li>
     <li>Auto patching enabled: ${esc(safety.autoPatching ? 'true' : 'false')}</li>
     <li>Production edits enabled: ${esc(safety.productionEdits ? 'true' : 'false')}</li>
     <li>Broker execution enabled: ${esc(safety.brokerExecution ? 'true' : 'false')}</li>
-    <li>Order placement enabled: ${esc(safety.orderPlacement ? 'true' : 'false')}</li>
+    <li>No execution controls: true</li><li>Order placement enabled: ${esc(safety.orderPlacement ? 'true' : 'false')}</li>
     <li>OAuth user connection enabled: ${esc(safety.oauthConnection ? 'true' : 'false')}</li>
   </ul></section>
   <section class="card"><h2>Patch Plan Preview</h2>
