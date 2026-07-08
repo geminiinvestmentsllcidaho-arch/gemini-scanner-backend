@@ -106,7 +106,7 @@ export function renderPaperTradeOperatorGoNoGoAppScreenHtml(screen = {}) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(screen.title || "Paper Trade Operator Go / No-Go")}</title></head><body><main>
 <p><a href="/app">Back to App Navigation</a></p>
 <h1>${esc(screen.title || "Paper Trade Operator Go / No-Go")}</h1>
-<p>read-only final operator decision app screen. No broker contact, no order placement, no account mutation.</p>
+<p>read-only final operator decision app screen. No broker contact, no order placement, no account mutation, no execution controls.</p>
 <h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul>
 <hr>
 <h2>Operator Status</h2><p>${esc(screen.status)}</p>

@@ -198,7 +198,7 @@ export function renderPaperAppReadinessStatusAppScreenHtml(input = {}) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(screen.title)}</title></head><body>
 <h1>${esc(screen.title)}</h1>
 <p>${esc(screen.subtitle)}</p>
-<p>read-only status. No route execution, no broker contact, no order submit, no retry, no reset, no account mutation.</p>
+<p>read-only status. No route execution, no broker contact, no order submit, no retry, no reset, no account mutation, no execution controls.</p>
 <h2>Related Broker Readiness Routes</h2><ul>${renderRelatedBrokerReadinessRoutes()}</ul>
 <ul>
 <li>Status: ${esc(screen.status)}</li>
