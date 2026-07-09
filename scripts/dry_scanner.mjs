@@ -3,7 +3,7 @@ installAlpacaRequestAudit();
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API_URL = process.env.DRY_SCANNER_API_URL || (process.env.DRY_SCANNER_WRITE_RUNLOG === '1' ? 'http://127.0.0.1:3000/ops/run' : 'http://127.0.0.1:3000/scanner/rankings');
+const API_URL = process.env.DRY_SCANNER_API_URL || 'http://127.0.0.1:3000/ops/run';
 const SYMBOLS = (process.env.DRY_SCANNER_SYMBOLS || 'AAPL,MSFT,NVDA,SPY')
   .split(',')
   .map(s => s.trim().toUpperCase())
@@ -12,7 +12,7 @@ const SYMBOLS = (process.env.DRY_SCANNER_SYMBOLS || 'AAPL,MSFT,NVDA,SPY')
 const ACTION = process.env.DRY_SCANNER_ACTION || 'hold';
 const INTERVAL_MS = Number(process.env.DRY_SCANNER_INTERVAL_MS || 300000);
 const ONCE = process.env.DRY_SCANNER_ONCE !== '0';
-const WRITE_RUNLOG = process.env.DRY_SCANNER_WRITE_RUNLOG === '1';
+const WRITE_RUNLOG = process.env.DRY_SCANNER_WRITE_RUNLOG !== '0';
 
 const outDir = path.resolve('dryruns');
 fs.mkdirSync(outDir, { recursive: true });
@@ -21,13 +21,14 @@ const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const outFile = path.join(outDir, `dry-scanner-${stamp}.jsonl`);
 
 async function runSymbol(symbol) {
-  const request = WRITE_RUNLOG
-    ? {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision: { symbol, action: ACTION } }),
-      }
-    : { method: 'GET' };
+  const request =
+    API_URL.includes('/ops/run')
+      ? {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision: { symbol, action: ACTION } }),
+        }
+      : { method: 'GET' };
 
   const res = await fetch(API_URL, request);
   const json = await res.json();
@@ -36,23 +37,28 @@ async function runSymbol(symbol) {
     ? json.rankings.find((r) => r.symbol === symbol)
     : null;
 
-  const row = WRITE_RUNLOG
+  const isOpsRun = API_URL.includes('/ops/run');
+  const context = json?.context_v3 || {};
+  const integrityQuality = context?.integrity?.quality || {};
+  const contextQuality = context?.quality || {};
+
+  const row = isOpsRun
     ? {
         ts: new Date().toISOString(),
         symbol,
         action: ACTION,
-        writeRunlog: true,
+        writeRunlog: WRITE_RUNLOG,
         httpStatus: res.status,
         ok: json?.ok ?? null,
         runId: json?.runId ?? null,
         p3GateOk: json?.p3_gate?.ok ?? null,
         p3GateReason: json?.p3_gate?.reason ?? null,
-        regime: json?.context_v3?.regime ?? null,
-        volatility: json?.context_v3?.volatility ?? null,
-        confidence: json?.context_v3?.integrity?.quality?.confidence ?? null,
-        structuralQuality: json?.context_v3?.integrity?.quality?.structuralQuality ?? null,
-        compositeConfidence: json?.context_v3?.integrity?.quality?.compositeConfidence ?? null,
-        qualityOverall: json?.context_v3?.quality?.overall ?? null,
+        regime: context?.context?.labels?.fusedRegime ?? context?.context?.labels?.regime ?? null,
+        volatility: context?.context?.labels?.fusedVolatility ?? context?.context?.labels?.volatility ?? null,
+        confidence: integrityQuality?.confidence ?? null,
+        structuralQuality: integrityQuality?.structuralQuality ?? null,
+        compositeConfidence: integrityQuality?.compositeConfidence ?? null,
+        qualityOverall: contextQuality?.overall ?? null,
         rsi: json?.coaching?.rsi ?? null,
         coachingCount: json?.coaching?.coachingCount ?? null,
       }
@@ -70,6 +76,7 @@ async function runSymbol(symbol) {
         normalizedScore: ranking?.normalizedScore ?? null,
         confidence: ranking?.confidence ?? null,
         compositeConfidence: ranking?.compositeConfidence ?? null,
+        qualityOverall: ranking?.qualityOverall ?? null,
         rsi: ranking?.rsi ?? null,
       };
 
