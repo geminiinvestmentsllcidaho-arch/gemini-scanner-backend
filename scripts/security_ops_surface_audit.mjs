@@ -144,7 +144,7 @@ function scanPm2Permissions(dir) {
 scanPm2Permissions(pm2Root);
 
 const repoBackupTempFiles = [];
-const BACKUP_TEMP_FILE_RE = /(?:\.bak(?:\.|$)|\.old(?:\.|$)|\.orig(?:\.|$)|\.tmp$)/i;
+const BACKUP_TEMP_FILE_RE = /(?:^\.npmrc$|^\.netrc$|^\.git-credentials$|^id_rsa$|^id_ed25519$|\.bak(?:\.|$)|\.old(?:\.|$)|\.orig(?:\.|$)|\.tmp$|\.(?:pem|key|p12|pfx)$)/i;
 
 function scanBackupTempFiles(dir, depth = 0) {
   if (depth > 3) return;
