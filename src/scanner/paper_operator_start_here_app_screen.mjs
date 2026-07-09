@@ -1,14 +1,17 @@
 const ROUTES = Object.freeze([
-  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-trading-overview-status", "Paper Trading Overview Status"],
+  ["/app/paper-app-route-health-status", "Paper App Route Health Status"],
   ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
   ["/app/paper-app-readiness-status", "Paper App Readiness Status"],
-  ["/app/paper-trading-overview-status", "Paper Trading Overview Status"],
+  ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
+  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
   ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
+  ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"],
+  ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
   ["/app/paper-broker-adapter-approval-record-tool", "Paper Broker Adapter Approval Record Tool"],
   ["/app/paper-broker-adapter-approval-lock", "Paper Broker Adapter Approval Lock"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
-  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
 ]);
 
 function esc(value) {

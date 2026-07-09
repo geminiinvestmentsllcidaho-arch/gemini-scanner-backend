@@ -26,7 +26,13 @@ const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/app/paper-broker-adapter-approval-record-tool", "Paper Broker Adapter Approval Record Tool"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
-  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"]
+  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
+  ["/app/paper-app-route-health-status", "Paper App Route Health Status"],
+  ["/app/paper-app-readiness-status", "Paper App Readiness Status"],
+  ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
+  ["/app/paper-trading-overview-status", "Paper Trading Overview Status"],
+  ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
+  ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"]
 ]);
 
 function renderRelatedBrokerReadinessRoutes() {
@@ -105,7 +111,7 @@ export function buildPaperTradeReadinessReportAppScreen(input = {}) {
     links: {
       diagnosticHref: "/diagnostics/paper-trade-readiness-report",
       panelHref: "/diagnostics/paper-trade-readiness-report-panel",
-      operatorGoNoGoHref: "/diagnostics/paper-trade-operator-go-no-go-panel",
+      operatorGoNoGoHref: "/app/paper-trade-operator-go-no-go",
       executionControlHref: "/diagnostics/paper-trade-execution-control-stack-panel",
       brokerGuardHref: "/diagnostics/paper-trade-broker-adapter-guard-panel",
       lifecycleHref: "/app/paper-lifecycle-dashboard"
