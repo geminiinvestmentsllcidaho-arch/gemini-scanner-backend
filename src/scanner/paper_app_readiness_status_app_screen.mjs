@@ -1,16 +1,38 @@
+import { execFileSync } from "node:child_process";
 import { buildPaperAppRouteHealthStatusAppScreen } from "./paper_app_route_health_status_app_screen.mjs";
 import { buildPaperAppSafetyLockStatusAppScreen } from "./paper_app_safety_lock_status_app_screen.mjs";
 
 export const VERSION = "paper_app_readiness_status_app_screen_v1";
 export const ROUTE = "/app/paper-app-readiness-status";
 
-const DEFAULT_FREEZE = Object.freeze({
-  branch: "feature/p3-quality-confidence-v1",
-  head: "dd55008",
-  freezeTag: "paper-app-final-status-diagnostics-aliases-freeze-dd55008",
-  pushed: true,
-  tagged: true
-});
+function safeGit(args = []) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+}
+
+function defaultFreeze() {
+  const branch = safeGit(["branch", "--show-current"]) || "feature/p3-quality-confidence-v1";
+  const head = safeGit(["rev-parse", "--short", "HEAD"]) || "unknown";
+  const tags = safeGit(["tag", "--points-at", "HEAD"])
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .sort();
+  const preferredTag = tags.find((item) => item.startsWith("paper-app-readiness-status-current-freeze-"))
+    ?? tags.find((item) => item.startsWith("paper-app-readiness-status-dynamic-freeze-"))
+    ?? tags.find((item) => item.includes("freeze"))
+    ?? "";
+  return {
+    branch,
+    head,
+    freezeTag: preferredTag,
+    pushed: true,
+    tagged: Boolean(preferredTag)
+  };
+}
 
 const DEFAULT_VALIDATION = Object.freeze({
   fullValidationPassed: true,
@@ -95,7 +117,7 @@ function safeSafetyLocks(input) {
 
 export function buildPaperAppReadinessStatusAppScreen(input = {}) {
   const now = input.now instanceof Date ? input.now : new Date();
-  const freeze = { ...DEFAULT_FREEZE, ...objectValue(input.freeze) };
+  const freeze = { ...defaultFreeze(), ...objectValue(input.freeze) };
   const validation = { ...DEFAULT_VALIDATION, ...objectValue(input.validation) };
   const fastRoutes = { ...DEFAULT_FAST_ROUTES, ...objectValue(input.fastRoutes) };
   const routeHealth = safeRouteHealth(input);
