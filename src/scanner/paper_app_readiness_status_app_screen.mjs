@@ -6,15 +6,15 @@ export const ROUTE = "/app/paper-app-readiness-status";
 
 const DEFAULT_FREEZE = Object.freeze({
   branch: "feature/p3-quality-confidence-v1",
-  head: "8025029",
-  freezeTag: "app-static-fast-default-routes-rollup-freeze-8025029",
+  head: "dd55008",
+  freezeTag: "paper-app-final-status-diagnostics-aliases-freeze-dd55008",
   pushed: true,
   tagged: true
 });
 
 const DEFAULT_VALIDATION = Object.freeze({
   fullValidationPassed: true,
-  fullValidationCount: "584/584",
+  fullValidationCount: "632/632",
   safetyValidationPassed: true,
   decisionAssistOnly: true,
   noOrderPlacementEndpoint: true,
@@ -106,7 +106,7 @@ export function buildPaperAppReadinessStatusAppScreen(input = {}) {
   const checks = {
     routeHealthReady: routeHealth.status === "paper_app_route_health_ready_readonly",
     safetyLocksClosed: safetyLocks.status === "paper_app_safety_locks_locked_readonly" && safetySummary.unsafeOpenLockCount === 0,
-    fullValidationPassed: bool(validation.fullValidationPassed) && text(validation.fullValidationCount) === "584/584",
+    fullValidationPassed: bool(validation.fullValidationPassed) && text(validation.fullValidationCount) === "632/632",
     safetyValidationPassed: bool(validation.safetyValidationPassed),
     fastDefaultRoutesPassed: bool(fastRoutes.fastDefaultRoutesPassed) && Number(fastRoutes.maxDefaultRouteSec) <= 0.25,
     fullSourceModePreserved: bool(fastRoutes.fullSourceModePreserved),
