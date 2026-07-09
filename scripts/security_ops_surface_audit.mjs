@@ -66,6 +66,49 @@ const publicNode3000 = /\s0\.0\.0\.0:3000\b|\s\[::\]:3000\b/.test(listeningText)
 const rebootRequired =
   fs.existsSync("/var/run/reboot-required") || fs.existsSync("/run/reboot-required");
 
+const repoEnvPermission = (() => {
+  try {
+    return (fs.statSync(path.join(process.cwd(), ".env")).mode & 0o777).toString(8);
+  } catch {
+    return null;
+  }
+})();
+
+const backupRoot = path.join(process.env.HOME || "", ".gemini-scanner-secret-backups");
+const backupPermissionFindings = [];
+function scanBackupPermissions(dir, depth = 0) {
+  if (!dir || depth > 5) return;
+  let entries = [];
+  try {
+    const stat = fs.statSync(dir);
+    const mode = stat.mode & 0o777;
+    if (stat.isDirectory() && mode !== 0o700) {
+      backupPermissionFindings.push({ path: dir, type: "directory", mode: mode.toString(8) });
+    }
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    try {
+      const stat = fs.statSync(full);
+      const mode = stat.mode & 0o777;
+      if (entry.isDirectory()) {
+        if (mode !== 0o700) {
+          backupPermissionFindings.push({ path: full, type: "directory", mode: mode.toString(8) });
+        }
+        scanBackupPermissions(full, depth + 1);
+      } else if (entry.isFile() && mode !== 0o600) {
+        backupPermissionFindings.push({ path: full, type: "file", mode: mode.toString(8) });
+      }
+    } catch {
+      continue;
+    }
+  }
+}
+scanBackupPermissions(backupRoot);
+
 const repoBackupTempFiles = [];
 const BACKUP_TEMP_FILE_RE = /(?:\.bak(?:\.|$)|\.old(?:\.|$)|\.orig(?:\.|$)|\.tmp$)/i;
 
@@ -106,6 +149,8 @@ if (defaultSiteEnabled) issues.push("NGINX_DEFAULT_SITE_ENABLED");
 if (publicNode3000) issues.push("NODE_PORT_3000_PUBLICLY_BOUND");
 if (!ssh.x11ForwardingNo) issues.push("SSH_X11_FORWARDING_NOT_DISABLED");
 if (rebootRequired) issues.push("SYSTEM_REBOOT_REQUIRED");
+if (repoEnvPermission && repoEnvPermission !== "600") issues.push("ENV_FILE_PERMISSION_TOO_OPEN");
+if (backupPermissionFindings.length) issues.push("SECRET_BACKUP_PERMISSION_TOO_OPEN");
 if (envFileNamesOnly.some((file) => /\.bak/i.test(file))) issues.push("ENV_BACKUP_FILES_PRESENT");
 if (repoBackupTempFiles.length) issues.push("REPO_BACKUP_TEMP_FILES_PRESENT");
 
@@ -128,6 +173,15 @@ const report = {
   secrets: {
     envFileNamesOnly: envFileNamesOnly.sort(),
     envBackupFilesPresent: envFileNamesOnly.some((file) => /\.bak/i.test(file)),
+    repoEnvPermission,
+    backupRoot,
+    backupPermissionFindings: backupPermissionFindings
+      .map((finding) => ({
+        ...finding,
+        path: finding.path.replace((process.env.HOME || "") + "/", "~/"),
+      }))
+      .sort((a, b) => a.path.localeCompare(b.path)),
+    backupPermissionsOk: backupPermissionFindings.length === 0,
   },
   sourceSurface: {
     repoBackupTempFiles: repoBackupTempFiles.sort(),
