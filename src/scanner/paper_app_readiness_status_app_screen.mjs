@@ -82,6 +82,7 @@ const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/app/paper-broker-adapter-approval-record-tool", "Paper Broker Adapter Approval Record Tool"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
+  ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
   ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
   ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
   ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
@@ -205,6 +206,7 @@ export function buildPaperAppReadinessStatusAppScreen(input = {}) {
       routeHealth: "/app/paper-app-route-health-status",
       safetyLocks: "/app/paper-app-safety-lock-status",
       overviewStatus: "/app/paper-trading-overview-status",
+      readinessGate: "/app/paper-readiness-gate",
       completionCertificate: "/app/paper-trading-completion-certificate",
       completionCertificateFullSource: fastRoutes.sampleFullSourceHref
     }
