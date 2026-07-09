@@ -84,7 +84,51 @@ async function runSymbol(symbol) {
   console.log(row);
 }
 
+async function runReadOnlyRankingsSnapshot() {
+  const res = await fetch(API_URL, { method: 'GET' });
+  const json = await res.json();
+  const rankings = Array.isArray(json?.rankings) ? json.rankings : [];
+
+  for (const symbol of SYMBOLS) {
+    const ranking = rankings.find((r) => r.symbol === symbol) || null;
+    const row = {
+      ts: new Date().toISOString(),
+      symbol,
+      action: ACTION,
+      writeRunlog: false,
+      httpStatus: res.status,
+      ok: json?.ok ?? null,
+      scannerHealth: json?.scannerHealth ?? null,
+      rankingConfidence: json?.rankingConfidence ?? null,
+      p3GateOk: ranking?.p3GateOk ?? null,
+      setupScore: ranking?.setupScore ?? null,
+      normalizedScore: ranking?.normalizedScore ?? null,
+      confidence: ranking?.confidence ?? null,
+      compositeConfidence: ranking?.compositeConfidence ?? null,
+      qualityOverall: ranking?.qualityOverall ?? null,
+      rsi: ranking?.rsi ?? null,
+    };
+
+    fs.appendFileSync(outFile, JSON.stringify(row) + '\n');
+    console.log(row);
+  }
+}
+
 async function tick() {
+  if (!API_URL.includes('/ops/run')) {
+    try {
+      await runReadOnlyRankingsSnapshot();
+    } catch (err) {
+      const row = {
+        ts: new Date().toISOString(),
+        error: String(err?.message || err),
+      };
+      fs.appendFileSync(outFile, JSON.stringify(row) + '\n');
+      console.error(row);
+    }
+    return;
+  }
+
   for (const symbol of SYMBOLS) {
     try {
       await runSymbol(symbol);
