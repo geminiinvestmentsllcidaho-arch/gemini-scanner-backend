@@ -1487,9 +1487,7 @@ for (const spec of PAPER_APP_FINAL_STATUS_DIAGNOSTIC_ALIASES) {
     try {
       const mod = await import(spec.module);
       const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-      const report = appRouteLoadSourceReportRequested(req)
-        ? mod[spec.build]({ runsDir: 'runs', markPrice })
-        : { ...fastReadonlyAppPanel(spec.title), ...spec.preview };
+      const report = mod[spec.build]({ runsDir: 'runs', markPrice });
       res.json(report);
     } catch (err) {
       res.status(500).json({ ok: false, route: spec.route, error: 'paper_app_final_status_diagnostic_alias_failed', message: err?.message ?? String(err) });
@@ -1500,9 +1498,7 @@ for (const spec of PAPER_APP_FINAL_STATUS_DIAGNOSTIC_ALIASES) {
     try {
       const mod = await import(spec.module);
       const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-      const report = appRouteLoadSourceReportRequested(req)
-        ? mod[spec.build]({ runsDir: 'runs', markPrice })
-        : { ...fastReadonlyAppPanel(spec.title), ...spec.preview };
+      const report = mod[spec.build]({ runsDir: 'runs', markPrice });
       res.json(summarizePaperAppFinalStatusDiagnosticAliasPayload(report, spec.route + '-panel'));
     } catch (err) {
       res.status(500).json({ ok: false, route: spec.route + '-panel', error: 'paper_app_final_status_diagnostic_alias_panel_failed', message: err?.message ?? String(err) });
