@@ -96,6 +96,8 @@ function buildPaperAttemptModuleCompleteSelectorPanel({
     finalDecision: "NO_GO_FOR_ORDER_PLACEMENT",
     moduleComplete: true,
     readyForOrderPlacement: false,
+    readOnly: true,
+    orderPlacementAllowed: false,
     paperAttemptAllowed: false,
     brokerContactAllowed: false,
     brokerOrderPlacementAllowed: false,
