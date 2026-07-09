@@ -3,7 +3,7 @@ installAlpacaRequestAudit();
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API_URL = process.env.DRY_SCANNER_API_URL || 'http://127.0.0.1:3000/ops/run';
+const API_URL = process.env.DRY_SCANNER_API_URL || (process.env.DRY_SCANNER_WRITE_RUNLOG === '1' ? 'http://127.0.0.1:3000/ops/run' : 'http://127.0.0.1:3000/scanner/rankings');
 const SYMBOLS = (process.env.DRY_SCANNER_SYMBOLS || 'AAPL,MSFT,NVDA,SPY')
   .split(',')
   .map(s => s.trim().toUpperCase())
@@ -12,7 +12,7 @@ const SYMBOLS = (process.env.DRY_SCANNER_SYMBOLS || 'AAPL,MSFT,NVDA,SPY')
 const ACTION = process.env.DRY_SCANNER_ACTION || 'hold';
 const INTERVAL_MS = Number(process.env.DRY_SCANNER_INTERVAL_MS || 300000);
 const ONCE = process.env.DRY_SCANNER_ONCE !== '0';
-const WRITE_RUNLOG = process.env.DRY_SCANNER_WRITE_RUNLOG !== '0';
+const WRITE_RUNLOG = process.env.DRY_SCANNER_WRITE_RUNLOG === '1';
 
 const outDir = path.resolve('dryruns');
 fs.mkdirSync(outDir, { recursive: true });
