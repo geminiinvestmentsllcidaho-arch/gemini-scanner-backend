@@ -152,7 +152,8 @@
     "diagnostics:market-closed-scanner-snapshot": "node scripts/market_closed_scanner_snapshot_diagnostics.mjs",
     "diagnostics:market-closed-scanner-snapshot-store": "node scripts/market_closed_scanner_snapshot_store.mjs",
     "validate:security-hardening": "node scripts/security_hardening_validation.mjs",
-    "validate:security-ops-surface": "node scripts/security_ops_surface_audit.mjs"
+    "validate:security-ops-surface": "node scripts/security_ops_surface_audit.mjs",
+    "validate:literal-secret-leak": "node scripts/literal_secret_leak_validation.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
