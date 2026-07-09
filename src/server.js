@@ -1326,6 +1326,106 @@ app.post('/ops/run', async (req, res) => {
 // Startup
 // --------------------
 
+
+// Paper app non-lifecycle diagnostic aliases.
+// Read-only JSON/panel mirrors for app screens and short redirect aliases.
+const PAPER_APP_NONLIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
+  { route: '/diagnostics/alpaca-paper-account-status', module: './scanner/alpaca_paper_account_status_app_screen.mjs', build: 'buildAlpacaPaperAccountStatusAppScreen' },
+  { route: '/diagnostics/operator-approval-dashboard', module: './scanner/operator_approval_dashboard_app_screen.mjs', build: 'buildOperatorApprovalDashboardAppScreen' },
+  { route: '/diagnostics/paper-app-readiness-status', module: './scanner/paper_app_readiness_status_app_screen.mjs', build: 'buildPaperAppReadinessStatusAppScreen', args: [{}] },
+  { route: '/diagnostics/paper-operator-start-here', module: './scanner/paper_operator_start_here_app_screen.mjs', build: 'buildPaperOperatorStartHereAppScreen' },
+  { route: '/diagnostics/paper-order-readonly-status', module: './scanner/paper_order_readonly_status_app_screen.mjs', build: 'buildPaperOrderReadonlyStatusAppScreen', args: [{ panel: fastReadonlyAppPanel('Paper Order Read-Only Status') }] },
+  { route: '/diagnostics/paper-trading-overview-status', module: './scanner/paper_trading_overview_status_app_screen.mjs', build: 'buildPaperTradingOverviewStatusAppScreen' }
+]);
+
+const PAPER_APP_NONLIFECYCLE_REDIRECT_DIAGNOSTIC_ALIASES = Object.freeze([
+  { route: '/diagnostics/paper-trade-broker-integration-preflight', target: '/app/paper-trade-broker-integration-preflight-stack' },
+  { route: '/diagnostics/paper-trade-readiness', target: '/app/paper-trade-readiness-report' },
+  { route: '/diagnostics/paper-trading-readiness', target: '/app/paper-trade-readiness-report' }
+]);
+
+function summarizePaperAppNonLifecycleDiagnosticAliasPayload(payload = {}, route = '') {
+  return {
+    ok: payload.ok ?? true,
+    route,
+    version: payload.version ?? null,
+    title: payload.title ?? null,
+    status: payload.status ?? null,
+    displayState: payload.displayState ?? null,
+    readOnly: payload.readOnly ?? true,
+    monitorOnly: payload.monitorOnly ?? true,
+    diagnosticsOnly: true,
+    noExecutionControls: payload.noExecutionControls ?? true,
+    noOrderPlacement: payload.noOrderPlacement ?? true,
+    brokerExecutionAllowed: payload.brokerExecutionAllowed ?? false,
+    orderPlacementAllowed: payload.orderPlacementAllowed ?? false,
+    safety: payload.safety ?? null,
+    summary: payload.summary ?? null,
+    ts: payload.ts ?? new Date().toISOString()
+  };
+}
+
+for (const spec of PAPER_APP_NONLIFECYCLE_DIAGNOSTIC_ALIASES) {
+  app.get(spec.route, async (_req, res) => {
+    try {
+      const mod = await import(spec.module);
+      const payload = mod[spec.build](...(spec.args ?? []));
+      res.json(payload);
+    } catch (err) {
+      res.status(500).json({ ok: false, route: spec.route, error: 'paper_app_nonlifecycle_diagnostic_alias_failed', message: err?.message ?? String(err) });
+    }
+  });
+
+  app.get(spec.route + '-panel', async (_req, res) => {
+    try {
+      const mod = await import(spec.module);
+      const payload = mod[spec.build](...(spec.args ?? []));
+      res.json(summarizePaperAppNonLifecycleDiagnosticAliasPayload(payload, spec.route + '-panel'));
+    } catch (err) {
+      res.status(500).json({ ok: false, route: spec.route + '-panel', error: 'paper_app_nonlifecycle_diagnostic_alias_panel_failed', message: err?.message ?? String(err) });
+    }
+  });
+}
+
+for (const spec of PAPER_APP_NONLIFECYCLE_REDIRECT_DIAGNOSTIC_ALIASES) {
+  app.get(spec.route, (_req, res) => {
+    res.json({
+      ok: true,
+      route: spec.route,
+      target: spec.target,
+      status: 'paper_app_redirect_alias_readonly',
+      displayState: 'PAPER_APP_REDIRECT_ALIAS_READONLY',
+      readOnly: true,
+      monitorOnly: true,
+      diagnosticsOnly: true,
+      noExecutionControls: true,
+      noOrderPlacement: true,
+      brokerExecutionAllowed: false,
+      orderPlacementAllowed: false,
+      ts: new Date().toISOString()
+    });
+  });
+
+  app.get(spec.route + '-panel', (_req, res) => {
+    res.json({
+      ok: true,
+      route: spec.route + '-panel',
+      target: spec.target,
+      status: 'paper_app_redirect_alias_panel_readonly',
+      displayState: 'PAPER_APP_REDIRECT_ALIAS_PANEL_READONLY',
+      readOnly: true,
+      monitorOnly: true,
+      diagnosticsOnly: true,
+      noExecutionControls: true,
+      noOrderPlacement: true,
+      brokerExecutionAllowed: false,
+      orderPlacementAllowed: false,
+      ts: new Date().toISOString()
+    });
+  });
+}
+
+
 app.get('/app/alpaca-paper-account-status', (_req, res) => {
   const screen = buildAlpacaPaperAccountStatusAppScreen();
   res.type('html').send(renderAlpacaPaperAccountStatusAppScreenHtml(screen));
