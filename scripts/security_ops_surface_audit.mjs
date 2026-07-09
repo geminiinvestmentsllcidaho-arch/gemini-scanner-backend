@@ -109,6 +109,40 @@ function scanBackupPermissions(dir, depth = 0) {
 }
 scanBackupPermissions(backupRoot);
 
+const pm2Root = path.join(process.env.HOME || "", ".pm2");
+const pm2PermissionFindings = [];
+function scanPm2Permissions(dir) {
+  if (!dir) return;
+  let entries = [];
+  try {
+    const stat = fs.statSync(dir);
+    const mode = stat.mode & 0o777;
+    if (stat.isDirectory() && mode !== 0o700) {
+      pm2PermissionFindings.push({ path: dir, type: "directory", mode: mode.toString(8) });
+    }
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    try {
+      const stat = fs.statSync(full);
+      const mode = stat.mode & 0o777;
+      if (entry.isDirectory()) {
+        if (mode !== 0o700) {
+          pm2PermissionFindings.push({ path: full, type: "directory", mode: mode.toString(8) });
+        }
+      } else if (entry.isFile() && mode !== 0o600) {
+        pm2PermissionFindings.push({ path: full, type: "file", mode: mode.toString(8) });
+      }
+    } catch {
+      continue;
+    }
+  }
+}
+scanPm2Permissions(pm2Root);
+
 const repoBackupTempFiles = [];
 const BACKUP_TEMP_FILE_RE = /(?:\.bak(?:\.|$)|\.old(?:\.|$)|\.orig(?:\.|$)|\.tmp$)/i;
 
@@ -151,6 +185,7 @@ if (!ssh.x11ForwardingNo) issues.push("SSH_X11_FORWARDING_NOT_DISABLED");
 if (rebootRequired) issues.push("SYSTEM_REBOOT_REQUIRED");
 if (repoEnvPermission && repoEnvPermission !== "600") issues.push("ENV_FILE_PERMISSION_TOO_OPEN");
 if (backupPermissionFindings.length) issues.push("SECRET_BACKUP_PERMISSION_TOO_OPEN");
+if (pm2PermissionFindings.length) issues.push("PM2_PERMISSION_TOO_OPEN");
 if (envFileNamesOnly.some((file) => /\.bak/i.test(file))) issues.push("ENV_BACKUP_FILES_PRESENT");
 if (repoBackupTempFiles.length) issues.push("REPO_BACKUP_TEMP_FILES_PRESENT");
 
@@ -182,6 +217,14 @@ const report = {
       }))
       .sort((a, b) => a.path.localeCompare(b.path)),
     backupPermissionsOk: backupPermissionFindings.length === 0,
+    pm2Root,
+    pm2PermissionFindings: pm2PermissionFindings
+      .map((finding) => ({
+        ...finding,
+        path: finding.path.replace((process.env.HOME || "") + "/", "~/"),
+      }))
+      .sort((a, b) => a.path.localeCompare(b.path)),
+    pm2PermissionsOk: pm2PermissionFindings.length === 0,
   },
   sourceSurface: {
     repoBackupTempFiles: repoBackupTempFiles.sort(),
