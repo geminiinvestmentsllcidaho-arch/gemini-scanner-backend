@@ -140,6 +140,67 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 }
 
 const app = express();
+function paperDiagnosticBool(value, fallback = false) {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function paperDiagnosticText(value, fallback) {
+  return typeof value === 'string' && value.trim() ? value : fallback;
+}
+
+function normalizePaperDiagnosticSafetyAliases(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.ok === false) {
+    return payload;
+  }
+
+  const safety = payload.safety && typeof payload.safety === 'object' ? payload.safety : {};
+  const status = paperDiagnosticText(
+    payload.status,
+    paperDiagnosticText(
+      payload.finalStatus,
+      paperDiagnosticText(
+        payload.moduleStatus,
+        paperDiagnosticText(payload.lifecycleStatus, 'readonly_no_go')
+      )
+    )
+  );
+  const displayState = paperDiagnosticText(
+    payload.displayState,
+    String(status).toUpperCase().replaceAll('-', '_')
+  );
+
+  return {
+    ...payload,
+    status,
+    displayState,
+    finalDecision: paperDiagnosticText(payload.finalDecision, 'NO_GO_FOR_ORDER_PLACEMENT'),
+    readyForOrderPlacement: paperDiagnosticBool(payload.readyForOrderPlacement, false),
+    readOnly: paperDiagnosticBool(payload.readOnly, true),
+    monitorOnly: paperDiagnosticBool(payload.monitorOnly, true),
+    noExecutionControls: paperDiagnosticBool(payload.noExecutionControls, true),
+    brokerContactAllowed: paperDiagnosticBool(payload.brokerContactAllowed ?? safety.brokerContactAllowed ?? safety.brokerContact, false),
+    orderPlacementAllowed: paperDiagnosticBool(payload.orderPlacementAllowed ?? safety.orderPlacementAllowed ?? safety.orderPlacement, false),
+    accountMutationAllowed: paperDiagnosticBool(payload.accountMutationAllowed ?? safety.accountMutationAllowed ?? safety.accountMutation, false)
+  };
+}
+
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (payload) => {
+    if (
+      req.method === 'GET' &&
+      typeof req.path === 'string' &&
+      req.path.startsWith('/diagnostics/') &&
+      /paper/i.test(req.path)
+    ) {
+      return originalJson(normalizePaperDiagnosticSafetyAliases(payload));
+    }
+    return originalJson(payload);
+  };
+  next();
+});
+
+
 
 app.get('/app/paper-app-readiness-status', async (_req, res) => {
   try {
