@@ -2787,6 +2787,9 @@ app.get('/app/paper-trade-operator-go-no-go', async (_req, res) => {
   }
 });
 
+app.get('/app/paper-trade-readiness', (_req, res) => res.redirect(302, '/app/paper-trade-readiness-report'));
+app.get('/app/paper-trading-readiness', (_req, res) => res.redirect(302, '/app/paper-trade-readiness-report'));
+
 app.get('/app/paper-trade-readiness-report', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_trade_readiness_report_app_screen.mjs');
