@@ -628,6 +628,69 @@ app.get('/app/paper-lifecycle-evidence-bundle', async (req, res) => {
   }
 });
 
+
+// Paper app lifecycle diagnostic aliases.
+// Read-only JSON/panel mirrors for app screens already backed by server routes.
+const PAPER_APP_LIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
+  { route: '/diagnostics/paper-lifecycle-completion-seal', module: './scanner/paper_lifecycle_completion_seal_readonly_panel.mjs', build: 'buildPaperLifecycleCompletionSealReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-dashboard', module: './scanner/paper_lifecycle_readonly_dashboard_panel.mjs', build: 'buildPaperLifecycleReadOnlyDashboardPanel' },
+  { route: '/diagnostics/paper-lifecycle-evidence-bundle', module: './scanner/paper_lifecycle_evidence_bundle_readonly_panel.mjs', build: 'buildPaperLifecycleEvidenceBundleReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-evidence-index', module: './scanner/paper_lifecycle_evidence_index_readonly_panel.mjs', build: 'buildPaperLifecycleEvidenceIndexReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-final-status', module: './scanner/paper_lifecycle_final_status_readonly_panel.mjs', build: 'buildPaperLifecycleFinalStatusReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-handoff', module: './scanner/paper_lifecycle_operator_handoff_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-handoff-packet', module: './scanner/paper_lifecycle_operator_handoff_packet_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-handoff-packet-digest', module: './scanner/paper_lifecycle_operator_handoff_packet_digest_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffPacketDigestReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-handoff-packet-digest-seal', module: './scanner/paper_lifecycle_operator_handoff_packet_digest_seal_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-review-checklist', module: './scanner/paper_lifecycle_operator_review_checklist_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorReviewChecklistReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-review-packet', module: './scanner/paper_lifecycle_operator_review_packet_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorReviewPacketReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-operator-summary', module: './scanner/paper_lifecycle_operator_summary_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorSummaryReadOnlyPanel' },
+  { route: '/diagnostics/paper-lifecycle-route-registry', module: './scanner/paper_lifecycle_route_registry_readonly_panel.mjs', build: 'buildPaperLifecycleRouteRegistryReadOnlyPanel' }
+]);
+
+function summarizePaperAppDiagnosticAliasPayload(payload = {}, route = '') {
+  return {
+    ok: payload.ok ?? true,
+    route,
+    version: payload.version ?? null,
+    title: payload.title ?? null,
+    status: payload.status ?? null,
+    displayState: payload.displayState ?? null,
+    readOnly: payload.readOnly ?? true,
+    monitorOnly: payload.monitorOnly ?? true,
+    diagnosticsOnly: true,
+    noExecutionControls: payload.noExecutionControls ?? true,
+    noOrderPlacement: payload.noOrderPlacement ?? true,
+    brokerExecutionAllowed: payload.brokerExecutionAllowed ?? false,
+    orderPlacementAllowed: payload.orderPlacementAllowed ?? false,
+    safety: payload.safety ?? null,
+    summary: payload.summary ?? null,
+    ts: payload.ts ?? new Date().toISOString()
+  };
+}
+
+for (const spec of PAPER_APP_LIFECYCLE_DIAGNOSTIC_ALIASES) {
+  app.get(spec.route, async (_req, res) => {
+    try {
+      const mod = await import(spec.module);
+      const payload = mod[spec.build]();
+      res.json(payload);
+    } catch (err) {
+      res.status(500).json({ ok: false, route: spec.route, error: 'paper_app_lifecycle_diagnostic_alias_failed', message: err?.message ?? String(err) });
+    }
+  });
+
+  app.get(spec.route + '-panel', async (_req, res) => {
+    try {
+      const mod = await import(spec.module);
+      const payload = mod[spec.build]();
+      res.json(summarizePaperAppDiagnosticAliasPayload(payload, spec.route + '-panel'));
+    } catch (err) {
+      res.status(500).json({ ok: false, route: spec.route + '-panel', error: 'paper_app_lifecycle_diagnostic_alias_panel_failed', message: err?.message ?? String(err) });
+    }
+  });
+}
+
+
 app.get('/app/paper-lifecycle-completion-seal', async (req, res) => {
   try {
     const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
