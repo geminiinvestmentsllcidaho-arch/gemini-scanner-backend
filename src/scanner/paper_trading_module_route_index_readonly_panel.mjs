@@ -14,6 +14,7 @@ function escRelatedBrokerReadinessHtml(value) {
 
 const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
+  ["/app/paper-operator-start-here", "Paper Operator Start Here"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
   ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
