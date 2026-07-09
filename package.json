@@ -11,7 +11,7 @@
     "validate:open": "node scripts/open_market_validation.mjs",
     "validate:open:closed": "node scripts/open_market_validation.mjs --closed-ok",
     "validate:dashboard": "node scripts/dashboard_smoke_validation.mjs",
-    "validate:all": "npm run validate:weekend && npm run validate:open:closed && npm run validate:dashboard && npm run validate:alpaca-audit && npm run validate:trading-safety && npm run validate:connect-safety && npm run validate:security-hardening && node --test",
+    "validate:all": "npm run validate:weekend && npm run validate:open:closed && npm run validate:dashboard && npm run validate:alpaca-audit && npm run validate:trading-safety && npm run validate:connect-safety && npm run validate:security-hardening && npm run validate:security-ops-surface && node --test",
     "alerts:scanner": "node scripts/scanner_alert_report.mjs",
     "validate:alpaca-audit": "node scripts/alpaca_audit_validation.mjs",
     "validate:trading-safety": "node scripts/trading_api_safety_validation.mjs",
