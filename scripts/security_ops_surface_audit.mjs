@@ -66,6 +66,24 @@ const publicNode3000 = /\s0\.0\.0\.0:3000\b|\s\[::\]:3000\b/.test(listeningText)
 const rebootRequired =
   fs.existsSync("/var/run/reboot-required") || fs.existsSync("/run/reboot-required");
 
+const repoBackupTempFiles = [];
+const BACKUP_TEMP_FILE_RE = /(?:\.bak(?:\.|$)|\.old(?:\.|$)|\.orig(?:\.|$)|\.tmp$)/i;
+
+function scanBackupTempFiles(dir, depth = 0) {
+  if (depth > 3) return;
+  let entries = [];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const entry of entries) {
+    if (entry.name === "node_modules" || entry.name === ".git") continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) scanBackupTempFiles(full, depth + 1);
+    if (entry.isFile() && BACKUP_TEMP_FILE_RE.test(entry.name)) {
+      repoBackupTempFiles.push(full.replace(process.cwd() + "/", "./"));
+    }
+  }
+}
+scanBackupTempFiles(process.cwd());
+
 const envFileNamesOnly = [];
 function scanEnv(dir, depth = 0) {
   if (depth > 2) return;
@@ -89,6 +107,7 @@ if (publicNode3000) issues.push("NODE_PORT_3000_PUBLICLY_BOUND");
 if (!ssh.x11ForwardingNo) issues.push("SSH_X11_FORWARDING_NOT_DISABLED");
 if (rebootRequired) issues.push("SYSTEM_REBOOT_REQUIRED");
 if (envFileNamesOnly.some((file) => /\.bak/i.test(file))) issues.push("ENV_BACKUP_FILES_PRESENT");
+if (repoBackupTempFiles.length) issues.push("REPO_BACKUP_TEMP_FILES_PRESENT");
 
 const report = {
   ok: issues.length === 0,
@@ -109,6 +128,10 @@ const report = {
   secrets: {
     envFileNamesOnly: envFileNamesOnly.sort(),
     envBackupFilesPresent: envFileNamesOnly.some((file) => /\.bak/i.test(file)),
+  },
+  sourceSurface: {
+    repoBackupTempFiles: repoBackupTempFiles.sort(),
+    repoBackupTempFilesPresent: repoBackupTempFiles.length > 0,
   },
   issues,
 };
