@@ -2646,6 +2646,41 @@ app.get('/app/paper-trading-overview-status', async (_req, res) => {
   }
 });
 
+app.get('/diagnostics/paper-app-route-health-status', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_app_route_health_status_app_screen.mjs');
+    const screen = mod.buildPaperAppRouteHealthStatusAppScreen();
+    res.json(screen);
+  } catch (err) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-app-route-health-status', error: 'paper_app_route_health_status_diagnostics_failed', message: err?.message ?? String(err) });
+  }
+});
+
+app.get('/diagnostics/paper-app-route-health-status-panel', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_app_route_health_status_app_screen.mjs');
+    const screen = mod.buildPaperAppRouteHealthStatusAppScreen();
+    res.json({
+      ok: true,
+      route: '/diagnostics/paper-app-route-health-status-panel',
+      version: screen.version,
+      title: screen.title,
+      status: screen.status,
+      displayState: screen.displayState,
+      readOnly: screen.readOnly,
+      monitorOnly: screen.monitorOnly,
+      diagnosticsOnly: screen.diagnosticsOnly,
+      noExecutionControls: screen.noExecutionControls,
+      missingServerRoutes: screen.missingServerRoutes ?? [],
+      summary: screen.summary,
+      safety: screen.safety,
+      ts: screen.ts
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, route: '/diagnostics/paper-app-route-health-status-panel', error: 'paper_app_route_health_status_panel_failed', message: err?.message ?? String(err) });
+  }
+});
+
 app.get('/app/paper-app-route-health-status', async (req, res) => {
   try {
     const mod = await import('./scanner/paper_app_route_health_status_app_screen.mjs');
