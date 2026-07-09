@@ -3195,6 +3195,7 @@ app.get('/app/paper-trade-readiness', (_req, res) => res.redirect(302, '/app/pap
 app.get('/app/paper-trading-readiness', (_req, res) => res.redirect(302, '/app/paper-trade-readiness-report'));
 app.get('/app/paper-trading-readiness-gate', (_req, res) => res.redirect(302, '/app/paper-readiness-gate'));
 app.get('/app/paper-operator-go-no-go', (_req, res) => res.redirect(302, '/app/paper-trade-operator-go-no-go'));
+app.get('/paper-trading-module-final-status', (_req, res) => res.redirect(302, '/app/paper-trading-module-final-status'));
 
 app.get('/app/paper-trade-readiness-report', async (_req, res) => {
   try {
