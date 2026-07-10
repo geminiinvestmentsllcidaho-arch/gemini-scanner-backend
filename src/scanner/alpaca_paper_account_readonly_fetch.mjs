@@ -12,9 +12,9 @@ function n(v) { const x = Number(v); return Number.isFinite(x) ? x : null; }
 function s(v, fallback = "") { return typeof v === "string" && v.trim() ? v.trim() : fallback; }
 
 export function buildAlpacaPaperReadonlyRuntime(env = process.env) {
-  const baseUrl = pick(env, ["ALPACA_PAPER_BASE_URL", "ALPACA_BASE_URL"]) || DEFAULT_BASE_URL;
-  const apiKey = pick(env, ["ALPACA_PAPER_API_KEY", "ALPACA_API_KEY", "APCA_API_KEY_ID"]);
-  const apiSecret = pick(env, ["ALPACA_PAPER_API_SECRET", "ALPACA_API_SECRET", "APCA_API_SECRET_KEY"]);
+  const baseUrl = pick(env, ["ALPACA_PAPER_TRADING_BASE_URL", "APCA_API_BASE_URL", "ALPACA_PAPER_BASE_URL", "ALPACA_BASE_URL"]) || DEFAULT_BASE_URL;
+  const apiKey = pick(env, ["ALPACA_API_KEY_ID", "ALPACA_KEY_ID", "APCA_API_KEY_ID", "ALPACA_KEY", "ALPACA_PAPER_API_KEY", "ALPACA_API_KEY"]);
+  const apiSecret = pick(env, ["ALPACA_API_SECRET_KEY", "ALPACA_SECRET_KEY", "APCA_API_SECRET_KEY", "ALPACA_SECRET", "ALPACA_PAPER_API_SECRET", "ALPACA_API_SECRET"]);
   let baseUrlHost = "invalid";
   try { baseUrlHost = new URL(baseUrl).host; } catch {}
   return {
