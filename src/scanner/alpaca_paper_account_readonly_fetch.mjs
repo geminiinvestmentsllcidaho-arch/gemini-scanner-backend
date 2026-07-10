@@ -1,3 +1,7 @@
+import {
+  resolveInternalOwnerAlpacaReadonlyCredentials,
+} from "./internal_owner_alpaca_readonly_credentials.mjs";
+
 export const VERSION = "alpaca_paper_account_readonly_fetch_v1";
 const DEFAULT_BASE_URL = "https://paper-api.alpaca.markets";
 
@@ -66,8 +70,30 @@ async function readJson(fetchImpl, url, headers) {
   return { ok: r.ok, statusCode: r.status, json };
 }
 
-export async function fetchAlpacaPaperAccountReadonly({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
-  const { runtime, baseUrl, apiKey, apiSecret } = buildAlpacaPaperReadonlyRuntime(env);
+export async function fetchAlpacaPaperAccountReadonly({
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  credentialResolver = resolveInternalOwnerAlpacaReadonlyCredentials,
+  credentialOptions = {},
+} = {}) {
+  let effectiveEnv = env;
+  let credentialSource = "runtime_env";
+
+  const initial = buildAlpacaPaperReadonlyRuntime(effectiveEnv);
+  if (!initial.runtime.hasRuntimeKeys && typeof credentialResolver === "function") {
+    const resolved = credentialResolver({
+      masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY,
+      ...credentialOptions,
+    });
+    if (resolved?.readyForReadonlyBrokerRead === true) {
+      effectiveEnv = { ...env, ...resolved.env };
+      credentialSource = "encrypted_tenant_store";
+    }
+  }
+
+  const { runtime: baseRuntime, baseUrl, apiKey, apiSecret } =
+    buildAlpacaPaperReadonlyRuntime(effectiveEnv);
+  const runtime = { ...baseRuntime, credentialSource };
   if (!runtime.hasRuntimeKeys) return { ok: true, version: VERSION, status: "not_connected_readonly", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_NOT_CONNECTED", mode: "PAPER_ONLY", runtime, account: null, positions: [], summary: { ...summary([]), operatorMessage: "Readonly helper is installed. Runtime keys are not present, so no paper account read was attempted." } };
   if (typeof fetchImpl !== "function") return { ok: false, version: VERSION, status: "fetch_unavailable", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_FETCH_UNAVAILABLE", mode: "PAPER_ONLY", runtime, account: null, positions: [], summary: { ...summary([]), operatorMessage: "Readonly helper cannot run because fetch is unavailable." } };
   const headers = { "APCA-API-KEY-ID": apiKey, "APCA-API-SECRET-KEY": apiSecret, Accept: "application/json" };
