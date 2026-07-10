@@ -295,3 +295,58 @@ test("caps readonly potential labels for wide spreads and stale sources", async 
   assert.equal(bySymbol.WIDE.buyRecommendation, false);
   assert.equal(bySymbol.STALE.buyRecommendation, false);
 });
+
+
+test("prevents lower-dollar-volume candidates from receiving strong-watch labels", async () => {
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    nowMs: Date.parse("2026-07-10T18:15:00.000Z"),
+    async fetchImpl(url) {
+      if (url.includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "LOWDV", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "HIGH", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        LOWDV: {
+          latestTrade: { p: 4.5, t: "2026-07-10T18:14:55.000Z" },
+          latestQuote: { bp: 4.49, ap: 4.51, t: "2026-07-10T18:14:56.000Z" },
+          dailyBar: { v: 150000 },
+          prevDailyBar: { c: 3.5 },
+        },
+        HIGH: {
+          latestTrade: { p: 4.5, t: "2026-07-10T18:14:55.000Z" },
+          latestQuote: { bp: 4.49, ap: 4.51, t: "2026-07-10T18:14:56.000Z" },
+          dailyBar: { v: 500000 },
+          prevDailyBar: { c: 3.5 },
+        },
+      });
+    },
+  });
+
+  const bySymbol = Object.fromEntries(result.candidates.map((item) => [item.symbol, item]));
+
+  assert.equal(bySymbol.LOWDV.readonlyPotentialFlags.includes("lower_dollar_volume"), true);
+  assert.equal(bySymbol.LOWDV.readonlyPotentialScore <= 69, true);
+  assert.equal(bySymbol.LOWDV.readonlyPotentialLabel, "watch");
+
+  assert.equal(bySymbol.HIGH.readonlyPotentialFlags.includes("lower_dollar_volume"), false);
+  assert.equal(bySymbol.HIGH.readonlyPotentialScore >= 70, true);
+  assert.equal(bySymbol.HIGH.readonlyPotentialLabel, "strong_watch");
+
+  assert.equal(bySymbol.LOWDV.buyRecommendation, false);
+  assert.equal(bySymbol.HIGH.buyRecommendation, false);
+});

@@ -88,7 +88,9 @@ function readonlyPotential(candidate = {}) {
         ? Math.min(rawScore, 39)
         : spread !== null && spread > 1
           ? Math.min(rawScore, 49)
-          : rawScore;
+          : dollarVolume < 1000000
+            ? Math.min(rawScore, 69)
+            : rawScore;
   const score = Number(riskCappedScore.toFixed(2));
 
   const flags = [];
