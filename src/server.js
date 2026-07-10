@@ -92,6 +92,7 @@ import { buildWatchlistSettingsReadonly, renderWatchlistSettingsReadonlyHtml } f
 import { buildExitAllControlReadonly, renderExitAllControlReadonlyHtml } from "./scanner/exit_all_control_readonly.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 import { buildPaperOperatorStartHereAppScreen, renderPaperOperatorStartHereAppScreenHtml } from "./scanner/paper_operator_start_here_app_screen.mjs";
+import { buildInternalOwnerTenantReadonly } from "./scanner/internal_owner_tenant_readonly.mjs";
 
 dotenv.config();
 
@@ -2843,6 +2844,10 @@ app.get("/app/exit-all", (req, res) => {
     futureAutoModeKnown: req.query.futureAutoModeKnown,
   });
   res.type("html").send(renderExitAllControlReadonlyHtml(payload));
+});
+
+app.get("/diagnostics/internal-owner-tenant-readonly", (_req, res) => {
+  res.json(buildInternalOwnerTenantReadonly());
 });
 
 app.get("/diagnostics/app-navigation-readonly", (req, res) => {
