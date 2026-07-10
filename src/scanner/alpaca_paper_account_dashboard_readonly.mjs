@@ -36,7 +36,7 @@ export function buildAlpacaPaperAccountDashboardReadonly(input = {}) {
   const safePositions = positions.map((p) => ({
     symbol: String(p.symbol ?? ""),
     qty: num(p.qty),
-    avgEntryPrice: num(p.avgEntryPrice ?? p.avg_entry_price),
+    avgEntryPrice: num(p.avgEntryPrice ?? p.averageEntryPrice ?? p.avg_entry_price),
     currentPrice: num(p.currentPrice ?? p.current_price),
     marketValue: num(p.marketValue ?? p.market_value),
     unrealizedPl: num(p.unrealizedPl ?? p.unrealized_pl),
