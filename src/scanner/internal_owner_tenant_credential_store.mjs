@@ -100,6 +100,23 @@ export function decryptInternalOwnerTenantCredentials(options = {}) {
   return JSON.parse(plaintext.toString("utf8"));
 }
 
+export function readInternalOwnerTenantCredentials(options = {}) {
+  const tenantId = clean(options.tenantId, DEFAULT_TENANT_ID);
+  const storePath = clean(options.storePath, DEFAULT_STORE_PATH);
+  const masterKey = clean(options.masterKey, "");
+
+  if (!fs.existsSync(storePath)) {
+    throw new Error("credential_store_not_found");
+  }
+
+  const envelope = JSON.parse(fs.readFileSync(storePath, "utf8"));
+  return decryptInternalOwnerTenantCredentials({
+    tenantId,
+    masterKey,
+    envelope,
+  });
+}
+
 export function writeInternalOwnerTenantCredentialEnvelope(options = {}) {
   const storePath = clean(options.storePath, DEFAULT_STORE_PATH);
   const envelope = encryptInternalOwnerTenantCredentials(options);

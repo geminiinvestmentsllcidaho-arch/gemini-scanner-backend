@@ -8,6 +8,7 @@ import {
   buildInternalOwnerTenantCredentialStoreStatus,
   decryptInternalOwnerTenantCredentials,
   encryptInternalOwnerTenantCredentials,
+  readInternalOwnerTenantCredentials,
   writeInternalOwnerTenantCredentialEnvelope,
 } from "../src/scanner/internal_owner_tenant_credential_store.mjs";
 
@@ -78,4 +79,39 @@ test("credential envelope writes locally with restricted permissions", () => {
   assert.equal(status.storePathLabel, "credentials.enc.json");
   assert.equal(fs.readFileSync(storePath, "utf8").includes("local-test-secret"), false);
   assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+});
+
+test("credential envelope reads and decrypts from the exact tenant store", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-credential-read-"));
+  const storePath = path.join(dir, "credentials.enc.json");
+  const masterKey = "m".repeat(64);
+  const tenantId = "gemini-investments-internal";
+  const credentials = {
+    broker: "alpaca-paper",
+    apiKeyId: "test-key-id",
+    apiSecret: "test-secret",
+  };
+
+  writeInternalOwnerTenantCredentialEnvelope({
+    tenantId,
+    masterKey,
+    storePath,
+    credentials,
+  });
+
+  const actual = readInternalOwnerTenantCredentials({
+    tenantId,
+    masterKey,
+    storePath,
+  });
+
+  assert.deepEqual(actual, credentials);
+  assert.throws(
+    () => readInternalOwnerTenantCredentials({
+      tenantId: "wrong-tenant",
+      masterKey,
+      storePath,
+    }),
+    /credential_tenant_mismatch/,
+  );
 });
