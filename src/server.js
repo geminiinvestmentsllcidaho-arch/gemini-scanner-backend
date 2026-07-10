@@ -30,7 +30,7 @@ import { computeContext as computeContextV3 } from './pillar3/context_engine.mjs
 import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
-import { registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
+import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
 import { buildPaperTradeIntentAuditDashboard } from './scanner/paper_trade_intent_audit_dashboard.mjs';
 import { getPaperTradeIntentAuditDashboardPanel } from "./scanner/paper_trade_intent_audit_dashboard_panel.mjs";
@@ -1577,6 +1577,8 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
   registerOperatorDashboardRoutes(app);
 }
 
+const requireInternalOwnerAuth = createRequireOperatorDashboardAuth();
+
 
 
 app.get('/app/operator-approval-dashboard', async (req, res) => {
@@ -2847,11 +2849,11 @@ app.get("/app/exit-all", (req, res) => {
   res.type("html").send(renderExitAllControlReadonlyHtml(payload));
 });
 
-app.get("/diagnostics/internal-owner-tenant-readonly", (_req, res) => {
+app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth, (_req, res) => {
   res.json(buildInternalOwnerTenantReadonly());
 });
 
-app.get("/app/internal-owner", (_req, res) => {
+app.get("/app/internal-owner", requireInternalOwnerAuth, (_req, res) => {
   res.type("html").send(renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen()));
 });
 

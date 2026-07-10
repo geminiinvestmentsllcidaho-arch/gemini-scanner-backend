@@ -9,7 +9,7 @@ const serverSource = fs.readFileSync(
 
 test("server exposes internal owner tenant read-only diagnostic route", () => {
   assert.equal(
-    serverSource.includes('app.get("/diagnostics/internal-owner-tenant-readonly"'),
+    serverSource.includes('app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth'),
     true
   );
   assert.equal(

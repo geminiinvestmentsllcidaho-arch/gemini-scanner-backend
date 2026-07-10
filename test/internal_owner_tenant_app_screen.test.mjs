@@ -11,7 +11,9 @@ test("builds internal owner tenant bootstrap app screen safely", () => {
   assert.equal(screen.route, "/app/internal-owner");
   assert.equal(screen.user.role, "owner");
   assert.equal(screen.tenant.publicRegistrationEnabled, false);
-  assert.equal(screen.access.authenticationImplemented, false);
+  assert.equal(screen.access.authenticationImplemented, true);
+  assert.equal(screen.access.authenticationMode, "shared_operator_token");
+  assert.equal(screen.access.routeProtectionImplemented, true);
   assert.equal(screen.access.authorizationEnforced, false);
   assert.equal(screen.access.tenantIsolationImplemented, false);
   assert.equal(screen.credentials.rawSecretsExposed, false);
@@ -22,8 +24,10 @@ test("builds internal owner tenant bootstrap app screen safely", () => {
 test("renders owner screen without mutation controls", () => {
   const html = renderInternalOwnerTenantAppScreenHtml();
   assert.match(html, /Internal Owner Account/);
-  assert.match(html, /Bootstrap profile only/);
-  assert.match(html, /Authentication implemented:<\/b> no/);
+  assert.match(html, /protected by the existing operator token/);
+  assert.match(html, /Authentication implemented:<\/b> yes/);
+  assert.match(html, /Authentication mode:<\/b> shared_operator_token/);
+  assert.match(html, /Route protection implemented:<\/b> yes/);
   assert.match(html, /Raw secrets exposed:<\/b> no/);
   assert.match(html, /Order placement allowed:<\/b> no/);
   assert.doesNotMatch(html, /<form/i);

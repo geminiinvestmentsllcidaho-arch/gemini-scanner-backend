@@ -16,6 +16,10 @@ test("server registers internal owner bootstrap app route", () => {
     serverSource.includes("renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen())"),
     true
   );
+  assert.equal(
+    serverSource.includes('app.get("/app/internal-owner", requireInternalOwnerAuth'),
+    true
+  );
 });
 
 test("internal owner bootstrap app route remains GET-only", () => {
