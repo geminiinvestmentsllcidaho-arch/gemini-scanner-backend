@@ -19,6 +19,18 @@ function esc(value) {
 }
 
 const DEFAULT_ENTRIES = Object.freeze([
+  {
+    id: "alpaca_paper_account_dashboard",
+    label: "Alpaca Paper Account Dashboard",
+    title: "Alpaca Paper Account Dashboard",
+    subtitle: "Read-only paper account money and positions dashboard.",
+    description: "Read-only Alpaca paper account dashboard shell for cash, buying power, equity, portfolio value, and positions with no live trading, auto trading, placement, submit, cancel, or account mutation controls.",
+    category: "operator_workflow",
+    href: "/app/alpaca-paper-account-dashboard",
+    diagnosticHref: "/diagnostics/alpaca-paper-account-dashboard",
+    routeHref: "/app/alpaca-paper-account-dashboard",
+    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_NOT_CONNECTED",
+  },
   Object.freeze({
     id: "todays_intraday_setups",
     title: "Today's Intraday Setups",

@@ -156,7 +156,8 @@
     "validate:literal-secret-leak": "node scripts/literal_secret_leak_validation.mjs",
     "paper:monday:freshness": "node scripts/monday_market_open_freshness_decision.mjs",
     "paper:monday:freshness:strict": "node scripts/monday_market_open_freshness_decision.mjs --fail-on-no-go",
-    "diagnostics:alpaca-operator-key-entry": "node src/scanner/alpaca_operator_key_entry_block.mjs"
+    "diagnostics:alpaca-operator-key-entry": "node src/scanner/alpaca_operator_key_entry_block.mjs",
+    "diagnostics:alpaca-paper-account-dashboard": "node src/scanner/alpaca_paper_account_dashboard_readonly.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",

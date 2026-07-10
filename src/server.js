@@ -3442,3 +3442,13 @@ app.get('/app/alpaca-operator-key-entry', async (_req, res) => {
   res.type('html').send(mod.renderAlpacaOperatorKeyEntryBlockHtml());
 });
 
+
+app.get('/diagnostics/alpaca-paper-account-dashboard', async (_req, res) => {
+  const mod = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
+  res.json(mod.buildAlpacaPaperAccountDashboardReadonly());
+});
+
+app.get('/app/alpaca-paper-account-dashboard', async (_req, res) => {
+  const mod = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
+  res.type('html').send(mod.renderAlpacaPaperAccountDashboardReadonlyHtml());
+});
