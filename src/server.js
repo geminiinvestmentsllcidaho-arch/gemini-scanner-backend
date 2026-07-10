@@ -3444,11 +3444,31 @@ app.get('/app/alpaca-operator-key-entry', async (_req, res) => {
 
 
 app.get('/diagnostics/alpaca-paper-account-dashboard', async (_req, res) => {
-  const mod = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
-  res.json(mod.buildAlpacaPaperAccountDashboardReadonly());
+  const view = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
+  const data = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const fetched = await data.fetchAlpacaPaperAccountReadonly();
+  res.json(view.buildAlpacaPaperAccountDashboardReadonly({
+    connected: fetched.status === "connected_readonly",
+    networkReadImplemented: true,
+    account: fetched.account ?? {},
+    positions: fetched.positions ?? [],
+    env: process.env,
+    fetchResult: fetched,
+  }));
 });
 
 app.get('/app/alpaca-paper-account-dashboard', async (_req, res) => {
-  const mod = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
-  res.type('html').send(mod.renderAlpacaPaperAccountDashboardReadonlyHtml());
+  const view = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
+  const data = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const fetched = await data.fetchAlpacaPaperAccountReadonly();
+  const panel = view.buildAlpacaPaperAccountDashboardReadonly({
+    connected: fetched.status === "connected_readonly",
+    networkReadImplemented: true,
+    account: fetched.account ?? {},
+    positions: fetched.positions ?? [],
+    env: process.env,
+    fetchResult: fetched,
+  });
+  panel.summary.operatorMessage = fetched.summary?.operatorMessage ?? panel.summary.operatorMessage;
+  res.type('html').send(view.renderAlpacaPaperAccountDashboardReadonlyHtml(panel));
 });
