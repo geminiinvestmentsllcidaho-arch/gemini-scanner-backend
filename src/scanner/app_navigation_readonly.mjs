@@ -922,10 +922,39 @@ export function renderAppNavigationReadonlyHtml(nav = {}) {
   const summary = renderNavigationSummary(nav);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
 <style>
-:root{--bg:#07111f<--panel:#0d1b2f;--card:#ffffff;--text:#0b1220;--muted:#64748b;--line:#dbe4f0;--accent:#2dd4bf;--danger:#f59e0b}
-*{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;background:linear-gradient(180deg,#07111f 0%,#10243f 220px,#f3f6fb 220px);color:var(--text);padding:14px}.wrap{max-width:1180px;margin:auto}.hero{background:linear-gradient(135deg,#0f172a,#164e63);color:white;border:1px solid #ffffff24;border-radius:24px;padding:22px;margin:8px 0 14px;box-shadow:0 14px 40px #0003}.hero h1{font-size:32px;margin:0 0 8px}.hero p{margin:5px 0;color:#dff7ff}.status-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pill{border:1px solid #ffffff33;background:#ffffff16;color:white;border-radius:999px;padding:8px 11px;font-size:13px}
-.feature-panel,.entry-group,.safet{background:rgba(255,255,255,.98);border:1px solid var(--line);border-radius:22px;padding:16px;margin:12px 0;box-shadow:0 10px 26px #0f172a16}.feature-panel h2,.entry-group h2,.safety h2{margin:0 0 8px}.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:12px}.feature-card{display:block;text-decoration:none;background:linear-gradient(135deg,#0f172a,#155e75);color:white;border-radius:18px;padding:15px;min-height:98px;box-shadow:0 10px 24px #0f172a25}.feature-card b{display:block;font-size:17px;margin-bottom:8px}.feature-card span{color:#d1faff;font-size:13px}
-.entry-group{padding:16px}.entry-group h2{font-size:22px}.entry{background:white;border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;box-shadow:0 8px 22px #0f172a0d}.entry-top{display:flex;align-items:flex-start;gap:12px}.entry-icon{width:42px;height:42px;border-radius:14px;background:#ecfeff;display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto}.entry h2{margin:0 0 4px;font-size:19px}.entry p{margin:7px 0;color:#334155}.subtitle{color:#64748b!important}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#0f172a;color:white;border-radius:999px;padding:10px 13px;font-size:14px}.links a.primary-action{background:#0f766e}.links ul{display:flex;gap:8px;flex-wrap:wrap;list-style:none;padding:0;margin:8px 0 0}.state-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.state-row span,.entry-count,small{font-size:11px;color:#64748b}.state-row span{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:5px 8px}.safet{border-left:6px solid var(--accent)}.safety:first-of-type{border-left-color:var(--danger)}
+:root{--bg:#06140f;--bg2:#0b2519;--panel:#fff;--card:#f8fffb;--text:#0b1220;--muted:#5f6f66;--line:#d8eee1;--green:#00c853;--green2:#008a3d;--dark:#092015;--soft:#eafff1}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2) 245px,#f4fbf6 245px);color:var(--text);padding:14px}
+.wrap{max-width:1180px;margin:auto}
+.hero{background:radial-gradient(circle at top right,#00c85344,transparent 34%),linear-gradient(135deg,#07140f,#0b3322);color:white;border:1px solid #ffffff24;border-radius:28px;padding:22px;margin:8px 0 14px;box-shadow:0 16px 44px #0004}
+.hero h1{font-size:34px;letter-spacing:-.04em;margin:0 0 8px}
+.hero p{margin:7px 0;color:#d9ffe8}
+.status-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.pill{border:1px solid #ffffff30;background:#ffffff18;color:white;border-radius:999px;padding:8px 11px;font-size:13px}
+.feature-panel,.entry-group,.safety{background:rgba(255,255,255,.98);border:1px solid var(--line);border-radius:24px;padding:16px;margin:12px 0;box-shadow:0 10px 28px #07201514}
+.feature-panel h2,.entry-group h2,.safety h2{margin:0 0 8px}
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+.feature-card{display:block;text-decoration:none;background:linear-gradient(145deg,#08351f,#0b5b34);color:white;border-radius:20px;padding:16px;min-height:110px;box-shadow:0 12px 28px #06351d28}
+.feature-card b{display:block;font-size:17px;margin:9px 0 6px}
+.feature-card span{color:#d6ffe4;font-size:13px}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.links a{display:inline-block;text-decoration:none;background:var(--dark);color:white;border-radius:999px;padding:10px 13px;font-size:14px}
+.links a.primary-action{background:var(--green2)}
+.entry-group{padding:14px}
+.entry-group h2{font-size:20px}
+.entry{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin:10px 0;box-shadow:0 8px 20px #06351d0f}
+.entry-top{display:flex;align-items:flex-start;gap:10px}
+.entry-icon{width:38px;height:38px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:20px}
+.entry h2{margin:0 0 4px;font-size:18px}
+.entry p{margin:6px 0;color:#34453b}
+.entry .description{font-size:13px;line-height:1.35}
+.subtitle{color:var(--muted)!important}
+.state-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.state-row span,.entry-count,small{font-size:11px;color:var(--muted)}
+.state-row span{background:#eef9f0;border:1px solid var(--line);border-radius:999px;padding:5px 8px}
+@media(min-width:760px){.entry-group{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.entry-group h2{grid-column:1/-1}.entry{margin:0}}
+@media(max-width:640px){body{padding:10px}.hero{border-radius:22px;padding:18px}.hero h1{font-size:28px}.feature-grid{grid-template-columns:1fr}.entry-group{border-radius:20px}.entry .description{display:none}.links a{width:100%;text-align:center}}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><div class="status-strip"><span class="pill">${esc(nav.displayState)}</span><span class="pill">Views: ${esc(nav.entryCount)}</span><span class="pill">Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</span><span class="pill">Read-only locked</span></div><p>Last updated: ${esc(nav.lastUpdatedAt)}</p></section>
 #{featured}
