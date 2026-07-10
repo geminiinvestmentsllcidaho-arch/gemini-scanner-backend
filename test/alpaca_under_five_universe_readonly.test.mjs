@@ -132,3 +132,53 @@ test("filters eligible exchanges before applying maxAssets and ignores missing p
   assert.equal(result.candidateCount, 1);
   assert.equal(result.candidates[0].symbol, "AAA");
 });
+
+
+test("adds deterministic readonly potential features without issuing a buy recommendation", async () => {
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    async fetchImpl(url) {
+      if (url.includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "AAA", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "BBB", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        AAA: {
+          latestTrade: { p: 4.5 },
+          latestQuote: { bp: 4.49, ap: 4.51 },
+          dailyBar: { v: 900000 },
+          prevDailyBar: { c: 4.0 },
+        },
+        BBB: {
+          latestTrade: { p: 3.0 },
+          latestQuote: { bp: 2.9, ap: 3.1 },
+          dailyBar: { v: 150000 },
+          prevDailyBar: { c: 3.2 },
+        },
+      });
+    },
+  });
+
+  assert.equal(result.candidates.length, 2);
+  assert.equal(result.candidates[0].symbol, "AAA");
+  assert.equal(result.candidates[0].changePct, 12.5);
+  assert.ok(result.candidates[0].spreadPct > 0);
+  assert.ok(result.candidates[0].readonlyPotentialScore > result.candidates[1].readonlyPotentialScore);
+  assert.equal(result.candidates[0].decisionAssistOnly, true);
+  assert.equal(result.candidates[0].buyRecommendation, false);
+  assert.ok(Array.isArray(result.candidates[0].readonlyPotentialFlags));
+});

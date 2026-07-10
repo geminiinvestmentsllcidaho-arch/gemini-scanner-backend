@@ -38,6 +38,47 @@ function latestVolume(snapshot = {}) {
   return finite(snapshot?.dailyBar?.v ?? snapshot?.minuteBar?.v) ?? 0;
 }
 
+function percentChange(current, previous) {
+  const c = finite(current);
+  const p = finite(previous);
+  if (c === null || p === null || p <= 0) return null;
+  return Number((((c - p) / p) * 100).toFixed(4));
+}
+
+function spreadPct(snapshot = {}) {
+  const bid = finite(snapshot?.latestQuote?.bp);
+  const ask = finite(snapshot?.latestQuote?.ap);
+  if (bid === null || ask === null || bid <= 0 || ask <= 0 || ask < bid) return null;
+  const midpoint = (bid + ask) / 2;
+  return midpoint > 0 ? Number((((ask - bid) / midpoint) * 100).toFixed(4)) : null;
+}
+
+function readonlyPotential(candidate = {}) {
+  const momentum = finite(candidate.changePct);
+  const spread = finite(candidate.spreadPct);
+  const dollarVolume = finite(candidate.dollarVolume) ?? 0;
+
+  const liquidityScore = Math.min(40, Math.log10(Math.max(1, dollarVolume)) * 6);
+  const momentumScore = momentum === null ? 0 : Math.max(0, Math.min(35, momentum * 7));
+  const spreadScore = spread === null ? 0 : Math.max(0, 25 - (spread * 5));
+  const score = Number(Math.max(0, Math.min(100, liquidityScore + momentumScore + spreadScore)).toFixed(2));
+
+  const flags = [];
+  if (momentum === null) flags.push("momentum_unavailable");
+  else if (momentum < 0) flags.push("negative_momentum");
+  if (spread === null) flags.push("spread_unavailable");
+  else if (spread > 1) flags.push("wide_spread");
+  if (dollarVolume < 1000000) flags.push("lower_dollar_volume");
+
+  return {
+    readonlyPotentialScore: score,
+    readonlyPotentialLabel: score >= 70 ? "strong_watch" : score >= 50 ? "watch" : "low_priority",
+    readonlyPotentialFlags: flags,
+    decisionAssistOnly: true,
+    buyRecommendation: false,
+  };
+}
+
 async function readJson(fetchImpl, url, headers) {
   const response = await fetchImpl(url, { method: "GET", headers });
   const text = await response.text();
@@ -191,11 +232,20 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       const snapshot = snapshotMap[asset.symbol] || {};
       const price = latestPrice(snapshot);
       const dailyVolume = latestVolume(snapshot);
-      return {
+      const previousClose = finite(snapshot?.prevDailyBar?.c);
+      const dollarVolume = price === null ? null : Number((price * dailyVolume).toFixed(2));
+      const candidate = {
         ...asset,
         price,
+        previousClose,
+        changePct: percentChange(price, previousClose),
+        spreadPct: spreadPct(snapshot),
         dailyVolume,
-        dollarVolume: price === null ? null : Number((price * dailyVolume).toFixed(2)),
+        dollarVolume,
+      };
+      return {
+        ...candidate,
+        ...readonlyPotential(candidate),
       };
     })
     .filter((asset) =>
@@ -205,6 +255,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       asset.dailyVolume >= filters.minDailyVolume
     )
     .sort((left, right) =>
+      (right.readonlyPotentialScore ?? 0) - (left.readonlyPotentialScore ?? 0) ||
       (right.dollarVolume ?? 0) - (left.dollarVolume ?? 0) ||
       left.symbol.localeCompare(right.symbol)
     );
