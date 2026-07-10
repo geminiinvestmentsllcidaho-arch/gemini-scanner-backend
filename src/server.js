@@ -3550,6 +3550,28 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 });
 
 
+app.get('/customer-zero/under-five-scanner', async (req, res) => {
+  try {
+    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
+    const viewMod = await import('./scanner/customer_zero_under_five_dashboard.mjs');
+    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
+      minPrice: req.query.minPrice ?? 0.5,
+      maxPrice: req.query.maxPrice ?? 5,
+      minDailyVolume: req.query.minDailyVolume ?? 100000,
+      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
+      maxAssets: req.query.maxAssets ?? 10000,
+    });
+    const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+      now: new Date(),
+    });
+    res.type('html').send(viewMod.renderCustomerZeroUnderFiveDashboardHtml(dashboard));
+  } catch (err) {
+    res.status(500).type('html').send('<!doctype html><html><body><h1>Customer Zero — Under $5 Scanner</h1><p>Unavailable.</p><p>Read-only. No execution controls.</p></body></html>');
+  }
+});
+
+
 app.get('/diagnostics/alpaca-paper-account-dashboard', async (_req, res) => {
   const view = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
   const data = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');

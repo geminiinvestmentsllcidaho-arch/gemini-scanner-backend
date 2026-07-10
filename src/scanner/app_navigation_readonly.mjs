@@ -20,6 +20,18 @@ function esc(value) {
 
 const DEFAULT_ENTRIES = Object.freeze([
   Object.freeze({
+    id: "customer_zero_under_five_scanner",
+    title: "Customer Zero — Under $5 Scanner",
+    subtitle: "Customer Zero visual test dashboard.",
+    description: "Live read-only under-$5 scanner shown on the Customer Zero side with explicit role labeling and no execution controls.",
+    category: "scanner_app",
+    href: "/customer-zero/under-five-scanner",
+    diagnosticHref: "/diagnostics/alpaca-under-five-universe-app-card",
+    routeHref: "/customer-zero/under-five-scanner",
+    displayState: "CUSTOMER_ZERO_UNDER_FIVE_SCANNER_CONNECTED_READONLY",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "alpaca_under_five_universe",
     title: "Under $5 Read-Only Potential",
     subtitle: "Live read-only under-$5 stock potential scanner.",
