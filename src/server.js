@@ -3557,6 +3557,30 @@ app.get('/customer-zero/scanner', async (_req, res) => {
 });
 
 
+app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
+  try {
+    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
+    const detailMod = await import('./scanner/customer_zero_under_five_symbol_detail.mjs');
+    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
+      minPrice: req.query.minPrice ?? 0.5,
+      maxPrice: req.query.maxPrice ?? 5,
+      minDailyVolume: req.query.minDailyVolume ?? 100000,
+      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
+      maxAssets: req.query.maxAssets ?? 10000,
+    });
+    const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+    const candidate = source.candidates?.find((item) => item.symbol === symbol);
+    if (!candidate) {
+      return res.status(404).type('html').send('<!doctype html><html><body><h1>Symbol not found</h1><p>Return to the scanner.</p></body></html>');
+    }
+    const detail = detailMod.buildCustomerZeroUnderFiveSymbolDetail(candidate);
+    res.type('html').send(detailMod.renderCustomerZeroUnderFiveSymbolDetailHtml(detail));
+  } catch (err) {
+    res.status(500).type('html').send('<!doctype html><html><body><h1>Scan detail unavailable</h1><p>Read-only. No execution controls.</p></body></html>');
+  }
+});
+
+
 app.get('/customer-zero/under-five-scanner', async (req, res) => {
   try {
     const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');

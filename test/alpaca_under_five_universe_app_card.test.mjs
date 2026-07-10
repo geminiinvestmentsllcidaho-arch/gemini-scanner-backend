@@ -87,3 +87,27 @@ test("builds fail-closed not-connected card", () => {
   assert.equal(card.orderPlacementAllowed, false);
   assert.equal(card.accountMutationAllowed, false);
 });
+
+test("renders decision badge brief explanation and detail link", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    candidates: [{
+      symbol: "INFO",
+      price: 4.2,
+      decision: "ENTER",
+      briefExplanation: "Strong score with positive momentum and acceptable spread.",
+      blockingFlags: [],
+      readonlyPotentialScore: 92,
+    }],
+  }, { autoRefreshEnabled: false });
+
+  const html = renderAlpacaUnderFiveUniverseAppCardHtml(card);
+
+  assert.match(html, />ENTER<\/summary>/);
+  assert.match(html, /title="Strong score with positive momentum and acceptable spread\."/);
+  assert.match(html, /Tap for more information/);
+  assert.match(html, /\/customer-zero\/under-five-scanner\/INFO/);
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+});

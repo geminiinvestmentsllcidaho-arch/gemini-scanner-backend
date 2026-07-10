@@ -350,3 +350,52 @@ test("prevents lower-dollar-volume candidates from receiving strong-watch labels
   assert.equal(bySymbol.LOWDV.buyRecommendation, false);
   assert.equal(bySymbol.HIGH.buyRecommendation, false);
 });
+
+test("adds explicit enter wait and do-not-enter decisions with explanations", async () => {
+  const now = "2026-07-10T19:55:00.000Z";
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    nowMs: Date.parse(now),
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    async fetchImpl(url) {
+      if (url.includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "ENTER", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "BLOCK", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        ENTER: {
+          latestTrade: { p: 4.5, t: now },
+          latestQuote: { bp: 4.49, ap: 4.51, t: now },
+          dailyBar: { v: 1000000 },
+          prevDailyBar: { c: 4.0 },
+        },
+        BLOCK: {
+          latestTrade: { p: 3.0, t: now },
+          latestQuote: { bp: 2.8, ap: 3.2, t: now },
+          dailyBar: { v: 150000 },
+          prevDailyBar: { c: 3.2 },
+        },
+      });
+    },
+  });
+
+  const bySymbol = Object.fromEntries(result.candidates.map((item) => [item.symbol, item]));
+  assert.equal(bySymbol.ENTER.decision, "ENTER");
+  assert.match(bySymbol.ENTER.briefExplanation, /Strong score/);
+  assert.equal(bySymbol.BLOCK.decision, "DO_NOT_ENTER");
+  assert.ok(bySymbol.BLOCK.blockingFlags.includes("wide_spread"));
+  assert.match(bySymbol.BLOCK.briefExplanation, /Do not enter/);
+});

@@ -101,10 +101,33 @@ function readonlyPotential(candidate = {}) {
   if (dollarVolume < 1000000) flags.push("lower_dollar_volume");
   if (candidate.sourceStale === true) flags.push("stale_source");
 
+  const blockingFlags = flags.filter((flag) =>
+    ["stale_source", "wide_spread", "spread_unavailable", "momentum_unavailable"].includes(flag)
+  );
+
+  const decision =
+    blockingFlags.length > 0 || score < 50
+      ? "DO_NOT_ENTER"
+      : score >= 70 && momentum !== null && momentum > 0 && spread !== null && spread <= 1 && dollarVolume >= 1000000
+        ? "ENTER"
+        : "WAIT";
+
+  const briefExplanation =
+    decision === "ENTER"
+      ? "Strong score with positive momentum, acceptable spread, fresh data, and sufficient liquidity."
+      : decision === "WAIT"
+        ? "Potential is present, but the setup needs stronger confirmation before entry."
+        : blockingFlags.length > 0
+          ? `Do not enter: ${blockingFlags.join(", ")}.`
+          : "Do not enter: the setup score is below the minimum threshold.";
+
   return {
     readonlyPotentialScore: score,
     readonlyPotentialLabel: score >= 70 ? "strong_watch" : score >= 50 ? "watch" : "low_priority",
     readonlyPotentialFlags: flags,
+    decision,
+    briefExplanation,
+    blockingFlags,
     decisionAssistOnly: true,
     buyRecommendation: false,
   };
