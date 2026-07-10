@@ -19,6 +19,10 @@ test("builds internal owner tenant bootstrap app screen safely", () => {
   assert.equal(screen.access.tenantIsolationImplemented, true);
   assert.equal(screen.access.tenantIsolationPolicy, "internal_owner_single_tenant_request_scope_v1");
   assert.equal(screen.access.multiTenantDataPartitioningImplemented, false);
+  assert.equal(screen.credentials.encryptedPerTenantStorageImplemented, false);
+  assert.equal(screen.credentials.encryptionPolicy, "aes_256_gcm_per_tenant_envelope_v1");
+  assert.equal(screen.credentials.keyConfigured, false);
+  assert.equal(screen.credentials.storeExists, false);
   assert.equal(screen.credentials.rawSecretsExposed, false);
   assert.equal(screen.safety.readOnly, true);
   assert.equal(screen.safety.orderPlacementAllowed, false);
@@ -33,6 +37,11 @@ test("renders owner screen without mutation controls", () => {
   assert.match(html, /Route protection implemented:<\/b> yes/);
   assert.match(html, /Authorization enforced:<\/b> yes/);
   assert.match(html, /Authorization policy:<\/b> internal_owner_exact_tenant_role_v1/);
+  assert.match(html, /Encrypted per-tenant credential storage:<\/b> no/);
+  assert.match(html, /Credential encryption policy:<\/b> aes_256_gcm_per_tenant_envelope_v1/);
+  assert.match(html, /Credential key configured:<\/b> no/);
+  assert.match(html, /Credential store exists:<\/b> no/);
+  assert.match(html, /Migration required:<\/b> yes/);
   assert.match(html, /Raw secrets exposed:<\/b> no/);
   assert.match(html, /Order placement allowed:<\/b> no/);
   assert.doesNotMatch(html, /<form/i);

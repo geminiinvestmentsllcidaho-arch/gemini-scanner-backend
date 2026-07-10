@@ -16,6 +16,11 @@ test("server exposes internal owner tenant read-only diagnostic route", () => {
     serverSource.includes("res.json(buildInternalOwnerTenantReadonly({"),
     true
   );
+  assert.equal(
+    serverSource.includes("credentialStoreStatus: buildInternalOwnerTenantCredentialStoreStatus({"),
+    true
+  );
+
 });
 
 test("internal owner tenant diagnostic route remains GET-only", () => {

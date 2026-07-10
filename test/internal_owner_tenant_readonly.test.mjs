@@ -21,6 +21,11 @@ test("internal owner tenant foundation is internal-only and read-only", () => {
   assert.equal(model.access.tenantIsolationImplemented, true);
   assert.equal(model.access.tenantIsolationPolicy, "internal_owner_single_tenant_request_scope_v1");
   assert.equal(model.access.multiTenantDataPartitioningImplemented, false);
+  assert.equal(model.credentials.storageMode, "encrypted_local_file_per_tenant");
+  assert.equal(model.credentials.encryptedPerTenantStorageImplemented, false);
+  assert.equal(model.credentials.encryptionPolicy, "aes_256_gcm_per_tenant_envelope_v1");
+  assert.equal(model.credentials.keyConfigured, false);
+  assert.equal(model.credentials.storeExists, false);
   assert.equal(model.credentials.rawSecretsExposed, false);
   assert.equal(model.credentials.migrationRequired, true);
   assert.equal(model.safety.readOnly, true);
@@ -42,4 +47,25 @@ test("internal owner tenant foundation accepts safe identity labels", () => {
   assert.equal(model.tenant.name, "Alpha Internal");
   assert.equal(model.user.id, "owner-alpha");
   assert.equal(model.user.displayName, "Owner Alpha");
+});
+
+
+test("internal owner tenant foundation accepts safe credential store status", () => {
+  const model = buildInternalOwnerTenantReadonly({
+    credentialStoreStatus: {
+      storageMode: "encrypted_local_file_per_tenant",
+      encryptionImplemented: true,
+      encryptionPolicy: "aes_256_gcm_per_tenant_envelope_v1",
+      keyConfigured: true,
+      storeExists: true,
+      storePathLabel: "credentials.enc.json",
+    },
+  });
+
+  assert.equal(model.credentials.encryptedPerTenantStorageImplemented, true);
+  assert.equal(model.credentials.keyConfigured, true);
+  assert.equal(model.credentials.storeExists, true);
+  assert.equal(model.credentials.storePathLabel, "credentials.enc.json");
+  assert.equal(model.credentials.migrationRequired, false);
+  assert.equal(model.credentials.rawSecretsExposed, false);
 });

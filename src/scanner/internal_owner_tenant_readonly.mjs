@@ -6,6 +6,10 @@ function clean(value, fallback = "") {
 }
 
 export function buildInternalOwnerTenantReadonly(options = {}) {
+  const credentialStoreStatus = options.credentialStoreStatus && typeof options.credentialStoreStatus === "object"
+    ? options.credentialStoreStatus
+    : {};
+
   return {
     ok: true,
     version: VERSION,
@@ -39,10 +43,14 @@ export function buildInternalOwnerTenantReadonly(options = {}) {
       multiTenantDataPartitioningImplemented: false,
     },
     credentials: {
-      storageMode: "existing_server_environment",
-      encryptedPerTenantStorageImplemented: false,
+      storageMode: clean(credentialStoreStatus.storageMode, "encrypted_local_file_per_tenant"),
+      encryptedPerTenantStorageImplemented: credentialStoreStatus.encryptionImplemented === true,
+      encryptionPolicy: clean(credentialStoreStatus.encryptionPolicy, "aes_256_gcm_per_tenant_envelope_v1"),
+      keyConfigured: credentialStoreStatus.keyConfigured === true,
+      storeExists: credentialStoreStatus.storeExists === true,
+      storePathLabel: clean(credentialStoreStatus.storePathLabel, "internal_owner_tenant_credentials.enc.json"),
       rawSecretsExposed: false,
-      migrationRequired: true,
+      migrationRequired: credentialStoreStatus.storeExists !== true,
     },
     safety: {
       readOnly: true,

@@ -93,6 +93,7 @@ import { buildExitAllControlReadonly, renderExitAllControlReadonlyHtml } from ".
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 import { buildPaperOperatorStartHereAppScreen, renderPaperOperatorStartHereAppScreenHtml } from "./scanner/paper_operator_start_here_app_screen.mjs";
 import { buildInternalOwnerTenantReadonly } from "./scanner/internal_owner_tenant_readonly.mjs";
+import { buildInternalOwnerTenantCredentialStoreStatus } from "./scanner/internal_owner_tenant_credential_store.mjs";
 import { createRequireInternalOwnerAuthorization } from "./scanner/internal_owner_authorization.mjs";
 import { createRequireInternalOwnerTenantIsolation } from "./scanner/internal_owner_tenant_isolation.mjs";
 import { buildInternalOwnerTenantAppScreen, renderInternalOwnerTenantAppScreenHtml } from "./scanner/internal_owner_tenant_app_screen.mjs";
@@ -2854,14 +2855,24 @@ app.get("/app/exit-all", (req, res) => {
 });
 
 app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth, requireInternalOwnerAuthorization, requireInternalOwnerTenantIsolation, (req, res) => {
+  const tenantId = req.internalOwnerTenantContext.tenantId;
   res.json(buildInternalOwnerTenantReadonly({
-    tenantId: req.internalOwnerTenantContext.tenantId,
+    tenantId,
+    credentialStoreStatus: buildInternalOwnerTenantCredentialStoreStatus({
+      tenantId,
+      masterKey: process.env.GEMINI_CREDENTIAL_MASTER_KEY,
+    }),
   }));
 });
 
 app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAuthorization, requireInternalOwnerTenantIsolation, (req, res) => {
+  const tenantId = req.internalOwnerTenantContext.tenantId;
   res.type("html").send(renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen({
-    tenantId: req.internalOwnerTenantContext.tenantId,
+    tenantId,
+    credentialStoreStatus: buildInternalOwnerTenantCredentialStoreStatus({
+      tenantId,
+      masterKey: process.env.GEMINI_CREDENTIAL_MASTER_KEY,
+    }),
   })));
 });
 
