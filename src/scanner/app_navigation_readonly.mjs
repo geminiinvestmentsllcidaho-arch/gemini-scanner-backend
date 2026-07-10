@@ -756,18 +756,54 @@ export function buildAppNavigationReadonly(options = {}) {
   };
 }
 
+function routeEmoji(entry = {}) {
+  const id = String(entry.id ?? "");
+  const category = String(entry.category ?? "");
+  if (id.includes("alpaca")) return "🦉";
+  if (id.includes("todays") || category === "scanner_app") return "📈";
+  if (id.includes("safety") || id.includes("guard") || id.includes("lock") || category === "safety_controls") return "🔒";
+  if (id.includes("readiness") || id.includes("preflight")) return "🧪";
+  if (id.includes("position") || id.includes("account") || id.includes("broker")) return "💼";
+  if (id.includes("operator")) return "👤";
+  if (id.includes("snapshot")) return "📂️";
+  return "📌";
+}
+
 function renderEntry(entry) {
-  return `<article class="entry">
-<h2>${esc(entry.title)}</h2>
-<p>${esc(entry.subtitle)}</p>
+  return `<article class="entry" data-entry-id="${esc(entry.id)}" data-entry-category="${esc(entry.category)}">
+<div class="entry-top"><div class="entry-icon">${esc(routeEmoji(entry))}</div><div><h2>${esc(entry.title)}</h2><p class="subtitle">${esc(entry.subtitle)}</p></div></div>
 <p>${esc(entry.description)}</p>
 <div class="links">
-<a href="${esc(entry.href)}">Open</a>
+<a class="primary-action" href="${esc(entry.href)}">Open</a>
 <a href="${esc(entry.diagnosticHref)}">JSON</a>
-<a href="${esc(entry.routeHref)}">App Route</a>
 </div>
-<small>${esc(entry.displayState)} | readOnly=${esc(entry.readOnly)}</small>
-</article>`;
+<div class="state-row"><span>${esc(entry.displayState)}</span><span>read only</span><span>no execution</span></div>
+</articl>`;
+}
+
+function renderFeaturedDashboard(entries = []) {
+  const source = list(entries);
+  const wanted = [
+    "/app/alpaca-paper-account-dashboard",
+    "/app/alpaca-operator-key-entry",
+    "/app/todays-intraday-setups?session=regular",
+    "/app/paper-operator-start-here",
+    "/app/paper-trading-overview-status",
+    "/app/paper-app-route-health-status",
+    "/app/paper-app-safety-lock-status",
+    "/app/paper-broker-runtime-environment-preflight",
+  ];
+  const cards = wanted
+    .map((href) => source.find((entry) => entry.href === href))
+    .filter(Boolean)
+    .map((entry) => `<a class="feature-card" href="${esc(entry.href)}"><b>${esc(routeEmoji(entry))} ${esc(entry.title)}</b><span>${esc(entry.subtitle ?? entry.displayState)}</span></a>`)
+    .join("");
+
+  return `<section class="feature-panel" data-featured-dashboard="true">
+<h2>Command Center</h2>
+<p>Top website buttons for scanner views, Alpaca paper-account screens, paper-readiness status, and safety locks.</p>
+<div class="feature-grid">${cards}</div>
+</section>`;
 }
 
 
@@ -853,42 +889,50 @@ function renderReadinessQuickLinks(entries = []) {
   const source = list(entries);
   const lookup = new Map(source.map((entry) => [entry.href, entry]));
   const links = [
-    { href: "/app/paper-app-broker-readiness-index", label: "Paper App Broker Readiness Index" },
-    { href: "/app/paper-app-readiness-status", label: "Paper App Readiness Status" },
-    { href: "/app/paper-app-route-health-status", label: "Paper App Route Health Status" },
-    { href: "/app/paper-app-safety-lock-status", label: "Paper App Safety Lock Status" },
-    { href: "/app/paper-trading-module-final-status", label: "Paper Trading Module Final Status" },
+    { href: "/app/alpaca-paper-account-dashboard", label: "Alpaca Paper Account Dashboard" },
+    { href: "/app/alpaca-operator-key-entry", label: "Alpaca Operator Key Entry" },
+    { href: "/app/paper-operator-start-here", label: "Paper Operator Start Here" },
+    { href: "/app/paper-app-broker-readiness-index", label: "Broker Readiness Index" },
+    { href: "/app/paper-app-readiness-status", label: "App Readiness Status" },
+    { href: "/app/paper-app-route-health-status", label: "Route Health Status" },
+    { href: "/app/paper-app-safety-lock-status", label: "Safety Lock Status" },
+    { href: "/app/paper-trade-operator-go-no-go", label: "Go / No-Go" },
   ];
 
   const rendered = links
     .map((link) => {
-      const entry = lookup.get(link.href) ?? {};
+      const entry = lookup.get(link.href) ?? { title: link.label, href: link.href };
       const title = entry.title ?? link.label;
       return `<a href="${esc(link.href)}">${esc(title)}</a>`;
     })
     .join("");
 
   return `<section class="safety" data-paper-readiness-quick-links="true">
-<h2>Related Broker Readiness Routes</h2>
-<p>Read-only paper app readiness, broker readiness, route health, safety lock, and final module status links.</p>
+<h2>Workflow Buttons</h2>
+<p>Fast access to the main screens we built so far.</p>
 <div class="links">${rendered}</div>
-<small>Read-only | no broker contact | no order placement | no account mutation</small>
+<small>Read-only | no broker contact | no placement | no submit | no account mutation</small>
 </section>`;
 }
 
 
 export function renderAppNavigationReadonlyHtml(nav = {}) {
+  const featured = renderFeaturedDashboard(nav.entries);
   const sections = renderNavigationSections(nav.entries);
   const summary = renderNavigationSummary(nav);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(nav.title ?? "GeminiScanner App")}</title>
 <style>
-body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.entry,.entry-group,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.entry h2,.entry-group h2{margin:0 0 6px}.entry p{margin:6px 0}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#111;color:white;border-radius:999px;padding:9px 12px;font-size:14px}.links ul{display:flex;gap:8px;flex-wrap:wrap;list-style:none;padding:0;margin:8px 0 0}.entry-count,small{font-size:11px;color:#777}
+:root{--bg:#07111f<--panel:#0d1b2f;--card:#ffffff;--text:#0b1220;--muted:#64748b;--line:#dbe4f0;--accent:#2dd4bf;--danger:#f59e0b}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;background:linear-gradient(180deg,#07111f 0%,#10243f 220px,#f3f6fb 220px);color:var(--text);padding:14px}.wrap{max-width:1180px;margin:auto}.hero{background:linear-gradient(135deg,#0f172a,#164e63);color:white;border:1px solid #ffffff24;border-radius:24px;padding:22px;margin:8px 0 14px;box-shadow:0 14px 40px #0003}.hero h1{font-size:32px;margin:0 0 8px}.hero p{margin:5px 0;color:#dff7ff}.status-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.pill{border:1px solid #ffffff33;background:#ffffff16;color:white;border-radius:999px;padding:8px 11px;font-size:13px}
+.feature-panel,.entry-group,.safet{background:rgba(255,255,255,.98);border:1px solid var(--line);border-radius:22px;padding:16px;margin:12px 0;box-shadow:0 10px 26px #0f172a16}.feature-panel h2,.entry-group h2,.safety h2{margin:0 0 8px}.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:12px}.feature-card{display:block;text-decoration:none;background:linear-gradient(135deg,#0f172a,#155e75);color:white;border-radius:18px;padding:15px;min-height:98px;box-shadow:0 10px 24px #0f172a25}.feature-card b{display:block;font-size:17px;margin-bottom:8px}.feature-card span{color:#d1faff;font-size:13px}
+.entry-group{padding:16px}.entry-group h2{font-size:22px}.entry{background:white;border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;box-shadow:0 8px 22px #0f172a0d}.entry-top{display:flex;align-items:flex-start;gap:12px}.entry-icon{width:42px;height:42px;border-radius:14px;background:#ecfeff;display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto}.entry h2{margin:0 0 4px;font-size:19px}.entry p{margin:7px 0;color:#334155}.subtitle{color:#64748b!important}.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.links a{display:inline-block;text-decoration:none;background:#0f172a;color:white;border-radius:999px;padding:10px 13px;font-size:14px}.links a.primary-action{background:#0f766e}.links ul{display:flex;gap:8px;flex-wrap:wrap;list-style:none;padding:0;margin:8px 0 0}.state-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.state-row span,.entry-count,small{font-size:11px;color:#64748b}.state-row span{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:5px 8px}.safet{border-left:6px solid var(--accent)}.safety:first-of-type{border-left-color:var(--danger)}
 </style></head><body><main class="wrap">
-<section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><p>${esc(nav.displayState)}</p><p>Last updated: ${esc(nav.lastUpdatedAt)} | Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</p></section>
-${summary}
+<section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><div class="status-strip"><span class="pill">${esc(nav.displayState)}</span><span class="pill">Views: ${esc(nav.entryCount)}</span><span class="pill">Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</span><span class="pill">Read-only locked</span></div><p>Last updated: ${esc(nav.lastUpdatedAt)}</p></section>
+#{featured}
 ${renderReadinessQuickLinks(nav.entries)}
+${summary}
 ${sections}
-<section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
+<section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
 ${renderReadOnlyAutoRefreshScript(nav)}
 </main></body></html>`;
 }
