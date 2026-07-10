@@ -4,6 +4,18 @@ Decision: NO-GO until market-open freshness passes.
 
 Run after the stock market is open:
 
+Freshness decision scripts:
+
+- npm run paper:monday:freshness
+- npm run paper:monday:freshness:strict
+
+Strict expected behavior:
+
+- exits 10 while scanner remains stale/blocked
+- exits 0 only after market-open freshness passes
+- still requires operator review before any tiny paper attempt
+
+
 - verify /health is ok, degraded=false
 - verify /scanner/rankings is fresh, not stale
 - verify at least one ranking has p3GateOk=true
