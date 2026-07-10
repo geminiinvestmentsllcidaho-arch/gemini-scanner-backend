@@ -83,7 +83,13 @@ export function buildPaperReadinessGateAppScreen(options = {}) {
     lastUpdatedAt: now,
     autoRefreshEnabled: options.autoRefreshEnabled !== false,
     refreshIntervalSec: n(options.refreshIntervalSec ?? options.refresh, 30),
+    finalDecision: "NO_GO_FOR_ORDER_PLACEMENT",
+    readyForOrderPlacement: false,
+    credentialSource: "not_applicable_readonly_diagnostics",
+    paperOnly: true,
     readOnly: true, monitorOnly: true, diagnosticsOnly: true, reviewOnly: true, noExecutionControls: true,
+    allowedMethods: Object.freeze(["GET"]),
+    secretsRedacted: true,
     brokerContactAllowed: false, orderSubmitAllowed: false, orderPlacementAllowed: false, paperOrderPlacementAllowed: false, accountMutationAllowed: false,
     liveTradingAllowed: false, autoTradingAllowed: false, orderSubmitted: false, brokerContactAttempted: false, accountMutationAttempted: false,
   };
