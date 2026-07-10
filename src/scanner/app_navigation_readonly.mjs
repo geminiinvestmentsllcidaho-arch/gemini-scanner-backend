@@ -29,7 +29,7 @@ const DEFAULT_ENTRIES = Object.freeze([
     href: "/app/alpaca-paper-account-dashboard",
     diagnosticHref: "/diagnostics/alpaca-paper-account-dashboard",
     routeHref: "/app/alpaca-paper-account-dashboard",
-    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_NOT_CONNECTED",
+    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED",
   },
   Object.freeze({
     id: "todays_intraday_setups",
