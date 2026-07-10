@@ -237,3 +237,61 @@ test("adds deterministic source freshness metadata and flags stale candidates", 
   assert.equal(bySymbol.STALE.readonlyPotentialFlags.includes("stale_source"), true);
   assert.equal(bySymbol.STALE.buyRecommendation, false);
 });
+
+
+test("caps readonly potential labels for wide spreads and stale sources", async () => {
+  const nowMs = Date.parse("2026-07-10T18:00:00.000Z");
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    nowMs,
+    maxSourceAgeSec: 120,
+    async fetchImpl(url) {
+      if (url.includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "WIDE", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "STALE", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        WIDE: {
+          latestTrade: { p: 4.5, t: "2026-07-10T17:59:50.000Z" },
+          latestQuote: { bp: 3.5, ap: 5.5, t: "2026-07-10T17:59:55.000Z" },
+          dailyBar: { v: 2000000 },
+          prevDailyBar: { c: 3.0 },
+        },
+        STALE: {
+          latestTrade: { p: 4.5, t: "2026-07-10T17:50:00.000Z" },
+          latestQuote: { bp: 4.49, ap: 4.51, t: "2026-07-10T17:50:05.000Z" },
+          dailyBar: { v: 2000000 },
+          prevDailyBar: { c: 3.0 },
+        },
+      });
+    },
+  });
+
+  const bySymbol = Object.fromEntries(result.candidates.map((item) => [item.symbol, item]));
+
+  assert.equal(bySymbol.WIDE.readonlyPotentialScore <= 39, true);
+  assert.equal(bySymbol.WIDE.readonlyPotentialLabel, "low_priority");
+  assert.equal(bySymbol.WIDE.readonlyPotentialFlags.includes("wide_spread"), true);
+
+  assert.equal(bySymbol.STALE.sourceStale, true);
+  assert.equal(bySymbol.STALE.readonlyPotentialScore <= 39, true);
+  assert.equal(bySymbol.STALE.readonlyPotentialLabel, "low_priority");
+  assert.equal(bySymbol.STALE.readonlyPotentialFlags.includes("stale_source"), true);
+
+  assert.equal(bySymbol.WIDE.buyRecommendation, false);
+  assert.equal(bySymbol.STALE.buyRecommendation, false);
+});

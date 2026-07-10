@@ -80,7 +80,16 @@ function readonlyPotential(candidate = {}) {
   const liquidityScore = Math.min(40, Math.log10(Math.max(1, dollarVolume)) * 6);
   const momentumScore = momentum === null ? 0 : Math.max(0, Math.min(35, momentum * 7));
   const spreadScore = spread === null ? 0 : Math.max(0, 25 - (spread * 5));
-  const score = Number(Math.max(0, Math.min(100, liquidityScore + momentumScore + spreadScore)).toFixed(2));
+  const rawScore = Math.max(0, Math.min(100, liquidityScore + momentumScore + spreadScore));
+  const riskCappedScore =
+    candidate.sourceStale === true
+      ? Math.min(rawScore, 39)
+      : spread !== null && spread > 5
+        ? Math.min(rawScore, 39)
+        : spread !== null && spread > 1
+          ? Math.min(rawScore, 49)
+          : rawScore;
+  const score = Number(riskCappedScore.toFixed(2));
 
   const flags = [];
   if (momentum === null) flags.push("momentum_unavailable");
