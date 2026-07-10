@@ -3431,3 +3431,14 @@ app.get("/diagnostics/paper-attempt-read-only-operator-summary-panel-view", (_re
 });
 // END PAPER_ATTEMPT_READ_ONLY_OPERATOR_SUMMARY_PANEL_V1
 
+
+app.get('/diagnostics/alpaca-operator-key-entry', async (_req, res) => {
+  const mod = await import('./scanner/alpaca_operator_key_entry_block.mjs');
+  res.json(mod.getAlpacaOperatorKeyEntryBlockDiagnostics());
+});
+
+app.get('/app/alpaca-operator-key-entry', async (_req, res) => {
+  const mod = await import('./scanner/alpaca_operator_key_entry_block.mjs');
+  res.type('html').send(mod.renderAlpacaOperatorKeyEntryBlockHtml());
+});
+
