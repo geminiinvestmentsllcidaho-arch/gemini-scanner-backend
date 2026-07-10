@@ -98,6 +98,8 @@ import { createRequireInternalOwnerAuthorization } from "./scanner/internal_owne
 import { createRequireInternalOwnerTenantIsolation } from "./scanner/internal_owner_tenant_isolation.mjs";
 import { buildInternalOwnerTenantAppScreen, renderInternalOwnerTenantAppScreenHtml } from "./scanner/internal_owner_tenant_app_screen.mjs";
 
+import { buildPublicHomepage, renderPublicHomepageHtml } from "./scanner/public_homepage.mjs";
+
 dotenv.config();
 
 
@@ -255,40 +257,9 @@ const P3_ENABLED = process.env.P3_ENABLED === '1';
 // Health / Readiness / Diagnostics / Marketdata / Runlog
 // --------------------
 app.get('/', (_req, res) => {
+  const homepage = buildPublicHomepage();
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(`<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GeminiScanner | Paper Trading Readiness</title>
-<style>
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#070b12;color:#eef4ff}
-main{max-width:1100px;margin:auto;padding:28px 18px 42px}.brand{font-weight:800;color:#b9c8ff;letter-spacing:.04em}.hero{padding:42px 0 28px}.pill{display:inline-block;border:1px solid #2f4b68;border-radius:999px;padding:8px 12px;background:#0b1420;color:#c7d7ff}
-h1{font-size:clamp(34px,6vw,64px);line-height:1;margin:18px 0 14px}.lead{max-width:820px;color:#c7d2e4;font-size:20px;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.card{grid-column:span 4;background:linear-gradient(180deg,#111a27,#0c111a);border:1px solid #243044;border-radius:20px;padding:20px}.wide{grid-column:span 8}.full{grid-column:1/-1}
-.k{font-size:12px;color:#9ca8b8;text-transform:uppercase;letter-spacing:.12em}.v{font-size:28px;font-weight:850;margin-top:8px}.ok{color:#45d483}.warn{color:#f5c542}p,ul{color:#d7e2f2;line-height:1.65}ul{padding-left:20px}.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}a{color:#9ee4ff;text-decoration:none;border:1px solid #27435a;border-radius:12px;padding:12px;background:#0b1420}footer{margin-top:28px;color:#8fa0b7;font-size:14px}@media(max-width:800px){.card,.wide{grid-column:1/-1}}
-</style>
-</head>
-<body>
-<main>
-  <div class="brand">◇ GeminiScanner</div>
-  <section class="hero">
-    <div class="pill">Paper trading control layer staged and audited</div>
-    <h1>Decision-assist trading intelligence with paper-trading readiness.</h1>
-    <p class="lead">GeminiScanner now shows the paper trading path built so far: local lifecycle testing, mock buy simulation, first-tiny-order preflight, approval locks, runtime environment checks, one-shot manual broker attempt, and first SPY paper order fill confirmation. Live trading and auto trading remain disabled.</p>
-  </section>
-  <section class="grid">
-    <div class="card"><div class="k">Local lifecycle</div><div class="v ok">Complete</div><p>Intent, ticket, simulated fill, and position snapshot are stored locally in JSONL.</p></div>
-    <div class="card"><div class="k">Mock buy test</div><div class="v ok">Validated</div><p>SOFI local lifecycle and SPY first-tiny paper order preflight path were exercised safely.</p></div>
-    <div class="card"><div class="k">Broker execution</div><div class="v ok">Filled</div><p>First one-share SPY Alpaca paper order filled at 749.19. Further attempts are blocked by the no-retry guard.</p></div>
-    <div class="card wide"><div class="k">What is ready</div><ul><li>Paper trade readiness report and lifecycle dashboards.</li><li>Order ticket sizing, simulated fill, and position state stores.</li><li>First tiny order approval, final submit unlock preview, dry-run shell, wrapper envelope, and executor shell.</li><li>Runtime environment preflight confirms paper URL, route, API key, and secret presence when env mapping is loaded.</li><li>Final runbook produced the exact one-shot manual paper broker attempt sequence.</li><li>Read-only broker status check confirmed SPY buy 1 share filled at 749.19.</li></ul></div>
-    <div class="card"><div class="k">Safety state</div><ul><li>Paper order submitted: true</li><li>Paper broker contact attempted: true</li><li>Live trading: disabled</li><li>Auto trading: disabled</li><li>Account mutation: disabled</li></ul></div>
-    <div class="card full"><div class="k">Diagnostics</div><div class="links"><a href="/diagnostics/paper-trade-readiness-report">Paper trade readiness report</a><a href="/diagnostics/paper-trading-final-go-no-go">Final paper go/no-go</a><a href="/diagnostics/first-real-paper-order-test-gate">First real paper order gate</a><a href="/diagnostics/paper-broker-adapter-approval-lock">Broker adapter approval lock</a><a href="/diagnostics/paper-trade-intent-creation-store">Intent store</a><a href="/diagnostics/paper-trade-order-ticket-store">Order ticket store</a><a href="/diagnostics/paper-trade-fill-simulation-store">Fill simulation store</a><a href="/diagnostics/paper-trade-position-state-store">Position state store</a></div></div>
-  </section>
-  <footer><strong>GeminiScanner</strong><br>Operator-controlled. Paper-only readiness staged. No automatic execution.</footer>
-</main>
-</body>
-</html>`);
+  res.type('html').send(renderPublicHomepageHtml(homepage));
 });
 
 
