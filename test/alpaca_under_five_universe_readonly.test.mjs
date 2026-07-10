@@ -182,3 +182,58 @@ test("adds deterministic readonly potential features without issuing a buy recom
   assert.equal(result.candidates[0].buyRecommendation, false);
   assert.ok(Array.isArray(result.candidates[0].readonlyPotentialFlags));
 });
+
+
+test("adds deterministic source freshness metadata and flags stale candidates", async () => {
+  const nowMs = Date.parse("2026-07-10T17:50:00.000Z");
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    nowMs,
+    maxSourceAgeSec: 120,
+    async fetchImpl(url) {
+      if (url.includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "FRESH", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "STALE", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        FRESH: {
+          latestTrade: { p: 4.5, t: "2026-07-10T17:49:30.000Z" },
+          latestQuote: { bp: 4.49, ap: 4.51, t: "2026-07-10T17:49:40.000Z" },
+          dailyBar: { v: 900000 },
+          prevDailyBar: { c: 4.0 },
+        },
+        STALE: {
+          latestTrade: { p: 3.0, t: "2026-07-10T17:40:00.000Z" },
+          latestQuote: { bp: 2.99, ap: 3.01, t: "2026-07-10T17:40:05.000Z" },
+          dailyBar: { v: 900000 },
+          prevDailyBar: { c: 2.9 },
+        },
+      });
+    },
+  });
+
+  const bySymbol = Object.fromEntries(result.candidates.map((item) => [item.symbol, item]));
+  assert.equal(bySymbol.FRESH.sourceTs, "2026-07-10T17:49:40.000Z");
+  assert.equal(bySymbol.FRESH.sourceAgeSec, 20);
+  assert.equal(bySymbol.FRESH.sourceStale, false);
+  assert.equal(bySymbol.FRESH.readonlyPotentialFlags.includes("stale_source"), false);
+
+  assert.equal(bySymbol.STALE.sourceAgeSec, 595);
+  assert.equal(bySymbol.STALE.sourceStale, true);
+  assert.equal(bySymbol.STALE.readonlyPotentialFlags.includes("stale_source"), true);
+  assert.equal(bySymbol.STALE.buyRecommendation, false);
+});

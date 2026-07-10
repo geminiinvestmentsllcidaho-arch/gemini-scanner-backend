@@ -53,6 +53,25 @@ function spreadPct(snapshot = {}) {
   return midpoint > 0 ? Number((((ask - bid) / midpoint) * 100).toFixed(4)) : null;
 }
 
+function sourceFreshness(snapshot = {}, nowMs = Date.now(), maxSourceAgeSec = 120) {
+  const timestamps = [
+    snapshot?.latestTrade?.t,
+    snapshot?.latestQuote?.t,
+    snapshot?.minuteBar?.t,
+  ]
+    .map((value) => Date.parse(value ?? ""))
+    .filter(Number.isFinite);
+
+  const sourceTsMs = timestamps.length ? Math.max(...timestamps) : null;
+  const sourceTs = sourceTsMs === null ? null : new Date(sourceTsMs).toISOString();
+  const sourceAgeSec = sourceTsMs === null
+    ? null
+    : Number(Math.max(0, (Number(nowMs) - sourceTsMs) / 1000).toFixed(3));
+  const sourceStale = sourceAgeSec === null || sourceAgeSec > Number(maxSourceAgeSec);
+
+  return { sourceTs, sourceAgeSec, maxSourceAgeSec: Number(maxSourceAgeSec), sourceStale };
+}
+
 function readonlyPotential(candidate = {}) {
   const momentum = finite(candidate.changePct);
   const spread = finite(candidate.spreadPct);
@@ -69,6 +88,7 @@ function readonlyPotential(candidate = {}) {
   if (spread === null) flags.push("spread_unavailable");
   else if (spread > 1) flags.push("wide_spread");
   if (dollarVolume < 1000000) flags.push("lower_dollar_volume");
+  if (candidate.sourceStale === true) flags.push("stale_source");
 
   return {
     readonlyPotentialScore: score,
@@ -99,6 +119,8 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
   minDailyVolume = 100000,
   snapshotBatchSize = 200,
   maxAssets = 10000,
+  nowMs = Date.now(),
+  maxSourceAgeSec = 120,
 } = {}) {
   const resolved = typeof credentialResolver === "function"
     ? credentialResolver({
@@ -234,6 +256,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       const dailyVolume = latestVolume(snapshot);
       const previousClose = finite(snapshot?.prevDailyBar?.c);
       const dollarVolume = price === null ? null : Number((price * dailyVolume).toFixed(2));
+      const freshness = sourceFreshness(snapshot, nowMs, maxSourceAgeSec);
       const candidate = {
         ...asset,
         price,
@@ -242,6 +265,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
         spreadPct: spreadPct(snapshot),
         dailyVolume,
         dollarVolume,
+        ...freshness,
       };
       return {
         ...candidate,
