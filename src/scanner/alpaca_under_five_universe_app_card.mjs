@@ -123,9 +123,22 @@ ${candidate.detailHref ? `<p><a class="detail-link" href="${esc(candidate.detail
   const autoRefresh = card.autoRefreshEnabled === true
     ? `<script data-readonly-auto-refresh="true">
 (() => {
-  const delayMs = ${JSON.stringify(refreshSec * 1000)};
-  if (!Number.isFinite(delayMs) || delayMs <= 0) return;
-  window.setTimeout(() => window.location.reload(), delayMs);
+  const totalSec = ${JSON.stringify(refreshSec)};
+  const countdown = document.querySelector("[data-refresh-countdown]");
+  if (!Number.isFinite(totalSec) || totalSec <= 0) return;
+  let remainingSec = totalSec;
+  const render = () => {
+    if (countdown) countdown.textContent = String(Math.max(0, remainingSec));
+  };
+  render();
+  const timer = window.setInterval(() => {
+    remainingSec -= 1;
+    render();
+    if (remainingSec <= 0) {
+      window.clearInterval(timer);
+      window.location.reload();
+    }
+  }, 1000);
 })();
 </script>`
     : "";
@@ -134,7 +147,7 @@ ${candidate.detailHref ? `<p><a class="detail-link" href="${esc(candidate.detail
 <style>
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.card,.candidate{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.candidate h2{margin:0}.candidate-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.candidate-head h2{flex:1}small{font-size:11px;color:#777}.decision-popover{min-width:138px}.decision-popover summary{cursor:pointer;list-style:none;border-radius:999px;padding:10px 13px;font-weight:800;text-align:center}.decision-popover summary::-webkit-details-marker{display:none}.decision-popover p{margin:8px 0 0;padding:10px;border-radius:12px;background:#f4f6f8;font-size:.92rem}.decision-popover.enter summary{background:#dff7e7;color:#11652e}.decision-popover.wait summary{background:#fff2c8;color:#765800}.decision-popover.do-not-enter summary{background:#ffe0e0;color:#8a1111}.detail-link{display:block;text-align:center;padding:12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:800}@media(hover:hover){.decision-popover:not([open]):hover p{display:block}.decision-popover:not([open]) p{display:none}}
 </style></head><body><main class="wrap">
-<section class="hero"><h1>${esc(card.title)}</h1><p>${esc(card.displayState)}</p></section>
+<section class="hero"><h1>${esc(card.title)}</h1><p>${esc(card.displayState)}</p><p class="refresh-countdown"><b>Next refresh in:</b> <span data-refresh-countdown>${esc(card.refreshIntervalSec)}</span> seconds</p></section>
 <section class="card"><b>Last updated:</b> ${esc(card.lastUpdatedAt)} | <b>Refresh:</b> ${esc(card.refreshIntervalSec)}s<br><b>Assets:</b> ${esc(card.assetCount)} | <b>Snapshots:</b> ${esc(card.snapshotCount)} | <b>Candidates:</b> ${esc(card.candidateCount)}</section>
 ${rows}
 <section class="card"><b>No execution controls:</b> ${esc(card.noExecutionControls)}<br><b>Order submitted:</b> ${esc(card.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(card.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(card.accountMutationAttempted)}</section>

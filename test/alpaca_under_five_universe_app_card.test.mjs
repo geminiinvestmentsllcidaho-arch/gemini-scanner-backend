@@ -111,3 +111,25 @@ test("renders decision badge brief explanation and detail link", () => {
   assert.doesNotMatch(html, /\bfetch\s*\(/);
   assert.doesNotMatch(html, /XMLHttpRequest/);
 });
+
+test("renders visible refresh countdown and decrements before reload", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    candidates: [],
+  }, {
+    refreshIntervalSec: 30,
+    autoRefreshEnabled: true,
+  });
+
+  const html = renderAlpacaUnderFiveUniverseAppCardHtml(card);
+
+  assert.match(html, /Next refresh in:/);
+  assert.match(html, /data-refresh-countdown>30<\/span> seconds/);
+  assert.match(html, /let remainingSec = totalSec/);
+  assert.match(html, /window\.setInterval/);
+  assert.match(html, /remainingSec -= 1/);
+  assert.match(html, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+});
