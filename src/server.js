@@ -145,6 +145,20 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 }
 
 const app = express();
+
+const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_scan_cache.mjs')
+  .then((mod) => mod.createAlpacaUnderFiveSharedScanCache())
+  .catch((error) => {
+    console.error('[under-five-shared-cache] init failed', error?.message ?? String(error));
+    return null;
+  });
+
+async function getUnderFiveSharedSource() {
+  const cache = await underFiveSharedCachePromise;
+  if (!cache) throw new Error('under_five_shared_cache_unavailable');
+  return cache.getLatest() ?? cache.refreshNow();
+}
+
 function paperDiagnosticBool(value, fallback = false) {
   return typeof value === 'boolean' ? value : fallback;
 }
@@ -2886,6 +2900,12 @@ app.get("/app", (req, res) => {
 
 
 app.listen(PORT, HOST, async () => {
+  const underFiveCache = await underFiveSharedCachePromise;
+  if (underFiveCache) {
+    underFiveCache.start().catch((error) => {
+      console.error('[under-five-shared-cache] start failed', error?.message ?? String(error));
+    });
+  }
   console.log(`[server] listening on http://${HOST}:${PORT}`);
   try {
     await startMarketDataStream();
@@ -3502,15 +3522,8 @@ app.get('/diagnostics/alpaca-under-five-universe-readonly', async (req, res) => 
 
 app.get('/diagnostics/alpaca-under-five-universe-app-card', async (req, res) => {
   try {
-    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const viewMod = await import('./scanner/alpaca_under_five_universe_app_card.mjs');
-    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
-      minPrice: req.query.minPrice ?? 0.5,
-      maxPrice: req.query.maxPrice ?? 5,
-      minDailyVolume: req.query.minDailyVolume ?? 100000,
-      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
-      maxAssets: req.query.maxAssets ?? 10000,
-    });
+    const source = await getUnderFiveSharedSource();
     res.json(viewMod.buildAlpacaUnderFiveUniverseAppCard(source, {
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
@@ -3530,15 +3543,8 @@ app.get('/diagnostics/alpaca-under-five-universe-app-card', async (req, res) => 
 
 app.get('/app/alpaca-under-five-universe', async (req, res) => {
   try {
-    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const viewMod = await import('./scanner/alpaca_under_five_universe_app_card.mjs');
-    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
-      minPrice: req.query.minPrice ?? 0.5,
-      maxPrice: req.query.maxPrice ?? 5,
-      minDailyVolume: req.query.minDailyVolume ?? 100000,
-      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
-      maxAssets: req.query.maxAssets ?? 10000,
-    });
+    const source = await getUnderFiveSharedSource();
     const card = viewMod.buildAlpacaUnderFiveUniverseAppCard(source, {
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
@@ -3559,15 +3565,8 @@ app.get('/customer-zero/scanner', async (_req, res) => {
 
 app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
   try {
-    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const detailMod = await import('./scanner/customer_zero_under_five_symbol_detail.mjs');
-    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
-      minPrice: req.query.minPrice ?? 0.5,
-      maxPrice: req.query.maxPrice ?? 5,
-      minDailyVolume: req.query.minDailyVolume ?? 100000,
-      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
-      maxAssets: req.query.maxAssets ?? 10000,
-    });
+    const source = await getUnderFiveSharedSource();
     const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
     const candidate = source.candidates?.find((item) => item.symbol === symbol);
     if (!candidate) {
@@ -3583,17 +3582,10 @@ app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
 
 app.get('/customer-zero/under-five-scanner', async (req, res) => {
   try {
-    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const viewMod = await import('./scanner/customer_zero_under_five_dashboard.mjs');
-    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
-      minPrice: req.query.minPrice ?? 0.5,
-      maxPrice: req.query.maxPrice ?? 5,
-      minDailyVolume: req.query.minDailyVolume ?? 100000,
-      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
-      maxAssets: req.query.maxAssets ?? 10000,
-    });
+    const source = await getUnderFiveSharedSource();
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
-      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
     });
     res.type('html').send(viewMod.renderCustomerZeroUnderFiveDashboardHtml(dashboard));
