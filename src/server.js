@@ -31,6 +31,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
+import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
 import { buildPaperTradeIntentAuditDashboard } from './scanner/paper_trade_intent_audit_dashboard.mjs';
 import { getPaperTradeIntentAuditDashboardPanel } from "./scanner/paper_trade_intent_audit_dashboard_panel.mjs";
@@ -1568,6 +1569,14 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
 const requireInternalOwnerAuth = createRequireOperatorDashboardAuth();
 const requireInternalOwnerAuthorization = createRequireInternalOwnerAuthorization();
 const requireInternalOwnerTenantIsolation = createRequireInternalOwnerTenantIsolation();
+const requireAdminAuthorization = createRequireAdminAuthorization();
+
+app.get('/admin', requireAdminAuthorization, async (_req, res) => {
+  const mod = await import('./scanner/admin_surface.mjs');
+  const surface = mod.buildAdminSurface();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderAdminSurfaceHtml(surface));
+});
 
 
 
