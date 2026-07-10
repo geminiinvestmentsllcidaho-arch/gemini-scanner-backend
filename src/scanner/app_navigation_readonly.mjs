@@ -19,18 +19,6 @@ function esc(value) {
 }
 
 const DEFAULT_ENTRIES = Object.freeze([
-  {
-    id: "alpaca_paper_account_dashboard",
-    label: "Alpaca Paper Account Dashboard",
-    title: "Alpaca Paper Account Dashboard",
-    subtitle: "Read-only paper account money and positions dashboard.",
-    description: "Read-only Alpaca paper account dashboard shell for cash, buying power, equity, portfolio value, and positions with no live trading, auto trading, placement, submit, cancel, or account mutation controls.",
-    category: "operator_workflow",
-    href: "/app/alpaca-paper-account-dashboard",
-    diagnosticHref: "/diagnostics/alpaca-paper-account-dashboard",
-    routeHref: "/app/alpaca-paper-account-dashboard",
-    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED",
-  },
   Object.freeze({
     id: "todays_intraday_setups",
     title: "Today's Intraday Setups",
@@ -43,6 +31,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     displayState: "TODAYS_INTRADAY_SETUPS_APP_CARD_READY_READONLY",
     refreshFriendly: true,
   }),
+  {
+    id: "alpaca_paper_account_dashboard",
+    label: "Alpaca Paper Account Dashboard",
+    title: "Alpaca Paper Account Dashboard",
+    subtitle: "Read-only paper account money and positions dashboard.",
+    description: "Read-only Alpaca paper account dashboard shell for cash, buying power, equity, portfolio value, and positions with no live trading, auto trading, placement, submit, cancel, or account mutation controls.",
+    category: "operator_workflow",
+    href: "/app/alpaca-paper-account-dashboard",
+    diagnosticHref: "/diagnostics/alpaca-paper-account-dashboard",
+    routeHref: "/app/alpaca-paper-account-dashboard",
+    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED",
+  },
   Object.freeze({
     id: "watchlist_settings",
     title: "Watchlist & Settings",
@@ -774,7 +774,7 @@ function renderEntry(entry) {
 <div class="entry-top"><div class="entry-icon">${esc(routeEmoji(entry))}</div><div><h2>${esc(entry.title)}</h2><p class="subtitle">${esc(entry.subtitle)}</p></div></div>
 <p>${esc(entry.description)}</p>
 <div class="links">
-<a class="primary-action" href="${esc(entry.href)}">Open</a>
+<a class="primary-action" href="${esc(entry.href)}">App Route</a>
 <a href="${esc(entry.diagnosticHref)}">JSON</a>
 </div>
 <div class="state-row"><span>${esc(entry.displayState)}</span><span>read only</span><span>no execution</span></div>
@@ -908,7 +908,7 @@ function renderReadinessQuickLinks(entries = []) {
     .join("");
 
   return `<section class="safety" data-paper-readiness-quick-links="true">
-<h2>Workflow Buttons</h2>
+<h2>Related Broker Readiness Routes</h2>
 <p>Fast access to the main screens we built so far.</p>
 <div class="links">${rendered}</div>
 <small>Read-only | no broker contact | no placement | no submit | no account mutation</small>
@@ -957,11 +957,11 @@ body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;back
 @media(max-width:640px){body{padding:10px}.hero{border-radius:22px;padding:18px}.hero h1{font-size:28px}.feature-grid{grid-template-columns:1fr}.entry-group{border-radius:20px}.entry .description{display:none}.links a{width:100%;text-align:center}}
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><div class="status-strip"><span class="pill">${esc(nav.displayState)}</span><span class="pill">Views: ${esc(nav.entryCount)}</span><span class="pill">Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</span><span class="pill">Read-only locked</span></div><p>Last updated: ${esc(nav.lastUpdatedAt)}</p></section>
-#{featured}
+${featured}
 ${renderReadinessQuickLinks(nav.entries)}
 ${summary}
 ${sections}
-<section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
+<section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
 ${renderReadOnlyAutoRefreshScript(nav)}
 </main></body></html>`;
 }
