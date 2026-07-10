@@ -3527,10 +3527,27 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 });
 
 
+app.get('/customer', async (_req, res) => {
+  const mod = await import('./scanner/customer_scanner_hub.mjs');
+  const hub = mod.buildCustomerScannerHub();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+});
+
+app.get('/customer/scanner', async (_req, res) => {
+  const mod = await import('./scanner/customer_scanner_hub.mjs');
+  const hub = mod.buildCustomerScannerHub();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+});
+
+
+
 app.get('/customer-zero/scanner', async (_req, res) => {
-  const mod = await import('./scanner/customer_zero_scanner_hub.mjs');
-  const hub = mod.buildCustomerZeroScannerHub();
-  res.type('html').send(mod.renderCustomerZeroScannerHubHtml(hub));
+  const mod = await import('./scanner/customer_scanner_hub.mjs');
+  const hub = mod.buildCustomerScannerHub({ tenant: 'customer-zero' });
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
 });
 
 
