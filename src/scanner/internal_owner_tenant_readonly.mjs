@@ -32,7 +32,8 @@ export function buildInternalOwnerTenantReadonly(options = {}) {
       authenticationImplemented: true,
       authenticationMode: "shared_operator_token",
       routeProtectionImplemented: true,
-      authorizationEnforced: false,
+      authorizationEnforced: true,
+      authorizationPolicy: "internal_owner_exact_tenant_role_v1",
       tenantIsolationImplemented: false,
     },
     credentials: {

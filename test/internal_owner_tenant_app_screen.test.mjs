@@ -14,7 +14,8 @@ test("builds internal owner tenant bootstrap app screen safely", () => {
   assert.equal(screen.access.authenticationImplemented, true);
   assert.equal(screen.access.authenticationMode, "shared_operator_token");
   assert.equal(screen.access.routeProtectionImplemented, true);
-  assert.equal(screen.access.authorizationEnforced, false);
+  assert.equal(screen.access.authorizationEnforced, true);
+  assert.equal(screen.access.authorizationPolicy, "internal_owner_exact_tenant_role_v1");
   assert.equal(screen.access.tenantIsolationImplemented, false);
   assert.equal(screen.credentials.rawSecretsExposed, false);
   assert.equal(screen.safety.readOnly, true);
@@ -28,6 +29,8 @@ test("renders owner screen without mutation controls", () => {
   assert.match(html, /Authentication implemented:<\/b> yes/);
   assert.match(html, /Authentication mode:<\/b> shared_operator_token/);
   assert.match(html, /Route protection implemented:<\/b> yes/);
+  assert.match(html, /Authorization enforced:<\/b> yes/);
+  assert.match(html, /Authorization policy:<\/b> internal_owner_exact_tenant_role_v1/);
   assert.match(html, /Raw secrets exposed:<\/b> no/);
   assert.match(html, /Order placement allowed:<\/b> no/);
   assert.doesNotMatch(html, /<form/i);

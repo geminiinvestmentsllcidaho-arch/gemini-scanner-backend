@@ -93,6 +93,7 @@ import { buildExitAllControlReadonly, renderExitAllControlReadonlyHtml } from ".
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
 import { buildPaperOperatorStartHereAppScreen, renderPaperOperatorStartHereAppScreenHtml } from "./scanner/paper_operator_start_here_app_screen.mjs";
 import { buildInternalOwnerTenantReadonly } from "./scanner/internal_owner_tenant_readonly.mjs";
+import { createRequireInternalOwnerAuthorization } from "./scanner/internal_owner_authorization.mjs";
 import { buildInternalOwnerTenantAppScreen, renderInternalOwnerTenantAppScreenHtml } from "./scanner/internal_owner_tenant_app_screen.mjs";
 
 dotenv.config();
@@ -1578,6 +1579,7 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
 }
 
 const requireInternalOwnerAuth = createRequireOperatorDashboardAuth();
+const requireInternalOwnerAuthorization = createRequireInternalOwnerAuthorization();
 
 
 
@@ -2849,11 +2851,11 @@ app.get("/app/exit-all", (req, res) => {
   res.type("html").send(renderExitAllControlReadonlyHtml(payload));
 });
 
-app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth, (_req, res) => {
+app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth, requireInternalOwnerAuthorization, (_req, res) => {
   res.json(buildInternalOwnerTenantReadonly());
 });
 
-app.get("/app/internal-owner", requireInternalOwnerAuth, (_req, res) => {
+app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAuthorization, (_req, res) => {
   res.type("html").send(renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen()));
 });
 

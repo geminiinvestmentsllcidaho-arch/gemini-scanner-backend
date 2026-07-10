@@ -16,7 +16,8 @@ test("internal owner tenant foundation is internal-only and read-only", () => {
   assert.equal(model.access.authenticationImplemented, true);
   assert.equal(model.access.authenticationMode, "shared_operator_token");
   assert.equal(model.access.routeProtectionImplemented, true);
-  assert.equal(model.access.authorizationEnforced, false);
+  assert.equal(model.access.authorizationEnforced, true);
+  assert.equal(model.access.authorizationPolicy, "internal_owner_exact_tenant_role_v1");
   assert.equal(model.access.tenantIsolationImplemented, false);
   assert.equal(model.credentials.rawSecretsExposed, false);
   assert.equal(model.credentials.migrationRequired, true);
