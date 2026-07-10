@@ -732,7 +732,7 @@ export function buildAppNavigationReadonly(options = {}) {
     panelType: "main_app_navigation",
     title: "GeminiScanner App",
     displayState: "GEMINISCANNER_APP_NAVIGATION_READY_READONLY",
-    headline: entries.length ? "Choose a read-only scanner view." : "No app views registered.",
+    headline: entries.length ? "Scan the market, review setups, manage your watchlist, and monitor paper trades." : "No app views registered.",
     entryCount: entries.length,
     entries,
     readOnly: true,
@@ -769,43 +769,56 @@ function routeEmoji(entry = {}) {
   return "📌";
 }
 
+function primaryActionLabel(entry = {}) {
+  const labels = {
+    todays_intraday_setups: "View Top Setups",
+    watchlist_settings: "Open Watchlist",
+    alpaca_paper_account_dashboard: "View Paper Account",
+    paper_position_readonly_dashboard: "View Positions",
+    paper_trade_intent_plan: "Review Trade Plan",
+    snapshot_history: "View History",
+  };
+  return labels[entry.id] ?? "Open";
+}
+
 function renderEntry(entry) {
   return `<article class="entry" data-entry-id="${esc(entry.id)}" data-entry-category="${esc(entry.category)}">
 <div class="entry-top"><div class="entry-icon">${esc(routeEmoji(entry))}</div><div><h2>${esc(entry.title)}</h2><p class="subtitle">${esc(entry.subtitle)}</p></div></div>
-<p>${esc(entry.description)}</p>
+<p class="description">${esc(entry.description)}</p>
 <div class="links">
-<a class="primary-action" href="${esc(entry.href)}">App Route</a>
+<a class="primary-action" href="${esc(entry.href)}">${esc(primaryActionLabel(entry))}</a>
 <a href="${esc(entry.diagnosticHref)}">JSON</a>
+<a class="route-compat" href="${esc(entry.routeHref ?? entry.href)}">App Route</a>
 </div>
 <div class="state-row"><span>${esc(entry.displayState)}</span><span>read only</span><span>no execution</span></div>
-</articl>`;
+</article>`;
 }
 
 function renderFeaturedDashboard(entries = []) {
   const source = list(entries);
   const wanted = [
-    "/app/alpaca-paper-account-dashboard",
-    "/app/alpaca-operator-key-entry",
-    "/app/todays-intraday-setups?session=regular",
-    "/app/paper-operator-start-here",
-    "/app/paper-trading-overview-status",
-    "/app/paper-app-route-health-status",
-    "/app/paper-app-safety-lock-status",
-    "/app/paper-broker-runtime-environment-preflight",
+    ["todays_intraday_setups", "Run Scanner", "Find and review today’s ranked setups."],
+    ["watchlist_settings", "Watchlist", "Manage symbols and scanner preferences."],
+    ["alpaca_paper_account_dashboard", "Paper Account", "View buying power, cash, equity, and positions."],
+    ["paper_position_readonly_dashboard", "Positions", "Review current paper positions and P/L."],
+    ["paper_trade_intent_plan", "Trade Plan", "Review a paper-trade plan without placing an order."],
+    ["snapshot_history", "History", "Review stored scanner snapshots."],
   ];
   const cards = wanted
-    .map((href) => source.find((entry) => entry.href === href))
+    .map(([id, title, subtitle]) => {
+      const entry = source.find((item) => item.id === id);
+      if (!entry) return "";
+      return `<a class="feature-card" data-feature-id="${esc(id)}" href="${esc(entry.href)}"><b>${esc(routeEmoji(entry))} ${esc(title)}</b><span>${esc(subtitle)}</span></a>`;
+    })
     .filter(Boolean)
-    .map((entry) => `<a class="feature-card" href="${esc(entry.href)}"><b>${esc(routeEmoji(entry))} ${esc(entry.title)}</b><span>${esc(entry.subtitle ?? entry.displayState)}</span></a>`)
     .join("");
 
   return `<section class="feature-panel" data-featured-dashboard="true">
-<h2>Command Center</h2>
-<p>Top website buttons for scanner views, Alpaca paper-account screens, paper-readiness status, and safety locks.</p>
+<h2>Start Here</h2>
+<p>Use these core actions first. GeminiScanner remains read-only and cannot place orders.</p>
 <div class="feature-grid">${cards}</div>
 </section>`;
 }
-
 
 function renderReadOnlyAutoRefreshScript(source = {}) {
   if (source?.autoRefreshEnabled !== true) return "";
@@ -937,10 +950,10 @@ body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;back
 .feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
 .feature-card{display:block;text-decoration:none;background:linear-gradient(145deg,#08351f,#0b5b34);color:white;border-radius:20px;padding:16px;min-height:110px;box-shadow:0 12px 28px #06351d28}
 .feature-card b{display:block;font-size:17px;margin:9px 0 6px}
-.feature-card span{color:#d6ffe4;font-size:13px}
+.feature-card span{color:#d6ffe4;font-size:13px}.advanced{background:#fff;border:1px solid var(--line);border-radius:24px;padding:14px;margin:12px 0}.advanced>summary{cursor:pointer;font-weight:800;font-size:18px;padding:6px}.advanced[open]>summary{margin-bottom:10px}
 .links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .links a{display:inline-block;text-decoration:none;background:var(--dark);color:white;border-radius:999px;padding:10px 13px;font-size:14px}
-.links a.primary-action{background:var(--green2)}
+.links a.primary-action{background:var(--green2)}.route-compat{display:none!important}
 .entry-group{padding:14px}
 .entry-group h2{font-size:20px}
 .entry{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin:10px 0;box-shadow:0 8px 20px #06351d0f}
@@ -958,10 +971,13 @@ body{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;margin:0;back
 </style></head><body><main class="wrap">
 <section class="hero"><h1>${esc(nav.title ?? "GeminiScanner App")}</h1><p>${esc(nav.headline)}</p><div class="status-strip"><span class="pill">${esc(nav.displayState)}</span><span class="pill">Views: ${esc(nav.entryCount)}</span><span class="pill">Refresh: ${esc(nav.refreshIntervalSec ?? 30)}s</span><span class="pill">Read-only locked</span></div><p>Last updated: ${esc(nav.lastUpdatedAt)}</p></section>
 ${featured}
+<section class="safety"><h2>Current Mode</h2><p><b>Decision assist only.</b> Scanner review and paper-account monitoring are available. Order placement, live trading, and auto trading remain disabled.</p></section>
+<details class="advanced"><summary>Advanced &amp; System Tools</summary>
 ${renderReadinessQuickLinks(nav.entries)}
 ${summary}
 ${sections}
 <section class="safety"><b>No execution controls:</b> ${esc(nav.noExecutionControls)}<br><b>Order submitted:</b> ${esc(nav.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(nav.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(nav.accountMutationAttempted)}</section>
+</details>
 ${renderReadOnlyAutoRefreshScript(nav)}
 </main></body></html>`;
 }
