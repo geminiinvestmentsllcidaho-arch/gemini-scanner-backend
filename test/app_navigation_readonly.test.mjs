@@ -26,6 +26,18 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   assert.equal(entry.brokerContactAllowed, false);
   assert.equal(entry.accountMutationAllowed, false);
 
+  const ownerEntry = nav.entries.find((item) => item.id === "internal_owner_account");
+  assert.ok(ownerEntry);
+  assert.equal(ownerEntry.title, "Internal Owner Account");
+  assert.equal(ownerEntry.href, "/app/internal-owner");
+  assert.equal(ownerEntry.diagnosticHref, "/diagnostics/internal-owner-tenant-readonly");
+  assert.equal(ownerEntry.routeHref, "/app/internal-owner");
+  assert.equal(ownerEntry.displayState, "INTERNAL_OWNER_TENANT_BOOTSTRAP_READONLY");
+  assert.equal(ownerEntry.readOnly, true);
+  assert.equal(ownerEntry.orderPlacementAllowed, false);
+  assert.equal(ownerEntry.brokerContactAllowed, false);
+  assert.equal(ownerEntry.accountMutationAllowed, false);
+
   const settingsEntry = nav.entries.find((item) => item.id === "watchlist_settings");
   assert.ok(settingsEntry);
   assert.equal(settingsEntry.title, "Watchlist & Settings");
@@ -53,6 +65,7 @@ test("app navigation exposes all built website options", () => {
   const ids = new Set(nav.entries.map((entry) => entry.id));
   for (const id of [
     "todays_intraday_setups",
+    "internal_owner_account",
     "watchlist_settings",
     "exit_all_control",
     "market_closed_snapshot",

@@ -44,6 +44,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED",
   },
   Object.freeze({
+    id: "internal_owner_account",
+    title: "Internal Owner Account",
+    subtitle: "Read-only internal owner and tenant bootstrap profile.",
+    description: "Internal-only owner account foundation showing tenant, role, security readiness, and closed trading safety locks without authentication claims, public signup, secrets, or mutation controls.",
+    category: "app_settings",
+    href: "/app/internal-owner",
+    diagnosticHref: "/diagnostics/internal-owner-tenant-readonly",
+    routeHref: "/app/internal-owner",
+    displayState: "INTERNAL_OWNER_TENANT_BOOTSTRAP_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "watchlist_settings",
     title: "Watchlist & Settings",
     subtitle: "Symbol universe, session, and refresh controls.",
