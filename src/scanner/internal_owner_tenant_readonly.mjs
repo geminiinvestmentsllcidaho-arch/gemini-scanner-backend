@@ -34,7 +34,9 @@ export function buildInternalOwnerTenantReadonly(options = {}) {
       routeProtectionImplemented: true,
       authorizationEnforced: true,
       authorizationPolicy: "internal_owner_exact_tenant_role_v1",
-      tenantIsolationImplemented: false,
+      tenantIsolationImplemented: true,
+      tenantIsolationPolicy: "internal_owner_single_tenant_request_scope_v1",
+      multiTenantDataPartitioningImplemented: false,
     },
     credentials: {
       storageMode: "existing_server_environment",

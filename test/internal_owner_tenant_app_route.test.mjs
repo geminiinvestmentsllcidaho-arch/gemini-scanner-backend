@@ -13,11 +13,11 @@ test("server registers internal owner bootstrap app route", () => {
     true
   );
   assert.equal(
-    serverSource.includes("renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen())"),
+    serverSource.includes("renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen({"),
     true
   );
   assert.equal(
-    serverSource.includes('app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAuthorization'),
+    serverSource.includes('app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAuthorization, requireInternalOwnerTenantIsolation'),
     true
   );
 });

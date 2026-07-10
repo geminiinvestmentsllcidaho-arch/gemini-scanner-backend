@@ -94,6 +94,7 @@ import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_fea
 import { buildPaperOperatorStartHereAppScreen, renderPaperOperatorStartHereAppScreenHtml } from "./scanner/paper_operator_start_here_app_screen.mjs";
 import { buildInternalOwnerTenantReadonly } from "./scanner/internal_owner_tenant_readonly.mjs";
 import { createRequireInternalOwnerAuthorization } from "./scanner/internal_owner_authorization.mjs";
+import { createRequireInternalOwnerTenantIsolation } from "./scanner/internal_owner_tenant_isolation.mjs";
 import { buildInternalOwnerTenantAppScreen, renderInternalOwnerTenantAppScreenHtml } from "./scanner/internal_owner_tenant_app_screen.mjs";
 
 dotenv.config();
@@ -1580,6 +1581,7 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
 
 const requireInternalOwnerAuth = createRequireOperatorDashboardAuth();
 const requireInternalOwnerAuthorization = createRequireInternalOwnerAuthorization();
+const requireInternalOwnerTenantIsolation = createRequireInternalOwnerTenantIsolation();
 
 
 
@@ -2851,12 +2853,16 @@ app.get("/app/exit-all", (req, res) => {
   res.type("html").send(renderExitAllControlReadonlyHtml(payload));
 });
 
-app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth, requireInternalOwnerAuthorization, (_req, res) => {
-  res.json(buildInternalOwnerTenantReadonly());
+app.get("/diagnostics/internal-owner-tenant-readonly", requireInternalOwnerAuth, requireInternalOwnerAuthorization, requireInternalOwnerTenantIsolation, (req, res) => {
+  res.json(buildInternalOwnerTenantReadonly({
+    tenantId: req.internalOwnerTenantContext.tenantId,
+  }));
 });
 
-app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAuthorization, (_req, res) => {
-  res.type("html").send(renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen()));
+app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAuthorization, requireInternalOwnerTenantIsolation, (req, res) => {
+  res.type("html").send(renderInternalOwnerTenantAppScreenHtml(buildInternalOwnerTenantAppScreen({
+    tenantId: req.internalOwnerTenantContext.tenantId,
+  })));
 });
 
 app.get("/diagnostics/app-navigation-readonly", (req, res) => {
