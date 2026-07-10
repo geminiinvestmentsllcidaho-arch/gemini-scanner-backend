@@ -12,6 +12,7 @@ function clean(value) {
 }
 
 function finite(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -148,10 +149,9 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
   }
 
   const assets = assetsResult.json
-    .slice(0, Math.max(1, Number(maxAssets) || 10000))
     .map((asset) => ({
       symbol: clean(asset.symbol).toUpperCase(),
-      name: clean(asset.name),
+    name: clean(asset.name),
       exchange: clean(asset.exchange),
       status: clean(asset.status),
       tradable: asset.tradable === true,
@@ -162,8 +162,8 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       asset.status === "active" &&
       asset.tradable === true &&
       ["NYSE", "NASDAQ", "AMEX", "ARCA", "BATS"].includes(asset.exchange)
-    );
-
+    )
+    .slice(0, Math.max(1, Number(maxAssets) || 10000));
   const snapshotMap = {};
   let snapshotCount = 0;
 

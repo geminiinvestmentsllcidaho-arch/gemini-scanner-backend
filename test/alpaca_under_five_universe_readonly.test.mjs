@@ -95,3 +95,40 @@ test("fails closed without readable credentials and makes no network call", asyn
   assert.equal(result.candidateCount, 0);
   assert.equal(contacted, false);
 });
+
+
+test("filters eligible exchanges before applying maxAssets and ignores missing prices", async () => {
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    maxAssets: 1,
+    async fetchImpl(url) {
+      if (url.includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "OTC", exchange: "OTC", status: "active", tradable: false },
+          { symbol: "AAA", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "BBB", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        AAA: { latestTrade: { p: 4.5 }, dailyBar: { v: 200000 } },
+        BBB: { dailyBar: { v: 300000 } },
+      });
+    },
+  });
+
+  assert.equal(result.assetCount, 1);
+  assert.equal(result.candidateCount, 1);
+  assert.equal(result.candidates[0].symbol, "AAA");
+});
