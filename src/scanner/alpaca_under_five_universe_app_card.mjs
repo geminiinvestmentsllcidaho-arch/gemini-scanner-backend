@@ -27,7 +27,8 @@ function esc(value) {
 
 function refreshIntervalSec(source = {}) {
   const n = Number(source?.refreshIntervalSec);
-  return Number.isFinite(n) && n > 0 ? Math.max(5, Math.round(n)) : 30;
+  if (Number.isFinite(n) && n > 0) return Math.max(5, Math.round(n));
+  return source?.marketIsOpen === true ? 15 : 30;
 }
 
 export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
@@ -60,7 +61,10 @@ export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
   }));
 
   const generatedAt = options.now instanceof Date ? options.now.toISOString() : new Date().toISOString();
-  const refreshSec = refreshIntervalSec(options);
+  const refreshSec = refreshIntervalSec({
+    refreshIntervalSec: options.refreshIntervalSec,
+    marketIsOpen: source?.marketClock?.isOpen === true,
+  });
 
   return {
     ok: source?.ok === true,

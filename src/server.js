@@ -3512,7 +3512,7 @@ app.get('/diagnostics/alpaca-under-five-universe-app-card', async (req, res) => 
       maxAssets: req.query.maxAssets ?? 10000,
     });
     res.json(viewMod.buildAlpacaUnderFiveUniverseAppCard(source, {
-      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
     }));
   } catch (err) {
@@ -3540,7 +3540,7 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
       maxAssets: req.query.maxAssets ?? 10000,
     });
     const card = viewMod.buildAlpacaUnderFiveUniverseAppCard(source, {
-      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
     });
     res.type('html').send(viewMod.renderAlpacaUnderFiveUniverseAppCardHtml(card));

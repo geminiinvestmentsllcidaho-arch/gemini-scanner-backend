@@ -176,3 +176,38 @@ test("renders market closed when read-only market clock is closed", () => {
   const html = renderAlpacaUnderFiveUniverseAppCardHtml(card);
   assert.match(html, /data-market-status>Market closed</);
 });
+
+test("automatically uses 15-second refresh while market is open", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: { isOpen: true },
+    candidates: [],
+  });
+
+  assert.equal(card.refreshIntervalSec, 15);
+});
+
+test("automatically uses 30-second refresh while market is closed", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: { isOpen: false },
+    candidates: [],
+  });
+
+  assert.equal(card.refreshIntervalSec, 30);
+});
+
+test("explicit refresh override still takes precedence", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: { isOpen: true },
+    candidates: [],
+  }, {
+    refreshIntervalSec: 20,
+  });
+
+  assert.equal(card.refreshIntervalSec, 20);
+});
