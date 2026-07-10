@@ -29,6 +29,7 @@ test("internal owner tenant foundation is internal-only and read-only", () => {
   assert.equal(model.credentials.rawSecretsExposed, false);
   assert.equal(model.credentials.migrationRequired, true);
   assert.equal(model.safety.readOnly, true);
+  assert.equal(model.safety.brokerContactAllowed, false);
   assert.equal(model.safety.orderPlacementAllowed, false);
   assert.equal(model.safety.liveTradingAllowed, false);
   assert.equal(model.safety.autoTradingAllowed, false);

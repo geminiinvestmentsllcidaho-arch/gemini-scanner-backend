@@ -55,6 +55,7 @@ export function buildInternalOwnerTenantReadonly(options = {}) {
     safety: {
       readOnly: true,
       decisionAssistOnly: true,
+      brokerContactAllowed: false,
       orderPlacementAllowed: false,
       liveTradingAllowed: false,
       autoTradingAllowed: false,

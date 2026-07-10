@@ -25,6 +25,7 @@ test("builds internal owner tenant bootstrap app screen safely", () => {
   assert.equal(screen.credentials.storeExists, false);
   assert.equal(screen.credentials.rawSecretsExposed, false);
   assert.equal(screen.safety.readOnly, true);
+  assert.equal(screen.safety.brokerContactAllowed, false);
   assert.equal(screen.safety.orderPlacementAllowed, false);
 });
 
