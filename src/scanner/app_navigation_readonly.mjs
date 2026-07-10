@@ -20,6 +20,18 @@ function esc(value) {
 
 const DEFAULT_ENTRIES = Object.freeze([
   Object.freeze({
+    id: "customer_zero_scanner_hub",
+    title: "Customer Zero — Scanner",
+    subtitle: "Choose scanner mode and asset universe.",
+    description: "Customer Zero scanner hub with Intraday as the default stock scanner, Under $5 available now, and Swing, Long-term, Watchlist, ETFs, Crypto, and Options marked for future modules.",
+    category: "scanner_app",
+    href: "/customer-zero/scanner",
+    diagnosticHref: "/diagnostics/todays-intraday-setups-app-card?session=regular",
+    routeHref: "/customer-zero/scanner",
+    displayState: "CUSTOMER_ZERO_SCANNER_HUB_READY_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "customer_zero_under_five_scanner",
     title: "Customer Zero — Under $5 Scanner",
     subtitle: "Customer Zero visual test dashboard.",

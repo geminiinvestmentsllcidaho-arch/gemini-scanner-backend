@@ -3550,6 +3550,13 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 });
 
 
+app.get('/customer-zero/scanner', async (_req, res) => {
+  const mod = await import('./scanner/customer_zero_scanner_hub.mjs');
+  const hub = mod.buildCustomerZeroScannerHub();
+  res.type('html').send(mod.renderCustomerZeroScannerHubHtml(hub));
+});
+
+
 app.get('/customer-zero/under-five-scanner', async (req, res) => {
   try {
     const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
