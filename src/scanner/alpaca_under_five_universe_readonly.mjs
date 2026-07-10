@@ -225,6 +225,22 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
     Accept: "application/json",
   };
 
+  const clockUrl = new URL("/v2/clock", PAPER_BASE_URL);
+  const clockResult = await readJson(fetchImpl, clockUrl.toString(), headers);
+  const marketClock = clockResult.ok && clockResult.json && typeof clockResult.json === "object"
+    ? {
+        isOpen: clockResult.json.is_open === true,
+        timestamp: clockResult.json.timestamp ?? null,
+        nextOpen: clockResult.json.next_open ?? null,
+        nextClose: clockResult.json.next_close ?? null,
+      }
+    : {
+        isOpen: false,
+        timestamp: null,
+        nextOpen: null,
+        nextClose: null,
+      };
+
   const assetsUrl = new URL("/v2/assets", PAPER_BASE_URL);
   assetsUrl.searchParams.set("status", "active");
   assetsUrl.searchParams.set("asset_class", "us_equity");
@@ -328,5 +344,6 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
     snapshotCount,
     candidateCount: candidates.length,
     candidates,
+    marketClock,
   };
 }

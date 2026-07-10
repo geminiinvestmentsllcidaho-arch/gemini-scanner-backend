@@ -399,3 +399,37 @@ test("adds explicit enter wait and do-not-enter decisions with explanations", as
   assert.ok(bySymbol.BLOCK.blockingFlags.includes("wide_spread"));
   assert.match(bySymbol.BLOCK.briefExplanation, /Do not enter/);
 });
+
+test("adds read-only Alpaca market clock status", async () => {
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    async fetchImpl(url) {
+      if (url.includes("/v2/clock")) {
+        return response(200, {
+          is_open: true,
+          timestamp: "2026-07-10T14:25:00-04:00",
+          next_open: "2026-07-13T09:30:00-04:00",
+          next_close: "2026-07-10T16:00:00-04:00",
+        });
+      }
+      if (url.includes("/v2/assets")) return response(200, []);
+      return response(200, {});
+    },
+  });
+
+  assert.equal(result.marketClock.isOpen, true);
+  assert.equal(result.marketClock.nextClose, "2026-07-10T16:00:00-04:00");
+  assert.equal(result.runtime.allowedMethods.includes("GET"), true);
+});

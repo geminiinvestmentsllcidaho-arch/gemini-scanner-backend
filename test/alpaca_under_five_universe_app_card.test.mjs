@@ -133,3 +133,46 @@ test("renders visible refresh countdown and decrements before reload", () => {
   assert.doesNotMatch(html, /\bfetch\s*\(/);
   assert.doesNotMatch(html, /XMLHttpRequest/);
 });
+
+test("renders live market status countdown from read-only market clock", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: {
+      isOpen: true,
+      timestamp: "2026-07-10T14:25:00-04:00",
+      nextClose: "2026-07-10T16:00:00-04:00",
+    },
+    candidates: [],
+  }, {
+    refreshIntervalSec: 30,
+    autoRefreshEnabled: true,
+  });
+
+  const html = renderAlpacaUnderFiveUniverseAppCardHtml(card);
+
+  assert.match(html, /Market status:/);
+  assert.match(html, /data-market-status/);
+  assert.match(html, /Market open/);
+  assert.match(html, /hours, .* minutes, .* seconds until market closes/);
+  assert.match(html, /window\.setInterval\(renderMarketStatus, 1000\)/);
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+});
+
+test("renders market closed when read-only market clock is closed", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: {
+      isOpen: false,
+      nextClose: "2026-07-13T16:00:00-04:00",
+    },
+    candidates: [],
+  }, {
+    autoRefreshEnabled: true,
+  });
+
+  const html = renderAlpacaUnderFiveUniverseAppCardHtml(card);
+  assert.match(html, /data-market-status>Market closed</);
+});
