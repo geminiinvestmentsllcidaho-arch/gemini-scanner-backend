@@ -3474,6 +3474,32 @@ app.get('/app/alpaca-operator-key-entry', async (_req, res) => {
 });
 
 
+
+app.get('/diagnostics/alpaca-under-five-universe-readonly', async (req, res) => {
+  try {
+    const mod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
+    const result = await mod.fetchAlpacaUnderFiveUniverseReadonly({
+      minPrice: req.query.minPrice ?? 0.5,
+      maxPrice: req.query.maxPrice ?? 5,
+      minDailyVolume: req.query.minDailyVolume ?? 100000,
+      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
+      maxAssets: req.query.maxAssets ?? 10000,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      status: 'under_five_universe_readonly_failed',
+      error: err?.message ?? String(err),
+      readOnly: true,
+      orderSubmitAllowed: false,
+      orderPlacementAllowed: false,
+      accountMutationAllowed: false,
+    });
+  }
+});
+
+
 app.get('/diagnostics/alpaca-paper-account-dashboard', async (_req, res) => {
   const view = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
   const data = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
