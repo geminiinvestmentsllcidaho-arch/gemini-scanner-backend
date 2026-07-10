@@ -20,6 +20,18 @@ function esc(value) {
 
 const DEFAULT_ENTRIES = Object.freeze([
   Object.freeze({
+    id: "alpaca_under_five_universe",
+    title: "Under $5 Read-Only Potential",
+    subtitle: "Live read-only under-$5 stock potential scanner.",
+    description: "Mobile-ready read-only potential cards for active under-$5 equities with freshness, spread, liquidity, and safety caps.",
+    category: "scanner_app",
+    href: "/app/alpaca-under-five-universe",
+    diagnosticHref: "/diagnostics/alpaca-under-five-universe-app-card",
+    routeHref: "/app/alpaca-under-five-universe",
+    displayState: "UNDER_FIVE_READONLY_APP_CARD_CONNECTED",
+    refreshFriendly: true,
+  }),
+  Object.freeze({
     id: "todays_intraday_setups",
     title: "Today's Intraday Setups",
     subtitle: "Live read-only intraday setup scanner.",

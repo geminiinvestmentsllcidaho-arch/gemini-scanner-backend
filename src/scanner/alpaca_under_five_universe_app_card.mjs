@@ -1,0 +1,125 @@
+export const VERSION = "alpaca_under_five_universe_app_card_v1";
+
+function list(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function finite(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function round(value, digits = 4) {
+  const n = finite(value);
+  if (n === null) return null;
+  const factor = 10 ** digits;
+  return Math.round(n * factor) / factor;
+}
+
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function refreshIntervalSec(source = {}) {
+  const n = Number(source?.refreshIntervalSec);
+  return Number.isFinite(n) && n > 0 ? Math.max(5, Math.round(n)) : 30;
+}
+
+export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
+  const candidates = list(source.candidates).map((candidate) => ({
+    symbol: candidate?.symbol ?? null,
+    name: candidate?.name ?? null,
+    price: round(candidate?.price),
+    dailyVolume: finite(candidate?.dailyVolume),
+    dollarVolume: round(candidate?.dollarVolume, 2),
+    previousClose: round(candidate?.previousClose),
+    changePct: round(candidate?.changePct),
+    spreadPct: round(candidate?.spreadPct),
+    sourceTs: candidate?.sourceTs ?? null,
+    sourceAgeSec: round(candidate?.sourceAgeSec, 3),
+    sourceStale: candidate?.sourceStale === true,
+    readonlyPotentialScore: round(candidate?.readonlyPotentialScore, 2),
+    readonlyPotentialLabel: candidate?.readonlyPotentialLabel ?? "low_priority",
+    readonlyPotentialFlags: list(candidate?.readonlyPotentialFlags),
+    decisionAssistOnly: true,
+    buyRecommendation: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  }));
+
+  const generatedAt = options.now instanceof Date ? options.now.toISOString() : new Date().toISOString();
+  const refreshSec = refreshIntervalSec(options);
+
+  return {
+    ok: source?.ok === true,
+    version: VERSION,
+    panelType: "mobile_app_card",
+    title: "Under $5 Read-Only Potential",
+    displayState: source?.status === "connected_readonly"
+      ? "UNDER_FIVE_READONLY_APP_CARD_CONNECTED"
+      : "UNDER_FIVE_READONLY_APP_CARD_NOT_CONNECTED",
+    generatedAt,
+    lastUpdatedAt: generatedAt,
+    autoRefreshEnabled: options.autoRefreshEnabled !== false,
+    refreshIntervalSec: refreshSec,
+    sourceVersion: source?.version ?? null,
+    sourceStatus: source?.status ?? null,
+    assetCount: Number(source?.assetCount ?? 0),
+    snapshotCount: Number(source?.snapshotCount ?? 0),
+    candidateCount: Number(source?.candidateCount ?? candidates.length),
+    candidates,
+    readOnly: true,
+    monitorOnly: true,
+    diagnosticsOnly: true,
+    decisionAssistOnly: true,
+    noExecutionControls: true,
+    orderSubmitAttempted: false,
+    orderSubmitted: false,
+    brokerContactAttempted: false,
+    accountMutationAttempted: false,
+    liveTradingAllowed: false,
+    autoTradingAllowed: false,
+    orderPlacementAllowed: false,
+    accountMutationAllowed: false,
+  };
+}
+
+export function renderAlpacaUnderFiveUniverseAppCardHtml(card = {}) {
+  const rows = list(card.candidates).map((candidate) => `
+<article class="candidate">
+<h2>${esc(candidate.symbol)} <small>${esc(candidate.readonlyPotentialLabel)}</small></h2>
+<p><b>Price:</b> ${esc(candidate.price)} | <b>Change:</b> ${esc(candidate.changePct)}% | <b>Spread:</b> ${esc(candidate.spreadPct)}%</p>
+<p><b>Dollar volume:</b> ${esc(candidate.dollarVolume)} | <b>Source age:</b> ${esc(candidate.sourceAgeSec)}s | <b>Stale:</b> ${esc(candidate.sourceStale)}</p>
+<p><b>Read-only potential score:</b> ${esc(candidate.readonlyPotentialScore)}</p>
+<p><b>Flags:</b> ${esc(candidate.readonlyPotentialFlags.join(", ") || "none")}</p>
+<p><b>Decision assist only:</b> ${esc(candidate.decisionAssistOnly)} | <b>Buy recommendation:</b> ${esc(candidate.buyRecommendation)}</p>
+</article>`).join("") || "<p>No under-$5 candidates available.</p>";
+
+  const refreshSec = refreshIntervalSec(card);
+  const autoRefresh = card.autoRefreshEnabled === true
+    ? `<script data-readonly-auto-refresh="true">
+(() => {
+  const delayMs = ${JSON.stringify(refreshSec * 1000)};
+  if (!Number.isFinite(delayMs) || delayMs <= 0) return;
+  window.setTimeout(() => window.location.reload(), delayMs);
+})();
+</script>`
+    : "";
+
+  return `<!doctype html><html><hea><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(card.title)}</title>
+<style>
+body{font-family:system-iwmargin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.card,.candidate{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.candidate h2{margin:0}small{font-size:11px;color:#777}
+</style></head><body><main class="wrap">
+<section class="hero"><h1>${esc(card.title)}</h1><p>${esc(card.displayState)}</p></section>
+<section class="card"><b>Last updated:</b> ${esc(card.lastUpdatedAt)} | <b>Refresh:</b> ${esc(card.refreshIntervalSec)}s<br><b>Assets:</b> ${esc(card.assetCount)} | <b>Snapshots:</b> ${esc(card.snapshotCount)} | <b>Candidates:</b> ${esc(card.candidateCount)}</section>
+${rows}
+<section class="card"><b>No execution controls:</b> ${esc(card.noExecutionControls)}<br><b>Order submitted:</b> ${esc(card.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(card.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(card.accountMutationAttempted)}</section>
+${autoRefresh}
+</main></body></html>`;
+}

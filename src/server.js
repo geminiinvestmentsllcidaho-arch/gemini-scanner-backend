@@ -3500,6 +3500,56 @@ app.get('/diagnostics/alpaca-under-five-universe-readonly', async (req, res) => 
 });
 
 
+app.get('/diagnostics/alpaca-under-five-universe-app-card', async (req, res) => {
+  try {
+    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
+    const viewMod = await import('./scanner/alpaca_under_five_universe_app_card.mjs');
+    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
+      minPrice: req.query.minPrice ?? 0.5,
+      maxPrice: req.query.maxPrice ?? 5,
+      minDailyVolume: req.query.minDailyVolume ?? 100000,
+      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
+      maxAssets: req.query.maxAssets ?? 10000,
+    });
+    res.json(viewMod.buildAlpacaUnderFiveUniverseAppCard(source, {
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+      now: new Date(),
+    }));
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      status: 'under_five_universe_app_card_failed',
+      error: err?.messae ?? String(err),
+      readOnly: true,
+      noExecutionControls: true,
+      orderPlacementAllowed: false,
+      accountMutationAllowed: false,
+    });
+  }
+});
+
+app.get('/app/alpaca-under-five-universe', async (req, res) => {
+  try {
+    const dataMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
+    const viewMod = await import('./scanner/alpaca_under_five_universe_app_card.mjs');
+    const source = await dataMod.fetchAlpacaUnderFiveUniverseReadonly({
+      minPrice: req.query.minPrice ?? 0.5,
+      maxPrice: req.query.maxPrice ?? 5,
+      minDailyVolume: req.query.minDailyVolume ?? 100000,
+      snapshotBatchSize: req.query.snapshotBatchSize ?? 200,
+      maxAssets: req.query.maxAssets ?? 10000,
+    });
+    const card = viewMod.buildAlpacaUnderFiveUniverseAppCard(source, {
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 30,
+      now: new Date(),
+    });
+    res.type('html').send(viewMod.renderAlpacaUnderFiveUniverseAppCardHtml(card));
+  } catch (err) {
+    res.status(500).type('html').send('<!doctype html><html><body><h1>Under $5 Read-Only Potential</h1><p>Unavailable.</p><p>No execution controls.</p></body></html>');
+  }
+});
+
+
 app.get('/diagnostics/alpaca-paper-account-dashboard', async (_req, res) => {
   const view = await import('./scanner/alpaca_paper_account_dashboard_readonly.mjs');
   const data = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');

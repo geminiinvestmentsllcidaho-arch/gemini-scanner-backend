@@ -17,7 +17,8 @@ test("builds read-only app navigation with todays intraday setup entry", () => {
   assert.equal(nav.brokerContactAttempted, false);
   assert.equal(nav.accountMutationAttempted, false);
 
-  const entry = nav.entries[0];
+  const entry = nav.entries.find((item) => item.id === "todays_intraday_setups");
+  assert.ok(entry);
   assert.equal(entry.id, "todays_intraday_setups");
   assert.equal(entry.href, "/app/todays-intraday-setups?session=regular");
   assert.equal(entry.diagnosticHref, "/diagnostics/todays-intraday-setups-app-card?session=regular");
