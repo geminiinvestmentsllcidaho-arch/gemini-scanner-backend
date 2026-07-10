@@ -79,8 +79,7 @@ export async function fetchAlpacaPaperAccountReadonly({
   let effectiveEnv = env;
   let credentialSource = "runtime_env";
 
-  const initial = buildAlpacaPaperReadonlyRuntime(effectiveEnv);
-  if (!initial.runtime.hasRuntimeKeys && typeof credentialResolver === "function") {
+  if (typeof credentialResolver === "function") {
     const resolved = credentialResolver({
       masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY,
       ...credentialOptions,

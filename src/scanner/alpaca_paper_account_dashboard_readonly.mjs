@@ -28,7 +28,31 @@ function pct(value) {
 }
 
 export function buildAlpacaPaperAccountDashboardReadonly(input = {}) {
-  const r = runtime(input.env ?? process.env);
+  const envRuntime = runtime(input.env ?? process.env);
+  const fetchedRuntime = input.fetchResult?.runtime;
+  const r = fetchedRuntime && typeof fetchedRuntime === "object"
+    ? {
+        baseUrlPresent: Boolean(fetchedRuntime.baseUrlPresent),
+        apiKeyPresent: Boolean(fetchedRuntime.apiKeyPresent),
+        apiSecretPresent: Boolean(fetchedRuntime.apiSecretPresent),
+        hasRuntimeKeys: Boolean(fetchedRuntime.hasRuntimeKeys),
+        credentialSource: String(fetchedRuntime.credentialSource ?? "unknown"),
+        baseUrlHost: String(fetchedRuntime.baseUrlHost ?? "unknown"),
+        paperOnly: fetchedRuntime.paperOnly === true,
+        readOnly: fetchedRuntime.readOnly === true,
+        allowedMethods: Array.isArray(fetchedRuntime.allowedMethods) ? [...fetchedRuntime.allowedMethods] : [],
+        secretsRedacted: fetchedRuntime.secretsRedacted === true,
+      }
+    : {
+        ...envRuntime,
+        hasRuntimeKeys: envRuntime.baseUrlPresent && envRuntime.apiKeyPresent && envRuntime.apiSecretPresent,
+        credentialSource: "runtime_env",
+        baseUrlHost: "unknown",
+        paperOnly: true,
+        readOnly: true,
+        allowedMethods: ["GET"],
+        secretsRedacted: true,
+      };
   const account = input.account ?? {};
   const positions = Array.isArray(input.positions) ? input.positions : [];
   const connected = Boolean(input.connected);
@@ -63,7 +87,7 @@ export function buildAlpacaPaperAccountDashboardReadonly(input = {}) {
     submitAllowed: false,
     cancelAllowed: false,
     runtime: r,
-    hasRuntimeKeys: r.baseUrlPresent && r.apiKeyPresent && r.apiSecretPresent,
+    hasRuntimeKeys: r.hasRuntimeKeys,
     fetchResultOk: input.fetchResult?.ok ?? null,
     fetchResultStatus: input.fetchResult?.status ?? null,
     fetchStatus: input.fetchResult?.fetchStatus ?? null,

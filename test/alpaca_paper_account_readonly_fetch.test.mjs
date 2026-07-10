@@ -57,6 +57,55 @@ test("readonly fetch uses encrypted tenant credentials when runtime env keys are
   assert.equal(JSON.stringify(result).includes("encrypted-secret"), false);
 });
 
+test("readonly fetch prefers encrypted tenant credentials over runtime env keys", async () => {
+  const calls = [];
+  const result = await fetchAlpacaPaperAccountReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_KEY: "runtime-key",
+      ALPACA_SECRET: "runtime-secret",
+      APCA_API_BASE_URL: "https://paper-api.alpaca.markets",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+          APCA_API_BASE_URL: "https://paper-api.alpaca.markets",
+        },
+      };
+    },
+    async fetchImpl(url, options) {
+      calls.push({ url, options });
+      if (url.endsWith("/v2/account")) {
+        return response(200, {
+          cash: "1000",
+          buying_power: "2000",
+          equity: "1500",
+          portfolio_value: "1500",
+          currency: "USD",
+          status: "ACTIVE",
+        });
+      }
+      return response(200, []);
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "connected_readonly");
+  assert.equal(result.runtime.credentialSource, "encrypted_tenant_store");
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    assert.equal(call.options.method, "GET");
+    assert.equal(call.options.headers["APCA-API-KEY-ID"], "encrypted-key");
+    assert.equal(call.options.headers["APCA-API-SECRET-KEY"], "encrypted-secret");
+  }
+  const serialized = JSON.stringify(result);
+  assert.equal(serialized.includes("encrypted-secret"), false);
+  assert.equal(serialized.includes("runtime-secret"), false);
+});
+
 test("readonly fetch remains disconnected when encrypted credential resolver fails closed", async () => {
   let contacted = false;
   const result = await fetchAlpacaPaperAccountReadonly({
