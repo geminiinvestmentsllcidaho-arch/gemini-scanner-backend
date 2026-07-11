@@ -17,6 +17,8 @@ import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
 import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail } from './scanner/customer_account_store.mjs';
+import { createCustomerEmailVerification } from './scanner/customer_email_verification.mjs';
+import { appendCustomerEmailVerificationRecord } from './scanner/customer_email_verification_store.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -326,8 +328,11 @@ app.post('/signup', (req, res) => {
     const record = createCustomerAccountRecord(req.body);
     appendCustomerAccountRecord(record);
 
+    const verification = createCustomerEmailVerification(record);
+    appendCustomerEmailVerificationRecord(verification.record);
+
     return res.status(201).type('html').send(
-      '<!doctype html><html><body><main><h1>Check your email</h1><p>Your GeminiScanner customer account was created and is pending email verification.</p><p><a href="/">Return home</a></p></main></body></html>',
+      '<!doctype html><html><body><main><h1>Account created</h1><p>Your GeminiScanner customer account is pending email verification. Verification delivery is not active yet.</p><p><a href="/">Return home</a></p></main></body></html>',
     );
   } catch (error) {
     const codes = Array.isArray(error?.codes) ? error.codes.join(', ') : 'invalid_signup';
