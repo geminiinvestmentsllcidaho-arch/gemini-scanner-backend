@@ -20,6 +20,7 @@ import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerA
 import crypto from 'node:crypto';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
+import { deliverCustomerVerificationEmail } from './scanner/customer_verification_email_delivery.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -303,7 +304,7 @@ function signupRateLimited(req, nowMs = Date.now()) {
   return current.count > SIGNUP_RATE_MAX;
 }
 
-app.post('/signup', (req, res) => {
+app.post('/signup', async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   if (signupRateLimited(req)) {
@@ -316,6 +317,16 @@ app.post('/signup', (req, res) => {
   if (process.env.CUSTOMER_SIGNUP_ENABLED !== '1') {
     return res.status(503).type('html').send(
       '<!doctype html><html><body><main><h1>Signup unavailable</h1><p>Registration is temporarily disabled.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
+    );
+  }
+
+  if (
+    String(process.env.CUSTOMER_EMAIL_PROVIDER ?? '').trim().toLowerCase() !== 'resend'
+    || !String(process.env.RESEND_API_KEY ?? '').trim()
+    || !String(process.env.CUSTOMER_EMAIL_FROM ?? '').trim()
+  ) {
+    return res.status(503).type('html').send(
+      '<!doctype html><html><body><main><h1>Signup temporarily unavailable</h1><p>Email verification delivery is not configured yet.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
     );
   }
 
@@ -332,8 +343,19 @@ app.post('/signup', (req, res) => {
     const verification = createCustomerEmailVerification(record);
     appendCustomerEmailVerificationRecord(verification.record);
 
+    const delivery = await deliverCustomerVerificationEmail({
+      email: record.email,
+      token: verification.token,
+    });
+
+    if (!delivery.ok) {
+      return res.status(503).type('html').send(
+        '<!doctype html><html><body><main><h1>Verification email delayed</h1><p>Your account is pending verification, but the email could not be delivered. Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
+      );
+    }
+
     return res.status(201).type('html').send(
-      '<!doctype html><html><body><main><h1>Account created</h1><p>Your GeminiScanner customer account is pending email verification. Verification delivery is not active yet.</p><p><a href="/">Return home</a></p></main></body></html>',
+      '<!doctype html><html><body><main><h1>Check your email</h1><p>Your GeminiScanner customer account was created. Open the verification link sent to your email address.</p><p><a href="/">Return home</a></p></main></body></html>',
     );
   } catch (error) {
     const codes = Array.isArray(error?.codes) ? error.codes.join(', ') : 'invalid_signup';

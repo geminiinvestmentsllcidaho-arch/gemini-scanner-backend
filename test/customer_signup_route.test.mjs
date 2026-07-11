@@ -10,12 +10,13 @@ test("server registers gated customer signup routes", () => {
   assert.match(server, /CUSTOMER_SIGNUP_ENABLED/);
   assert.match(server, /createCustomerAccountRecord/);
   assert.match(server, /appendCustomerAccountRecord/);
+  assert.match(server, /deliverCustomerVerificationEmail/);
   assert.match(server, /findCustomerAccountByEmail/);
 });
 
 test("signup POST route keeps explicit safety gate and pending verification", () => {
   assert.match(server, /status\(503\)/);
-  assert.match(server, /pending email verification/i);
+  assert.match(server, /pending verification|Check your email/i);
   assert.match(server, /limit:\s*['\"]16kb['\"]/);
   assert.match(server, /SIGNUP_RATE_WINDOW_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/);
   assert.match(server, /SIGNUP_RATE_MAX\s*=\s*5/);
@@ -33,4 +34,14 @@ test("server registers customer email verification route", () => {
   assert.match(server, /markCustomerEmailVerificationConsumed/);
   assert.match(server, /status\(200\)/);
   assert.match(server, /Email verified/i);
+});
+
+test("signup requires configured verification email delivery", () => {
+  assert.match(server, /CUSTOMER_EMAIL_PROVIDER/);
+  assert.match(server, /RESEND_API_KEY/);
+  assert.match(server, /CUSTOMER_EMAIL_FROM/);
+  assert.match(server, /Email verification delivery is not configured yet/i);
+  assert.match(server, /await deliverCustomerVerificationEmail/);
+  assert.match(server, /Verification email delayed/i);
+  assert.match(server, /Check your email/i);
 });
