@@ -17,7 +17,7 @@ export function renderGeminiScannerBrandHeader() {
 .gs-brand-header a{display:flex;align-items:center;gap:11px;color:inherit;text-decoration:none;font-weight:850;letter-spacing:-.02em}
 .gs-brand-header span{font-size:18px}.gs-brand-logo{display:block;flex:none}
 @media(max-width:520px){.gs-brand-header{padding:10px 13px}.gs-brand-header span{font-size:16px}}
-</style><header class="gs-brand-header" data-gs-brand-version="${BRAND_VERSION}"><a href="/" aria-label="GeminiScanner home">${renderGeminiScannerLogoSvg()}<span>GeminiScanner</span></a></header>`;
+</style><header class="gs-brand-header" data-gs-brand-version="${BRAND_VERSION}"><a href="https://geminiscanner.net/" aria-label="GeminiScanner home">${renderGeminiScannerLogoSvg()}<span>GeminiScanner</span></a></header>`;
 }
 
 export function injectGeminiScannerBrandHeader(html) {
