@@ -266,7 +266,7 @@ app.get(API_PATCH_PLAN_DASHBOARD_ROUTE, async (_req, res) => {
 });
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: '16kb' }));
 
 const P3_ENABLED = process.env.P3_ENABLED === '1';
 
@@ -285,8 +285,30 @@ app.get('/signup', (_req, res) => {
   res.type('html').send(renderCustomerSignupPageHtml(signup));
 });
 
+const signupRateLimit = new Map();
+const SIGNUP_RATE_WINDOW_MS = 15 * 60 * 1000;
+const SIGNUP_RATE_MAX = 5;
+
+function signupRateLimited(req, nowMs = Date.now()) {
+  const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
+  const current = signupRateLimit.get(key);
+  if (!current || nowMs - current.windowStart >= SIGNUP_RATE_WINDOW_MS) {
+    signupRateLimit.set(key, { windowStart: nowMs, count: 1 });
+    return false;
+  }
+  current.count += 1;
+  return current.count > SIGNUP_RATE_MAX;
+}
+
 app.post('/signup', (req, res) => {
   res.set('Cache-Control', 'no-store');
+
+  if (signupRateLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many attempts</h1><p>Please wait before trying again.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
+    );
+  }
 
   if (process.env.CUSTOMER_SIGNUP_ENABLED !== '1') {
     return res.status(503).type('html').send(
