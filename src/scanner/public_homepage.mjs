@@ -38,6 +38,7 @@ export function buildPublicHomepage() {
       "Options scanner support",
     ]),
     signInHref: "/customer",
+    signupHref: "/signup",
     scannerHref: "/customer/scanner",
     readOnly: true,
     decisionAssistOnly: true,
@@ -87,7 +88,7 @@ footer{border-top:1px solid #1b283a;margin-top:24px;padding:26px 0 38px;color:#7
 <div class="wrap">
 <header class="topbar">
 <div class="brand">◇ <span>${esc(source.product)}</span></div>
-<a class="nav-link" href="${esc(source.signInHref)}">Sign in</a>
+<div style="display:flex;gap:16px"><a class="nav-link" href="${esc(source.signupHref)}">Sign up</a><a class="nav-link" href="${esc(source.signInHref)}">Sign in</a></div>
 </header>
 <main>
 <section class="hero">
@@ -96,7 +97,7 @@ footer{border-top:1px solid #1b283a;margin-top:24px;padding:26px 0 38px;color:#7
 <h1>${esc(source.headline)}</h1>
 <p class="lead">${esc(source.description)}</p>
 <div class="actions">
-<a class="btn btn-primary" href="${esc(source.signInHref)}">Open customer portal</a>
+<a class="btn btn-primary" href="${esc(source.signupHref)}">Create account</a>
 <a class="btn btn-secondary" href="${esc(source.scannerHref)}">View scanner</a>
 </div>
 </div>

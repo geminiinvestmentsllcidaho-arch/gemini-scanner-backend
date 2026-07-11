@@ -15,6 +15,7 @@ import fs from "node:fs";
 import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
+import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -270,6 +271,12 @@ const P3_ENABLED = process.env.P3_ENABLED === '1';
 // --------------------
 // Health / Readiness / Diagnostics / Marketdata / Runlog
 // --------------------
+app.get('/signup', (_req, res) => {
+  const signup = buildCustomerSignupPage();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(renderCustomerSignupPageHtml(signup));
+});
+
 app.get('/', (_req, res) => {
   const homepage = buildPublicHomepage();
   res.set('Cache-Control', 'no-store');
