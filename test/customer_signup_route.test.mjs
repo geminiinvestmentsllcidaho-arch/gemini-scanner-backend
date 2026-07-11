@@ -24,3 +24,13 @@ test("signup POST route keeps explicit safety gate and pending verification", ()
   assert.match(server, /Retry-After/);
   assert.doesNotMatch(server, /orderSubmitted\s*:\s*true/);
 });
+
+test("server registers customer email verification route", () => {
+  assert.match(server, /app\.get\(['"]\/verify-email['"]/);
+  assert.match(server, /verifyCustomerEmailToken/);
+  assert.match(server, /findCustomerEmailVerificationByTokenHash/);
+  assert.match(server, /markCustomerEmailVerified/);
+  assert.match(server, /markCustomerEmailVerificationConsumed/);
+  assert.match(server, /status\(200\)/);
+  assert.match(server, /Email verified/i);
+});

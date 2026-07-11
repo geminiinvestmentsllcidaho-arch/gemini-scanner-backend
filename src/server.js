@@ -16,9 +16,10 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail } from './scanner/customer_account_store.mjs';
-import { createCustomerEmailVerification } from './scanner/customer_email_verification.mjs';
-import { appendCustomerEmailVerificationRecord } from './scanner/customer_email_verification_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified } from './scanner/customer_account_store.mjs';
+import crypto from 'node:crypto';
+import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
+import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -340,6 +341,34 @@ app.post('/signup', (req, res) => {
       `<!doctype html><html><body><main><h1>Signup needs attention</h1><p>${codes}</p><p><a href="/signup">Return to signup</a></p></main></body></html>`,
     );
   }
+});
+
+app.get('/verify-email', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const token = String(req.query?.token ?? '').trim();
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const verificationRecord = findCustomerEmailVerificationByTokenHash(tokenHash);
+  const result = verifyCustomerEmailToken(token, verificationRecord ?? {});
+
+  if (!result.ok) {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Verification link unavailable</h1><p>This email verification link is invalid, expired, or already used.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
+    );
+  }
+
+  const accountResult = markCustomerEmailVerified(result.accountId);
+  if (!accountResult.ok) {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Verification could not be completed</h1><p>Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
+    );
+  }
+
+  markCustomerEmailVerificationConsumed(verificationRecord.tokenHash);
+
+  return res.status(200).type('html').send(
+    '<!doctype html><html><body><main><h1>Email verified</h1><p>Your GeminiScanner customer account is now active.</p><p><a href="/customer">Continue to sign in</a></p></main></body></html>',
+  );
 });
 
 app.get('/', (_req, res) => {
