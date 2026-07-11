@@ -3608,6 +3608,13 @@ app.get('/customer/scanner/under-five', async (req, res) => {
 
 
 
+app.get('/customer-zero', async (_req, res) => {
+  const mod = await import('./scanner/customer_scanner_hub.mjs');
+  const hub = mod.buildCustomerScannerHub({ tenant: 'customer-zero' });
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+});
+
 app.get('/customer-zero/scanner', async (_req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub({ tenant: 'customer-zero' });
