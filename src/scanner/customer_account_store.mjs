@@ -123,6 +123,40 @@ export function markCustomerEmailVerified(accountId, options = {}) {
   return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
 }
 
+export function updateCustomerPassword(accountId, currentPassword, newPassword, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({ storePath })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  if (!verifyCustomerPassword(currentPassword, account.password)) {
+    return Object.freeze({ ok: false, reason: "current_password_incorrect" });
+  }
+  if (String(newPassword ?? "").length < 12) {
+    return Object.freeze({ ok: false, reason: "new_password_too_short" });
+  }
+  if (verifyCustomerPassword(newPassword, account.password)) {
+    return Object.freeze({ ok: false, reason: "new_password_must_differ" });
+  }
+
+  records[index] = {
+    ...account,
+    password: hashCustomerPassword(newPassword),
+    passwordChangedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   fs.mkdirSync(path.dirname(storePath), { recursive: true });

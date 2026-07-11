@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
@@ -3861,6 +3861,19 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 <div class="row"><div class="label">Customer ID</div><div class="value">${customerId}</div></div>
 <div class="row"><div class="label">Member since</div><div class="value">${esc(memberSince)}</div></div>
 </div>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Security</h2>
+<h3>Change password</h3>
+<form method="post" action="/customer/settings/password">
+<p><label for="currentPassword">Current password</label><br>
+<input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+<p><label for="newPassword">New password</label><br>
+<input id="newPassword" name="newPassword" type="password" minlength="12" autocomplete="new-password" required></p>
+<p><label for="confirmPassword">Confirm new password</label><br>
+<input id="confirmPassword" name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></p>
+<p><button type="submit" style="background:#3d72d9">Change password</button></p>
+</form>
+</section>
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
@@ -3868,6 +3881,52 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 </main>
 </body>
 </html>`);
+});
+
+
+app.post('/customer/settings/password', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const currentPassword = String(req.body?.currentPassword ?? '');
+  const newPassword = String(req.body?.newPassword ?? '');
+  const confirmPassword = String(req.body?.confirmPassword ?? '');
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Password not changed</h1><p>New password and confirmation do not match.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  const result = updateCustomerPassword(
+    req.customerAccount.id,
+    currentPassword,
+    newPassword,
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'current_password_incorrect'
+      ? 'Current password is incorrect.'
+      : result.reason === 'new_password_too_short'
+        ? 'New password must contain at least 12 characters.'
+        : result.reason === 'new_password_must_differ'
+          ? 'New password must be different from the current password.'
+          : 'Password could not be changed.';
+
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Password not changed</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  res.clearCookie(CUSTOMER_COOKIE_NAME, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+
+  return res.status(200).type('html').send(
+    '<!doctype html><html><body><main><h1>Password changed</h1><p>Your password was updated. Sign in again with the new password.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
+  );
 });
 
 app.get('/customer/scanner/under-five/:symbol', requireCustomerSession, async (req, res) => {

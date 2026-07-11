@@ -14,6 +14,7 @@ import {
   appendCustomerAccountRecord,
   createCustomerAccountRecord,
   markCustomerEmailVerified,
+  updateCustomerPassword,
 } from "../src/scanner/customer_account_store.mjs";
 
 function fixture() {
@@ -86,6 +87,47 @@ test("rejects wrong password and tampered session token", () => {
         storePath: f.storePath,
       }).ok,
       false,
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("changes password only after current-password confirmation", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+
+    const rejected = updateCustomerPassword(
+      f.record.id,
+      "wrong current password",
+      "new correct horse battery staple",
+      { storePath: f.storePath, now: "2026-07-11T22:50:00.000Z" },
+    );
+    assert.equal(rejected.ok, false);
+    assert.equal(rejected.reason, "current_password_incorrect");
+
+    const changed = updateCustomerPassword(
+      f.record.id,
+      f.password,
+      "new correct horse battery staple",
+      { storePath: f.storePath, now: "2026-07-11T22:50:00.000Z" },
+    );
+    assert.equal(changed.ok, true);
+    assert.equal(changed.account.passwordChangedAt, "2026-07-11T22:50:00.000Z");
+
+    assert.equal(
+      authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok,
+      false,
+    );
+    assert.equal(
+      authenticateCustomer(
+        f.record.email,
+        "new correct horse battery staple",
+        { storePath: f.storePath },
+      ).ok,
+      true,
     );
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });

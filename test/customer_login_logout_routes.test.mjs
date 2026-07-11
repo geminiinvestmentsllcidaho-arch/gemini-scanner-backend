@@ -54,3 +54,13 @@ test('settings page exposes read-only account details', () => {
   assert.match(source, /account\?\.createdAt/);
   assert.match(source, /Cache-Control', 'no-store'/);
 });
+
+test('settings page exposes authenticated password change controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/password"/);
+  assert.match(source, /name="currentPassword"/);
+  assert.match(source, /name="newPassword"/);
+  assert.match(source, /name="confirmPassword"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/password', requireCustomerSession,/);
+  assert.match(source, /updateCustomerPassword\(/);
+  assert.match(source, /res\.clearCookie\(CUSTOMER_COOKIE_NAME,/);
+});
