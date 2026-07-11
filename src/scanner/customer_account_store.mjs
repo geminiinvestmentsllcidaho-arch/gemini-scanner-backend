@@ -75,6 +75,21 @@ export function createCustomerAccountRecord(input = {}, options = {}) {
   });
 }
 
+export function listCustomerAccountRecords(options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  if (!fs.existsSync(storePath)) return Object.freeze([]);
+  const records = fs.readFileSync(storePath, "utf8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  return Object.freeze(records);
+}
+
+export function findCustomerAccountByEmail(email, options = {}) {
+  const normalized = normalizeCustomerEmail(email);
+  return listCustomerAccountRecords(options).find((record) => record.email === normalized) ?? null;
+}
+
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   fs.mkdirSync(path.dirname(storePath), { recursive: true });

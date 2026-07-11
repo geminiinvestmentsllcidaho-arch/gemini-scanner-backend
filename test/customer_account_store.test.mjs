@@ -6,6 +6,8 @@ import path from "node:path";
 
 import {
   appendCustomerAccountRecord,
+  findCustomerAccountByEmail,
+  listCustomerAccountRecords,
   createCustomerAccountRecord,
   hashCustomerPassword,
   normalizeCustomerEmail,
@@ -70,4 +72,22 @@ test("creates pending customer record and stores it with private permissions", (
   appendCustomerAccountRecord(record, { storePath });
   assert.equal(fs.existsSync(storePath), true);
   assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+});
+
+test("lists and finds customer records by normalized email", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-account-list-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({
+    firstName: "Zero",
+    lastName: "Customer",
+    email: "zero@example.com",
+    password: "correct horse battery staple",
+    confirmPassword: "correct horse battery staple",
+    termsAccepted: true,
+  });
+  appendCustomerAccountRecord(record, { storePath });
+
+  assert.equal(listCustomerAccountRecords({ storePath }).length, 1);
+  assert.equal(findCustomerAccountByEmail(" ZERO@EXAMPLE.COM ", { storePath })?.id, record.id);
+  assert.equal(findCustomerAccountByEmail("missing@example.com", { storePath }), null);
 });
