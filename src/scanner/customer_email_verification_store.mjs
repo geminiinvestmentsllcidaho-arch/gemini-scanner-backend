@@ -50,3 +50,32 @@ export function findCustomerEmailVerificationByTokenHash(tokenHash, options = {}
       .find((record) => clean(record.tokenHash) === normalized) ?? null
   );
 }
+
+export function markCustomerEmailVerificationConsumed(tokenHash, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerEmailVerificationRecords({ storePath })];
+  const normalized = clean(tokenHash);
+  const index = records.findLastIndex((record) => clean(record.tokenHash) === normalized);
+
+  if (index < 0) {
+    return Object.freeze({ ok: false, reason: "verification_not_found" });
+  }
+
+  records[index] = {
+    ...records[index],
+    consumedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({
+    ok: true,
+    record: Object.freeze(records[index]),
+  });
+}

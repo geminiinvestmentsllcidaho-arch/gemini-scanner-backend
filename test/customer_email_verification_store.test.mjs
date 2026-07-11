@@ -9,6 +9,7 @@ import {
   findCustomerEmailVerificationByTokenHash,
   findLatestCustomerEmailVerificationByAccountId,
   listCustomerEmailVerificationRecords,
+  markCustomerEmailVerificationConsumed,
 } from "../src/scanner/customer_email_verification_store.mjs";
 
 test("stores and finds private customer email verification records", () => {
@@ -36,4 +37,29 @@ test("stores and finds private customer email verification records", () => {
     findCustomerEmailVerificationByTokenHash("abc123", { storePath })?.accountId,
     "acct-1",
   );
+});
+
+test("marks a verification token consumed with atomic private store rewrite", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-email-verify-consume-"));
+  const storePath = path.join(dir, "verifications.jsonl");
+  const record = {
+    accountId: "acct-1",
+    email: "zero@example.com",
+    tokenHash: "abc123",
+    createdAt: "2026-07-11T00:00:00.000Z",
+    expiresAt: "2026-07-12T00:00:00.000Z",
+    consumedAt: null,
+  };
+
+  appendCustomerEmailVerificationRecord(record, { storePath });
+  const result = markCustomerEmailVerificationConsumed("abc123", {
+    storePath,
+    now: "2026-07-11T01:00:00.000Z",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.record.consumedAt, "2026-07-11T01:00:00.000Z");
+  assert.equal(findCustomerEmailVerificationByTokenHash("abc123", { storePath })?.consumedAt, "2026-07-11T01:00:00.000Z");
+  assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+  assert.equal(markCustomerEmailVerificationConsumed("missing", { storePath }).reason, "verification_not_found");
 });
