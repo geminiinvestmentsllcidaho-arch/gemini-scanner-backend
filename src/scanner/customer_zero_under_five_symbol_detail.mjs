@@ -17,15 +17,22 @@ function decisionLabel(value) {
   return String(value ?? "DO_NOT_ENTER").replaceAll("_", " ");
 }
 
-export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}) {
+export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options = {}) {
+  const routeBase = String(options.routeBase ?? "/customer-zero/under-five-scanner").replace(/\/$/, "");
+  const role = String(options.role ?? "customer");
+  const roleLabel = String(options.roleLabel ?? "Customer");
+  const tenant = String(options.tenant ?? "customer");
   const flags = list(candidate.readonlyPotentialFlags);
   const blockers = list(candidate.blockingFlags);
   return {
     version: VERSION,
     route: candidate.symbol
-      ? `/customer-zero/under-five-scanner/${encodeURIComponent(String(candidate.symbol).toUpperCase())}`
+      ? `${routeBase}/${encodeURIComponent(String(candidate.symbol).toUpperCase())}`
       : null,
-    role: "customer_zero",
+    backHref: routeBase,
+    role,
+    roleLabel,
+    tenant,
     title: `${candidate.symbol ?? "Unknown"} — Under $5 Scan Detail`,
     symbol: candidate.symbol ?? null,
     name: candidate.name ?? null,
@@ -70,8 +77,8 @@ export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}) {
 <title>${esc(detail.title)}</title>
 <style>
 body{margin:0;padding:16px;background:#f5f5f5;color:#111;font-family:system-ui}.wrap{max-width:760px;margin:auto}.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:#fff}.decision{display:inline-block;padding:10px 14px;border-radius:999px;font-weight:800}.enter{background:#dff7e7;color:#11652e}.wait{background:#fff2c8;color:#765800}.do-not-enter{background:#ffe0e0;color:#8a1111}a{color:#124ea3;font-weight:700}
-</style></head><body><main class="wrap">
-<section class="card hero"><p><a href="/customer-zero/under-five-scanner" style="color:white">← Back to scanner</a></p><h1>${esc(detail.title)}</h1></section>
+</style></head><body><main class="wrap" data-role="${esc(detail.role ?? "customer")}" data-tenant="${esc(detail.tenant ?? "customer")}">
+<section class="card hero"><p><a href="${esc(detail.backHref ?? "/customer/scanner/under-five")}" style="color:white">← Back to scanner</a></p><h1>${esc(detail.title)}</h1><p><b>Role:</b> ${esc(detail.roleLabel ?? "Customer")}</p></section>
 <section class="card"><span class="decision ${esc(String(detail.decision).toLowerCase().replaceAll("_","-"))}">${esc(detail.decisionLabel)}</span><p>${esc(detail.briefExplanation)}</p></section>
 <section class="card"><h2>Scan results</h2>
 <p><b>Score:</b> ${esc(detail.score)} | <b>Potential:</b> ${esc(detail.potentialLabel)}</p>

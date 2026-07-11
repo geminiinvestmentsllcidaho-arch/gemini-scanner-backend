@@ -32,6 +32,7 @@ function refreshIntervalSec(source = {}) {
 }
 
 export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
+  const detailBaseHref = String(options.detailBaseHref ?? "/customer-zero/under-five-scanner").replace(/\/$/, "");
   const candidates = list(source.candidates).map((candidate) => ({
     symbol: candidate?.symbol ?? null,
     name: candidate?.name ?? null,
@@ -51,7 +52,7 @@ export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
     briefExplanation: candidate?.briefExplanation ?? "Do not enter: decision data is unavailable.",
     blockingFlags: list(candidate?.blockingFlags),
     detailHref: candidate?.symbol
-      ? `/customer-zero/under-five-scanner/${encodeURIComponent(String(candidate.symbol).toUpperCase())}`
+      ? `${detailBaseHref}/${encodeURIComponent(String(candidate.symbol).toUpperCase())}`
       : null,
     decisionAssistOnly: true,
     buyRecommendation: false,

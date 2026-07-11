@@ -17,7 +17,7 @@ test("under-five pages share one cached backend scan", () => {
   assert.match(server, /async function getUnderFiveSharedSource/);
   assert.equal(
     (routeBlock.match(/const source = await getUnderFiveSharedSource\(\);/g) ?? []).length,
-    3,
+    5,
   );
   assert.doesNotMatch(
     routeBlock,

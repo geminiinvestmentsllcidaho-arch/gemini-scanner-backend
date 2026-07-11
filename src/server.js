@@ -3550,6 +3550,62 @@ app.get('/customer/scanner', async (_req, res) => {
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
 });
 
+app.get('/customer/watchlist', async (_req, res) => {
+  const mod = await import('./scanner/customer_scanner_hub.mjs');
+  const hub = mod.buildCustomerScannerHub();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+});
+
+app.get('/customer/settings', async (_req, res) => {
+  const mod = await import('./scanner/customer_scanner_hub.mjs');
+  const hub = mod.buildCustomerScannerHub();
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+});
+
+app.get('/customer/scanner/under-five/:symbol', async (req, res) => {
+  try {
+    const detailMod = await import('./scanner/customer_zero_under_five_symbol_detail.mjs');
+    const source = await getUnderFiveSharedSource();
+    const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+    const candidate = source.candidates?.find((item) => item.symbol === symbol);
+    if (!candidate) {
+      return res.status(404).type('html').send('<!doctype html><html><body><h1>Symbol not found</h1><p>Return to the scanner.</p></body></html>');
+    }
+    const detail = detailMod.buildCustomerZeroUnderFiveSymbolDetail(candidate, {
+      routeBase: '/customer/scanner/under-five',
+      role: 'customer',
+      roleLabel: 'Customer',
+      tenant: 'customer',
+    });
+    res.set('Cache-Control', 'no-store');
+    res.type('html').send(detailMod.renderCustomerZeroUnderFiveSymbolDetailHtml(detail));
+  } catch (_err) {
+    res.status(500).type('html').send('<!doctype html><html><body><h1>Scan detail unavailable</h1><p>Read-only. No execution controls.</p></body></html>');
+  }
+});
+
+app.get('/customer/scanner/under-five', async (req, res) => {
+  try {
+    const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
+    const source = await getUnderFiveSharedSource();
+    const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
+      route: '/customer/scanner/under-five',
+      role: 'customer',
+      roleLabel: 'Customer',
+      tenant: 'customer',
+      title: 'Under $5 Scanner',
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
+      now: new Date(),
+    });
+    res.set('Cache-Control', 'no-store');
+    res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard));
+  } catch (_err) {
+    res.status(500).type('html').send('<!doctype html><html><body><h1>Under $5 Scanner</h1><p>Unavailable.</p><p>Read-only. No execution controls.</p></body></html>');
+  }
+});
+
 
 
 app.get('/customer-zero/scanner', async (_req, res) => {
@@ -3569,7 +3625,13 @@ app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
     if (!candidate) {
       return res.status(404).type('html').send('<!doctype html><html><body><h1>Symbol not found</h1><p>Return to the scanner.</p></body></html>');
     }
-    const detail = detailMod.buildCustomerZeroUnderFiveSymbolDetail(candidate);
+    const detail = detailMod.buildCustomerZeroUnderFiveSymbolDetail(candidate, {
+      routeBase: '/customer-zero/under-five-scanner',
+      role: 'customer',
+      roleLabel: 'Customer',
+      tenant: 'customer-zero',
+    });
+    res.set('Cache-Control', 'no-store');
     res.type('html').send(detailMod.renderCustomerZeroUnderFiveSymbolDetailHtml(detail));
   } catch (err) {
     res.status(500).type('html').send('<!doctype html><html><body><h1>Scan detail unavailable</h1><p>Read-only. No execution controls.</p></body></html>');
@@ -3579,12 +3641,18 @@ app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
 
 app.get('/customer-zero/under-five-scanner', async (req, res) => {
   try {
-    const viewMod = await import('./scanner/customer_zero_under_five_dashboard.mjs');
+    const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
     const source = await getUnderFiveSharedSource();
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
+      route: '/customer-zero/under-five-scanner',
+      role: 'customer',
+      roleLabel: 'Customer',
+      tenant: 'customer-zero',
+      title: 'Under $5 Scanner',
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
     });
+    res.set('Cache-Control', 'no-store');
     res.type('html').send(viewMod.renderCustomerZeroUnderFiveDashboardHtml(dashboard));
   } catch (err) {
     res.status(500).type('html').send('<!doctype html><html><body><h1>Customer Zero — Under $5 Scanner</h1><p>Unavailable.</p><p>Read-only. No execution controls.</p></body></html>');
