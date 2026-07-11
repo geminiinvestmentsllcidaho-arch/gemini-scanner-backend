@@ -9,7 +9,7 @@ function esc(value) {
     .replaceAll("'", "&#39;");
 }
 
-export function buildCustomerSignupPage() {
+export function buildCustomerSignupPage(options = {}) {
   return Object.freeze({
     version: VERSION,
     route: "/signup",
@@ -25,8 +25,8 @@ export function buildCustomerSignupPage() {
     signInHref: "/customer",
     submitHref: "/signup",
     minimumPasswordLength: 12,
-    accountCreationEnabled: false,
-    securityNote: "Registration storage is not enabled yet. This screen is the first safe signup-flow build.",
+    accountCreationEnabled: options.accountCreationEnabled === true,
+    securityNote: options.securityNote ?? "Registration is controlled by a server-side safety gate.",
   });
 }
 
@@ -40,7 +40,7 @@ h1{font-size:clamp(32px,6vw,48px);letter-spacing:-.035em;margin:0 0 12px}p{color
 form{display:grid;gap:16px;margin-top:26px}label{display:grid;gap:8px;font-weight:750}input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid var(--line);background:#080f1a;color:var(--text);font:inherit}
 button{padding:14px 18px;border:0;border-radius:11px;background:#dbe4ff;color:#09111e;font-weight:900;font:inherit;cursor:not-allowed;opacity:.65}
 .note{font-size:14px;border:1px solid #4a3f1f;background:#211b0d;padding:13px;border-radius:11px}.links{margin-top:20px}.links a{color:var(--accent)}
-</style></head><body><main><section class="card"><h1>${esc(source.title)}</h1><p>${esc(source.subtitle)}</p><form method="post" action="${esc(source.submitHref)}">${fields}<label><span><input style="width:auto" name="termsAccepted" type="checkbox" required> I agree to the Terms of Service and Privacy Policy.</span></label><button type="submit" disabled>Create account</button></form><p class="note">${esc(source.securityNote)}</p><p class="links">Already have an account? <a href="${esc(source.signInHref)}">Sign in</a></p></section></main></body></html>`;
+</style></head><body><main><section class="card"><h1>${esc(source.title)}</h1><p>${esc(source.subtitle)}</p><form method="post" action="${esc(source.submitHref)}">${fields}<label><span><input style="width:auto" name="termsAccepted" type="checkbox" required> I agree to the Terms of Service and Privacy Policy.</span></label><span class="button-wrap">${source.accountCreationEnabled ? `<button type="submit">Create account</button>` : `<button type="submit" disabled>Create account</button>`}</span></form><p class="note">${esc(source.securityNote)}</p><p class="links">Already have an account? <a href="${esc(source.signInHref)}">Sign in</a></p></section></main></body></html>`;
 }
 
 export default { VERSION, buildCustomerSignupPage, renderCustomerSignupPageHtml };

@@ -16,6 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail } from './scanner/customer_account_store.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -265,6 +266,7 @@ app.get(API_PATCH_PLAN_DASHBOARD_ROUTE, async (_req, res) => {
 });
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 const P3_ENABLED = process.env.P3_ENABLED === '1';
 
@@ -272,9 +274,45 @@ const P3_ENABLED = process.env.P3_ENABLED === '1';
 // Health / Readiness / Diagnostics / Marketdata / Runlog
 // --------------------
 app.get('/signup', (_req, res) => {
-  const signup = buildCustomerSignupPage();
+  const accountCreationEnabled = process.env.CUSTOMER_SIGNUP_ENABLED === '1';
+  const signup = buildCustomerSignupPage({
+    accountCreationEnabled,
+    securityNote: accountCreationEnabled
+      ? "Your account will be created in pending email-verification status."
+      : "Registration is temporarily unavailable.",
+  });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(renderCustomerSignupPageHtml(signup));
+});
+
+app.post('/signup', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  if (process.env.CUSTOMER_SIGNUP_ENABLED !== '1') {
+    return res.status(503).type('html').send(
+      '<!doctype html><html><body><main><h1>Signup unavailable</h1><p>Registration is temporarily disabled.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
+    );
+  }
+
+  try {
+    if (findCustomerAccountByEmail(req.body?.email)) {
+      return res.status(409).type('html').send(
+        '<!doctype html><html><body><main><h1>Account already exists</h1><p>Use the sign-in or password-recovery flow for this email.</p><p><a href="/customer">Sign in</a></p></main></body></html>',
+      );
+    }
+
+    const record = createCustomerAccountRecord(req.body);
+    appendCustomerAccountRecord(record);
+
+    return res.status(201).type('html').send(
+      '<!doctype html><html><body><main><h1>Check your email</h1><p>Your GeminiScanner customer account was created and is pending email verification.</p><p><a href="/">Return home</a></p></main></body></html>',
+    );
+  } catch (error) {
+    const codes = Array.isArray(error?.codes) ? error.codes.join(', ') : 'invalid_signup';
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Signup needs attention</h1><p>${codes}</p><p><a href="/signup">Return to signup</a></p></main></body></html>`,
+    );
+  }
 });
 
 app.get('/', (_req, res) => {
