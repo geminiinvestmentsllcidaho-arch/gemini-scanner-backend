@@ -7,7 +7,9 @@ import path from "node:path";
 import {
   appendCustomerAccountRecord,
   findCustomerAccountByEmail,
+  findCustomerAccountById,
   listCustomerAccountRecords,
+  markCustomerEmailVerified,
   createCustomerAccountRecord,
   hashCustomerPassword,
   normalizeCustomerEmail,
@@ -90,4 +92,32 @@ test("lists and finds customer records by normalized email", () => {
   assert.equal(listCustomerAccountRecords({ storePath }).length, 1);
   assert.equal(findCustomerAccountByEmail(" ZERO@EXAMPLE.COM ", { storePath })?.id, record.id);
   assert.equal(findCustomerAccountByEmail("missing@example.com", { storePath }), null);
+});
+
+test("marks customer email verified with atomic private store rewrite", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-account-verify-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({
+    firstName: "Zero",
+    lastName: "Customer",
+    email: "zero@example.com",
+    password: "correct horse battery staple",
+    confirmPassword: "correct horse battery staple",
+    termsAccepted: true,
+  }, { now: "2026-07-10T20:00:00.000Z" });
+
+  appendCustomerAccountRecord(record, { storePath });
+  const result = markCustomerEmailVerified(record.id, {
+    storePath,
+    now: "2026-07-10T21:00:00.000Z",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.account.emailVerified, true);
+  assert.equal(result.account.status, "active");
+  assert.equal(result.account.emailVerifiedAt, "2026-07-10T21:00:00.000Z");
+  assert.equal(findCustomerAccountById(record.id, { storePath })?.status, "active");
+  assert.equal(findCustomerAccountByEmail(record.email, { storePath })?.emailVerified, true);
+  assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+  assert.equal(markCustomerEmailVerified("missing", { storePath }).reason, "account_not_found");
 });
