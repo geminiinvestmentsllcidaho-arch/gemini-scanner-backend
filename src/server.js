@@ -14,6 +14,7 @@ import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval
 import fs from "node:fs";
 import dotenv from 'dotenv';
 import express from 'express';
+import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -148,6 +149,18 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 }
 
 const app = express();
+
+app.use((_req, res, next) => {
+  const originalSend = res.send.bind(res);
+  res.send = (body) => {
+    const contentType = String(res.getHeader('Content-Type') ?? '');
+    if (typeof body === 'string' && (contentType.includes('text/html') || /<!doctype html|<html[\s>]/i.test(body))) {
+      return originalSend(injectGeminiScannerBrandHeader(body));
+    }
+    return originalSend(body);
+  };
+  next();
+});
 
 const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_scan_cache.mjs')
   .then((mod) => mod.createAlpacaUnderFiveSharedScanCache())
