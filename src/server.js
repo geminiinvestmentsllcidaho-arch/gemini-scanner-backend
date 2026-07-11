@@ -21,6 +21,7 @@ import crypto from 'node:crypto';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
 import { deliverCustomerVerificationEmail } from './scanner/customer_verification_email_delivery.mjs';
+import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustomerSessionToken, verifyCustomerSessionToken } from './scanner/customer_auth.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -333,7 +334,7 @@ app.post('/signup', async (req, res) => {
   try {
     if (findCustomerAccountByEmail(req.body?.email)) {
       return res.status(409).type('html').send(
-        '<!doctype html><html><body><main><h1>Account already exists</h1><p>Use the sign-in or password-recovery flow for this email.</p><p><a href="/customer">Sign in</a></p></main></body></html>',
+        '<!doctype html><html><body><main><h1>Account already exists</h1><p>Use the sign-in or password-recovery flow for this email.</p><p><a href="/login">Sign in</a></p></main></body></html>',
       );
     }
 
@@ -389,8 +390,70 @@ app.get('/verify-email', (req, res) => {
   markCustomerEmailVerificationConsumed(verificationRecord.tokenHash);
 
   return res.status(200).type('html').send(
-    '<!doctype html><html><body><main><h1>Email verified</h1><p>Your GeminiScanner customer account is now active.</p><p><a href="/customer">Continue to sign in</a></p></main></body></html>',
+    '<!doctype html><html><body><main><h1>Email verified</h1><p>Your GeminiScanner customer account is now active.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
   );
+});
+
+
+function customerCookieValue(req) {
+  const raw = String(req.headers?.cookie ?? '');
+  for (const part of raw.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === CUSTOMER_COOKIE_NAME) return decodeURIComponent(rest.join('='));
+  }
+  return '';
+}
+
+function customerLoginHtml(message = '') {
+  const notice = message ? `<p>${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>` : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Customer sign in</title></head><body><main><h1>Customer sign in</h1>${notice}<form method="post" action="/login"><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Password</label><input name="password" type="password" autocomplete="current-password" required><button type="submit">Sign in</button></form><p><a href="/signup">Create an account</a></p></main></body></html>`;
+}
+
+function requireCustomerSession(req, res, next) {
+  const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
+  const result = verifyCustomerSessionToken(customerCookieValue(req), { secret });
+  if (!result.ok) return res.redirect(303, '/login');
+  req.customerAccount = result.account;
+  return next();
+}
+
+app.get('/login', (req, res) => {
+  const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
+  const current = verifyCustomerSessionToken(customerCookieValue(req), { secret });
+  if (current.ok) return res.redirect(303, '/customer');
+  res.set('Cache-Control', 'no-store');
+  return res.status(200).type('html').send(customerLoginHtml());
+});
+
+app.post('/login', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const result = authenticateCustomer(req.body?.email, req.body?.password);
+  if (!result.ok) {
+    return res.status(401).type('html').send(customerLoginHtml('Email or password is incorrect, or the account is not verified.'));
+  }
+  const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
+  if (!secret) {
+    return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
+  }
+  const token = createCustomerSessionToken(result.account, { secret });
+  res.cookie(CUSTOMER_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+  return res.redirect(303, '/customer');
+});
+
+app.post('/logout', (_req, res) => {
+  res.clearCookie(CUSTOMER_COOKIE_NAME, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+  return res.redirect(303, '/login');
 });
 
 app.get('/', (_req, res) => {
@@ -3672,35 +3735,65 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 });
 
 
-app.get('/customer', async (_req, res) => {
+app.get('/customer', requireCustomerSession, async (_req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub();
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
 });
 
-app.get('/customer/scanner', async (_req, res) => {
+app.get('/customer/scanner', requireCustomerSession, async (_req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub();
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
 });
 
-app.get('/customer/watchlist', async (_req, res) => {
+app.get('/customer/watchlist', requireCustomerSession, async (_req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub();
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
 });
 
-app.get('/customer/settings', async (_req, res) => {
-  const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const hub = mod.buildCustomerScannerHub();
+app.get('/customer/settings', requireCustomerSession, async (req, res) => {
+  const account = req.customerAccount;
+  const email = String(account?.email ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+  res.type('html').send(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Customer settings</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:20px}
+.card{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:20px}
+a{color:#9fc2ff}
+button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#fff;font-weight:700}
+</style>
+</head>
+<body>
+<main class="wrap">
+<p><a href="/customer">&larr; Customer home</a></p>
+<section class="card">
+<h1>Settings</h1>
+<p>Signed in as ${email}</p>
+<form method="post" action="/logout">
+<button type="submit">Log out</button>
+</form>
+</section>
+</main>
+</body>
+</html>`);
 });
 
-app.get('/customer/scanner/under-five/:symbol', async (req, res) => {
+app.get('/customer/scanner/under-five/:symbol', requireCustomerSession, async (req, res) => {
   try {
     const detailMod = await import('./scanner/customer_zero_under_five_symbol_detail.mjs');
     const source = await getUnderFiveSharedSource();
@@ -3722,7 +3815,7 @@ app.get('/customer/scanner/under-five/:symbol', async (req, res) => {
   }
 });
 
-app.get('/customer/scanner/under-five', async (req, res) => {
+app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res) => {
   try {
     const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
     const source = await getUnderFiveSharedSource();
