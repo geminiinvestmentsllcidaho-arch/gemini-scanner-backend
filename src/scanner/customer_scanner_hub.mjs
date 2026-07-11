@@ -83,7 +83,7 @@ export function buildCustomerScannerHub(options = {}) {
   });
 }
 
-export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub()) {
+export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), account = null) {
   const nav = hub.navigation
     .map((item) => `<a href="${esc(item.href)}">${esc(item.label)}</a>`)
     .join("");
@@ -101,6 +101,20 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub()) {
     return `<div class="choice ${asset.status === "available" ? "available selected" : "disabled"}" aria-disabled="${asset.status !== "available"}"><b>${esc(asset.label)}</b><span>${esc(state)}</span></div>`;
   }).join("");
 
+  const accountEmail = esc(account?.email ?? "");
+  const accountPanel = accountEmail
+    ? `<section class="account-panel">
+<div>
+<div class="eyebrow">Signed in account</div>
+<strong>${accountEmail}</strong>
+</div>
+<div class="account-actions">
+<a href="/customer/settings">Settings</a>
+<form method="post" action="/logout"><button type="submit">Log out</button></form>
+</div>
+</section>`
+    : "";
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -113,7 +127,13 @@ body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-syst
 .wrap{max-width:980px;margin:0 auto;padding:20px}
 nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
 nav a{color:#dbe8ff;text-decoration:none;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#101c2f}
-.hero,.panel,.safety{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
+.account-panel,.hero,.panel,.safety{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
+.account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
+.account-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.account-actions a,.account-actions button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#132844;color:#e8eef8;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}
+.account-actions form{margin:0}
+.account-actions button{background:#7c2d3a;border-color:#a33c4c}
 .eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#8eb4ff}
 h1,h2{margin:.35rem 0}
 p{color:#b8c7dc}
@@ -128,6 +148,7 @@ p{color:#b8c7dc}
 </head>
 <body>
 <main class="wrap" data-role="customer" data-tenant="${esc(hub.tenant)}">
+${accountPanel}
 <nav aria-label="Customer navigation">${nav}</nav>
 <section class="hero">
 <div class="eyebrow">Customer account</div>

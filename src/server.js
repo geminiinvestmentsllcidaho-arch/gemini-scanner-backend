@@ -3782,25 +3782,25 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 });
 
 
-app.get('/customer', requireCustomerSession, async (_req, res) => {
+app.get('/customer', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub();
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
 
-app.get('/customer/scanner', requireCustomerSession, async (_req, res) => {
+app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub();
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
 
-app.get('/customer/watchlist', requireCustomerSession, async (_req, res) => {
+app.get('/customer/watchlist', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const hub = mod.buildCustomerScannerHub();
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+  res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
 
 app.get('/customer/settings', requireCustomerSession, async (req, res) => {
