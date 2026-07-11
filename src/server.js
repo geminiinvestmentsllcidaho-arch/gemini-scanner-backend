@@ -405,8 +405,55 @@ function customerCookieValue(req) {
 }
 
 function customerLoginHtml(message = '') {
-  const notice = message ? `<p>${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>` : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Customer sign in</title></head><body><main><h1>Customer sign in</h1>${notice}<form method="post" action="/login"><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Password</label><input name="password" type="password" autocomplete="current-password" required><button type="submit">Sign in</button></form><p><a href="/signup">Create an account</a></p></main></body></html>`;
+  const notice = message
+    ? `<div class="notice" role="alert">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</div>`
+    : '';
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Customer sign in</title>
+<style>
+:root{color-scheme:dark;--bg:#07101d;--panel:#0e1a2b;--line:#263a58;--text:#eef5ff;--muted:#9fb0c7;--accent:#dbe4ff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at top right,#14213a 0,#07101d 45%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+main{min-height:calc(100vh - 64px);display:grid;place-items:center;padding:28px 18px}
+.card{width:min(100%,460px);background:linear-gradient(180deg,#111d2f,#0d1828);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 24px 70px #0008}
+.eyebrow{margin:0 0 8px;color:#8aa4ff;font-size:12px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+h1{margin:0 0 8px;font-size:clamp(32px,8vw,46px);line-height:1.05;letter-spacing:-.035em}
+.sub{margin:0 0 24px;color:var(--muted);line-height:1.55}
+form{display:grid;gap:16px}
+label{display:grid;gap:8px;font-weight:800}
+input{width:100%;padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:#081321;color:var(--text);font:inherit;outline:none}
+input:focus{border-color:#8aa4ff;box-shadow:0 0 0 3px #8aa4ff22}
+button{width:100%;padding:14px 18px;border:0;border-radius:12px;background:var(--accent);color:#09111e;font:inherit;font-weight:900;cursor:pointer}
+.links{margin:20px 0 0;text-align:center;color:var(--muted)}
+.links a{color:#b9c8ff;font-weight:800;text-decoration:none}
+.notice{margin:0 0 18px;padding:12px 14px;border:1px solid #8a3f49;border-radius:12px;background:#2a151b;color:#ffd8dd}
+</style>
+</head>
+<body>
+<main>
+<section class="card">
+<p class="eyebrow">GeminiScanner customer portal</p>
+<h1>Sign in</h1>
+<p class="sub">Access your scanner, watchlist, and account settings.</p>
+${notice}
+<form method="post" action="/login">
+<label>Email
+<input name="email" type="email" autocomplete="email" inputmode="email" required>
+</label>
+<label>Password
+<input name="password" type="password" autocomplete="current-password" required>
+</label>
+<button type="submit">Sign in</button>
+</form>
+<p class="links">New to GeminiScanner? <a href="/signup">Create an account</a></p>
+</section>
+</main>
+</body>
+</html>`;
 }
 
 function requireCustomerSession(req, res, next) {
