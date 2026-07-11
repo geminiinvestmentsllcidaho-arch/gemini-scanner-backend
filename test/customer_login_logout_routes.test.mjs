@@ -33,3 +33,24 @@ test('settings page exposes logout form', () => {
   assert.match(source, /form method="post" action="\/logout"/);
   assert.match(source, />Log out<\/button>/);
 });
+
+
+test('settings page exposes read-only account details', () => {
+  for (const label of [
+    'Account details',
+    'Email',
+    'Account status',
+    'Email verification',
+    'Customer ID',
+    'Member since',
+  ]) {
+    assert.match(source, new RegExp(`>${label}<`));
+  }
+
+  assert.match(source, /account\?\.email/);
+  assert.match(source, /account\?\.status/);
+  assert.match(source, /account\?\.emailVerified/);
+  assert.match(source, /account\?\.id/);
+  assert.match(source, /account\?\.createdAt/);
+  assert.match(source, /Cache-Control', 'no-store'/);
+});

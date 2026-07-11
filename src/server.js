@@ -3805,10 +3805,27 @@ app.get('/customer/watchlist', requireCustomerSession, async (req, res) => {
 
 app.get('/customer/settings', requireCustomerSession, async (req, res) => {
   const account = req.customerAccount;
-  const email = String(account?.email ?? '')
+  const esc = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+  const createdAt = new Date(account?.createdAt);
+  const memberSince = account?.createdAt && !Number.isNaN(createdAt.getTime())
+    ? new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(createdAt)
+    : 'Unavailable';
+
+  const email = esc(account?.email);
+  const status = esc(account?.status || 'unknown');
+  const verificationStatus = account?.emailVerified ? 'Verified' : 'Not verified';
+  const customerId = esc(account?.id || 'Unavailable');
+
   res.set('Cache-Control', 'no-store');
   res.type('html').send(`<!doctype html>
 <html lang="en">
@@ -3819,10 +3836,16 @@ app.get('/customer/settings', requireCustomerSession, async (req, res) => {
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:720px;margin:0 auto;padding:20px}
+.wrap{max-width:760px;margin:0 auto;padding:20px}
 .card{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:20px}
+.details{margin:20px 0}
+.row{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:16px;padding:12px 0;border-bottom:1px solid #263a58}
+.row:last-child{border-bottom:0}
+.label{color:#9eb0c9;font-weight:700}
+.value{overflow-wrap:anywhere}
 a{color:#9fc2ff}
 button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#fff;font-weight:700}
+@media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}}
 </style>
 </head>
 <body>
@@ -3830,7 +3853,14 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 <p><a href="/customer">&larr; Customer home</a></p>
 <section class="card">
 <h1>Settings</h1>
-<p>Signed in as ${email}</p>
+<h2>Account details</h2>
+<div class="details">
+<div class="row"><div class="label">Email</div><div class="value">${email}</div></div>
+<div class="row"><div class="label">Account status</div><div class="value">${status}</div></div>
+<div class="row"><div class="label">Email verification</div><div class="value">${verificationStatus}</div></div>
+<div class="row"><div class="label">Customer ID</div><div class="value">${customerId}</div></div>
+<div class="row"><div class="label">Member since</div><div class="value">${esc(memberSince)}</div></div>
+</div>
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
