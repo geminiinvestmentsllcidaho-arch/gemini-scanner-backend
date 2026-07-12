@@ -770,6 +770,7 @@ export function regenerateCustomerAuthenticatorRecoveryCodes(accountId, currentP
   const recoveryCodes = generateRecoveryCodes(options);
   records[index] = {
     ...account,
+    authenticatorSecret: undefined,
     authenticatorRecoveryCodeHashes: Object.freeze(recoveryCodes.map(hashRecoveryCode)),
     authenticatorRecoveryCodesGeneratedAt: options.now ?? new Date().toISOString(),
     authenticatorRecoveryCodeUsedAt: undefined,

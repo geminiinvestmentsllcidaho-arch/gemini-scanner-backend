@@ -550,6 +550,8 @@ test("regenerates recovery codes only after password and authenticator verificat
     );
     assert.equal(regenerated.ok, true);
     assert.equal(regenerated.account.authenticatorRecoveryCodes.length, 8);
+    const storedAfterRegeneration = fs.readFileSync(f.storePath, "utf8");
+    assert.equal(storedAfterRegeneration.includes("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"), false);
     assert.equal(regenerated.account.authenticatorRecoveryCodes[0], "NEWCD-00000");
 
     const oldCode = consumeCustomerAuthenticatorRecoveryCode(
