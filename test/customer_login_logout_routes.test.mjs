@@ -128,5 +128,12 @@ test('customer password recovery routes are public, rate limited, and token prot
   assert.match(source, /verifyCustomerPasswordResetToken\(/);
   assert.match(source, /resetCustomerPassword\(/);
   assert.match(source, /markCustomerPasswordResetConsumed\(/);
-  assert.match(source, /If that email belongs to an active account/);
+  const forgotPasswordPostRoute = source.match(
+    /app\.post\('\/forgot-password',[\s\S]*?\n\}\);\n\napp\.get\('\/reset-password'/,
+  )?.[0] ?? '';
+
+  assert.match(forgotPasswordPostRoute, /If that email belongs to an active account/);
+  assert.match(forgotPasswordPostRoute, /\[customer-password-reset\] delivery_failed/);
+  assert.doesNotMatch(forgotPasswordPostRoute, /Password recovery is temporarily unavailable/);
+  assert.doesNotMatch(forgotPasswordPostRoute, /res\.status\(503\)/);
 });

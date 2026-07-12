@@ -575,7 +575,7 @@ app.post('/forgot-password', async (req, res) => {
   });
 
   if (!delivery.ok) {
-    return res.status(503).type('html').send(customerForgotPasswordHtml('Password recovery is temporarily unavailable.'));
+    console.error('[customer-password-reset] delivery_failed');
   }
 
   return res.status(200).type('html').send(customerForgotPasswordHtml(genericMessage));
