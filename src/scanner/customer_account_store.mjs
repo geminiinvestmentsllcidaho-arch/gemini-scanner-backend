@@ -538,12 +538,28 @@ export function updateCustomerDisplayPreferences(accountId, input = {}, options 
   const density = ["comfortable", "compact"].includes(clean(input.density))
     ? clean(input.density)
     : "comfortable";
+  const locale = ["en-US", "en-CA", "en-GB"].includes(clean(input.locale))
+    ? clean(input.locale)
+    : "en-US";
+  const timezone = [
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Phoenix",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+  ].includes(clean(input.timezone))
+    ? clean(input.timezone)
+    : "America/New_York";
 
   records[index] = {
     ...records[index],
     displayPreferences: Object.freeze({
       theme,
       density,
+      locale,
+      timezone,
       reducedMotion: input.reducedMotion === true || input.reducedMotion === "on",
     }),
     displayPreferencesUpdatedAt: options.now ?? new Date().toISOString(),

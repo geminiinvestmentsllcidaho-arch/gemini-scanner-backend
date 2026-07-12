@@ -4111,6 +4111,22 @@ ${account?.authenticatorEnabled ? `
 <option value="comfortable"${(account?.displayPreferences?.density || 'comfortable') === 'comfortable' ? ' selected' : ''}>Comfortable</option>
 <option value="compact"${account?.displayPreferences?.density === 'compact' ? ' selected' : ''}>Compact</option>
 </select></p>
+<p><label for="locale">Language and number format</label><br>
+<select id="locale" name="locale">
+<option value="en-US"${(account?.displayPreferences?.locale || 'en-US') === 'en-US' ? ' selected' : ''}>English (United States)</option>
+<option value="en-CA"${account?.displayPreferences?.locale === 'en-CA' ? ' selected' : ''}>English (Canada)</option>
+<option value="en-GB"${account?.displayPreferences?.locale === 'en-GB' ? ' selected' : ''}>English (United Kingdom)</option>
+</select></p>
+<p><label for="timezone">Time zone</label><br>
+<select id="timezone" name="timezone">
+<option value="America/New_York"${(account?.displayPreferences?.timezone || 'America/New_York') === 'America/New_York' ? ' selected' : ''}>Eastern Time</option>
+<option value="America/Chicago"${account?.displayPreferences?.timezone === 'America/Chicago' ? ' selected' : ''}>Central Time</option>
+<option value="America/Denver"${account?.displayPreferences?.timezone === 'America/Denver' ? ' selected' : ''}>Mountain Time</option>
+<option value="America/Los_Angeles"${account?.displayPreferences?.timezone === 'America/Los_Angeles' ? ' selected' : ''}>Pacific Time</option>
+<option value="America/Phoenix"${account?.displayPreferences?.timezone === 'America/Phoenix' ? ' selected' : ''}>Arizona Time</option>
+<option value="America/Anchorage"${account?.displayPreferences?.timezone === 'America/Anchorage' ? ' selected' : ''}>Alaska Time</option>
+<option value="Pacific/Honolulu"${account?.displayPreferences?.timezone === 'Pacific/Honolulu' ? ' selected' : ''}>Hawaii Time</option>
+</select></p>
 <p><label><input name="reducedMotion" type="checkbox"${account?.displayPreferences?.reducedMotion ? ' checked' : ''}> Reduce motion</label></p>
 <p><button type="submit" style="background:#3d72d9">Save appearance</button></p>
 </form>
@@ -4448,6 +4464,8 @@ app.post('/customer/settings/display', requireCustomerSession, (req, res) => {
     {
       theme: req.body?.theme,
       density: req.body?.density,
+      locale: req.body?.locale,
+      timezone: req.body?.timezone,
       reducedMotion: req.body?.reducedMotion,
     },
   );

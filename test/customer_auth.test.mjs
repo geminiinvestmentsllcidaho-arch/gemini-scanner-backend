@@ -387,13 +387,15 @@ test("updates customer display preferences with normalized defaults", () => {
   try {
     const updated = updateCustomerDisplayPreferences(
       f.record.id,
-      { theme: "dark", density: "compact", reducedMotion: "on" },
+      { theme: "dark", density: "compact", locale: "en-CA", timezone: "America/Denver", reducedMotion: "on" },
       { storePath: f.storePath, now: "2026-07-12T01:20:00.000Z" },
     );
     assert.equal(updated.ok, true);
     assert.deepEqual(updated.account.displayPreferences, {
       theme: "dark",
       density: "compact",
+      locale: "en-CA",
+      timezone: "America/Denver",
       reducedMotion: true,
     });
     assert.equal(
