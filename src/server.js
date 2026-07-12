@@ -26,6 +26,7 @@ import { createCustomerPasswordReset, verifyCustomerPasswordResetToken } from '.
 import { appendCustomerPasswordResetRecord, findCustomerPasswordResetByTokenHash, markCustomerPasswordResetConsumed, revokeCustomerPasswordResetsForAccount } from './scanner/customer_password_reset_store.mjs';
 import { deliverCustomerPasswordResetEmail } from './scanner/customer_password_reset_email_delivery.mjs';
 import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustomerSessionToken, verifyCustomerSessionToken } from './scanner/customer_auth.mjs';
+import { requireCustomerSameOrigin } from './scanner/customer_same_origin.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -485,32 +486,6 @@ function requireCustomerSession(req, res, next) {
   });
   if (!result.ok) return res.redirect(303, '/login');
   req.customerAccount = result.account;
-  return next();
-}
-
-function requireCustomerSameOrigin(req, res, next) {
-  const origin = String(req.get('origin') ?? '').trim();
-  if (!origin) return res.status(403).type('html').send(
-    '<!doctype html><html><body><main><h1>Request blocked</h1><p>This request could not be verified.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
-  );
-
-  let originUrl;
-  try {
-    originUrl = new URL(origin);
-  } catch {
-    return res.status(403).type('html').send(
-      '<!doctype html><html><body><main><h1>Request blocked</h1><p>This request could not be verified.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
-    );
-  }
-
-  const expectedHost = String(req.get('host') ?? '').trim().toLowerCase();
-  const originHost = String(originUrl.host ?? '').trim().toLowerCase();
-  if (originUrl.protocol !== 'https:' || !expectedHost || originHost !== expectedHost) {
-    return res.status(403).type('html').send(
-      '<!doctype html><html><body><main><h1>Request blocked</h1><p>This request could not be verified.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
-    );
-  }
-
   return next();
 }
 

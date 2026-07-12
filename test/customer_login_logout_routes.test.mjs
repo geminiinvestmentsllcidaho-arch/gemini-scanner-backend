@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
+const sameOriginSource = await readFile(new URL('../src/scanner/customer_same_origin.mjs', import.meta.url), 'utf8');
 
 test('customer authentication routes exist', () => {
   assert.match(source, /app\.get\('\/login'/);
@@ -227,10 +228,10 @@ test('settings page exposes authenticated permanent account deletion controls', 
 
 
 test('customer settings mutations require same-origin verification', () => {
-  assert.match(source, /function requireCustomerSameOrigin\(req, res, next\)/);
-  assert.match(source, /req\.get\('origin'\)/);
-  assert.match(source, /originUrl\.protocol !== 'https:'/);
-  assert.match(source, /originHost !== expectedHost/);
+  assert.match(source, /import \{ requireCustomerSameOrigin \} from '\.\/scanner\/customer_same_origin\.mjs';/);
+  assert.match(sameOriginSource, /req\.get\('origin'\)/);
+  assert.match(sameOriginSource, /originUrl\.protocol !== 'https:'/);
+  assert.match(sameOriginSource, /originHost !== expectedHost/);
   assert.match(source, /app\.post\('\/customer\/settings\/profile', requireCustomerSession, requireCustomerSameOrigin,/);
   assert.match(source, /app\.post\('\/customer\/settings\/password', requireCustomerSession, requireCustomerSameOrigin,/);
   assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/recovery-codes\/regenerate', requireCustomerSession, requireCustomerSameOrigin,/);
