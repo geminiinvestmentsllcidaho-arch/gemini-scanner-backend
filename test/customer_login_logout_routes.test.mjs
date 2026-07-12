@@ -64,3 +64,12 @@ test('settings page exposes authenticated password change controls', () => {
   assert.match(source, /updateCustomerPassword\(/);
   assert.match(source, /res\.clearCookie\(CUSTOMER_COOKIE_NAME,/);
 });
+
+test('settings page exposes authenticated profile update controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/profile"/);
+  assert.match(source, /name="firstName"/);
+  assert.match(source, /name="lastName"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/profile', requireCustomerSession,/);
+  assert.match(source, /updateCustomerProfile\(/);
+  assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
+});

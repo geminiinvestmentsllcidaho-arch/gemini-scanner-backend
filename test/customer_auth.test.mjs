@@ -15,6 +15,7 @@ import {
   createCustomerAccountRecord,
   markCustomerEmailVerified,
   updateCustomerPassword,
+  updateCustomerProfile,
 } from "../src/scanner/customer_account_store.mjs";
 
 function fixture() {
@@ -129,6 +130,31 @@ test("changes password only after current-password confirmation", () => {
       ).ok,
       true,
     );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("updates customer profile names with validation", () => {
+  const f = fixture();
+  try {
+    const rejected = updateCustomerProfile(
+      f.record.id,
+      { firstName: "", lastName: "Operator" },
+      { storePath: f.storePath },
+    );
+    assert.equal(rejected.ok, false);
+    assert.equal(rejected.reason, "first_name_required");
+
+    const updated = updateCustomerProfile(
+      f.record.id,
+      { firstName: "Gemini", lastName: "Operator" },
+      { storePath: f.storePath, now: "2026-07-12T00:05:00.000Z" },
+    );
+    assert.equal(updated.ok, true);
+    assert.equal(updated.account.firstName, "Gemini");
+    assert.equal(updated.account.lastName, "Operator");
+    assert.equal(updated.account.profileUpdatedAt, "2026-07-12T00:05:00.000Z");
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

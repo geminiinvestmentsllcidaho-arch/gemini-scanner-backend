@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
@@ -3854,6 +3854,13 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 <section class="card">
 <h1>Settings</h1>
 <h2>Account details</h2>
+<form method="post" action="/customer/settings/profile">
+<p><label for="firstName">First name</label><br>
+<input id="firstName" name="firstName" type="text" value="${esc(account?.firstName || '')}" autocomplete="given-name" required></p>
+<p><label for="lastName">Last name</label><br>
+<input id="lastName" name="lastName" type="text" value="${esc(account?.lastName || '')}" autocomplete="family-name" required></p>
+<p><button type="submit" style="background:#3d72d9">Save profile</button></p>
+</form>
 <div class="details">
 <div class="row"><div class="label">Email</div><div class="value">${email}</div></div>
 <div class="row"><div class="label">Account status</div><div class="value">${status}</div></div>
@@ -3883,6 +3890,33 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 </html>`);
 });
 
+
+
+app.post('/customer/settings/profile', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = updateCustomerProfile(
+    req.customerAccount.id,
+    {
+      firstName: req.body?.firstName,
+      lastName: req.body?.lastName,
+    },
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'first_name_required'
+      ? 'First name is required.'
+      : result.reason === 'last_name_required'
+        ? 'Last name is required.'
+        : 'Profile could not be updated.';
+
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Profile not updated</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  return res.redirect(303, '/customer/settings');
+});
 
 app.post('/customer/settings/password', requireCustomerSession, (req, res) => {
   res.set('Cache-Control', 'no-store');
