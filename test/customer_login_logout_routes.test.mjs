@@ -55,6 +55,19 @@ test('settings page exposes read-only account details', () => {
   assert.match(source, /Cache-Control', 'no-store'/);
 });
 
+
+test('settings page exposes authenticated email change controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/email"/);
+  assert.match(source, /name="newEmail"/);
+  assert.match(source, /id="emailChangePassword" name="currentPassword"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/email', requireCustomerSession, async/);
+  assert.match(source, /beginCustomerEmailChange\(/);
+  assert.match(source, /createCustomerEmailVerification\(/);
+  assert.match(source, /appendCustomerEmailVerificationRecord\(/);
+  assert.match(source, /deliverCustomerVerificationEmail\(/);
+  assert.match(source, /current email remains active until verification succeeds/i);
+});
+
 test('settings page exposes authenticated password change controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/password"/);
   assert.match(source, /name="currentPassword"/);

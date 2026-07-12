@@ -28,6 +28,8 @@ import {
   disableCustomerAuthenticator,
   revokeCustomerSessions,
   recordCustomerLogin,
+  beginCustomerEmailChange,
+  completeCustomerEmailChange,
   deactivateCustomerAccount,
 } from "../src/scanner/customer_account_store.mjs";
 
@@ -220,6 +222,108 @@ test("resets customer password without requiring the old password", () => {
     assert.equal(authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok, false);
     assert.equal(
       authenticateCustomer(f.record.email, "new recovery password 123", { storePath: f.storePath }).ok,
+      true,
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("begins customer email change only after password confirmation", () => {
+  const f = fixture();
+  try {
+    const wrongPassword = beginCustomerEmailChange(
+      f.record.id,
+      "wrong password",
+      "new@example.com",
+      { storePath: f.storePath },
+    );
+    assert.equal(wrongPassword.ok, false);
+    assert.equal(wrongPassword.reason, "current_password_incorrect");
+
+    const invalidEmail = beginCustomerEmailChange(
+      f.record.id,
+      f.password,
+      "not-an-email",
+      { storePath: f.storePath },
+    );
+    assert.equal(invalidEmail.ok, false);
+    assert.equal(invalidEmail.reason, "valid_email_required");
+
+    const unchanged = beginCustomerEmailChange(
+      f.record.id,
+      f.password,
+      f.record.email,
+      { storePath: f.storePath },
+    );
+    assert.equal(unchanged.ok, false);
+    assert.equal(unchanged.reason, "new_email_must_differ");
+
+    const changed = beginCustomerEmailChange(
+      f.record.id,
+      f.password,
+      "New.Email@Example.com",
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T08:15:00.000Z",
+      },
+    );
+    assert.equal(changed.ok, true);
+    assert.equal(changed.account.email, "customer@example.com");
+    assert.equal(changed.account.pendingEmail, "new.email@example.com");
+    assert.equal(changed.account.emailChangeRequestedAt, "2026-07-12T08:15:00.000Z");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("completes customer email change only for the verified pending address", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+
+    const begun = beginCustomerEmailChange(
+      f.record.id,
+      f.password,
+      "new.email@example.com",
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T08:15:00.000Z",
+      },
+    );
+    assert.equal(begun.ok, true);
+
+    const mismatch = completeCustomerEmailChange(
+      f.record.id,
+      "other@example.com",
+      { storePath: f.storePath },
+    );
+    assert.equal(mismatch.ok, false);
+    assert.equal(mismatch.reason, "pending_email_mismatch");
+
+    const completed = completeCustomerEmailChange(
+      f.record.id,
+      "NEW.EMAIL@EXAMPLE.COM",
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T08:30:00.000Z",
+      },
+    );
+    assert.equal(completed.ok, true);
+    assert.equal(completed.account.email, "new.email@example.com");
+    assert.equal(completed.account.previousEmail, "customer@example.com");
+    assert.equal(completed.account.emailChangedAt, "2026-07-12T08:30:00.000Z");
+    assert.equal(completed.account.sessionsRevokedAt, "2026-07-12T08:30:00.000Z");
+    assert.equal("pendingEmail" in completed.account, false);
+    assert.equal("emailChangeRequestedAt" in completed.account, false);
+    assert.equal(
+      authenticateCustomer("customer@example.com", f.password, { storePath: f.storePath }).ok,
+      false,
+    );
+    assert.equal(
+      authenticateCustomer("new.email@example.com", f.password, { storePath: f.storePath }).ok,
       true,
     );
   } finally {

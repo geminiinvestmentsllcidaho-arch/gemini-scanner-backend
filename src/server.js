@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -385,7 +385,14 @@ app.get('/verify-email', (req, res) => {
     );
   }
 
-  const accountResult = markCustomerEmailVerified(result.accountId);
+  const account = findCustomerAccountById(result.accountId);
+  const isEmailChange = Boolean(
+    account?.pendingEmail
+    && String(account.pendingEmail).trim().toLowerCase() === String(result.email).trim().toLowerCase()
+  );
+  const accountResult = isEmailChange
+    ? completeCustomerEmailChange(result.accountId, result.email)
+    : markCustomerEmailVerified(result.accountId);
   if (!accountResult.ok) {
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Verification could not be completed</h1><p>Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
@@ -395,7 +402,9 @@ app.get('/verify-email', (req, res) => {
   markCustomerEmailVerificationConsumed(verificationRecord.tokenHash);
 
   return res.status(200).type('html').send(
-    '<!doctype html><html><body><main><h1>Email verified</h1><p>Your GeminiScanner customer account is now active.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
+    isEmailChange
+      ? '<!doctype html><html><body><main><h1>Email address changed</h1><p>Your new email address is verified. Sign in again with the new address.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>'
+      : '<!doctype html><html><body><main><h1>Email verified</h1><p>Your GeminiScanner customer account is now active.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
   );
 });
 
@@ -4021,6 +4030,15 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 </form>
 <div class="details">
 <div class="row"><div class="label">Email</div><div class="value">${email}</div></div>
+${account?.pendingEmail ? `<div class="row"><div class="label">Pending email</div><div class="value">${esc(account.pendingEmail)} (verification required)</div></div>` : ''}
+<h3>Change email</h3>
+<form method="post" action="/customer/settings/email">
+<p><label for="newEmail">New email address</label><br>
+<input id="newEmail" name="newEmail" type="email" autocomplete="email" required></p>
+<p><label for="emailChangePassword">Current password</label><br>
+<input id="emailChangePassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+<p><button type="submit" style="background:#3d72d9">Send verification email</button></p>
+</form>
 <div class="row"><div class="label">Account status</div><div class="value">${status}</div></div>
 <div class="row"><div class="label">Email verification</div><div class="value">${verificationStatus}</div></div>
 <div class="row"><div class="label">Customer ID</div><div class="value">${customerId}</div></div>
@@ -4124,6 +4142,54 @@ ${account?.authenticatorEnabled ? `
 });
 
 
+
+
+app.post('/customer/settings/email', requireCustomerSession, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = beginCustomerEmailChange(
+    req.customerAccount.id,
+    req.body?.currentPassword,
+    req.body?.newEmail,
+    {
+      authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+    },
+  );
+
+  if (!result.ok) {
+    const messages = {
+      current_password_incorrect: 'Current password is incorrect.',
+      valid_email_required: 'Enter a valid email address.',
+      new_email_must_differ: 'The new email must differ from the current email.',
+      email_already_in_use: 'That email address is already in use.',
+    };
+    const message = messages[result.reason] || 'The email change could not be started.';
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Email change needs attention</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  const verification = createCustomerEmailVerification({
+    id: result.account.id,
+    email: result.account.pendingEmail,
+  });
+  appendCustomerEmailVerificationRecord(verification.record);
+
+  const delivery = await deliverCustomerVerificationEmail({
+    email: result.account.pendingEmail,
+    token: verification.token,
+  });
+
+  if (!delivery.ok) {
+    return res.status(503).type('html').send(
+      '<!doctype html><html><body><main><h1>Verification email delayed</h1><p>Your email change is pending, but the verification email could not be delivered. Please contact GeminiScanner support.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  return res.status(202).type('html').send(
+    '<!doctype html><html><body><main><h1>Check your new email</h1><p>Open the verification link sent to your new email address. Your current email remains active until verification succeeds.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+  );
+});
 
 
 app.post('/customer/settings/account/deactivate', requireCustomerSession, (req, res) => {

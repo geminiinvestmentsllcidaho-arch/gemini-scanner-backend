@@ -45,3 +45,10 @@ test("signup requires configured verification email delivery", () => {
   assert.match(server, /Verification email delayed/i);
   assert.match(server, /Check your email/i);
 });
+
+test("verification route completes pending customer email changes", () => {
+  assert.match(server, /findCustomerAccountById\(result\.accountId\)/);
+  assert.match(server, /completeCustomerEmailChange\(result\.accountId, result\.email\)/);
+  assert.match(server, /Email address changed/);
+  assert.match(server, /Sign in again with the new address/);
+});

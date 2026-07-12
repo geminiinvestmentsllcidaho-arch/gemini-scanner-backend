@@ -249,6 +249,109 @@ export function recordCustomerLogin(accountId, input = {}, options = {}) {
 
 
 
+
+export function beginCustomerEmailChange(accountId, currentPassword, newEmail, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  if (!verifyCustomerPassword(currentPassword, account.password)) {
+    return Object.freeze({ ok: false, reason: "current_password_incorrect" });
+  }
+
+  const normalizedEmail = normalizeCustomerEmail(newEmail);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return Object.freeze({ ok: false, reason: "valid_email_required" });
+  }
+  if (normalizedEmail === normalizeCustomerEmail(account.email)) {
+    return Object.freeze({ ok: false, reason: "new_email_must_differ" });
+  }
+
+  const duplicate = records.find(
+    (record, recordIndex) =>
+      recordIndex !== index
+      && normalizeCustomerEmail(record.email) === normalizedEmail,
+  );
+  if (duplicate) {
+    return Object.freeze({ ok: false, reason: "email_already_in_use" });
+  }
+
+  const requestedAt = options.now ?? new Date().toISOString();
+  records[index] = {
+    ...account,
+    pendingEmail: normalizedEmail,
+    emailChangeRequestedAt: requestedAt,
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
+
+
+export function completeCustomerEmailChange(accountId, verifiedEmail, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  const normalizedEmail = normalizeCustomerEmail(verifiedEmail);
+  if (!normalizedEmail || normalizedEmail !== normalizeCustomerEmail(account.pendingEmail)) {
+    return Object.freeze({ ok: false, reason: "pending_email_mismatch" });
+  }
+
+  const duplicate = records.find(
+    (record, recordIndex) =>
+      recordIndex !== index
+      && normalizeCustomerEmail(record.email) === normalizedEmail,
+  );
+  if (duplicate) {
+    return Object.freeze({ ok: false, reason: "email_already_in_use" });
+  }
+
+  const changedAt = options.now ?? new Date().toISOString();
+  const previousEmail = normalizeCustomerEmail(account.email);
+  records[index] = {
+    ...account,
+    email: normalizedEmail,
+    previousEmail,
+    emailVerified: true,
+    status: "active",
+    emailChangedAt: changedAt,
+    emailVerifiedAt: changedAt,
+    sessionsRevokedAt: changedAt,
+  };
+  delete records[index].pendingEmail;
+  delete records[index].emailChangeRequestedAt;
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
+
 export function deactivateCustomerAccount(accountId, currentPassword, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerAccountRecords({
