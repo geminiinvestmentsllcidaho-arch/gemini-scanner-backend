@@ -79,7 +79,11 @@ export function verifyCustomerSessionToken(token, options = {}) {
       return Object.freeze({ ok: false, reason: "account_unavailable" });
     }
     const passwordChangedAtSec = Math.floor(Date.parse(account.passwordChangedAt || 0) / 1000);
-    if (Number.isFinite(passwordChangedAtSec) && passwordChangedAtSec > 0 && Number(data.iat) < passwordChangedAtSec) {
+    const sessionsRevokedAtSec = Math.floor(Date.parse(account.sessionsRevokedAt || 0) / 1000);
+    if (
+      (Number.isFinite(passwordChangedAtSec) && passwordChangedAtSec > 0 && Number(data.iat) < passwordChangedAtSec)
+      || (Number.isFinite(sessionsRevokedAtSec) && sessionsRevokedAtSec > 0 && Number(data.iat) <= sessionsRevokedAtSec)
+    ) {
       return Object.freeze({ ok: false, reason: "session_revoked" });
     }
     return Object.freeze({ ok: true, account, session: data });

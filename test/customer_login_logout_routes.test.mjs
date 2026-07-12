@@ -137,3 +137,13 @@ test('customer password recovery routes are public, rate limited, and token prot
   assert.doesNotMatch(forgotPasswordPostRoute, /Password recovery is temporarily unavailable/);
   assert.doesNotMatch(forgotPasswordPostRoute, /res\.status\(503\)/);
 });
+
+
+test('settings page exposes sign out all sessions controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/sessions\/revoke"/);
+  assert.match(source, />Sign out all sessions<\/button>/);
+  assert.match(source, /app\.post\('\/customer\/settings\/sessions\/revoke', requireCustomerSession,/);
+  assert.match(source, /revokeCustomerSessions\(req\.customerAccount\.id\)/);
+  assert.match(source, /res\.clearCookie\(CUSTOMER_COOKIE_NAME,/);
+  assert.match(source, /res\.redirect\(303, '\/login'\)/);
+});

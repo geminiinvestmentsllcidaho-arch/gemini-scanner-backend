@@ -26,6 +26,7 @@ import {
   beginCustomerAuthenticatorSetup,
   confirmCustomerAuthenticatorSetup,
   disableCustomerAuthenticator,
+  revokeCustomerSessions,
 } from "../src/scanner/customer_account_store.mjs";
 
 const AUTHENTICATOR_MASTER_KEY = "0123456789abcdef0123456789abcdef";
@@ -462,4 +463,38 @@ test('disables customer authenticator only with current password and valid code'
   const raw = readFileSync(storePath, 'utf8');
   assert.doesNotMatch(raw, /authenticatorSecretEncrypted/);
   assert.doesNotMatch(raw, /JBSWY3DPEHPK3PXP/);
+});
+
+
+test("revokes all existing customer sessions on demand", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+    const login = authenticateCustomer(f.record.email, f.password, { storePath: f.storePath });
+    assert.equal(login.ok, true);
+
+    const secret = "sign-out-all-session-secret";
+    const token = createCustomerSessionToken(login.account, {
+      secret,
+      nowMs: Date.parse("2026-07-12T05:00:00.000Z"),
+      ttlSec: 3600,
+    });
+
+    const revoked = revokeCustomerSessions(f.record.id, {
+      storePath: f.storePath,
+      now: "2026-07-12T05:05:00.000Z",
+    });
+    assert.equal(revoked.ok, true);
+    assert.equal(revoked.account.sessionsRevokedAt, "2026-07-12T05:05:00.000Z");
+
+    const session = verifyCustomerSessionToken(token, {
+      secret,
+      nowMs: Date.parse("2026-07-12T05:10:00.000Z"),
+      storePath: f.storePath,
+    });
+    assert.equal(session.ok, false);
+    assert.equal(session.reason, "session_revoked");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
 });
