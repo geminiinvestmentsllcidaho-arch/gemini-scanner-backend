@@ -488,6 +488,32 @@ function requireCustomerSession(req, res, next) {
   return next();
 }
 
+function requireCustomerSameOrigin(req, res, next) {
+  const origin = String(req.get('origin') ?? '').trim();
+  if (!origin) return res.status(403).type('html').send(
+    '<!doctype html><html><body><main><h1>Request blocked</h1><p>This request could not be verified.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+  );
+
+  let originUrl;
+  try {
+    originUrl = new URL(origin);
+  } catch {
+    return res.status(403).type('html').send(
+      '<!doctype html><html><body><main><h1>Request blocked</h1><p>This request could not be verified.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  const expectedHost = String(req.get('host') ?? '').trim().toLowerCase();
+  const originHost = String(originUrl.host ?? '').trim().toLowerCase();
+  if (originUrl.protocol !== 'https:' || !expectedHost || originHost !== expectedHost) {
+    return res.status(403).type('html').send(
+      '<!doctype html><html><body><main><h1>Request blocked</h1><p>This request could not be verified.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  return next();
+}
+
 app.get('/login', (req, res) => {
   const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
   const current = verifyCustomerSessionToken(customerCookieValue(req), {
@@ -4196,7 +4222,7 @@ ${account?.authenticatorEnabled ? `
 
 
 
-app.post('/customer/settings/data/export', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/data/export', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = buildCustomerDataExport(req.customerAccount.id, {
@@ -4214,7 +4240,7 @@ app.post('/customer/settings/data/export', requireCustomerSession, (req, res) =>
 });
 
 
-app.post('/customer/settings/email', requireCustomerSession, async (req, res) => {
+app.post('/customer/settings/email', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = beginCustomerEmailChange(
@@ -4262,7 +4288,7 @@ app.post('/customer/settings/email', requireCustomerSession, async (req, res) =>
 });
 
 
-app.post('/customer/settings/account/delete', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/account/delete', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (req.body?.confirmPermanentDelete !== 'on') {
     return res.status(400).type('html').send(
@@ -4297,7 +4323,7 @@ app.post('/customer/settings/account/delete', requireCustomerSession, (req, res)
 });
 
 
-app.post('/customer/settings/account/deactivate', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/account/deactivate', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (req.body?.confirmDeactivate !== 'on') {
     return res.status(400).type('html').send(
@@ -4331,7 +4357,7 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, (req, 
   return res.redirect(303, '/login');
 });
 
-app.post('/customer/settings/sessions/revoke', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/sessions/revoke', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   const result = revokeCustomerSessions(req.customerAccount.id);
   if (!result.ok) {
@@ -4349,7 +4375,7 @@ app.post('/customer/settings/sessions/revoke', requireCustomerSession, (req, res
 });
 
 
-app.post('/customer/settings/profile', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/profile', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = updateCustomerProfile(
@@ -4376,7 +4402,7 @@ app.post('/customer/settings/profile', requireCustomerSession, (req, res) => {
 });
 
 
-app.post('/customer/settings/notifications', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/notifications', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = updateCustomerNotificationPreferences(
@@ -4399,7 +4425,7 @@ app.post('/customer/settings/notifications', requireCustomerSession, (req, res) 
 
 
 
-app.post('/customer/settings/authenticator/start', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/authenticator/start', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const secret = generateCustomerAuthenticatorSecret();
@@ -4420,7 +4446,7 @@ app.post('/customer/settings/authenticator/start', requireCustomerSession, (req,
 
 
 
-app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/authenticator/confirm', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = confirmCustomerAuthenticatorSetup(
@@ -4452,7 +4478,7 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (re
 });
 
 
-app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = regenerateCustomerAuthenticatorRecoveryCodes(
@@ -4487,7 +4513,7 @@ app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCu
 });
 
 
-app.post('/customer/settings/authenticator/disable', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/authenticator/disable', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = disableCustomerAuthenticator(
@@ -4516,7 +4542,7 @@ app.post('/customer/settings/authenticator/disable', requireCustomerSession, (re
 });
 
 
-app.post('/customer/settings/display', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/display', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const result = updateCustomerDisplayPreferences(
@@ -4540,7 +4566,7 @@ app.post('/customer/settings/display', requireCustomerSession, (req, res) => {
 });
 
 
-app.post('/customer/settings/password', requireCustomerSession, (req, res) => {
+app.post('/customer/settings/password', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const currentPassword = String(req.body?.currentPassword ?? '');

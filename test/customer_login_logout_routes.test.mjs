@@ -60,7 +60,7 @@ test('settings page exposes authenticated email change controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/email"/);
   assert.match(source, /name="newEmail"/);
   assert.match(source, /id="emailChangePassword" name="currentPassword"/);
-  assert.match(source, /app\.post\('\/customer\/settings\/email', requireCustomerSession, async/);
+  assert.match(source, /app\.post\('\/customer\/settings\/email', requireCustomerSession, requireCustomerSameOrigin, async/);
   assert.match(source, /beginCustomerEmailChange\(/);
   assert.match(source, /createCustomerEmailVerification\(/);
   assert.match(source, /appendCustomerEmailVerificationRecord\(/);
@@ -211,6 +211,18 @@ test('settings page exposes authenticated permanent account deletion controls', 
   assert.match(source, /permanentlyDeleteCustomerAccount\(/);
   assert.match(source, /res\.clearCookie\(CUSTOMER_COOKIE_NAME,/);
   assert.match(source, /res\.redirect\(303, '\/'\)/);
+});
+
+
+test('customer settings mutations require same-origin verification', () => {
+  assert.match(source, /function requireCustomerSameOrigin\(req, res, next\)/);
+  assert.match(source, /req\.get\('origin'\)/);
+  assert.match(source, /originUrl\.protocol !== 'https:'/);
+  assert.match(source, /originHost !== expectedHost/);
+  assert.match(source, /app\.post\('\/customer\/settings\/profile', requireCustomerSession, requireCustomerSameOrigin,/);
+  assert.match(source, /app\.post\('\/customer\/settings\/password', requireCustomerSession, requireCustomerSameOrigin,/);
+  assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/recovery-codes\/regenerate', requireCustomerSession, requireCustomerSameOrigin,/);
+  assert.match(source, /app\.post\('\/customer\/settings\/account\/delete', requireCustomerSession, requireCustomerSameOrigin,/);
 });
 
 
