@@ -32,6 +32,7 @@ import { validateCustomerSessionSecret } from './scanner/customer_session_secret
 import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
 import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
 import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
+import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -539,20 +540,7 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
 });
 
 
-const passwordResetRateLimit = new Map();
-const PASSWORD_RESET_RATE_WINDOW_MS = 15 * 60 * 1000;
-const PASSWORD_RESET_RATE_MAX = 5;
-
-function passwordResetRateLimited(req, nowMs = Date.now()) {
-  const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
-  const current = passwordResetRateLimit.get(key);
-  if (!current || nowMs - current.windowStart >= PASSWORD_RESET_RATE_WINDOW_MS) {
-    passwordResetRateLimit.set(key, { windowStart: nowMs, count: 1 });
-    return false;
-  }
-  current.count += 1;
-  return current.count > PASSWORD_RESET_RATE_MAX;
-}
+const customerPasswordResetRateLimiter = createCustomerPasswordResetRateLimiter();
 
 function customerForgotPasswordHtml(message = '') {
   const notice = message
@@ -576,7 +564,7 @@ app.get('/forgot-password', (_req, res) => {
 
 app.post('/forgot-password', requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  if (passwordResetRateLimited(req)) {
+  if (customerPasswordResetRateLimiter.isLimited(req)) {
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(customerForgotPasswordHtml('Please wait before trying again.'));
   }

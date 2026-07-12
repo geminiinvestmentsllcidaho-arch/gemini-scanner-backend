@@ -182,7 +182,8 @@ test('customer password recovery routes are public, rate limited, and token prot
   assert.match(source, /app\.post\('\/forgot-password'/);
   assert.match(source, /app\.get\('\/reset-password'/);
   assert.match(source, /app\.post\('\/reset-password'/);
-  assert.match(source, /PASSWORD_RESET_RATE_MAX\s*=\s*5/);
+  assert.match(source, /createCustomerPasswordResetRateLimiter/);
+  assert.match(source, /customerPasswordResetRateLimiter\.isLimited\(req\)/);
   assert.match(source, /createCustomerPasswordReset\(/);
   assert.match(source, /appendCustomerPasswordResetRecord\(/);
   assert.match(source, /deliverCustomerPasswordResetEmail\(/);
