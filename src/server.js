@@ -4049,6 +4049,12 @@ ${account?.pendingEmail ? `<div class="row"><div class="label">Pending email</di
 <div class="row"><div class="label">Successful sign-ins</div><div class="value">${esc(account?.loginCount ?? 0)}</div></div>
 </div>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Recent sign-in activity</h2>
+${(Array.isArray(account?.recentLoginHistory) ? account.recentLoginHistory : []).length
+  ? `<div class="details">${account.recentLoginHistory.map((entry) => `<div class="row"><div class="label">${esc(entry?.loginAt || 'Unknown time')}</div><div class="value">${esc(entry?.ip || 'unknown')} | ${esc(entry?.userAgent || 'unknown')}</div></div>`).join('')}</div>`
+  : '<p style="color:#9eb0c9">No recent sign-in activity is available yet.</p>'}
+</section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security</h2>
 <h3>Authenticator app</h3>
 ${account?.authenticatorEnabled ? `

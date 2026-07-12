@@ -629,6 +629,13 @@ test("records successful customer login security activity", () => {
     assert.equal(first.account.lastLoginAt, "2026-07-12T05:30:00.000Z");
     assert.equal(first.account.lastLoginIp, "203.0.113.20");
     assert.equal(first.account.lastLoginUserAgent, "GeminiScanner Test Browser/1.0");
+    assert.deepEqual(first.account.recentLoginHistory, [
+      {
+        loginAt: "2026-07-12T05:30:00.000Z",
+        ip: "203.0.113.20",
+        userAgent: "GeminiScanner Test Browser/1.0",
+      },
+    ]);
     assert.equal(first.account.loginCount, 1);
 
     const second = recordCustomerLogin(
@@ -645,6 +652,9 @@ test("records successful customer login security activity", () => {
     assert.equal(second.ok, true);
     assert.equal(second.account.loginCount, 2);
     assert.equal(second.account.lastLoginIp, "203.0.113.21");
+    assert.equal(second.account.recentLoginHistory.length, 2);
+    assert.equal(second.account.recentLoginHistory[0].ip, "203.0.113.21");
+    assert.equal(second.account.recentLoginHistory[1].ip, "203.0.113.20");
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

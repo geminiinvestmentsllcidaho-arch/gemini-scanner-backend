@@ -181,6 +181,8 @@ test('settings page exposes last sign-in security activity', () => {
   assert.match(source, />Last sign-in<\/div>/);
   assert.match(source, />Last sign-in IP<\/div>/);
   assert.match(source, />Last sign-in device<\/div>/);
+  assert.match(source, /<h2>Recent sign-in activity<\/h2>/);
+  assert.match(source, /recentLoginHistory/);
   assert.match(source, />Successful sign-ins<\/div>/);
 });
 

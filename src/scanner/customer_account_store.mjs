@@ -228,12 +228,18 @@ export function recordCustomerLogin(accountId, input = {}, options = {}) {
   const ip = clean(input.ip).slice(0, 128) || "unknown";
   const userAgent = clean(input.userAgent).slice(0, 512) || "unknown";
 
+  const recentLoginHistory = [
+    Object.freeze({ loginAt, ip, userAgent }),
+    ...(Array.isArray(records[index].recentLoginHistory) ? records[index].recentLoginHistory : []),
+  ].slice(0, 10);
+
   records[index] = {
     ...records[index],
     lastLoginAt: loginAt,
     lastLoginIp: ip,
     lastLoginUserAgent: userAgent,
     loginCount: Math.max(0, Number(records[index].loginCount) || 0) + 1,
+    recentLoginHistory: Object.freeze(recentLoginHistory),
   };
 
   fs.mkdirSync(path.dirname(storePath), { recursive: true });
