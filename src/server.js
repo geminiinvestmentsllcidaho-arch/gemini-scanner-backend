@@ -34,6 +34,7 @@ import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_li
 import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
 import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
 import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
+import { appendCustomerSecurityAuditRecord } from './scanner/customer_security_audit_store.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -543,6 +544,17 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
 
 const customerPasswordResetRateLimiter = createCustomerPasswordResetRateLimiter();
 const customerSensitiveSettingsRateLimiter = createCustomerSensitiveSettingsRateLimiter();
+
+function recordCustomerSecurityAudit(req, eventType, outcome, reason) {
+  appendCustomerSecurityAuditRecord({
+    eventType,
+    outcome,
+    reason,
+    accountId: req.customerAccount?.id,
+    ip: req.ip || req.socket?.remoteAddress,
+    userAgent: req.get('user-agent'),
+  });
+}
 
 function customerForgotPasswordHtml(message = '') {
   const notice = message
@@ -4224,6 +4236,8 @@ app.post('/customer/settings/email', requireCustomerSession, requireCustomerSame
   });
   appendCustomerEmailVerificationRecord(verification.record);
 
+  recordCustomerSecurityAudit(req, 'email_change_requested', 'success');
+
   const delivery = await deliverCustomerVerificationEmail({
     email: result.account.pendingEmail,
     token: verification.token,
@@ -4273,6 +4287,7 @@ app.post('/customer/settings/account/delete', requireCustomerSession, requireCus
     );
   }
 
+  recordCustomerSecurityAudit(req, 'account_deleted', 'success');
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/');
 });
@@ -4310,6 +4325,7 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, requir
     );
   }
 
+  recordCustomerSecurityAudit(req, 'account_deactivated', 'success');
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/login');
 });
@@ -4329,6 +4345,7 @@ app.post('/customer/settings/sessions/revoke', requireCustomerSession, requireCu
       '<!doctype html><html><body><main><h1>Sessions not revoked</h1><p>Your sessions could not be revoked.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
   }
+  recordCustomerSecurityAudit(req, 'sessions_revoked', 'success');
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/login');
 });
@@ -4407,6 +4424,7 @@ app.post('/customer/settings/authenticator/start', requireCustomerSession, requi
     );
   }
 
+  recordCustomerSecurityAudit(req, 'authenticator_setup_started', 'success');
   return res.redirect(303, '/customer/settings');
 });
 
@@ -4440,6 +4458,8 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, req
       `<!doctype html><html><body><main><h1>Authenticator not enabled</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
     );
   }
+
+  recordCustomerSecurityAudit(req, 'authenticator_enabled', 'success');
 
   const recoveryCodes = Array.isArray(result.account?.authenticatorRecoveryCodes)
     ? result.account.authenticatorRecoveryCodes
@@ -4483,6 +4503,8 @@ app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCu
     );
   }
 
+  recordCustomerSecurityAudit(req, 'authenticator_recovery_codes_regenerated', 'success');
+
   const recoveryCodes = Array.isArray(result.account?.authenticatorRecoveryCodes)
     ? result.account.authenticatorRecoveryCodes
     : [];
@@ -4525,6 +4547,7 @@ app.post('/customer/settings/authenticator/disable', requireCustomerSession, req
     );
   }
 
+  recordCustomerSecurityAudit(req, 'authenticator_disabled', 'success');
   return res.redirect(303, '/customer/settings');
 });
 
@@ -4593,6 +4616,7 @@ app.post('/customer/settings/password', requireCustomerSession, requireCustomerS
     );
   }
 
+  recordCustomerSecurityAudit(req, 'password_changed', 'success');
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
 
   return res.status(200).type('html').send(

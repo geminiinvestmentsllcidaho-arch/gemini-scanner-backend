@@ -300,3 +300,43 @@ test('sensitive customer settings mutations are rate limited per account', () =>
     assert.match(routeSource, /Retry-After/);
   }
 });
+
+
+test('successful password changes append a customer security audit record', () => {
+  assert.match(source, /appendCustomerSecurityAuditRecord/);
+  assert.match(source, /function recordCustomerSecurityAudit\(req, eventType, outcome, reason\)/);
+  assert.match(source, /recordCustomerSecurityAudit\(req, 'password_changed', 'success'\);/);
+});
+
+
+test('successful email change requests append a customer security audit record', () => {
+  assert.match(source, /recordCustomerSecurityAudit\(req, 'email_change_requested', 'success'\);/);
+});
+
+test('successful account and session security mutations append customer security audit records', () => {
+  for (const eventType of [
+    'account_deleted',
+    'account_deactivated',
+    'sessions_revoked',
+  ]) {
+    assert.match(
+      source,
+      new RegExp(`recordCustomerSecurityAudit\\(req, '${eventType}', 'success'\\);`),
+    );
+  }
+});
+
+
+test('successful authenticator security mutations append customer security audit records', () => {
+  for (const eventType of [
+    'authenticator_setup_started',
+    'authenticator_enabled',
+    'authenticator_recovery_codes_regenerated',
+    'authenticator_disabled',
+  ]) {
+    assert.match(
+      source,
+      new RegExp(`recordCustomerSecurityAudit\\(req, '${eventType}', 'success'\\);`),
+    );
+  }
+});
