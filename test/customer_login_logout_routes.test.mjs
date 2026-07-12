@@ -158,3 +158,14 @@ test('settings page exposes last sign-in security activity', () => {
   assert.match(source, />Last sign-in device<\/div>/);
   assert.match(source, />Successful sign-ins<\/div>/);
 });
+
+
+test('settings page exposes authenticated account deactivation controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/account\/deactivate"/);
+  assert.match(source, /name="currentPassword" type="password"/);
+  assert.match(source, /name="confirmDeactivate" type="checkbox" required/);
+  assert.match(source, />Deactivate account<\/button>/);
+  assert.match(source, /app\.post\('\/customer\/settings\/account\/deactivate', requireCustomerSession/);
+  assert.match(source, /deactivateCustomerAccount\(/);
+  assert.match(source, /res\.redirect\(303, '\/login'\)/);
+});

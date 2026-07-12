@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -4103,6 +4103,16 @@ ${account?.authenticatorEnabled ? `
 <button type="submit">Sign out all sessions</button>
 </form>
 </section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Deactivate account</h2>
+<p style="color:#9eb0c9">Deactivate this customer account and sign out every session.</p>
+<form method="post" action="/customer/settings/account/deactivate">
+<p><label for="deactivateAccountPassword">Current password</label><br>
+<input id="deactivateAccountPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+<p><label><input name="confirmDeactivate" type="checkbox" required> I understand this will deactivate my account.</label></p>
+<button type="submit">Deactivate account</button>
+</form>
+</section>
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
@@ -4113,6 +4123,41 @@ ${account?.authenticatorEnabled ? `
 });
 
 
+
+
+app.post('/customer/settings/account/deactivate', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (req.body?.confirmDeactivate !== 'on') {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Account not deactivated</h1><p>Confirmation is required.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  const result = deactivateCustomerAccount(
+    req.customerAccount.id,
+    req.body?.currentPassword,
+    {
+      authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+    },
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'current_password_incorrect'
+      ? 'Current password is incorrect.'
+      : 'Your account could not be deactivated.';
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Account not deactivated</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  res.clearCookie(CUSTOMER_COOKIE_NAME, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+  return res.redirect(303, '/login');
+});
 
 app.post('/customer/settings/sessions/revoke', requireCustomerSession, (req, res) => {
   res.set('Cache-Control', 'no-store');

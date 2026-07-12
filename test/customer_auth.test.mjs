@@ -28,6 +28,7 @@ import {
   disableCustomerAuthenticator,
   revokeCustomerSessions,
   recordCustomerLogin,
+  deactivateCustomerAccount,
 } from "../src/scanner/customer_account_store.mjs";
 
 const AUTHENTICATOR_MASTER_KEY = "0123456789abcdef0123456789abcdef";
@@ -535,6 +536,36 @@ test("records successful customer login security activity", () => {
     assert.equal(second.ok, true);
     assert.equal(second.account.loginCount, 2);
     assert.equal(second.account.lastLoginIp, "203.0.113.21");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("deactivates customer account only after password confirmation", () => {
+  const f = fixture();
+  try {
+    const wrong = deactivateCustomerAccount(
+      f.record.id,
+      "wrong password",
+      { storePath: f.storePath, now: "2026-07-12T06:00:00.000Z" },
+    );
+    assert.equal(wrong.ok, false);
+    assert.equal(wrong.reason, "current_password_incorrect");
+
+    const result = deactivateCustomerAccount(
+      f.record.id,
+      f.password,
+      { storePath: f.storePath, now: "2026-07-12T06:00:00.000Z" },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.account.status, "deactivated");
+    assert.equal(result.account.deactivatedAt, "2026-07-12T06:00:00.000Z");
+    assert.equal(result.account.sessionsRevokedAt, "2026-07-12T06:00:00.000Z");
+    assert.equal(
+      authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok,
+      false,
+    );
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

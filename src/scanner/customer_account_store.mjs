@@ -248,6 +248,40 @@ export function recordCustomerLogin(accountId, input = {}, options = {}) {
 }
 
 
+
+export function deactivateCustomerAccount(accountId, currentPassword, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  if (!verifyCustomerPassword(currentPassword, account.password)) {
+    return Object.freeze({ ok: false, reason: "current_password_incorrect" });
+  }
+
+  const deactivatedAt = options.now ?? new Date().toISOString();
+  records[index] = {
+    ...account,
+    status: "deactivated",
+    deactivatedAt,
+    sessionsRevokedAt: deactivatedAt,
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
 export function revokeCustomerSessions(accountId, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerAccountRecords({
