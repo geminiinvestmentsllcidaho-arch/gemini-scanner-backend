@@ -187,6 +187,36 @@ export function updateCustomerProfile(accountId, input = {}, options = {}) {
   return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
 }
 
+
+export function updateCustomerNotificationPreferences(accountId, input = {}, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({ storePath })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const preferences = Object.freeze({
+    scannerAlerts: input.scannerAlerts === true || input.scannerAlerts === "on",
+    accountSecurityEmails: true,
+    productUpdates: input.productUpdates === true || input.productUpdates === "on",
+  });
+
+  records[index] = {
+    ...records[index],
+    notificationPreferences: preferences,
+    notificationPreferencesUpdatedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   fs.mkdirSync(path.dirname(storePath), { recursive: true });

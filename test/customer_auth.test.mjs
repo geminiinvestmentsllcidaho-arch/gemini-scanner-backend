@@ -16,6 +16,7 @@ import {
   markCustomerEmailVerified,
   updateCustomerPassword,
   updateCustomerProfile,
+  updateCustomerNotificationPreferences,
 } from "../src/scanner/customer_account_store.mjs";
 
 function fixture() {
@@ -155,6 +156,29 @@ test("updates customer profile names with validation", () => {
     assert.equal(updated.account.firstName, "Gemini");
     assert.equal(updated.account.lastName, "Operator");
     assert.equal(updated.account.profileUpdatedAt, "2026-07-12T00:05:00.000Z");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("updates customer notification preferences with security emails locked on", () => {
+  const f = fixture();
+  try {
+    const updated = updateCustomerNotificationPreferences(
+      f.record.id,
+      { scannerAlerts: "on", productUpdates: false },
+      { storePath: f.storePath, now: "2026-07-12T00:25:00.000Z" },
+    );
+    assert.equal(updated.ok, true);
+    assert.deepEqual(updated.account.notificationPreferences, {
+      scannerAlerts: true,
+      accountSecurityEmails: true,
+      productUpdates: false,
+    });
+    assert.equal(
+      updated.account.notificationPreferencesUpdatedAt,
+      "2026-07-12T00:25:00.000Z",
+    );
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

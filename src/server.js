@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
@@ -3881,6 +3881,16 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 <p><button type="submit" style="background:#3d72d9">Change password</button></p>
 </form>
 </section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Notifications</h2>
+<form method="post" action="/customer/settings/notifications">
+<p><label><input name="scannerAlerts" type="checkbox"${account?.notificationPreferences?.scannerAlerts ? ' checked' : ''}> Scanner alerts</label></p>
+<p><label><input name="accountSecurityEmails" type="checkbox" checked disabled> Account security emails</label><br>
+<span style="color:#9eb0c9">Required security notices cannot be disabled.</span></p>
+<p><label><input name="productUpdates" type="checkbox"${account?.notificationPreferences?.productUpdates ? ' checked' : ''}> Product updates</label></p>
+<p><button type="submit" style="background:#3d72d9">Save notifications</button></p>
+</form>
+</section>
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
@@ -3917,6 +3927,28 @@ app.post('/customer/settings/profile', requireCustomerSession, (req, res) => {
 
   return res.redirect(303, '/customer/settings');
 });
+
+
+app.post('/customer/settings/notifications', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = updateCustomerNotificationPreferences(
+    req.customerAccount.id,
+    {
+      scannerAlerts: req.body?.scannerAlerts,
+      productUpdates: req.body?.productUpdates,
+    },
+  );
+
+  if (!result.ok) {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Notifications not updated</h1><p>Notification preferences could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  return res.redirect(303, '/customer/settings');
+});
+
 
 app.post('/customer/settings/password', requireCustomerSession, (req, res) => {
   res.set('Cache-Control', 'no-store');

@@ -73,3 +73,13 @@ test('settings page exposes authenticated profile update controls', () => {
   assert.match(source, /updateCustomerProfile\(/);
   assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
 });
+
+test('settings page exposes authenticated notification preference controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/notifications"/);
+  assert.match(source, /name="scannerAlerts"/);
+  assert.match(source, /name="accountSecurityEmails" type="checkbox" checked disabled/);
+  assert.match(source, /name="productUpdates"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/notifications', requireCustomerSession,/);
+  assert.match(source, /updateCustomerNotificationPreferences\(/);
+  assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
+});
