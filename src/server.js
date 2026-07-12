@@ -4065,6 +4065,7 @@ ${(Array.isArray(account?.recentLoginHistory) ? account.recentLoginHistory : [])
 ${account?.authenticatorEnabled ? `
 <p><strong>Status:</strong> Enabled</p>
 <p style="color:#9eb0c9">Authenticator verification is active for this account.</p>
+<p><strong>Recovery codes remaining:</strong> ${esc(Array.isArray(account?.authenticatorRecoveryCodeHashes) ? account.authenticatorRecoveryCodeHashes.length : 0)}</p>
 <form method="post" action="/customer/settings/authenticator/disable">
 <p><label for="disableAuthenticatorPassword">Current password</label><br>
 <input id="disableAuthenticatorPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
@@ -4434,7 +4435,13 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (re
     );
   }
 
-  return res.redirect(303, '/customer/settings');
+  const recoveryCodes = Array.isArray(result.account?.authenticatorRecoveryCodes)
+    ? result.account.authenticatorRecoveryCodes
+    : [];
+
+  return res.status(200).type('html').send(
+    `<!doctype html><html><body><main><h1>Save your recovery codes</h1><p>These codes are shown only once. Store them somewhere secure.</p><ul>${recoveryCodes.map((code) => `<li><code>${esc(code)}</code></li>`).join('')}</ul><p><a href="/customer/settings">Continue to settings</a></p></main></body></html>`,
+  );
 });
 
 

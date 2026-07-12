@@ -114,6 +114,10 @@ test('settings page exposes authenticated authenticator setup controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/authenticator\/confirm"/);
   assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/start', requireCustomerSession/);
   assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/confirm', requireCustomerSession/);
+  assert.match(source, /Save your recovery codes/);
+  assert.match(source, /These codes are shown only once/);
+  assert.match(source, /authenticatorRecoveryCodes/);
+  assert.match(source, /Recovery codes remaining:/);
 });
 
 test('login submits optional authenticator code for enabled accounts', () => {
