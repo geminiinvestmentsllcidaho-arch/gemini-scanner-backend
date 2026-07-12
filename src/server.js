@@ -4209,6 +4209,7 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
 
 app.post('/customer/settings/email', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'email_change_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4227,6 +4228,7 @@ app.post('/customer/settings/email', requireCustomerSession, requireCustomerSame
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'email_change_attempt', 'failure', result.reason);
     const messages = {
       current_password_incorrect: 'Current password is incorrect.',
       valid_email_required: 'Enter a valid email address.',

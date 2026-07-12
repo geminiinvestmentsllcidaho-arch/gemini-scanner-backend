@@ -374,3 +374,21 @@ test('password change failures and rate limits append bounded customer security 
   assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
   assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*newPassword/);
 });
+
+
+test('email change failures and rate limits append bounded customer security audit records', () => {
+  const routeSource = source.match(
+    /app\.post\('\/customer\/settings\/email'[\s\S]*?\n\}\);/,
+  )?.[0] ?? '';
+
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'email_change_attempt', 'blocked', 'rate_limited'\);/,
+  );
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'email_change_attempt', 'failure', result\.reason\);/,
+  );
+  assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
+  assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*newEmail/);
+});
