@@ -67,6 +67,21 @@ test('resets buckets after the configured window', () => {
   assert.equal(limiter.isLimited(req(), 1000 + CUSTOMER_LOGIN_RATE_WINDOW_MS), false);
 });
 
+
+test('bounds in-memory rate-limit buckets and evicts oldest entries', () => {
+  const limiter = createCustomerLoginRateLimiter({
+    maxAttemptsPerIp: 100,
+    maxAttemptsPerEmail: 100,
+    maxBuckets: 2,
+  });
+
+  assert.equal(limiter.isLimited(req('203.0.113.1', 'a@example.com'), 1000), false);
+  assert.equal(limiter.isLimited(req('203.0.113.2', 'b@example.com'), 1000), false);
+  assert.equal(limiter.isLimited(req('203.0.113.3', 'c@example.com'), 1000), false);
+
+  assert.equal(limiter.isLimited(req('203.0.113.1', 'a@example.com'), 1000), false);
+});
+
 test('successful login clears the email bucket without clearing IP abuse history', () => {
   const limiter = createCustomerLoginRateLimiter({
     maxAttemptsPerIp: 2,
