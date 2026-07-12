@@ -747,6 +747,52 @@ export function disableCustomerAuthenticator(accountId, currentPassword, code, v
   return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
 }
 
+export function regenerateCustomerAuthenticatorRecoveryCodes(accountId, currentPassword, code, verifyCode, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  if (account.authenticatorEnabled !== true || !clean(account.authenticatorSecret)) {
+    return Object.freeze({ ok: false, reason: "authenticator_not_enabled" });
+  }
+  if (!verifyCustomerPassword(currentPassword, account.password)) {
+    return Object.freeze({ ok: false, reason: "current_password_incorrect" });
+  }
+  if (typeof verifyCode !== "function" || verifyCode(account.authenticatorSecret, code, options) !== true) {
+    return Object.freeze({ ok: false, reason: "invalid_authenticator_code" });
+  }
+
+  const recoveryCodes = generateRecoveryCodes(options);
+  records[index] = {
+    ...account,
+    authenticatorRecoveryCodeHashes: Object.freeze(recoveryCodes.map(hashRecoveryCode)),
+    authenticatorRecoveryCodesGeneratedAt: options.now ?? new Date().toISOString(),
+    authenticatorRecoveryCodeUsedAt: undefined,
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({
+    ok: true,
+    account: Object.freeze({
+      ...records[index],
+      authenticatorRecoveryCodes: recoveryCodes,
+    }),
+  });
+}
+
+
 export function consumeCustomerAuthenticatorRecoveryCode(accountId, code, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerAccountRecords({

@@ -27,6 +27,7 @@ import {
   beginCustomerAuthenticatorSetup,
   confirmCustomerAuthenticatorSetup,
   disableCustomerAuthenticator,
+  regenerateCustomerAuthenticatorRecoveryCodes,
   consumeCustomerAuthenticatorRecoveryCode,
   revokeCustomerSessions,
   recordCustomerLogin,
@@ -493,6 +494,86 @@ test("confirms customer authenticator setup only with a valid code", () => {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
 });
+
+test("regenerates recovery codes only after password and authenticator verification", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+    beginCustomerAuthenticatorSetup(
+      f.record.id,
+      "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
+    );
+    confirmCustomerAuthenticatorSetup(
+      f.record.id,
+      "287082",
+      () => true,
+      {
+        storePath: f.storePath,
+        authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY,
+        recoveryCodeGenerator: (index) => `OLDCD${String(index).padStart(5, "0")}`,
+      },
+    );
+
+    const wrongPassword = regenerateCustomerAuthenticatorRecoveryCodes(
+      f.record.id,
+      "wrong password",
+      "287082",
+      () => true,
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
+    );
+    assert.equal(wrongPassword.ok, false);
+    assert.equal(wrongPassword.reason, "current_password_incorrect");
+
+    const wrongCode = regenerateCustomerAuthenticatorRecoveryCodes(
+      f.record.id,
+      f.password,
+      "000000",
+      () => false,
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
+    );
+    assert.equal(wrongCode.ok, false);
+    assert.equal(wrongCode.reason, "invalid_authenticator_code");
+
+    const regenerated = regenerateCustomerAuthenticatorRecoveryCodes(
+      f.record.id,
+      f.password,
+      "287082",
+      (secret, code) =>
+        secret === "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" && code === "287082",
+      {
+        storePath: f.storePath,
+        authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY,
+        recoveryCodeGenerator: (index) => `NEWCD${String(index).padStart(5, "0")}`,
+        now: "2026-07-12T03:00:00.000Z",
+      },
+    );
+    assert.equal(regenerated.ok, true);
+    assert.equal(regenerated.account.authenticatorRecoveryCodes.length, 8);
+    assert.equal(regenerated.account.authenticatorRecoveryCodes[0], "NEWCD-00000");
+
+    const oldCode = consumeCustomerAuthenticatorRecoveryCode(
+      f.record.id,
+      "OLDCD-00000",
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
+    );
+    assert.equal(oldCode.ok, false);
+
+    const newCode = consumeCustomerAuthenticatorRecoveryCode(
+      f.record.id,
+      "NEWCD-00000",
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
+    );
+    assert.equal(newCode.ok, true);
+
+    const stored = fs.readFileSync(f.storePath, "utf8");
+    assert.equal(stored.includes("NEWCD-00000"), false);
+    assert.equal(stored.includes("OLDCD-00000"), false);
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
 
 test("consumes customer authenticator recovery codes only once", () => {
   const f = fixture();

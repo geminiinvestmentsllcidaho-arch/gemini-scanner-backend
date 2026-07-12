@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -4066,6 +4066,13 @@ ${account?.authenticatorEnabled ? `
 <p><strong>Status:</strong> Enabled</p>
 <p style="color:#9eb0c9">Authenticator verification is active for this account.</p>
 <p><strong>Recovery codes remaining:</strong> ${esc(Array.isArray(account?.authenticatorRecoveryCodeHashes) ? account.authenticatorRecoveryCodeHashes.length : 0)}</p>
+<form method="post" action="/customer/settings/authenticator/recovery-codes/regenerate">
+<p><label for="regenerateRecoveryPassword">Current password</label><br>
+<input id="regenerateRecoveryPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+<p><label for="regenerateRecoveryCode">Six-digit code</label><br>
+<input id="regenerateRecoveryCode" name="authenticatorCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></p>
+<p><button type="submit" style="background:#3d72d9">Generate new recovery codes</button></p>
+</form>
 <form method="post" action="/customer/settings/authenticator/disable">
 <p><label for="disableAuthenticatorPassword">Current password</label><br>
 <input id="disableAuthenticatorPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
@@ -4441,6 +4448,41 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (re
 
   return res.status(200).type('html').send(
     `<!doctype html><html><body><main><h1>Save your recovery codes</h1><p>These codes are shown only once. Store them somewhere secure.</p><ul>${recoveryCodes.map((code) => `<li><code>${esc(code)}</code></li>`).join('')}</ul><p><a href="/customer/settings">Continue to settings</a></p></main></body></html>`,
+  );
+});
+
+
+app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = regenerateCustomerAuthenticatorRecoveryCodes(
+    req.customerAccount.id,
+    req.body?.currentPassword,
+    req.body?.authenticatorCode,
+    verifyCustomerAuthenticatorCode,
+    { authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY },
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'current_password_incorrect'
+      ? 'Current password is incorrect.'
+      : result.reason === 'invalid_authenticator_code'
+        ? 'The authenticator code is invalid or expired.'
+        : result.reason === 'authenticator_not_enabled'
+          ? 'Authenticator verification is not enabled.'
+          : 'Recovery codes could not be regenerated.';
+
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Recovery codes not regenerated</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  const recoveryCodes = Array.isArray(result.account?.authenticatorRecoveryCodes)
+    ? result.account.authenticatorRecoveryCodes
+    : [];
+
+  return res.status(200).type('html').send(
+    `<!doctype html><html><body><main><h1>Save your new recovery codes</h1><p>Your previous recovery codes are now invalid. These new codes are shown only once.</p><ul>${recoveryCodes.map((recoveryCode) => `<li><code>${esc(recoveryCode)}</code></li>`).join('')}</ul><p><a href="/customer/settings">Continue to settings</a></p></main></body></html>`,
   );
 });
 

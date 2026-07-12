@@ -129,6 +129,15 @@ test('login submits optional authenticator code for enabled accounts', () => {
 });
 
 
+test('settings page exposes authenticated recovery code regeneration controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/authenticator\/recovery-codes\/regenerate"/);
+  assert.match(source, />Generate new recovery codes<\/button>/);
+  assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/recovery-codes\/regenerate', requireCustomerSession/);
+  assert.match(source, /regenerateCustomerAuthenticatorRecoveryCodes\(/);
+  assert.match(source, /Your previous recovery codes are now invalid/);
+});
+
+
 test('settings page exposes authenticated authenticator disable controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/authenticator\/disable"/);
   assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/disable', requireCustomerSession/);
