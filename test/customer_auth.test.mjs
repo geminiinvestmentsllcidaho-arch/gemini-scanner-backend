@@ -22,6 +22,8 @@ import {
   confirmCustomerAuthenticatorSetup,
 } from "../src/scanner/customer_account_store.mjs";
 
+const AUTHENTICATOR_MASTER_KEY = "0123456789abcdef0123456789abcdef";
+
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-customer-auth-"));
   const storePath = path.join(dir, "accounts.jsonl");
@@ -145,7 +147,7 @@ test("updates customer profile names with validation", () => {
     const rejected = updateCustomerProfile(
       f.record.id,
       { firstName: "", lastName: "Operator" },
-      { storePath: f.storePath },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
     );
     assert.equal(rejected.ok, false);
     assert.equal(rejected.reason, "first_name_required");
@@ -216,7 +218,7 @@ test("starts customer authenticator setup without enabling login enforcement", (
     const started = beginCustomerAuthenticatorSetup(
       f.record.id,
       "GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ",
-      { storePath: f.storePath, now: "2026-07-12T01:40:00.000Z" },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY, now: "2026-07-12T01:40:00.000Z" },
     );
     assert.equal(started.ok, true);
     assert.equal(started.account.authenticatorEnabled, false);
@@ -228,6 +230,9 @@ test("starts customer authenticator setup without enabling login enforcement", (
       started.account.authenticatorSetupStartedAt,
       "2026-07-12T01:40:00.000Z",
     );
+    const stored = fs.readFileSync(f.storePath, "utf8");
+    assert.equal(stored.includes("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"), false);
+    assert.match(stored, /authenticatorPendingSecretEncrypted/);
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
@@ -239,14 +244,14 @@ test("confirms customer authenticator setup only with a valid code", () => {
     beginCustomerAuthenticatorSetup(
       f.record.id,
       "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
-      { storePath: f.storePath },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
     );
 
     const rejected = confirmCustomerAuthenticatorSetup(
       f.record.id,
       "000000",
       () => false,
-      { storePath: f.storePath },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
     );
     assert.equal(rejected.ok, false);
     assert.equal(rejected.reason, "invalid_authenticator_code");
@@ -255,7 +260,7 @@ test("confirms customer authenticator setup only with a valid code", () => {
       f.record.id,
       "287082",
       (secret, code) => secret === "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" && code === "287082",
-      { storePath: f.storePath, now: "2026-07-12T01:50:00.000Z" },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY, now: "2026-07-12T01:50:00.000Z" },
     );
     assert.equal(confirmed.ok, true);
     assert.equal(confirmed.account.authenticatorEnabled, true);
@@ -264,6 +269,9 @@ test("confirms customer authenticator setup only with a valid code", () => {
       "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
     );
     assert.equal(confirmed.account.authenticatorPendingSecret, null);
+    const stored = fs.readFileSync(f.storePath, "utf8");
+    assert.equal(stored.includes("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"), false);
+    assert.match(stored, /authenticatorSecretEncrypted/);
     assert.equal(
       confirmed.account.authenticatorEnabledAt,
       "2026-07-12T01:50:00.000Z",
@@ -280,19 +288,19 @@ test("requires a valid authenticator code when authenticator is enabled", () => 
     beginCustomerAuthenticatorSetup(
       f.record.id,
       "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
-      { storePath: f.storePath },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
     );
     confirmCustomerAuthenticatorSetup(
       f.record.id,
       "287082",
       () => true,
-      { storePath: f.storePath },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
     );
 
     const missing = authenticateCustomer(
       f.record.email,
       f.password,
-      { storePath: f.storePath },
+      { storePath: f.storePath, authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY },
     );
     assert.equal(missing.ok, false);
     assert.equal(missing.reason, "authenticator_required");
@@ -302,6 +310,7 @@ test("requires a valid authenticator code when authenticator is enabled", () => 
       f.password,
       {
         storePath: f.storePath,
+        authenticatorMasterKey: AUTHENTICATOR_MASTER_KEY,
         authenticatorCode: "287082",
         verifyAuthenticatorCode: (secret, code) =>
           secret === "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" && code === "287082",

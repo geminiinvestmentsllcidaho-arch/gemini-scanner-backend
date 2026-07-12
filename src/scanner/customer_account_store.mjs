@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  decryptCustomerAuthenticatorSecret,
+  encryptCustomerAuthenticatorSecret,
+} from "./customer_authenticator_secret_crypto.mjs";
 
 export const VERSION = "customer_account_store_v1";
 const DEFAULT_STORE_PATH = path.resolve("runs/customer_accounts.jsonl");
@@ -78,10 +82,28 @@ export function createCustomerAccountRecord(input = {}, options = {}) {
 export function listCustomerAccountRecords(options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   if (!fs.existsSync(storePath)) return Object.freeze([]);
+  const masterKey = clean(options.authenticatorMasterKey || process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY);
   const records = fs.readFileSync(storePath, "utf8")
     .split(/\r?\n/)
     .filter(Boolean)
-    .map((line) => JSON.parse(line));
+    .map((line) => JSON.parse(line))
+    .map((record) => {
+      const accountId = clean(record.id);
+      const next = { ...record };
+      if (record.authenticatorPendingSecretEncrypted) {
+        next.authenticatorPendingSecret = decryptCustomerAuthenticatorSecret(
+          record.authenticatorPendingSecretEncrypted,
+          { masterKey, accountId },
+        );
+      }
+      if (record.authenticatorSecretEncrypted) {
+        next.authenticatorSecret = decryptCustomerAuthenticatorSecret(
+          record.authenticatorSecretEncrypted,
+          { masterKey, accountId },
+        );
+      }
+      return next;
+    });
   return Object.freeze(records);
 }
 
@@ -101,7 +123,7 @@ export function findCustomerAccountById(accountId, options = {}) {
 
 export function markCustomerEmailVerified(accountId, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
@@ -125,7 +147,7 @@ export function markCustomerEmailVerified(accountId, options = {}) {
 
 export function updateCustomerPassword(accountId, currentPassword, newPassword, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
@@ -160,7 +182,7 @@ export function updateCustomerPassword(accountId, currentPassword, newPassword, 
 
 export function updateCustomerProfile(accountId, input = {}, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
@@ -190,7 +212,7 @@ export function updateCustomerProfile(accountId, input = {}, options = {}) {
 
 export function updateCustomerNotificationPreferences(accountId, input = {}, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
@@ -220,7 +242,7 @@ export function updateCustomerNotificationPreferences(accountId, input = {}, opt
 
 export function updateCustomerDisplayPreferences(accountId, input = {}, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
@@ -255,7 +277,7 @@ export function updateCustomerDisplayPreferences(accountId, input = {}, options 
 
 export function beginCustomerAuthenticatorSetup(accountId, secret, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
@@ -264,10 +286,19 @@ export function beginCustomerAuthenticatorSetup(accountId, secret, options = {})
     return Object.freeze({ ok: false, reason: "invalid_authenticator_secret" });
   }
 
+  const authenticatorMasterKey = clean(
+    options.authenticatorMasterKey || process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+  );
+  const encryptedPendingSecret = encryptCustomerAuthenticatorSecret(normalizedSecret, {
+    masterKey: authenticatorMasterKey,
+    accountId: records[index].id,
+  });
+
   records[index] = {
     ...records[index],
     authenticatorEnabled: false,
-    authenticatorPendingSecret: normalizedSecret,
+    authenticatorPendingSecretEncrypted: encryptedPendingSecret,
+    authenticatorPendingSecret: undefined,
     authenticatorSetupStartedAt: options.now ?? new Date().toISOString(),
   };
 
@@ -279,18 +310,32 @@ export function beginCustomerAuthenticatorSetup(accountId, secret, options = {})
   fs.renameSync(tempPath, storePath);
   fs.chmodSync(storePath, 0o600);
 
-  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+  return Object.freeze({
+    ok: true,
+    account: Object.freeze({
+      ...records[index],
+      authenticatorPendingSecret: normalizedSecret,
+    }),
+  });
 }
 
 
 export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
-  const records = [...listCustomerAccountRecords({ storePath })];
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
   const account = records[index];
-  const secret = clean(account.authenticatorPendingSecret);
+  const authenticatorMasterKey = clean(
+    options.authenticatorMasterKey || process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+  );
+  const secret = account.authenticatorPendingSecretEncrypted
+    ? decryptCustomerAuthenticatorSecret(account.authenticatorPendingSecretEncrypted, {
+        masterKey: authenticatorMasterKey,
+        accountId: account.id,
+      })
+    : clean(account.authenticatorPendingSecret);
   if (!secret) {
     return Object.freeze({ ok: false, reason: "authenticator_setup_not_started" });
   }
@@ -301,8 +346,13 @@ export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, o
   records[index] = {
     ...account,
     authenticatorEnabled: true,
-    authenticatorSecret: secret,
-    authenticatorPendingSecret: null,
+    authenticatorSecretEncrypted: encryptCustomerAuthenticatorSecret(secret, {
+      masterKey: authenticatorMasterKey,
+      accountId: account.id,
+    }),
+    authenticatorPendingSecretEncrypted: null,
+    authenticatorSecret: undefined,
+    authenticatorPendingSecret: undefined,
     authenticatorEnabledAt: options.now ?? new Date().toISOString(),
   };
 
@@ -314,7 +364,14 @@ export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, o
   fs.renameSync(tempPath, storePath);
   fs.chmodSync(storePath, 0o600);
 
-  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+  return Object.freeze({
+    ok: true,
+    account: Object.freeze({
+      ...records[index],
+      authenticatorSecret: secret,
+      authenticatorPendingSecret: null,
+    }),
+  });
 }
 
 export function appendCustomerAccountRecord(record, options = {}) {

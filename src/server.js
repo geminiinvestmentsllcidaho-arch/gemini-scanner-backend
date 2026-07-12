@@ -462,7 +462,10 @@ ${notice}
 
 function requireCustomerSession(req, res, next) {
   const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
-  const result = verifyCustomerSessionToken(customerCookieValue(req), { secret });
+  const result = verifyCustomerSessionToken(customerCookieValue(req), {
+    secret,
+    authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+  });
   if (!result.ok) return res.redirect(303, '/login');
   req.customerAccount = result.account;
   return next();
@@ -470,7 +473,10 @@ function requireCustomerSession(req, res, next) {
 
 app.get('/login', (req, res) => {
   const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
-  const current = verifyCustomerSessionToken(customerCookieValue(req), { secret });
+  const current = verifyCustomerSessionToken(customerCookieValue(req), {
+    secret,
+    authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+  });
   if (current.ok) return res.redirect(303, '/customer');
   res.set('Cache-Control', 'no-store');
   return res.status(200).type('html').send(customerLoginHtml());
@@ -483,6 +489,7 @@ app.post('/login', (req, res) => {
     req.body?.password,
     {
       authenticatorCode: req.body?.authenticatorCode,
+      authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
       verifyAuthenticatorCode: verifyCustomerAuthenticatorCode,
     },
   );
@@ -4010,6 +4017,7 @@ app.post('/customer/settings/authenticator/start', requireCustomerSession, (req,
   const result = beginCustomerAuthenticatorSetup(
     req.customerAccount.id,
     secret,
+    { authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY },
   );
 
   if (!result.ok) {
@@ -4030,6 +4038,7 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (re
     req.customerAccount.id,
     req.body?.authenticatorCode,
     verifyCustomerAuthenticatorCode,
+    { authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY },
   );
 
   if (!result.ok) {
