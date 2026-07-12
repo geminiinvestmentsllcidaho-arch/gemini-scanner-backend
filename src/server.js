@@ -27,6 +27,7 @@ import { appendCustomerPasswordResetRecord, findCustomerPasswordResetByTokenHash
 import { deliverCustomerPasswordResetEmail } from './scanner/customer_password_reset_email_delivery.mjs';
 import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustomerSessionToken, verifyCustomerSessionToken } from './scanner/customer_auth.mjs';
 import { requireCustomerSameOrigin } from './scanner/customer_same_origin.mjs';
+import { applyCustomerSecurityHeaders } from './scanner/customer_security_headers.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -162,6 +163,7 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 
 const app = express();
 app.set('trust proxy', 'loopback');
+app.use(applyCustomerSecurityHeaders);
 
 app.use((_req, res, next) => {
   const originalSend = res.send.bind(res);
