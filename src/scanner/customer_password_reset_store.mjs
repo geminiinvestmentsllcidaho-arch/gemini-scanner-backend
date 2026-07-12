@@ -40,6 +40,42 @@ export function findCustomerPasswordResetByTokenHash(tokenHash, options = {}) {
   );
 }
 
+export function revokeCustomerPasswordResetsForAccount(accountId, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerPasswordResetRecords({ storePath })];
+  const normalizedAccountId = clean(accountId);
+  const excludedTokenHash = clean(options.excludeTokenHash);
+  const revokedAt = options.now ?? new Date().toISOString();
+  let revokedCount = 0;
+
+  const updated = records.map((record) => {
+    if (
+      clean(record.accountId) === normalizedAccountId
+      && !record.consumedAt
+      && clean(record.tokenHash) !== excludedTokenHash
+    ) {
+      revokedCount += 1;
+      return {
+        ...record,
+        consumedAt: revokedAt,
+        revokedReason: "superseded_by_new_reset",
+      };
+    }
+    return record;
+  });
+
+  if (revokedCount === 0) return Object.freeze({ ok: true, revokedCount: 0 });
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = updated.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+  return Object.freeze({ ok: true, revokedCount });
+}
+
 export function markCustomerPasswordResetConsumed(tokenHash, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerPasswordResetRecords({ storePath })];

@@ -23,7 +23,7 @@ import { createCustomerEmailVerification, verifyCustomerEmailToken } from './sca
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
 import { deliverCustomerVerificationEmail } from './scanner/customer_verification_email_delivery.mjs';
 import { createCustomerPasswordReset, verifyCustomerPasswordResetToken } from './scanner/customer_password_reset.mjs';
-import { appendCustomerPasswordResetRecord, findCustomerPasswordResetByTokenHash, markCustomerPasswordResetConsumed } from './scanner/customer_password_reset_store.mjs';
+import { appendCustomerPasswordResetRecord, findCustomerPasswordResetByTokenHash, markCustomerPasswordResetConsumed, revokeCustomerPasswordResetsForAccount } from './scanner/customer_password_reset_store.mjs';
 import { deliverCustomerPasswordResetEmail } from './scanner/customer_password_reset_email_delivery.mjs';
 import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustomerSessionToken, verifyCustomerSessionToken } from './scanner/customer_auth.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
@@ -575,7 +575,12 @@ app.post('/forgot-password', async (req, res) => {
   });
 
   if (!delivery.ok) {
+    markCustomerPasswordResetConsumed(reset.record.tokenHash);
     console.error('[customer-password-reset] delivery_failed');
+  } else {
+    revokeCustomerPasswordResetsForAccount(account.id, {
+      excludeTokenHash: reset.record.tokenHash,
+    });
   }
 
   return res.status(200).type('html').send(customerForgotPasswordHtml(genericMessage));
