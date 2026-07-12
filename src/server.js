@@ -4422,6 +4422,7 @@ app.post('/customer/settings/notifications', requireCustomerSession, requireCust
 
 app.post('/customer/settings/authenticator/start', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'authenticator_setup_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4438,6 +4439,7 @@ app.post('/customer/settings/authenticator/start', requireCustomerSession, requi
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'authenticator_setup_attempt', 'failure', result.reason);
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Authenticator setup not started</h1><p>Authenticator setup could not be started.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
@@ -4451,6 +4453,7 @@ app.post('/customer/settings/authenticator/start', requireCustomerSession, requi
 
 app.post('/customer/settings/authenticator/confirm', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'authenticator_confirm_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4467,6 +4470,7 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, req
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'authenticator_confirm_attempt', 'failure', result.reason);
     const message = result.reason === 'invalid_authenticator_code'
       ? 'The authenticator code is invalid or expired.'
       : result.reason === 'authenticator_setup_not_started'
@@ -4492,6 +4496,7 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, req
 
 app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'authenticator_recovery_codes_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4509,6 +4514,7 @@ app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCu
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'authenticator_recovery_codes_attempt', 'failure', result.reason);
     const message = result.reason === 'current_password_incorrect'
       ? 'Current password is incorrect.'
       : result.reason === 'invalid_authenticator_code'
@@ -4536,6 +4542,7 @@ app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCu
 
 app.post('/customer/settings/authenticator/disable', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'authenticator_disable_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4553,6 +4560,7 @@ app.post('/customer/settings/authenticator/disable', requireCustomerSession, req
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'authenticator_disable_attempt', 'failure', result.reason);
     const message = result.reason === 'current_password_incorrect'
       ? 'Current password is incorrect.'
       : result.reason === 'invalid_authenticator_code'

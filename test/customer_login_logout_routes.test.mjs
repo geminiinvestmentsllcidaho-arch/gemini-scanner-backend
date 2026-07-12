@@ -442,3 +442,33 @@ test('account deletion, deactivation, and session revoke failures append bounded
     assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
   }
 });
+
+
+test('authenticator failures and rate limits append bounded customer security audit records', () => {
+  const cases = [
+    ['/customer/settings/authenticator/start', 'authenticator_setup_attempt'],
+    ['/customer/settings/authenticator/confirm', 'authenticator_confirm_attempt'],
+    ['/customer/settings/authenticator/recovery-codes/regenerate', 'authenticator_recovery_codes_attempt'],
+    ['/customer/settings/authenticator/disable', 'authenticator_disable_attempt'],
+  ];
+
+  for (const [route, eventType] of cases) {
+    const routeStart = source.indexOf(`app.post('${route}'`);
+    assert.notEqual(routeStart, -1);
+
+    const nextRouteStart = source.indexOf('\napp.', routeStart + 1);
+    const routeSource = source.slice(
+      routeStart,
+      nextRouteStart === -1 ? source.length : nextRouteStart,
+    );
+
+    assert.ok(routeSource.includes(
+      `recordCustomerSecurityAudit(req, '${eventType}', 'blocked', 'rate_limited');`,
+    ));
+    assert.ok(routeSource.includes(
+      `recordCustomerSecurityAudit(req, '${eventType}', 'failure', result.reason);`,
+    ));
+    assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
+    assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*authenticatorCode/);
+  }
+});
