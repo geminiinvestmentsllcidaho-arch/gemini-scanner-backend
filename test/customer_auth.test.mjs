@@ -30,6 +30,7 @@ import {
   recordCustomerLogin,
   beginCustomerEmailChange,
   completeCustomerEmailChange,
+  buildCustomerDataExport,
   deactivateCustomerAccount,
 } from "../src/scanner/customer_account_store.mjs";
 
@@ -670,6 +671,30 @@ test("deactivates customer account only after password confirmation", () => {
       authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok,
       false,
     );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("builds a customer data export without authentication secrets", () => {
+  const f = fixture();
+  try {
+    const result = buildCustomerDataExport(f.record.id, {
+      storePath: f.storePath,
+      now: "2026-07-12T10:00:00.000Z",
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.export.version, "customer-data-export-v1");
+    assert.equal(result.export.generatedAt, "2026-07-12T10:00:00.000Z");
+    assert.equal(result.export.account.id, f.record.id);
+    assert.equal(result.export.account.email, f.record.email);
+    assert.equal("password" in result.export.account, false);
+    assert.equal("authenticatorSecret" in result.export.account, false);
+    assert.equal("authenticatorPendingSecret" in result.export.account, false);
+    assert.equal("authenticatorSecretEncrypted" in result.export.account, false);
+    assert.equal("authenticatorPendingSecretEncrypted" in result.export.account, false);
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

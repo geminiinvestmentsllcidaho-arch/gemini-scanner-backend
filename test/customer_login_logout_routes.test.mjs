@@ -152,6 +152,16 @@ test('customer password recovery routes are public, rate limited, and token prot
 });
 
 
+test('settings page exposes authenticated customer data export controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/data\/export"/);
+  assert.match(source, />Download my data<\/button>/);
+  assert.match(source, /app\.post\('\/customer\/settings\/data\/export', requireCustomerSession,/);
+  assert.match(source, /buildCustomerDataExport\(req\.customerAccount\.id,/);
+  assert.match(source, /Content-Disposition'/);
+  assert.match(source, /type\('application\/json'\)/);
+});
+
+
 test('settings page exposes sign out all sessions controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/sessions\/revoke"/);
   assert.match(source, />Sign out all sessions<\/button>/);

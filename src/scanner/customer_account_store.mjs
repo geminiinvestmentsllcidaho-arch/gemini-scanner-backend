@@ -352,6 +352,29 @@ export function completeCustomerEmailChange(accountId, verifiedEmail, options = 
 }
 
 
+export function buildCustomerDataExport(accountId, options = {}) {
+  const account = findCustomerAccountById(accountId, options);
+  if (!account) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const {
+    password,
+    authenticatorSecret,
+    authenticatorPendingSecret,
+    authenticatorSecretEncrypted,
+    authenticatorPendingSecretEncrypted,
+    ...safeAccount
+  } = account;
+
+  return Object.freeze({
+    ok: true,
+    export: Object.freeze({
+      version: "customer-data-export-v1",
+      generatedAt: options.now ?? new Date().toISOString(),
+      account: Object.freeze(safeAccount),
+    }),
+  });
+}
+
 export function deactivateCustomerAccount(accountId, currentPassword, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerAccountRecords({

@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -4116,6 +4116,13 @@ ${account?.authenticatorEnabled ? `
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Your data</h2>
+<p style="color:#9eb0c9">Download a JSON copy of your customer account data. Password and authenticator secrets are excluded.</p>
+<form method="post" action="/customer/settings/data/export">
+<button type="submit" style="background:#3d72d9">Download my data</button>
+</form>
+</section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Sessions</h2>
 <p style="color:#9eb0c9">Sign out this account on every device, including this one.</p>
 <form method="post" action="/customer/settings/sessions/revoke">
@@ -4142,6 +4149,24 @@ ${account?.authenticatorEnabled ? `
 });
 
 
+
+
+app.post('/customer/settings/data/export', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = buildCustomerDataExport(req.customerAccount.id, {
+    authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+  });
+  if (!result.ok) {
+    return res.status(404).type('html').send(
+      '<!doctype html><html><body><main><h1>Data export unavailable</h1><p>Your customer data could not be exported.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  const safeId = String(req.customerAccount.id || 'customer').replace(/[^a-zA-Z0-9_-]/g, '');
+  res.set('Content-Disposition', `attachment; filename="geminiscanner-customer-data-${safeId}.json"`);
+  return res.status(200).type('application/json').send(`${JSON.stringify(result.export, null, 2)}\n`);
+});
 
 
 app.post('/customer/settings/email', requireCustomerSession, async (req, res) => {
