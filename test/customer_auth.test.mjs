@@ -19,6 +19,7 @@ import {
   createCustomerAccountRecord,
   markCustomerEmailVerified,
   updateCustomerPassword,
+  resetCustomerPassword,
   updateCustomerProfile,
   updateCustomerNotificationPreferences,
   updateCustomerDisplayPreferences,
@@ -139,6 +140,46 @@ test("changes password only after current-password confirmation", () => {
         "new correct horse battery staple",
         { storePath: f.storePath },
       ).ok,
+      true,
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("resets customer password without requiring the old password", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+    const tooShort = resetCustomerPassword(
+      f.record.id,
+      "short",
+      { storePath: f.storePath },
+    );
+    assert.equal(tooShort.ok, false);
+    assert.equal(tooShort.reason, "new_password_too_short");
+
+    const same = resetCustomerPassword(
+      f.record.id,
+      f.password,
+      { storePath: f.storePath },
+    );
+    assert.equal(same.ok, false);
+    assert.equal(same.reason, "new_password_must_differ");
+
+    const changed = resetCustomerPassword(
+      f.record.id,
+      "new recovery password 123",
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T04:20:00.000Z",
+      },
+    );
+    assert.equal(changed.ok, true);
+    assert.equal(changed.account.passwordChangedAt, "2026-07-12T04:20:00.000Z");
+    assert.equal(authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok, false);
+    assert.equal(
+      authenticateCustomer(f.record.email, "new recovery password 123", { storePath: f.storePath }).ok,
       true,
     );
   } finally {

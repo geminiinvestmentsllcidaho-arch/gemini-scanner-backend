@@ -16,12 +16,15 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
 import { deliverCustomerVerificationEmail } from './scanner/customer_verification_email_delivery.mjs';
+import { createCustomerPasswordReset, verifyCustomerPasswordResetToken } from './scanner/customer_password_reset.mjs';
+import { appendCustomerPasswordResetRecord, findCustomerPasswordResetByTokenHash, markCustomerPasswordResetConsumed } from './scanner/customer_password_reset_store.mjs';
+import { deliverCustomerPasswordResetEmail } from './scanner/customer_password_reset_email_delivery.mjs';
 import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustomerSessionToken, verifyCustomerSessionToken } from './scanner/customer_auth.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
@@ -453,6 +456,7 @@ ${notice}
 </label>
 <button type="submit">Sign in</button>
 </form>
+<p class="links"><a href="/forgot-password">Forgot password?</a></p>
 <p class="links">New to GeminiScanner? <a href="/signup">Create an account</a></p>
 </section>
 </main>
@@ -512,6 +516,120 @@ app.post('/login', (req, res) => {
     path: '/',
   });
   return res.redirect(303, '/customer');
+});
+
+
+const passwordResetRateLimit = new Map();
+const PASSWORD_RESET_RATE_WINDOW_MS = 15 * 60 * 1000;
+const PASSWORD_RESET_RATE_MAX = 5;
+
+function passwordResetRateLimited(req, nowMs = Date.now()) {
+  const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
+  const current = passwordResetRateLimit.get(key);
+  if (!current || nowMs - current.windowStart >= PASSWORD_RESET_RATE_WINDOW_MS) {
+    passwordResetRateLimit.set(key, { windowStart: nowMs, count: 1 });
+    return false;
+  }
+  current.count += 1;
+  return current.count > PASSWORD_RESET_RATE_MAX;
+}
+
+function customerForgotPasswordHtml(message = '') {
+  const notice = message
+    ? `<p role="status">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`
+    : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset password</title></head><body><main><h1>Reset password</h1><p>Enter your customer email address.</p>${notice}<form method="post" action="/forgot-password"><label>Email <input name="email" type="email" autocomplete="email" required></label><button type="submit">Send reset link</button></form><p><a href="/login">Return to sign in</a></p></main></body></html>`;
+}
+
+function customerResetPasswordHtml(token, message = '') {
+  const safeToken = String(token ?? '').replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  const notice = message
+    ? `<p role="alert">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`
+    : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Choose new password</title></head><body><main><h1>Choose new password</h1>${notice}<form method="post" action="/reset-password"><input name="token" type="hidden" value="${safeToken}"><label>New password <input name="newPassword" type="password" minlength="12" autocomplete="new-password" required></label><label>Confirm new password <input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></label><button type="submit">Reset password</button></form><p><a href="/login">Return to sign in</a></p></main></body></html>`;
+}
+
+app.get('/forgot-password', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.status(200).type('html').send(customerForgotPasswordHtml());
+});
+
+app.post('/forgot-password', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (passwordResetRateLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(customerForgotPasswordHtml('Please wait before trying again.'));
+  }
+
+  const genericMessage = 'If that email belongs to an active account, a password reset link has been sent.';
+  const account = findCustomerAccountByEmail(req.body?.email);
+  if (!account || account.emailVerified !== true || account.status !== 'active') {
+    return res.status(200).type('html').send(customerForgotPasswordHtml(genericMessage));
+  }
+
+  const reset = createCustomerPasswordReset(account);
+  appendCustomerPasswordResetRecord(reset.record);
+  const delivery = await deliverCustomerPasswordResetEmail({
+    email: account.email,
+    token: reset.token,
+  });
+
+  if (!delivery.ok) {
+    return res.status(503).type('html').send(customerForgotPasswordHtml('Password recovery is temporarily unavailable.'));
+  }
+
+  return res.status(200).type('html').send(customerForgotPasswordHtml(genericMessage));
+});
+
+app.get('/reset-password', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const token = String(req.query?.token ?? '').trim();
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const record = findCustomerPasswordResetByTokenHash(tokenHash);
+  const result = verifyCustomerPasswordResetToken(token, record ?? {});
+  if (!result.ok) {
+    return res.status(400).type('html').send(customerResetPasswordHtml('', 'This password reset link is invalid, expired, or already used.'));
+  }
+  return res.status(200).type('html').send(customerResetPasswordHtml(token));
+});
+
+app.post('/reset-password', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const token = String(req.body?.token ?? '').trim();
+  const newPassword = String(req.body?.newPassword ?? '');
+  const confirmPassword = String(req.body?.confirmPassword ?? '');
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).type('html').send(customerResetPasswordHtml(token, 'New password and confirmation do not match.'));
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const record = findCustomerPasswordResetByTokenHash(tokenHash);
+  const verified = verifyCustomerPasswordResetToken(token, record ?? {});
+  if (!verified.ok) {
+    return res.status(400).type('html').send(customerResetPasswordHtml('', 'This password reset link is invalid, expired, or already used.'));
+  }
+
+  const changed = resetCustomerPassword(verified.accountId, newPassword);
+  if (!changed.ok) {
+    const message = changed.reason === 'new_password_too_short'
+      ? 'New password must be at least 12 characters.'
+      : changed.reason === 'new_password_must_differ'
+        ? 'New password must differ from the current password.'
+        : 'Password could not be reset.';
+    return res.status(400).type('html').send(customerResetPasswordHtml(token, message));
+  }
+
+  markCustomerPasswordResetConsumed(record.tokenHash);
+  res.clearCookie(CUSTOMER_COOKIE_NAME, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+  return res.status(200).type('html').send(
+    '<!doctype html><html><body><main><h1>Password reset complete</h1><p>Your password has been updated. Sign in with your new password.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
+  );
 });
 
 app.post('/logout', (_req, res) => {

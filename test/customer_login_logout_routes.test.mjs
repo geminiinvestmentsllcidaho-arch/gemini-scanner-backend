@@ -113,3 +113,20 @@ test('settings page exposes authenticated authenticator disable controls', () =>
   assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/disable', requireCustomerSession/);
   assert.match(source, /disableCustomerAuthenticator\(/);
 });
+
+
+test('customer password recovery routes are public, rate limited, and token protected', () => {
+  assert.match(source, /href="\/forgot-password">Forgot password\?/);
+  assert.match(source, /app\.get\('\/forgot-password'/);
+  assert.match(source, /app\.post\('\/forgot-password'/);
+  assert.match(source, /app\.get\('\/reset-password'/);
+  assert.match(source, /app\.post\('\/reset-password'/);
+  assert.match(source, /PASSWORD_RESET_RATE_MAX\s*=\s*5/);
+  assert.match(source, /createCustomerPasswordReset\(/);
+  assert.match(source, /appendCustomerPasswordResetRecord\(/);
+  assert.match(source, /deliverCustomerPasswordResetEmail\(/);
+  assert.match(source, /verifyCustomerPasswordResetToken\(/);
+  assert.match(source, /resetCustomerPassword\(/);
+  assert.match(source, /markCustomerPasswordResetConsumed\(/);
+  assert.match(source, /If that email belongs to an active account/);
+});
