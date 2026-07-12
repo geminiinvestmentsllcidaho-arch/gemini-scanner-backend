@@ -29,6 +29,7 @@ import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustom
 import { requireCustomerSameOrigin } from './scanner/customer_same_origin.mjs';
 import { applyCustomerSecurityHeaders } from './scanner/customer_security_headers.mjs';
 import { validateCustomerSessionSecret } from './scanner/customer_session_secret.mjs';
+import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -538,13 +539,7 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
     return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
   }
   const token = createCustomerSessionToken(loginRecord.account, { secret });
-  res.cookie(CUSTOMER_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000,
-    path: '/',
-  });
+  res.cookie(CUSTOMER_COOKIE_NAME, token, buildCustomerSessionCookieOptions());
   return res.redirect(303, '/customer');
 });
 
@@ -656,24 +651,14 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   }
 
   markCustomerPasswordResetConsumed(record.tokenHash);
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.status(200).type('html').send(
     '<!doctype html><html><body><main><h1>Password reset complete</h1><p>Your password has been updated. Sign in with your new password.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
   );
 });
 
 app.post('/logout', requireCustomerSameOrigin, (_req, res) => {
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/login');
 });
 
@@ -4289,12 +4274,7 @@ app.post('/customer/settings/account/delete', requireCustomerSession, requireCus
     );
   }
 
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/');
 });
 
@@ -4324,12 +4304,7 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, requir
     );
   }
 
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/login');
 });
 
@@ -4341,12 +4316,7 @@ app.post('/customer/settings/sessions/revoke', requireCustomerSession, requireCu
       '<!doctype html><html><body><main><h1>Sessions not revoked</h1><p>Your sessions could not be revoked.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
   }
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/login');
 });
 
@@ -4575,12 +4545,7 @@ app.post('/customer/settings/password', requireCustomerSession, requireCustomerS
     );
   }
 
-  res.clearCookie(CUSTOMER_COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
 
   return res.status(200).type('html').send(
     '<!doctype html><html><body><main><h1>Password changed</h1><p>Your password was updated. Sign in again with the new password.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',

@@ -47,6 +47,15 @@ test('settings page exposes logout form', () => {
   assert.match(source, />Log out<\/button>/);
 });
 
+test('customer session cookies use centralized restrictive options', () => {
+  assert.match(source, /import \{ buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions \} from '\.\/scanner\/customer_session_cookie\.mjs';/);
+  assert.match(source, /res\.cookie\(CUSTOMER_COOKIE_NAME, token, buildCustomerSessionCookieOptions\(\)\);/);
+  assert.equal(
+    [...source.matchAll(/res\.clearCookie\(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions\(\)\);/g)].length,
+    6,
+  );
+});
+
 
 test('settings page exposes read-only account details', () => {
   for (const label of [
