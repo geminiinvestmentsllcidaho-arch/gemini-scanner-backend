@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -4139,6 +4139,16 @@ ${account?.authenticatorEnabled ? `
 <button type="submit">Deactivate account</button>
 </form>
 </section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Permanently delete account</h2>
+<p style="color:#9eb0c9">Permanently remove this customer account. This cannot be undone.</p>
+<form method="post" action="/customer/settings/account/delete">
+<p><label for="deleteAccountPassword">Current password</label><br>
+<input id="deleteAccountPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+<p><label><input name="confirmPermanentDelete" type="checkbox" required> I understand this permanently deletes my account.</label></p>
+<button type="submit">Permanently delete account</button>
+</form>
+</section>
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
@@ -4214,6 +4224,41 @@ app.post('/customer/settings/email', requireCustomerSession, async (req, res) =>
   return res.status(202).type('html').send(
     '<!doctype html><html><body><main><h1>Check your new email</h1><p>Open the verification link sent to your new email address. Your current email remains active until verification succeeds.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
   );
+});
+
+
+app.post('/customer/settings/account/delete', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (req.body?.confirmPermanentDelete !== 'on') {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Account not deleted</h1><p>Permanent deletion confirmation is required.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  const result = permanentlyDeleteCustomerAccount(
+    req.customerAccount.id,
+    req.body?.currentPassword,
+    {
+      authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+    },
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'current_password_incorrect'
+      ? 'Current password is incorrect.'
+      : 'Your account could not be permanently deleted.';
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Account not deleted</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  res.clearCookie(CUSTOMER_COOKIE_NAME, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+  return res.redirect(303, '/');
 });
 
 

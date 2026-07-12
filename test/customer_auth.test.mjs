@@ -17,6 +17,7 @@ import {
 import {
   appendCustomerAccountRecord,
   createCustomerAccountRecord,
+  findCustomerAccountById,
   markCustomerEmailVerified,
   updateCustomerPassword,
   resetCustomerPassword,
@@ -32,6 +33,7 @@ import {
   completeCustomerEmailChange,
   buildCustomerDataExport,
   deactivateCustomerAccount,
+  permanentlyDeleteCustomerAccount,
 } from "../src/scanner/customer_account_store.mjs";
 
 const AUTHENTICATOR_MASTER_KEY = "0123456789abcdef0123456789abcdef";
@@ -695,6 +697,37 @@ test("builds a customer data export without authentication secrets", () => {
     assert.equal("authenticatorPendingSecret" in result.export.account, false);
     assert.equal("authenticatorSecretEncrypted" in result.export.account, false);
     assert.equal("authenticatorPendingSecretEncrypted" in result.export.account, false);
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("permanently deletes customer account only after password confirmation", () => {
+  const f = fixture();
+  try {
+    const wrong = permanentlyDeleteCustomerAccount(
+      f.record.id,
+      "wrong password",
+      { storePath: f.storePath, now: "2026-07-12T11:00:00.000Z" },
+    );
+    assert.equal(wrong.ok, false);
+    assert.equal(wrong.reason, "current_password_incorrect");
+    assert.notEqual(findCustomerAccountById(f.record.id, { storePath: f.storePath }), null);
+
+    const result = permanentlyDeleteCustomerAccount(
+      f.record.id,
+      f.password,
+      { storePath: f.storePath, now: "2026-07-12T11:05:00.000Z" },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.deletedAccountId, f.record.id);
+    assert.equal(result.deletedAt, "2026-07-12T11:05:00.000Z");
+    assert.equal(findCustomerAccountById(f.record.id, { storePath: f.storePath }), null);
+    assert.equal(
+      authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok,
+      false,
+    );
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

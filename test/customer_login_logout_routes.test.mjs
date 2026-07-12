@@ -183,6 +183,18 @@ test('settings page exposes last sign-in security activity', () => {
 });
 
 
+test('settings page exposes authenticated permanent account deletion controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/account\/delete"/);
+  assert.match(source, /name="currentPassword" type="password"/);
+  assert.match(source, /name="confirmPermanentDelete" type="checkbox" required/);
+  assert.match(source, />Permanently delete account<\/button>/);
+  assert.match(source, /app\.post\('\/customer\/settings\/account\/delete', requireCustomerSession/);
+  assert.match(source, /permanentlyDeleteCustomerAccount\(/);
+  assert.match(source, /res\.clearCookie\(CUSTOMER_COOKIE_NAME,/);
+  assert.match(source, /res\.redirect\(303, '\/'\)/);
+});
+
+
 test('settings page exposes authenticated account deactivation controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/account\/deactivate"/);
   assert.match(source, /name="currentPassword" type="password"/);
