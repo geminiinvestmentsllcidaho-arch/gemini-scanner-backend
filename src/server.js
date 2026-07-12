@@ -502,6 +502,7 @@ app.get('/login', (req, res) => {
 app.post('/login', requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (customerLoginRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'login_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(customerLoginHtml('Too many sign-in attempts. Try again later.'));
   }
@@ -517,6 +518,7 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
     },
   );
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'login_attempt', 'failure', result.reason);
     const message = result.reason === 'authenticator_required'
       ? 'Enter the current six-digit code from your authenticator app.'
       : 'Email or password is incorrect, or the account is not verified.';
@@ -534,8 +536,10 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
     },
   );
   if (!loginRecord.ok) {
+    recordCustomerSecurityAudit(req, 'login_attempt', 'failure', loginRecord.reason, result.account.id);
     return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
   }
+  recordCustomerSecurityAudit(req, 'login_success', 'success', undefined, loginRecord.account.id);
   customerLoginRateLimiter.clear(req);
   const token = createCustomerSessionToken(loginRecord.account, { secret });
   res.cookie(CUSTOMER_COOKIE_NAME, token, buildCustomerSessionCookieOptions());
@@ -546,12 +550,12 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
 const customerPasswordResetRateLimiter = createCustomerPasswordResetRateLimiter();
 const customerSensitiveSettingsRateLimiter = createCustomerSensitiveSettingsRateLimiter();
 
-function recordCustomerSecurityAudit(req, eventType, outcome, reason) {
+function recordCustomerSecurityAudit(req, eventType, outcome, reason, accountId) {
   appendCustomerSecurityAuditRecord({
     eventType,
     outcome,
     reason,
-    accountId: req.customerAccount?.id,
+    accountId: accountId ?? req.customerAccount?.id,
     ip: req.ip || req.socket?.remoteAddress,
     userAgent: req.get('user-agent'),
   });
@@ -655,7 +659,8 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   );
 });
 
-app.post('/logout', requireCustomerSameOrigin, (_req, res) => {
+app.post('/logout', requireCustomerSameOrigin, (req, res) => {
+  recordCustomerSecurityAudit(req, 'logout', 'success');
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.redirect(303, '/login');
 });

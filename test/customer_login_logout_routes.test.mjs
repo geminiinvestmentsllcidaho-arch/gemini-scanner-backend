@@ -304,7 +304,7 @@ test('sensitive customer settings mutations are rate limited per account', () =>
 
 test('successful password changes append a customer security audit record', () => {
   assert.match(source, /appendCustomerSecurityAuditRecord/);
-  assert.match(source, /function recordCustomerSecurityAudit\(req, eventType, outcome, reason\)/);
+  assert.match(source, /function recordCustomerSecurityAudit\(req, eventType, outcome, reason, accountId\)/);
   assert.match(source, /recordCustomerSecurityAudit\(req, 'password_changed', 'success'\);/);
 });
 
@@ -429,7 +429,7 @@ test('account deletion, deactivation, and session revoke failures append bounded
     );
     assert.match(
       routeSource,
-      new RegExp(`recordCustomerSecurityAudit\\(req, '${item.eventType}', 'failure', result\\.reason\\);`),
+      new RegExp(`recordCustomerSecurityAudit\\(req, '${item.eventType}', 'failure', result\.reason\\);`),
     );
 
     if (item.confirmationReason) {
@@ -494,4 +494,63 @@ test('customer data export outcomes append bounded customer security audit recor
   );
   assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*authenticatorMasterKey/);
   assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*result\.export/);
+});
+
+test('customer login outcomes append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.post('/login'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf('\n\nconst customerPasswordResetRateLimiter', routeStart);
+  const routeSource = source.slice(
+    routeStart,
+    routeEnd === -1 ? source.length : routeEnd,
+  );
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'login_attempt', 'blocked', 'rate_limited');"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'login_attempt', 'failure', result.reason);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'login_attempt', 'failure', loginRecord.reason, result.account.id);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'login_success', 'success', undefined, loginRecord.account.id);"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.password"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.authenticatorCode"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.authenticatorRecoveryCode"), false);
+});
+
+test('customer security audit helper accepts an explicit public-route account id', () => {
+  assert.equal(
+    source.includes('function recordCustomerSecurityAudit(req, eventType, outcome, reason, accountId)'),
+    true,
+  );
+  assert.equal(
+    source.includes('accountId: accountId ?? req.customerAccount?.id'),
+    true,
+  );
+});
+
+test('customer logout appends a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/logout'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.get('/',", routeStart);
+  const routeSource = source.slice(
+    routeStart,
+    routeEnd === -1 ? source.length : routeEnd,
+  );
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'logout', 'success');"),
+    true,
+  );
+  assert.equal(routeSource.includes('req.body'), false);
 });
