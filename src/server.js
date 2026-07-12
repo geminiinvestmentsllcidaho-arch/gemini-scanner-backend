@@ -160,6 +160,7 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 }
 
 const app = express();
+app.set('trust proxy', 'loopback');
 
 app.use((_req, res, next) => {
   const originalSend = res.send.bind(res);

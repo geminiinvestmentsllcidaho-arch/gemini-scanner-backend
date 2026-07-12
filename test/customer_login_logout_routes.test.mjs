@@ -169,3 +169,9 @@ test('settings page exposes authenticated account deactivation controls', () => 
   assert.match(source, /deactivateCustomerAccount\(/);
   assert.match(source, /res\.redirect\(303, '\/login'\)/);
 });
+
+
+test('server trusts only loopback reverse proxy for customer client IP capture', () => {
+  assert.match(source, /const app = express\(\);\s*app\.set\('trust proxy', 'loopback'\);/);
+  assert.match(source, /ip: req\.ip \|\| req\.socket\?\.remoteAddress/);
+});
