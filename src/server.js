@@ -33,6 +33,7 @@ import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptio
 import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
 import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
 import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
+import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -541,6 +542,7 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
 
 
 const customerPasswordResetRateLimiter = createCustomerPasswordResetRateLimiter();
+const customerSensitiveSettingsRateLimiter = createCustomerSensitiveSettingsRateLimiter();
 
 function customerForgotPasswordHtml(message = '') {
   const notice = message
@@ -4185,6 +4187,13 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
 
 
 app.post('/customer/settings/email', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
 
   const result = beginCustomerEmailChange(
@@ -4233,6 +4242,13 @@ app.post('/customer/settings/email', requireCustomerSession, requireCustomerSame
 
 
 app.post('/customer/settings/account/delete', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
   if (req.body?.confirmPermanentDelete !== 'on') {
     return res.status(400).type('html').send(
@@ -4263,6 +4279,13 @@ app.post('/customer/settings/account/delete', requireCustomerSession, requireCus
 
 
 app.post('/customer/settings/account/deactivate', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
   if (req.body?.confirmDeactivate !== 'on') {
     return res.status(400).type('html').send(
@@ -4292,6 +4315,13 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, requir
 });
 
 app.post('/customer/settings/sessions/revoke', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
   const result = revokeCustomerSessions(req.customerAccount.id);
   if (!result.ok) {
@@ -4355,6 +4385,13 @@ app.post('/customer/settings/notifications', requireCustomerSession, requireCust
 
 
 app.post('/customer/settings/authenticator/start', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
 
   const secret = generateCustomerAuthenticatorSecret();
@@ -4376,6 +4413,13 @@ app.post('/customer/settings/authenticator/start', requireCustomerSession, requi
 
 
 app.post('/customer/settings/authenticator/confirm', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
 
   const result = confirmCustomerAuthenticatorSetup(
@@ -4408,6 +4452,13 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, req
 
 
 app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
 
   const result = regenerateCustomerAuthenticatorRecoveryCodes(
@@ -4443,6 +4494,13 @@ app.post('/customer/settings/authenticator/recovery-codes/regenerate', requireCu
 
 
 app.post('/customer/settings/authenticator/disable', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
 
   const result = disableCustomerAuthenticator(
@@ -4496,6 +4554,13 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
 
 
 app.post('/customer/settings/password', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(
+      '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
   res.set('Cache-Control', 'no-store');
 
   const currentPassword = String(req.body?.currentPassword ?? '');

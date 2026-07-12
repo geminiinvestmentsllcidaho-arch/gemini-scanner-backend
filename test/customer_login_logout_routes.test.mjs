@@ -273,3 +273,30 @@ test('server trusts only loopback reverse proxy for customer client IP capture',
   assert.match(source, /const app = express\(\);\s*app\.set\('trust proxy', 'loopback'\);/);
   assert.match(source, /ip: req\.ip \|\| req\.socket\?\.remoteAddress/);
 });
+
+
+test('sensitive customer settings mutations are rate limited per account', () => {
+  assert.match(source, /createCustomerSensitiveSettingsRateLimiter/);
+  assert.match(source, /const customerSensitiveSettingsRateLimiter = createCustomerSensitiveSettingsRateLimiter\(\);/);
+
+  for (const route of [
+    '/customer/settings/email',
+    '/customer/settings/account/delete',
+    '/customer/settings/account/deactivate',
+    '/customer/settings/sessions/revoke',
+    '/customer/settings/authenticator/start',
+    '/customer/settings/authenticator/confirm',
+    '/customer/settings/authenticator/recovery-codes/regenerate',
+    '/customer/settings/authenticator/disable',
+    '/customer/settings/password',
+  ]) {
+    const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const routeSource = source.match(
+      new RegExp(`app\\.post\\('${escaped}'[\\s\\S]*?\\n\\}\\);`),
+    )?.[0] ?? '';
+
+    assert.match(routeSource, /customerSensitiveSettingsRateLimiter\.isLimited\(req\)/);
+    assert.match(routeSource, /status\(429\)/);
+    assert.match(routeSource, /Retry-After/);
+  }
+});
