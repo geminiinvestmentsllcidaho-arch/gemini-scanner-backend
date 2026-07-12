@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
@@ -3891,6 +3891,24 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 <p><button type="submit" style="background:#3d72d9">Save notifications</button></p>
 </form>
 </section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Appearance</h2>
+<form method="post" action="/customer/settings/display">
+<p><label for="theme">Theme</label><br>
+<select id="theme" name="theme">
+<option value="system"${(account?.displayPreferences?.theme || 'system') === 'system' ? ' selected' : ''}>Use device setting</option>
+<option value="dark"${account?.displayPreferences?.theme === 'dark' ? ' selected' : ''}>Dark</option>
+<option value="light"${account?.displayPreferences?.theme === 'light' ? ' selected' : ''}>Light</option>
+</select></p>
+<p><label for="density">Layout density</label><br>
+<select id="density" name="density">
+<option value="comfortable"${(account?.displayPreferences?.density || 'comfortable') === 'comfortable' ? ' selected' : ''}>Comfortable</option>
+<option value="compact"${account?.displayPreferences?.density === 'compact' ? ' selected' : ''}>Compact</option>
+</select></p>
+<p><label><input name="reducedMotion" type="checkbox"${account?.displayPreferences?.reducedMotion ? ' checked' : ''}> Reduce motion</label></p>
+<p><button type="submit" style="background:#3d72d9">Save appearance</button></p>
+</form>
+</section>
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
@@ -3943,6 +3961,29 @@ app.post('/customer/settings/notifications', requireCustomerSession, (req, res) 
   if (!result.ok) {
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Notifications not updated</h1><p>Notification preferences could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  return res.redirect(303, '/customer/settings');
+});
+
+
+
+app.post('/customer/settings/display', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = updateCustomerDisplayPreferences(
+    req.customerAccount.id,
+    {
+      theme: req.body?.theme,
+      density: req.body?.density,
+      reducedMotion: req.body?.reducedMotion,
+    },
+  );
+
+  if (!result.ok) {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Appearance not updated</h1><p>Display preferences could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
   }
 

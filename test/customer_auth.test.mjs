@@ -17,6 +17,7 @@ import {
   updateCustomerPassword,
   updateCustomerProfile,
   updateCustomerNotificationPreferences,
+  updateCustomerDisplayPreferences,
 } from "../src/scanner/customer_account_store.mjs";
 
 function fixture() {
@@ -178,6 +179,29 @@ test("updates customer notification preferences with security emails locked on",
     assert.equal(
       updated.account.notificationPreferencesUpdatedAt,
       "2026-07-12T00:25:00.000Z",
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("updates customer display preferences with normalized defaults", () => {
+  const f = fixture();
+  try {
+    const updated = updateCustomerDisplayPreferences(
+      f.record.id,
+      { theme: "dark", density: "compact", reducedMotion: "on" },
+      { storePath: f.storePath, now: "2026-07-12T01:20:00.000Z" },
+    );
+    assert.equal(updated.ok, true);
+    assert.deepEqual(updated.account.displayPreferences, {
+      theme: "dark",
+      density: "compact",
+      reducedMotion: true,
+    });
+    assert.equal(
+      updated.account.displayPreferencesUpdatedAt,
+      "2026-07-12T01:20:00.000Z",
     );
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });

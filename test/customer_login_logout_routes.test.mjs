@@ -83,3 +83,13 @@ test('settings page exposes authenticated notification preference controls', () 
   assert.match(source, /updateCustomerNotificationPreferences\(/);
   assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
 });
+
+test('settings page exposes authenticated display preference controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/display"/);
+  assert.match(source, /name="theme"/);
+  assert.match(source, /name="density"/);
+  assert.match(source, /name="reducedMotion"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/display', requireCustomerSession,/);
+  assert.match(source, /updateCustomerDisplayPreferences\(/);
+  assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
+});
