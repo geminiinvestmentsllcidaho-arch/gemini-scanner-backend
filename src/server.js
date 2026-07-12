@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -464,6 +464,9 @@ ${notice}
 <label>Authenticator code
 <input name="authenticatorCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6">
 </label>
+<label>Recovery code
+<input name="authenticatorRecoveryCode" type="text" autocomplete="one-time-code" maxlength="11" placeholder="ABCDE-12345">
+</label>
 <button type="submit">Sign in</button>
 </form>
 <p class="links"><a href="/forgot-password">Forgot password?</a></p>
@@ -503,8 +506,10 @@ app.post('/login', (req, res) => {
     req.body?.password,
     {
       authenticatorCode: req.body?.authenticatorCode,
+      authenticatorRecoveryCode: req.body?.authenticatorRecoveryCode,
       authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
       verifyAuthenticatorCode: verifyCustomerAuthenticatorCode,
+      consumeAuthenticatorRecoveryCode: consumeCustomerAuthenticatorRecoveryCode,
     },
   );
   if (!result.ok) {

@@ -118,7 +118,9 @@ test('settings page exposes authenticated authenticator setup controls', () => {
 
 test('login submits optional authenticator code for enabled accounts', () => {
   assert.match(source, /name="authenticatorCode"/);
+  assert.match(source, /name="authenticatorRecoveryCode"/);
   assert.match(source, /verifyAuthenticatorCode: verifyCustomerAuthenticatorCode/);
+  assert.match(source, /consumeAuthenticatorRecoveryCode: consumeCustomerAuthenticatorRecoveryCode/);
   assert.match(source, /result\.reason === 'authenticator_required'/);
 });
 

@@ -28,12 +28,29 @@ export function authenticateCustomer(email, password, options = {}) {
   if (account.authenticatorEnabled === true) {
     const verifyCode = options.verifyAuthenticatorCode;
     const code = clean(options.authenticatorCode);
-    if (
-      typeof verifyCode !== "function"
-      || !code
-      || verifyCode(account.authenticatorSecret, code, options) !== true
-    ) {
-      return Object.freeze({ ok: false, reason: "authenticator_required" });
+    const authenticatorAccepted = (
+      typeof verifyCode === "function"
+      && code
+      && verifyCode(account.authenticatorSecret, code, options) === true
+    );
+    if (!authenticatorAccepted) {
+      const recoveryCode = clean(options.authenticatorRecoveryCode);
+      const consumeRecoveryCode = options.consumeAuthenticatorRecoveryCode;
+      const recoveryResult = (
+        recoveryCode
+        && typeof consumeRecoveryCode === "function"
+      )
+        ? consumeRecoveryCode(account.id, recoveryCode, options)
+        : null;
+      if (!recoveryResult?.ok) {
+        return Object.freeze({ ok: false, reason: "authenticator_required" });
+      }
+      return Object.freeze({
+        ok: true,
+        account: recoveryResult.account ?? account,
+        authenticatorRecoveryCodeUsed: true,
+        remainingRecoveryCodeCount: recoveryResult.remainingCodeCount,
+      });
     }
   }
   return Object.freeze({ ok: true, account });

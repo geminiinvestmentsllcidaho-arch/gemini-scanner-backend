@@ -13,6 +13,26 @@ function clean(value) {
   return String(value ?? "").trim();
 }
 
+function normalizeRecoveryCode(value) {
+  return clean(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function hashRecoveryCode(value) {
+  return crypto.createHash("sha256").update(normalizeRecoveryCode(value)).digest("hex");
+}
+
+function generateRecoveryCodes(options = {}) {
+  const count = Math.max(1, Math.min(20, Number(options.recoveryCodeCount) || 8));
+  const source = typeof options.recoveryCodeGenerator === "function"
+    ? options.recoveryCodeGenerator
+    : () => crypto.randomBytes(5).toString("hex").toUpperCase();
+  return Object.freeze(Array.from({ length: count }, (_, index) => {
+    const raw = normalizeRecoveryCode(source(index));
+    if (raw.length < 8) throw new Error("invalid_recovery_code_generated");
+    return `${raw.slice(0, 5)}-${raw.slice(5, 10)}`;
+  }));
+}
+
 export function normalizeCustomerEmail(value) {
   return clean(value).toLowerCase();
 }
@@ -651,6 +671,7 @@ export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, o
     return Object.freeze({ ok: false, reason: "invalid_authenticator_code" });
   }
 
+  const recoveryCodes = generateRecoveryCodes(options);
   records[index] = {
     ...account,
     authenticatorEnabled: true,
@@ -661,6 +682,8 @@ export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, o
     authenticatorPendingSecretEncrypted: null,
     authenticatorSecret: undefined,
     authenticatorPendingSecret: undefined,
+    authenticatorRecoveryCodeHashes: Object.freeze(recoveryCodes.map(hashRecoveryCode)),
+    authenticatorRecoveryCodesGeneratedAt: options.now ?? new Date().toISOString(),
     authenticatorEnabledAt: options.now ?? new Date().toISOString(),
   };
 
@@ -678,6 +701,7 @@ export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, o
       ...records[index],
       authenticatorSecret: secret,
       authenticatorPendingSecret: null,
+      authenticatorRecoveryCodes: recoveryCodes,
     }),
   });
 }
@@ -707,6 +731,8 @@ export function disableCustomerAuthenticator(accountId, currentPassword, code, v
     authenticatorPendingSecretEncrypted: undefined,
     authenticatorSecret: undefined,
     authenticatorPendingSecret: undefined,
+    authenticatorRecoveryCodeHashes: undefined,
+    authenticatorRecoveryCodesGeneratedAt: undefined,
     authenticatorDisabledAt: options.now ?? new Date().toISOString(),
   };
 
@@ -720,6 +746,51 @@ export function disableCustomerAuthenticator(accountId, currentPassword, code, v
 
   return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
 }
+
+export function consumeCustomerAuthenticatorRecoveryCode(accountId, code, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  const candidateHash = hashRecoveryCode(code);
+  const hashes = Array.isArray(account.authenticatorRecoveryCodeHashes)
+    ? account.authenticatorRecoveryCodeHashes
+    : [];
+  const matchIndex = hashes.findIndex((hash) => {
+    const actual = Buffer.from(clean(hash));
+    const expected = Buffer.from(candidateHash);
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  });
+  if (matchIndex < 0) return Object.freeze({ ok: false, reason: "invalid_recovery_code" });
+
+  records[index] = {
+    ...account,
+    authenticatorRecoveryCodeHashes: Object.freeze(
+      hashes.filter((_, indexValue) => indexValue !== matchIndex),
+    ),
+    authenticatorRecoveryCodeUsedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({
+    ok: true,
+    remainingCodeCount: records[index].authenticatorRecoveryCodeHashes.length,
+    account: Object.freeze(records[index]),
+  });
+}
+
 
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
