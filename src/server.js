@@ -35,6 +35,7 @@ import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_
 import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
 import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
 import { appendCustomerSecurityAuditRecord } from './scanner/customer_security_audit_store.mjs';
+import { listCustomerSecurityActivity } from './scanner/customer_security_activity_reader.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -3981,6 +3982,7 @@ app.get('/customer/settings', requireCustomerSession, async (req, res) => {
   const status = esc(account?.status || 'unknown');
   const verificationStatus = account?.emailVerified ? 'Verified' : 'Not verified';
   const customerId = esc(account?.id || 'Unavailable');
+  const securityActivity = listCustomerSecurityActivity(account?.id, { limit: 20 });
 
   res.set('Cache-Control', 'no-store');
   res.type('html').send(`<!doctype html>
@@ -4042,6 +4044,13 @@ ${account?.pendingEmail ? `<div class="row"><div class="label">Pending email</di
 ${(Array.isArray(account?.recentLoginHistory) ? account.recentLoginHistory : []).length
   ? `<div class="details">${account.recentLoginHistory.map((entry) => `<div class="row"><div class="label">${esc(entry?.loginAt || 'Unknown time')}</div><div class="value">${esc(entry?.ip || 'unknown')} | ${esc(entry?.userAgent || 'unknown')}</div></div>`).join('')}</div>`
   : '<p style="color:#9eb0c9">No recent sign-in activity is available yet.</p>'}
+</section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Security activity</h2>
+<p style="color:#9eb0c9">Recent security changes for this customer account. This history is read-only.</p>
+${securityActivity.length
+  ? `<div class="details">${securityActivity.map((entry) => `<div class="row"><div class="label">${esc(entry.eventAt)}</div><div class="value"><strong>${esc(entry.eventLabel)}</strong><br>${esc(entry.outcome)} | ${esc(entry.ip)} | ${esc(entry.userAgent)}</div></div>`).join('')}</div>`
+  : '<p style="color:#9eb0c9">No security activity is available yet.</p>'}
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security</h2>

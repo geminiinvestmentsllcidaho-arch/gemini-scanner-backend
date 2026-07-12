@@ -340,3 +340,15 @@ test('successful authenticator security mutations append customer security audit
     );
   }
 });
+
+
+test('settings page exposes account-filtered read-only customer security activity', () => {
+  assert.match(source, /import \{ listCustomerSecurityActivity \} from '\.\/scanner\/customer_security_activity_reader\.mjs';/);
+  assert.match(source, /const securityActivity = listCustomerSecurityActivity\(account\?\.id, \{ limit: 20 \}\);/);
+  assert.match(source, /<h2>Security activity<\/h2>/);
+  assert.match(source, /Recent security changes for this customer account\. This history is read-only\./);
+  assert.match(source, /securityActivity\.map\(\(entry\)/);
+  assert.match(source, /entry\.eventLabel/);
+  assert.doesNotMatch(source, /securityActivity[\s\S]*entry\.accountId/);
+  assert.doesNotMatch(source, /securityActivity[\s\S]*entry\.reason/);
+});
