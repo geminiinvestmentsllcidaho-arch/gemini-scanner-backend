@@ -4587,6 +4587,7 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
 
 app.post('/customer/settings/password', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'password_change_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4600,6 +4601,7 @@ app.post('/customer/settings/password', requireCustomerSession, requireCustomerS
   const confirmPassword = String(req.body?.confirmPassword ?? '');
 
   if (newPassword !== confirmPassword) {
+    recordCustomerSecurityAudit(req, 'password_change_attempt', 'failure', 'password_confirmation_mismatch');
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Password not changed</h1><p>New password and confirmation do not match.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
@@ -4612,6 +4614,7 @@ app.post('/customer/settings/password', requireCustomerSession, requireCustomerS
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'password_change_attempt', 'failure', result.reason);
     const message = result.reason === 'current_password_incorrect'
       ? 'Current password is incorrect.'
       : result.reason === 'new_password_too_short'

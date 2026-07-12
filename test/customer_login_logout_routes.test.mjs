@@ -352,3 +352,25 @@ test('settings page exposes account-filtered read-only customer security activit
   assert.doesNotMatch(source, /securityActivity[\s\S]*entry\.accountId/);
   assert.doesNotMatch(source, /securityActivity[\s\S]*entry\.reason/);
 });
+
+
+test('password change failures and rate limits append bounded customer security audit records', () => {
+  const routeSource = source.match(
+    /app\.post\('\/customer\/settings\/password'[\s\S]*?\n\}\);/,
+  )?.[0] ?? '';
+
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'password_change_attempt', 'blocked', 'rate_limited'\);/,
+  );
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'password_change_attempt', 'failure', 'password_confirmation_mismatch'\);/,
+  );
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'password_change_attempt', 'failure', result\.reason\);/,
+  );
+  assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
+  assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*newPassword/);
+});
