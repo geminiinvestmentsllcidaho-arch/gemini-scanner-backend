@@ -147,6 +147,43 @@ test("changes password only after current-password confirmation", () => {
   }
 });
 
+test("revokes existing customer sessions after password change", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+    const login = authenticateCustomer(f.record.email, f.password, { storePath: f.storePath });
+    assert.equal(login.ok, true);
+
+    const secret = "session-revocation-test-secret";
+    const token = createCustomerSessionToken(login.account, {
+      secret,
+      nowMs: Date.parse("2026-07-12T04:00:00.000Z"),
+      ttlSec: 3600,
+    });
+
+    const changed = updateCustomerPassword(
+      f.record.id,
+      f.password,
+      "new correct horse battery staple",
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T04:10:00.000Z",
+      },
+    );
+    assert.equal(changed.ok, true);
+
+    const session = verifyCustomerSessionToken(token, {
+      secret,
+      nowMs: Date.parse("2026-07-12T04:20:00.000Z"),
+      storePath: f.storePath,
+    });
+    assert.equal(session.ok, false);
+    assert.equal(session.reason, "session_revoked");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
 test("resets customer password without requiring the old password", () => {
   const f = fixture();
   try {

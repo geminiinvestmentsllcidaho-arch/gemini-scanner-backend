@@ -78,6 +78,10 @@ export function verifyCustomerSessionToken(token, options = {}) {
     if (!account || account.status !== "active" || account.emailVerified !== true) {
       return Object.freeze({ ok: false, reason: "account_unavailable" });
     }
+    const passwordChangedAtSec = Math.floor(Date.parse(account.passwordChangedAt || 0) / 1000);
+    if (Number.isFinite(passwordChangedAtSec) && passwordChangedAtSec > 0 && Number(data.iat) < passwordChangedAtSec) {
+      return Object.freeze({ ok: false, reason: "session_revoked" });
+    }
     return Object.freeze({ ok: true, account, session: data });
   } catch {
     return Object.freeze({ ok: false, reason: "invalid_session" });
