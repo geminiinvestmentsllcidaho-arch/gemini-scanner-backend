@@ -18,6 +18,8 @@ import {
   updateCustomerProfile,
   updateCustomerNotificationPreferences,
   updateCustomerDisplayPreferences,
+  beginCustomerAuthenticatorSetup,
+  confirmCustomerAuthenticatorSetup,
 } from "../src/scanner/customer_account_store.mjs";
 
 function fixture() {
@@ -203,6 +205,109 @@ test("updates customer display preferences with normalized defaults", () => {
       updated.account.displayPreferencesUpdatedAt,
       "2026-07-12T01:20:00.000Z",
     );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("starts customer authenticator setup without enabling login enforcement", () => {
+  const f = fixture();
+  try {
+    const started = beginCustomerAuthenticatorSetup(
+      f.record.id,
+      "GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ",
+      { storePath: f.storePath, now: "2026-07-12T01:40:00.000Z" },
+    );
+    assert.equal(started.ok, true);
+    assert.equal(started.account.authenticatorEnabled, false);
+    assert.equal(
+      started.account.authenticatorPendingSecret,
+      "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    );
+    assert.equal(
+      started.account.authenticatorSetupStartedAt,
+      "2026-07-12T01:40:00.000Z",
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("confirms customer authenticator setup only with a valid code", () => {
+  const f = fixture();
+  try {
+    beginCustomerAuthenticatorSetup(
+      f.record.id,
+      "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      { storePath: f.storePath },
+    );
+
+    const rejected = confirmCustomerAuthenticatorSetup(
+      f.record.id,
+      "000000",
+      () => false,
+      { storePath: f.storePath },
+    );
+    assert.equal(rejected.ok, false);
+    assert.equal(rejected.reason, "invalid_authenticator_code");
+
+    const confirmed = confirmCustomerAuthenticatorSetup(
+      f.record.id,
+      "287082",
+      (secret, code) => secret === "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" && code === "287082",
+      { storePath: f.storePath, now: "2026-07-12T01:50:00.000Z" },
+    );
+    assert.equal(confirmed.ok, true);
+    assert.equal(confirmed.account.authenticatorEnabled, true);
+    assert.equal(
+      confirmed.account.authenticatorSecret,
+      "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    );
+    assert.equal(confirmed.account.authenticatorPendingSecret, null);
+    assert.equal(
+      confirmed.account.authenticatorEnabledAt,
+      "2026-07-12T01:50:00.000Z",
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("requires a valid authenticator code when authenticator is enabled", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+    beginCustomerAuthenticatorSetup(
+      f.record.id,
+      "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      { storePath: f.storePath },
+    );
+    confirmCustomerAuthenticatorSetup(
+      f.record.id,
+      "287082",
+      () => true,
+      { storePath: f.storePath },
+    );
+
+    const missing = authenticateCustomer(
+      f.record.email,
+      f.password,
+      { storePath: f.storePath },
+    );
+    assert.equal(missing.ok, false);
+    assert.equal(missing.reason, "authenticator_required");
+
+    const accepted = authenticateCustomer(
+      f.record.email,
+      f.password,
+      {
+        storePath: f.storePath,
+        authenticatorCode: "287082",
+        verifyAuthenticatorCode: (secret, code) =>
+          secret === "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" && code === "287082",
+      },
+    );
+    assert.equal(accepted.ok, true);
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }

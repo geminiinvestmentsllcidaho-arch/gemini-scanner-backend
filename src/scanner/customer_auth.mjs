@@ -25,6 +25,17 @@ export function authenticateCustomer(email, password, options = {}) {
   if (!verifyCustomerPassword(password, account.password)) {
     return Object.freeze({ ok: false, reason: "invalid_credentials" });
   }
+  if (account.authenticatorEnabled === true) {
+    const verifyCode = options.verifyAuthenticatorCode;
+    const code = clean(options.authenticatorCode);
+    if (
+      typeof verifyCode !== "function"
+      || !code
+      || verifyCode(account.authenticatorSecret, code, options) !== true
+    ) {
+      return Object.freeze({ ok: false, reason: "authenticator_required" });
+    }
+  }
   return Object.freeze({ ok: true, account });
 }
 

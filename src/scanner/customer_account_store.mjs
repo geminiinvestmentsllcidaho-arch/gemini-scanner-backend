@@ -252,6 +252,71 @@ export function updateCustomerDisplayPreferences(accountId, input = {}, options 
   return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
 }
 
+
+export function beginCustomerAuthenticatorSetup(accountId, secret, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({ storePath })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const normalizedSecret = clean(secret).replaceAll(" ", "").toUpperCase();
+  if (!/^[A-Z2-7]{16,}$/.test(normalizedSecret)) {
+    return Object.freeze({ ok: false, reason: "invalid_authenticator_secret" });
+  }
+
+  records[index] = {
+    ...records[index],
+    authenticatorEnabled: false,
+    authenticatorPendingSecret: normalizedSecret,
+    authenticatorSetupStartedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
+
+export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({ storePath })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  const secret = clean(account.authenticatorPendingSecret);
+  if (!secret) {
+    return Object.freeze({ ok: false, reason: "authenticator_setup_not_started" });
+  }
+  if (typeof verifyCode !== "function" || verifyCode(secret, code, options) !== true) {
+    return Object.freeze({ ok: false, reason: "invalid_authenticator_code" });
+  }
+
+  records[index] = {
+    ...account,
+    authenticatorEnabled: true,
+    authenticatorSecret: secret,
+    authenticatorPendingSecret: null,
+    authenticatorEnabledAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   fs.mkdirSync(path.dirname(storePath), { recursive: true });

@@ -93,3 +93,16 @@ test('settings page exposes authenticated display preference controls', () => {
   assert.match(source, /updateCustomerDisplayPreferences\(/);
   assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
 });
+
+test('settings page exposes authenticated authenticator setup controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/authenticator\/start"/);
+  assert.match(source, /form method="post" action="\/customer\/settings\/authenticator\/confirm"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/start', requireCustomerSession/);
+  assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/confirm', requireCustomerSession/);
+});
+
+test('login submits optional authenticator code for enabled accounts', () => {
+  assert.match(source, /name="authenticatorCode"/);
+  assert.match(source, /verifyAuthenticatorCode: verifyCustomerAuthenticatorCode/);
+  assert.match(source, /result\.reason === 'authenticator_required'/);
+});

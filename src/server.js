@@ -16,8 +16,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
+import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
 import { appendCustomerEmailVerificationRecord, findCustomerEmailVerificationByTokenHash, markCustomerEmailVerificationConsumed } from './scanner/customer_email_verification_store.mjs';
 import { deliverCustomerVerificationEmail } from './scanner/customer_verification_email_delivery.mjs';
@@ -447,6 +448,9 @@ ${notice}
 <label>Password
 <input name="password" type="password" autocomplete="current-password" required>
 </label>
+<label>Authenticator code
+<input name="authenticatorCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6">
+</label>
 <button type="submit">Sign in</button>
 </form>
 <p class="links">New to GeminiScanner? <a href="/signup">Create an account</a></p>
@@ -474,9 +478,19 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  const result = authenticateCustomer(req.body?.email, req.body?.password);
+  const result = authenticateCustomer(
+    req.body?.email,
+    req.body?.password,
+    {
+      authenticatorCode: req.body?.authenticatorCode,
+      verifyAuthenticatorCode: verifyCustomerAuthenticatorCode,
+    },
+  );
   if (!result.ok) {
-    return res.status(401).type('html').send(customerLoginHtml('Email or password is incorrect, or the account is not verified.'));
+    const message = result.reason === 'authenticator_required'
+      ? 'Enter the current six-digit code from your authenticator app.'
+      : 'Email or password is incorrect, or the account is not verified.';
+    return res.status(401).type('html').send(customerLoginHtml(message));
   }
   const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
   if (!secret) {
@@ -3870,6 +3884,25 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 </div>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security</h2>
+<h3>Authenticator app</h3>
+${account?.authenticatorEnabled ? `
+<p><strong>Status:</strong> Enabled</p>
+<p style="color:#9eb0c9">Authenticator verification is active for this account.</p>
+` : account?.authenticatorPendingSecret ? `
+<p><strong>Status:</strong> Setup pending</p>
+<p>Add this setup key to your authenticator app:</p>
+<p><code style="overflow-wrap:anywhere">${esc(account.authenticatorPendingSecret)}</code></p>
+<form method="post" action="/customer/settings/authenticator/confirm">
+<p><label for="authenticatorCode">Six-digit code</label><br>
+<input id="authenticatorCode" name="authenticatorCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></p>
+<p><button type="submit" style="background:#3d72d9">Confirm authenticator</button></p>
+</form>
+` : `
+<p><strong>Status:</strong> Not enabled</p>
+<form method="post" action="/customer/settings/authenticator/start">
+<p><button type="submit" style="background:#3d72d9">Set up authenticator</button></p>
+</form>
+`}
 <h3>Change password</h3>
 <form method="post" action="/customer/settings/password">
 <p><label for="currentPassword">Current password</label><br>
@@ -3967,6 +4000,52 @@ app.post('/customer/settings/notifications', requireCustomerSession, (req, res) 
   return res.redirect(303, '/customer/settings');
 });
 
+
+
+
+app.post('/customer/settings/authenticator/start', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const secret = generateCustomerAuthenticatorSecret();
+  const result = beginCustomerAuthenticatorSetup(
+    req.customerAccount.id,
+    secret,
+  );
+
+  if (!result.ok) {
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Authenticator setup not started</h1><p>Authenticator setup could not be started.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  return res.redirect(303, '/customer/settings');
+});
+
+
+
+app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = confirmCustomerAuthenticatorSetup(
+    req.customerAccount.id,
+    req.body?.authenticatorCode,
+    verifyCustomerAuthenticatorCode,
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'invalid_authenticator_code'
+      ? 'The authenticator code is invalid or expired.'
+      : result.reason === 'authenticator_setup_not_started'
+        ? 'Authenticator setup has not been started.'
+        : 'Authenticator setup could not be confirmed.';
+
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Authenticator not enabled</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  return res.redirect(303, '/customer/settings');
+});
 
 
 app.post('/customer/settings/display', requireCustomerSession, (req, res) => {
