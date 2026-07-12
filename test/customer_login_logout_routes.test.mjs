@@ -56,6 +56,15 @@ test('customer session cookies use centralized restrictive options', () => {
   );
 });
 
+test('customer login route rate limits repeated attempts and clears on success', () => {
+  assert.match(source, /import \{ createCustomerLoginRateLimiter \} from '\.\/scanner\/customer_login_rate_limit\.mjs';/);
+  assert.match(source, /const customerLoginRateLimiter = createCustomerLoginRateLimiter\(\);/);
+  assert.match(source, /if \(customerLoginRateLimiter\.isLimited\(req\)\)/);
+  assert.match(source, /res\.set\('Retry-After', '900'\)/);
+  assert.match(source, /res\.status\(429\)/);
+  assert.match(source, /customerLoginRateLimiter\.clear\(req\);/);
+});
+
 
 test('settings page exposes read-only account details', () => {
   for (const label of [

@@ -30,6 +30,7 @@ import { requireCustomerSameOrigin } from './scanner/customer_same_origin.mjs';
 import { applyCustomerSecurityHeaders } from './scanner/customer_security_headers.mjs';
 import { validateCustomerSessionSecret } from './scanner/customer_session_secret.mjs';
 import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
+import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -119,6 +120,7 @@ import { buildPublicHomepage, renderPublicHomepageHtml } from "./scanner/public_
 
 dotenv.config();
 const CUSTOMER_SESSION_SECRET = validateCustomerSessionSecret(process.env.CUSTOMER_SESSION_SECRET);
+const customerLoginRateLimiter = createCustomerLoginRateLimiter();
 
 
 async function buildStage2LcmPayload() {
@@ -507,6 +509,10 @@ app.get('/login', (req, res) => {
 
 app.post('/login', requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
+  if (customerLoginRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(customerLoginHtml('Too many sign-in attempts. Try again later.'));
+  }
   const result = authenticateCustomer(
     req.body?.email,
     req.body?.password,
@@ -538,6 +544,7 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
   if (!loginRecord.ok) {
     return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
   }
+  customerLoginRateLimiter.clear(req);
   const token = createCustomerSessionToken(loginRecord.account, { secret });
   res.cookie(CUSTOMER_COOKIE_NAME, token, buildCustomerSessionCookieOptions());
   return res.redirect(303, '/customer');
