@@ -31,6 +31,7 @@ import { applyCustomerSecurityHeaders } from './scanner/customer_security_header
 import { validateCustomerSessionSecret } from './scanner/customer_session_secret.mjs';
 import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
 import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
+import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -303,25 +304,12 @@ app.get('/signup', (_req, res) => {
   res.type('html').send(renderCustomerSignupPageHtml(signup));
 });
 
-const signupRateLimit = new Map();
-const SIGNUP_RATE_WINDOW_MS = 15 * 60 * 1000;
-const SIGNUP_RATE_MAX = 5;
-
-function signupRateLimited(req, nowMs = Date.now()) {
-  const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
-  const current = signupRateLimit.get(key);
-  if (!current || nowMs - current.windowStart >= SIGNUP_RATE_WINDOW_MS) {
-    signupRateLimit.set(key, { windowStart: nowMs, count: 1 });
-    return false;
-  }
-  current.count += 1;
-  return current.count > SIGNUP_RATE_MAX;
-}
+const customerSignupRateLimiter = createCustomerSignupRateLimiter();
 
 app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
-  if (signupRateLimited(req)) {
+  if (customerSignupRateLimiter.isLimited(req)) {
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many attempts</h1><p>Please wait before trying again.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
