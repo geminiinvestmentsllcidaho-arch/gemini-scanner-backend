@@ -147,3 +147,14 @@ test('settings page exposes sign out all sessions controls', () => {
   assert.match(source, /res\.clearCookie\(CUSTOMER_COOKIE_NAME,/);
   assert.match(source, /res\.redirect\(303, '\/login'\)/);
 });
+
+
+test('settings page exposes last sign-in security activity', () => {
+  assert.match(source, /recordCustomerLogin\(/);
+  assert.match(source, /ip: req\.ip \|\| req\.socket\?\.remoteAddress/);
+  assert.match(source, /userAgent: req\.get\('user-agent'\)/);
+  assert.match(source, />Last sign-in<\/div>/);
+  assert.match(source, />Last sign-in IP<\/div>/);
+  assert.match(source, />Last sign-in device<\/div>/);
+  assert.match(source, />Successful sign-ins<\/div>/);
+});

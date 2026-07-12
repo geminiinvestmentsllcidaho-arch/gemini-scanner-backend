@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, revokeCustomerSessions, recordCustomerLogin } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -507,7 +507,20 @@ app.post('/login', (req, res) => {
   if (!secret) {
     return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
   }
-  const token = createCustomerSessionToken(result.account, { secret });
+  const loginRecord = recordCustomerLogin(
+    result.account.id,
+    {
+      ip: req.ip || req.socket?.remoteAddress,
+      userAgent: req.get('user-agent'),
+    },
+    {
+      authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
+    },
+  );
+  if (!loginRecord.ok) {
+    return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
+  }
+  const token = createCustomerSessionToken(loginRecord.account, { secret });
   res.cookie(CUSTOMER_COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
@@ -4011,6 +4024,10 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 <div class="row"><div class="label">Email verification</div><div class="value">${verificationStatus}</div></div>
 <div class="row"><div class="label">Customer ID</div><div class="value">${customerId}</div></div>
 <div class="row"><div class="label">Member since</div><div class="value">${esc(memberSince)}</div></div>
+<div class="row"><div class="label">Last sign-in</div><div class="value">${esc(account?.lastLoginAt || 'Not available')}</div></div>
+<div class="row"><div class="label">Last sign-in IP</div><div class="value">${esc(account?.lastLoginIp || 'Not available')}</div></div>
+<div class="row"><div class="label">Last sign-in device</div><div class="value">${esc(account?.lastLoginUserAgent || 'Not available')}</div></div>
+<div class="row"><div class="label">Successful sign-ins</div><div class="value">${esc(account?.loginCount ?? 0)}</div></div>
 </div>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security</h2>

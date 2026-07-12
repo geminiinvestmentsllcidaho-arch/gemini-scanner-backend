@@ -27,6 +27,7 @@ import {
   confirmCustomerAuthenticatorSetup,
   disableCustomerAuthenticator,
   revokeCustomerSessions,
+  recordCustomerLogin,
 } from "../src/scanner/customer_account_store.mjs";
 
 const AUTHENTICATOR_MASTER_KEY = "0123456789abcdef0123456789abcdef";
@@ -494,6 +495,46 @@ test("revokes all existing customer sessions on demand", () => {
     });
     assert.equal(session.ok, false);
     assert.equal(session.reason, "session_revoked");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("records successful customer login security activity", () => {
+  const f = fixture();
+  try {
+    const first = recordCustomerLogin(
+      f.record.id,
+      {
+        ip: "203.0.113.20",
+        userAgent: "GeminiScanner Test Browser/1.0",
+      },
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T05:30:00.000Z",
+      },
+    );
+    assert.equal(first.ok, true);
+    assert.equal(first.account.lastLoginAt, "2026-07-12T05:30:00.000Z");
+    assert.equal(first.account.lastLoginIp, "203.0.113.20");
+    assert.equal(first.account.lastLoginUserAgent, "GeminiScanner Test Browser/1.0");
+    assert.equal(first.account.loginCount, 1);
+
+    const second = recordCustomerLogin(
+      f.record.id,
+      {
+        ip: "203.0.113.21",
+        userAgent: "GeminiScanner Test Browser/2.0",
+      },
+      {
+        storePath: f.storePath,
+        now: "2026-07-12T05:35:00.000Z",
+      },
+    );
+    assert.equal(second.ok, true);
+    assert.equal(second.account.loginCount, 2);
+    assert.equal(second.account.lastLoginIp, "203.0.113.21");
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
