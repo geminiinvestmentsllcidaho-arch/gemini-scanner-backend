@@ -691,7 +691,7 @@ app.post('/reset-password', (req, res) => {
   );
 });
 
-app.post('/logout', (_req, res) => {
+app.post('/logout', requireCustomerSameOrigin, (_req, res) => {
   res.clearCookie(CUSTOMER_COOKIE_NAME, {
     httpOnly: true,
     secure: true,

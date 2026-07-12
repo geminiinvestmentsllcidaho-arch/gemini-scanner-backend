@@ -7,7 +7,7 @@ const source = await readFile(new URL('../src/server.js', import.meta.url), 'utf
 test('customer authentication routes exist', () => {
   assert.match(source, /app\.get\('\/login'/);
   assert.match(source, /app\.post\('\/login'/);
-  assert.match(source, /app\.post\('\/logout'/);
+  assert.match(source, /app\.post\('\/logout', requireCustomerSameOrigin/);
 });
 
 test('customer routes require signed customer sessions', () => {
