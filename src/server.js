@@ -28,6 +28,7 @@ import { deliverCustomerPasswordResetEmail } from './scanner/customer_password_r
 import { COOKIE_NAME as CUSTOMER_COOKIE_NAME, authenticateCustomer, createCustomerSessionToken, verifyCustomerSessionToken } from './scanner/customer_auth.mjs';
 import { requireCustomerSameOrigin } from './scanner/customer_same_origin.mjs';
 import { applyCustomerSecurityHeaders } from './scanner/customer_security_headers.mjs';
+import { validateCustomerSessionSecret } from './scanner/customer_session_secret.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -116,6 +117,7 @@ import { buildInternalOwnerTenantAppScreen, renderInternalOwnerTenantAppScreenHt
 import { buildPublicHomepage, renderPublicHomepageHtml } from "./scanner/public_homepage.mjs";
 
 dotenv.config();
+const CUSTOMER_SESSION_SECRET = validateCustomerSessionSecret(process.env.CUSTOMER_SESSION_SECRET);
 
 
 async function buildStage2LcmPayload() {
@@ -481,7 +483,7 @@ ${notice}
 }
 
 function requireCustomerSession(req, res, next) {
-  const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
+  const secret = CUSTOMER_SESSION_SECRET
   const result = verifyCustomerSessionToken(customerCookieValue(req), {
     secret,
     authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
@@ -492,7 +494,7 @@ function requireCustomerSession(req, res, next) {
 }
 
 app.get('/login', (req, res) => {
-  const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
+  const secret = CUSTOMER_SESSION_SECRET
   const current = verifyCustomerSessionToken(customerCookieValue(req), {
     secret,
     authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
@@ -521,10 +523,7 @@ app.post('/login', requireCustomerSameOrigin, (req, res) => {
       : 'Email or password is incorrect, or the account is not verified.';
     return res.status(401).type('html').send(customerLoginHtml(message));
   }
-  const secret = String(process.env.CUSTOMER_SESSION_SECRET ?? '').trim();
-  if (!secret) {
-    return res.status(503).type('html').send(customerLoginHtml('Customer sign-in is temporarily unavailable.'));
-  }
+  const secret = CUSTOMER_SESSION_SECRET
   const loginRecord = recordCustomerLogin(
     result.account.id,
     {
