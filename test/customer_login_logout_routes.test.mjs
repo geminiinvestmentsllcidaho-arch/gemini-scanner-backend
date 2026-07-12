@@ -10,6 +10,18 @@ test('customer authentication routes exist', () => {
   assert.match(source, /app\.post\('\/logout', requireCustomerSameOrigin/);
 });
 
+test('public customer authentication mutations require same-origin verification', () => {
+  for (const route of [
+    '/signup',
+    '/login',
+    '/forgot-password',
+    '/reset-password',
+  ]) {
+    const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(source, new RegExp(`app\\.post\\('${escaped}', requireCustomerSameOrigin,`));
+  }
+});
+
 test('customer routes require signed customer sessions', () => {
   for (const route of [
     '/customer',

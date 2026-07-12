@@ -310,7 +310,7 @@ function signupRateLimited(req, nowMs = Date.now()) {
   return current.count > SIGNUP_RATE_MAX;
 }
 
-app.post('/signup', async (req, res) => {
+app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   if (signupRateLimited(req)) {
@@ -525,7 +525,7 @@ app.get('/login', (req, res) => {
   return res.status(200).type('html').send(customerLoginHtml());
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   const result = authenticateCustomer(
     req.body?.email,
@@ -608,7 +608,7 @@ app.get('/forgot-password', (_req, res) => {
   return res.status(200).type('html').send(customerForgotPasswordHtml());
 });
 
-app.post('/forgot-password', async (req, res) => {
+app.post('/forgot-password', requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (passwordResetRateLimited(req)) {
     res.set('Retry-After', '900');
@@ -652,7 +652,7 @@ app.get('/reset-password', (req, res) => {
   return res.status(200).type('html').send(customerResetPasswordHtml(token));
 });
 
-app.post('/reset-password', (req, res) => {
+app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
   const token = String(req.body?.token ?? '').trim();
   const newPassword = String(req.body?.newPassword ?? '');
