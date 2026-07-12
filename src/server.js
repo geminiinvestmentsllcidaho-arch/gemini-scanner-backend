@@ -4268,6 +4268,7 @@ app.post('/customer/settings/email', requireCustomerSession, requireCustomerSame
 
 app.post('/customer/settings/account/delete', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'account_delete_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4276,6 +4277,7 @@ app.post('/customer/settings/account/delete', requireCustomerSession, requireCus
 
   res.set('Cache-Control', 'no-store');
   if (req.body?.confirmPermanentDelete !== 'on') {
+    recordCustomerSecurityAudit(req, 'account_delete_attempt', 'failure', 'confirmation_required');
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Account not deleted</h1><p>Permanent deletion confirmation is required.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
@@ -4290,6 +4292,7 @@ app.post('/customer/settings/account/delete', requireCustomerSession, requireCus
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'account_delete_attempt', 'failure', result.reason);
     const message = result.reason === 'current_password_incorrect'
       ? 'Current password is incorrect.'
       : 'Your account could not be permanently deleted.';
@@ -4306,6 +4309,7 @@ app.post('/customer/settings/account/delete', requireCustomerSession, requireCus
 
 app.post('/customer/settings/account/deactivate', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'account_deactivate_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4314,6 +4318,7 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, requir
 
   res.set('Cache-Control', 'no-store');
   if (req.body?.confirmDeactivate !== 'on') {
+    recordCustomerSecurityAudit(req, 'account_deactivate_attempt', 'failure', 'confirmation_required');
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Account not deactivated</h1><p>Confirmation is required.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
@@ -4328,6 +4333,7 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, requir
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'account_deactivate_attempt', 'failure', result.reason);
     const message = result.reason === 'current_password_incorrect'
       ? 'Current password is incorrect.'
       : 'Your account could not be deactivated.';
@@ -4343,6 +4349,7 @@ app.post('/customer/settings/account/deactivate', requireCustomerSession, requir
 
 app.post('/customer/settings/sessions/revoke', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'sessions_revoke_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many security changes</h1><p>Please wait before trying again.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
@@ -4352,6 +4359,7 @@ app.post('/customer/settings/sessions/revoke', requireCustomerSession, requireCu
   res.set('Cache-Control', 'no-store');
   const result = revokeCustomerSessions(req.customerAccount.id);
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'sessions_revoke_attempt', 'failure', result.reason);
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Sessions not revoked</h1><p>Your sessions could not be revoked.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );

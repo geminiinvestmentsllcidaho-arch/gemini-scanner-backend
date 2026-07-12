@@ -392,3 +392,53 @@ test('email change failures and rate limits append bounded customer security aud
   assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
   assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*newEmail/);
 });
+
+
+test('account deletion, deactivation, and session revoke failures append bounded customer security audit records', () => {
+  const cases = [
+    {
+      route: '/customer/settings/account/delete',
+      eventType: 'account_delete_attempt',
+      confirmationReason: 'confirmation_required',
+    },
+    {
+      route: '/customer/settings/account/deactivate',
+      eventType: 'account_deactivate_attempt',
+      confirmationReason: 'confirmation_required',
+    },
+    {
+      route: '/customer/settings/sessions/revoke',
+      eventType: 'sessions_revoke_attempt',
+      confirmationReason: null,
+    },
+  ];
+
+  for (const item of cases) {
+    const routeStart = source.indexOf(`app.post('${item.route}'`);
+    assert.notEqual(routeStart, -1);
+
+    const nextRouteStart = source.indexOf("\napp.", routeStart + 1);
+    const routeSource = source.slice(
+      routeStart,
+      nextRouteStart === -1 ? source.length : nextRouteStart,
+    );
+
+    assert.match(
+      routeSource,
+      new RegExp(`recordCustomerSecurityAudit\\(req, '${item.eventType}', 'blocked', 'rate_limited'\\);`),
+    );
+    assert.match(
+      routeSource,
+      new RegExp(`recordCustomerSecurityAudit\\(req, '${item.eventType}', 'failure', result\\.reason\\);`),
+    );
+
+    if (item.confirmationReason) {
+      assert.match(
+        routeSource,
+        new RegExp(`recordCustomerSecurityAudit\\(req, '${item.eventType}', 'failure', '${item.confirmationReason}'\\);`),
+      );
+    }
+
+    assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*currentPassword/);
+  }
+});
