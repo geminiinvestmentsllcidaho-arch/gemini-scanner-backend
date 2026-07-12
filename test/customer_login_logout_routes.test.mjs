@@ -106,3 +106,10 @@ test('login submits optional authenticator code for enabled accounts', () => {
   assert.match(source, /verifyAuthenticatorCode: verifyCustomerAuthenticatorCode/);
   assert.match(source, /result\.reason === 'authenticator_required'/);
 });
+
+
+test('settings page exposes authenticated authenticator disable controls', () => {
+  assert.match(source, /form method="post" action="\/customer\/settings\/authenticator\/disable"/);
+  assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/disable', requireCustomerSession/);
+  assert.match(source, /disableCustomerAuthenticator\(/);
+});

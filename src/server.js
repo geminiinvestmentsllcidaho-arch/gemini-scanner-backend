@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, markCustomerEmailVerified, updateCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -3895,6 +3895,13 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#f
 ${account?.authenticatorEnabled ? `
 <p><strong>Status:</strong> Enabled</p>
 <p style="color:#9eb0c9">Authenticator verification is active for this account.</p>
+<form method="post" action="/customer/settings/authenticator/disable">
+<p><label for="disableAuthenticatorPassword">Current password</label><br>
+<input id="disableAuthenticatorPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+<p><label for="disableAuthenticatorCode">Six-digit code</label><br>
+<input id="disableAuthenticatorCode" name="authenticatorCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></p>
+<p><button type="submit">Disable authenticator</button></p>
+</form>
 ` : account?.authenticatorPendingSecret ? `
 <p><strong>Status:</strong> Setup pending</p>
 <p>Add this setup key to your authenticator app:</p>
@@ -4050,6 +4057,35 @@ app.post('/customer/settings/authenticator/confirm', requireCustomerSession, (re
 
     return res.status(400).type('html').send(
       `<!doctype html><html><body><main><h1>Authenticator not enabled</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
+    );
+  }
+
+  return res.redirect(303, '/customer/settings');
+});
+
+
+app.post('/customer/settings/authenticator/disable', requireCustomerSession, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = disableCustomerAuthenticator(
+    req.customerAccount.id,
+    req.body?.currentPassword,
+    req.body?.authenticatorCode,
+    verifyCustomerAuthenticatorCode,
+    { authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY },
+  );
+
+  if (!result.ok) {
+    const message = result.reason === 'current_password_incorrect'
+      ? 'Current password is incorrect.'
+      : result.reason === 'invalid_authenticator_code'
+        ? 'The authenticator code is invalid or expired.'
+        : result.reason === 'authenticator_not_enabled'
+          ? 'Authenticator verification is not enabled.'
+          : 'Authenticator verification could not be disabled.';
+
+    return res.status(400).type('html').send(
+      `<!doctype html><html><body><main><h1>Authenticator not disabled</h1><p>${message}</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>`,
     );
   }
 

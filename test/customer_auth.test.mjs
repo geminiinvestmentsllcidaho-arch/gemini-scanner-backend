@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import {
   COOKIE_NAME,
@@ -20,6 +24,7 @@ import {
   updateCustomerDisplayPreferences,
   beginCustomerAuthenticatorSetup,
   confirmCustomerAuthenticatorSetup,
+  disableCustomerAuthenticator,
 } from "../src/scanner/customer_account_store.mjs";
 
 const AUTHENTICATOR_MASTER_KEY = "0123456789abcdef0123456789abcdef";
@@ -320,4 +325,63 @@ test("requires a valid authenticator code when authenticator is enabled", () => 
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
+});
+
+
+test('disables customer authenticator only with current password and valid code', () => {
+  const storePath = join(tmpdir(), `customer-auth-disable-${randomUUID()}.jsonl`);
+  const authenticatorMasterKey = '0123456789abcdef0123456789abcdef';
+  const password = 'Correct-Horse-Battery-99';
+  const secret = 'JBSWY3DPEHPK3PXP';
+  const account = createCustomerAccountRecord({
+    firstName: 'Test',
+    lastName: 'Customer',
+    email: 'disable@example.com',
+    password,
+    confirmPassword: password,
+    termsAccepted: true,
+  });
+  appendCustomerAccountRecord(account, { storePath });
+  markCustomerEmailVerified(account.id, { storePath, authenticatorMasterKey });
+  beginCustomerAuthenticatorSetup(account.id, secret, { storePath, authenticatorMasterKey });
+  confirmCustomerAuthenticatorSetup(
+    account.id,
+    '123456',
+    (candidateSecret, code) => candidateSecret === secret && code === '123456',
+    { storePath, authenticatorMasterKey },
+  );
+
+  const wrongPassword = disableCustomerAuthenticator(
+    account.id,
+    'wrong-password',
+    '123456',
+    () => true,
+    { storePath, authenticatorMasterKey },
+  );
+  assert.equal(wrongPassword.ok, false);
+  assert.equal(wrongPassword.reason, 'current_password_incorrect');
+
+  const wrongCode = disableCustomerAuthenticator(
+    account.id,
+    password,
+    '000000',
+    (_candidateSecret, code) => code === '123456',
+    { storePath, authenticatorMasterKey },
+  );
+  assert.equal(wrongCode.ok, false);
+  assert.equal(wrongCode.reason, 'invalid_authenticator_code');
+
+  const disabled = disableCustomerAuthenticator(
+    account.id,
+    password,
+    '123456',
+    (candidateSecret, code) => candidateSecret === secret && code === '123456',
+    { storePath, authenticatorMasterKey },
+  );
+  assert.equal(disabled.ok, true);
+  assert.equal(disabled.account.authenticatorEnabled, false);
+
+  const raw = readFileSync(storePath, 'utf8');
+  assert.doesNotMatch(raw, /authenticatorSecretEncrypted/);
+  assert.doesNotMatch(raw, /JBSWY3DPEHPK3PXP/);
 });

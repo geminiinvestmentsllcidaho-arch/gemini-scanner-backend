@@ -374,6 +374,45 @@ export function confirmCustomerAuthenticatorSetup(accountId, code, verifyCode, o
   });
 }
 
+
+export function disableCustomerAuthenticator(accountId, currentPassword, code, verifyCode, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const account = records[index];
+  if (account.authenticatorEnabled !== true || !clean(account.authenticatorSecret)) {
+    return Object.freeze({ ok: false, reason: "authenticator_not_enabled" });
+  }
+  if (!verifyCustomerPassword(currentPassword, account.password)) {
+    return Object.freeze({ ok: false, reason: "current_password_incorrect" });
+  }
+  if (typeof verifyCode !== "function" || verifyCode(account.authenticatorSecret, code, options) !== true) {
+    return Object.freeze({ ok: false, reason: "invalid_authenticator_code" });
+  }
+
+  records[index] = {
+    ...account,
+    authenticatorEnabled: false,
+    authenticatorSecretEncrypted: undefined,
+    authenticatorPendingSecretEncrypted: undefined,
+    authenticatorSecret: undefined,
+    authenticatorPendingSecret: undefined,
+    authenticatorDisabledAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({ ok: true, account: Object.freeze(records[index]) });
+}
+
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   fs.mkdirSync(path.dirname(storePath), { recursive: true });
