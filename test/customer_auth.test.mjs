@@ -93,6 +93,35 @@ test("authenticates verified customer and validates signed session", () => {
   }
 });
 
+test("rejects invalid customer session lifetimes", () => {
+  const f = fixture();
+  try {
+    markCustomerEmailVerified(f.record.id, { storePath: f.storePath });
+    const login = authenticateCustomer(f.record.email, f.password, { storePath: f.storePath });
+    assert.equal(login.ok, true);
+
+    assert.throws(
+      () => createCustomerSessionToken(login.account, {
+        secret: "session-lifetime-secret",
+        nowMs: 1_700_000_000_000,
+        ttlSec: 0,
+      }),
+      /customer_session_ttl_invalid/,
+    );
+
+    assert.throws(
+      () => createCustomerSessionToken(login.account, {
+        secret: "session-lifetime-secret",
+        nowMs: Number.NaN,
+        ttlSec: 3600,
+      }),
+      /customer_session_ttl_invalid/,
+    );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
 test("rejects wrong password and tampered session token", () => {
   const f = fixture();
   try {

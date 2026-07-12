@@ -61,6 +61,9 @@ export function createCustomerSessionToken(account, options = {}) {
   if (!secret) throw new Error("customer_session_secret_required");
   const nowSec = Math.floor((options.nowMs ?? Date.now()) / 1000);
   const ttlSec = Number(options.ttlSec ?? 86400);
+  if (!Number.isFinite(nowSec) || !Number.isFinite(ttlSec) || ttlSec <= 0) {
+    throw new Error("customer_session_ttl_invalid");
+  }
   const payload = Buffer.from(JSON.stringify({
     sub: account.id,
     role: "customer",
@@ -88,7 +91,18 @@ export function verifyCustomerSessionToken(token, options = {}) {
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     const nowSec = Math.floor((options.nowMs ?? Date.now()) / 1000);
-    if (data.role !== "customer" || !data.sub || Number(data.exp) <= nowSec) {
+    const issuedAtSec = Number(data.iat);
+    const expiresAtSec = Number(data.exp);
+    if (
+      data.role !== "customer"
+      || !clean(data.sub)
+      || !Number.isFinite(nowSec)
+      || !Number.isFinite(issuedAtSec)
+      || !Number.isFinite(expiresAtSec)
+      || issuedAtSec > nowSec
+      || expiresAtSec <= issuedAtSec
+      || expiresAtSec <= nowSec
+    ) {
       return Object.freeze({ ok: false, reason: "expired_session" });
     }
     const account = findCustomerAccountById(data.sub, options);
