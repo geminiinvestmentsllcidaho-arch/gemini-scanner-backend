@@ -4196,11 +4196,13 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
     authenticatorMasterKey: process.env.CUSTOMER_AUTHENTICATOR_MASTER_KEY,
   });
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'data_export_attempt', 'failure', result.reason);
     return res.status(404).type('html').send(
       '<!doctype html><html><body><main><h1>Data export unavailable</h1><p>Your customer data could not be exported.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
   }
 
+  recordCustomerSecurityAudit(req, 'data_exported', 'success');
   const safeId = String(req.customerAccount.id || 'customer').replace(/[^a-zA-Z0-9_-]/g, '');
   res.set('Content-Disposition', `attachment; filename="geminiscanner-customer-data-${safeId}.json"`);
   return res.status(200).type('application/json').send(`${JSON.stringify(result.export, null, 2)}\n`);

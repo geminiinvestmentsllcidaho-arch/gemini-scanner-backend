@@ -472,3 +472,26 @@ test('authenticator failures and rate limits append bounded customer security au
     assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*authenticatorCode/);
   }
 });
+
+
+test('customer data export outcomes append bounded customer security audit records', () => {
+  const routeStart = source.indexOf("app.post('/customer/settings/data/export'");
+  assert.notEqual(routeStart, -1);
+
+  const nextRouteStart = source.indexOf('\napp.', routeStart + 1);
+  const routeSource = source.slice(
+    routeStart,
+    nextRouteStart === -1 ? source.length : nextRouteStart,
+  );
+
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'data_export_attempt', 'failure', result\.reason\);/,
+  );
+  assert.match(
+    routeSource,
+    /recordCustomerSecurityAudit\(req, 'data_exported', 'success'\);/,
+  );
+  assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*authenticatorMasterKey/);
+  assert.doesNotMatch(routeSource, /recordCustomerSecurityAudit\([^)]*result\.export/);
+});
