@@ -105,10 +105,10 @@ test("filters cumulative paper position snapshots into selected performance peri
   assert.equal(report.periodRecordCount, 2);
   assert.equal(report.periodStartTs, "2026-07-13T12:00:00.000Z");
   assert.equal(report.periodEndTs, "2026-07-15T11:00:00.000Z");
-  assert.equal(report.realizedPl, 30);
+  assert.equal(report.realizedPl, 40);
   assert.equal(report.unrealizedPl, 5);
-  assert.equal(report.totalPl, 35);
-  assert.equal(report.startingEquity, 1020);
+  assert.equal(report.totalPl, 45);
+  assert.equal(report.startingEquity, 1010);
   assert.equal(report.endingEquity, 1050);
   assert.equal(report.orderPlacementAllowed, false);
 });

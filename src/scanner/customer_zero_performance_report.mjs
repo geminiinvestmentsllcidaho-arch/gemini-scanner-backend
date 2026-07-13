@@ -42,19 +42,24 @@ function periodLedger(history, period, now) {
     ? history.filter((record) => Number.isFinite(Date.parse(record?.createdAt)))
     : [];
   if (!records.length) return null;
+  records.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const start = periodStart(period, now);
+  const eligible = records.filter((record) => new Date(record.createdAt) <= now);
   const filtered = start
-    ? records.filter((record) => new Date(record.createdAt) >= start && new Date(record.createdAt) <= now)
-    : records.filter((record) => new Date(record.createdAt) <= now);
+    ? eligible.filter((record) => new Date(record.createdAt) >= start)
+    : eligible;
   if (!filtered.length) return null;
+  const baseline = start
+    ? eligible.filter((record) => new Date(record.createdAt) < start).at(-1) ?? null
+    : null;
   const first = filtered[0];
   const latest = filtered[filtered.length - 1];
-  const realizedStart = round2(first.totalRealizedPnl);
+  const realizedStart = round2(baseline?.totalRealizedPnl);
   const realizedEnd = round2(latest.totalRealizedPnl);
   return {
     ...latest,
     totalRealizedPnl: round2(realizedEnd - realizedStart),
-    startingEquity: first.endingEquity ?? first.startingEquity ?? null,
+    startingEquity: baseline?.endingEquity ?? first.startingEquity ?? first.endingEquity ?? null,
     endingEquity: latest.endingEquity ?? null,
     peakEquity: Math.max(
       ...filtered.map((record) => finite(record.endingEquity ?? record.peakEquity))
