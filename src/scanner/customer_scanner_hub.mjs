@@ -1,3 +1,4 @@
+import { renderGeminiScannerLogoSvg } from "./brand_header.mjs";
 export const VERSION = "customer_scanner_hub_v1";
 
 const MODES = Object.freeze([
@@ -139,39 +140,44 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
 <title>${esc(hub.title)}</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:92px 20px 20px}
+
+.customer-brand{position:fixed;top:0;left:0;right:0;z-index:999;display:flex;align-items:center;padding:10px 18px;background:#000;border-bottom:1px solid #1ef000;box-shadow:0 0 18px rgba(57,255,20,.18)}
+.customer-brand a{display:flex;align-items:center;gap:10px;color:#39ff14;text-decoration:none;font-weight:900;font-size:1.08rem}
+.customer-brand .gs-brand-logo{display:block;flex:none}
+body{margin:0;background:#000;color:#39ff14;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:156px 20px 20px}
 nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-nav a{color:#dbe8ff;text-decoration:none;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#101c2f}
-.account-panel,.hero,.panel,.safety{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
-.earnings-overlay{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:1000;width:min(94vw,620px);border:1px solid rgba(142,180,255,.65);border-radius:14px;background:rgba(16,28,47,.5);backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
+nav a{color:#39ff14;text-decoration:none;border:1px solid #1ef000;border-radius:10px;padding:9px 12px;background:#000;box-shadow:0 0 12px rgba(57,255,20,.18)}
+.account-panel,.hero,.panel,.safety{background:#000;border:1px solid #1ef000;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 0 18px rgba(57,255,20,.08)}
+.earnings-overlay{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:1000;width:min(94vw,620px);border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}
 .earnings-overlay summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;cursor:pointer;list-style:none;font-weight:800}
 .earnings-overlay summary::-webkit-details-marker{display:none}
-.earnings-overlay summary span{font-size:.78rem;letter-spacing:.09em;color:#b8cfff}
-.earnings-overlay summary strong{font-size:1.3rem;color:#fff}
-.earnings-menu{padding:0 14px 14px;background:rgba(8,17,31,.78)}
-.performance-positive{border-left:6px solid #159447}.performance-negative{border-left:6px solid #c62020}.performance-neutral{border-left:6px solid #737983}
+.earnings-overlay summary span{font-size:.78rem;letter-spacing:.09em;color:#000}
+.earnings-overlay summary strong{font-size:1.3rem;color:#000}
+.earnings-menu{padding:0 14px 14px;background:rgba(255,255,255,.12)}
+.performance-positive{background:rgba(57,255,20,.90);border:2px solid #39ff14}.performance-negative{background:rgba(255,36,36,.90);border:2px solid #ff2424}.performance-neutral{background:rgba(149,155,165,.92);border:2px solid #959ba5}
 .performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}.performance-periods a.active{background:#5b9cff;color:#08111f}
-@media(max-width:600px){.wrap{padding-top:86px}.earnings-overlay{top:6px}.earnings-overlay summary{padding:12px 14px}.earnings-overlay summary strong{font-size:1.12rem}}
+@media(max-width:600px){.wrap{padding-top:150px}.earnings-overlay{top:64px}.earnings-overlay summary{padding:12px 14px}.earnings-overlay summary strong{font-size:1.12rem}}
 .account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
 .account-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .account-actions a,.account-actions button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#132844;color:#e8eef8;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}
 .account-actions form{margin:0}
 .account-actions button{background:#7c2d3a;border-color:#a33c4c}
-.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#8eb4ff}
+.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#39ff14}
 h1,h2{margin:.35rem 0}
-p{color:#b8c7dc}
+p{color:#39ff14}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .choice{display:flex;min-height:92px;flex-direction:column;justify-content:center;gap:8px;padding:15px;border-radius:14px;border:1px solid #304766;text-decoration:none;color:#e8eef8}
 .choice span{font-size:.85rem;color:#9fb0c7}
-.available{background:#132844}
-.selected{outline:2px solid #5b9cff}
-.disabled{background:#121a27;opacity:.68}
+.available{background:#000;border-color:#1ef000}
+.selected{outline:2px solid #39ff14}
+.disabled{background:#000;opacity:.55}
 .safety{font-size:.9rem}
 </style>
 </head>
 <body>
+<header class="customer-brand"><a href="/customer" aria-label="GeminiScanner customer home">${renderGeminiScannerLogoSvg({ size: 42 })}<span>GeminiScanner</span></a></header>
 ${performancePanel}
 <main class="wrap" data-role="customer" data-tenant="${esc(hub.tenant)}">
 ${accountPanel}
