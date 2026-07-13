@@ -415,6 +415,10 @@ test("customer dashboard renders read-only performance totals above scanner resu
   assert.match(html, /Net after costs: \$10/);
   assert.match(html, /Starting equity: \$0 \| Ending equity: \$0 \| Peak equity: \$0 \| Drawdown: \$0 \(0%\)/);
   assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
+  assert.match(html, /Period snapshots:/);
+  assert.match(html, /Period start:/);
+  assert.match(html, /Period end:/);
+
 });
 
 
