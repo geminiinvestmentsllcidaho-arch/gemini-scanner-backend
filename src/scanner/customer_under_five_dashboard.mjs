@@ -12,6 +12,7 @@ import {
 } from "./customer_zero_decision_cards.mjs";
 import { buildCustomerZeroReadonlyAllocationPreview } from "./customer_zero_readonly_allocation_preview.mjs";
 import { buildCustomerZeroPaperEnterExitGate } from "./customer_zero_paper_enter_exit_gate.mjs";
+import { buildCustomerZeroPerformanceReport } from "./customer_zero_performance_report.mjs";
 
 export const VERSION = "customer_under_five_dashboard_v1";
 
@@ -74,12 +75,21 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     }),
   }));
   const { diagnosticsOnly: _diagnosticsOnly, ...customerCard } = card;
+  const performanceReport = options.performanceReport
+    ?? buildCustomerZeroPerformanceReport({
+      period: options.performancePeriod ?? "daily",
+      sourceTs: options.performanceSourceTs ?? options.now?.toISOString?.() ?? null,
+      stale: options.performanceStale === true,
+      paperAccount: options.paperAccount,
+      paperLedger: options.paperLedger,
+    });
 
   return {
     ...customerCard,
     candidates: gatedCandidates,
     candidateCount: gatedCandidates.length,
     resultFilters,
+    performanceReport,
     paperAccount: options.paperAccount ?? {
       connected: false,
       accountHealthy: false,
@@ -153,10 +163,11 @@ export function renderCustomerUnderFiveDashboardHtml(dashboard = {}) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(dashboard.title)}</title>
 <style>
-body{font-family:system-ui;margin:0;background:#f3f5f7;color:#111;padding:14px}.wrap{max-width:820px;margin:auto}.hero,.card,.decision-card{background:#fff;border-radius:18px;padding:15px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:#fff}.hero h1{margin:.2rem 0}.decision-card{border-left:8px solid #8a8f98}.decision-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.decision-card h2{margin:0;font-size:1.6rem}.company-name{margin:.15rem 0;color:#68707a}.state-badge{border-radius:999px;padding:9px 12px;font-weight:900;white-space:nowrap;background:#eceff2}.decision-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.decision-grid p{margin:0;padding:10px;background:#f6f7f8;border-radius:12px}.decision-grid b,.decision-grid span{display:block}.decision-grid span{margin-top:4px;font-weight:700}.timestamp{font-size:.9rem;color:#555}.reasons ul{margin:.35rem 0 .75rem;padding-left:1.2rem}.detail-link{display:block;text-align:center;padding:12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:850}.state-enter{border-left-color:#159447}.state-enter .state-badge{background:#dff7e7;color:#11652e}.state-exit{border-left-color:#c62020}.state-exit .state-badge{background:#ffe0e0;color:#8a1111}.state-wait,.state-watch{border-left-color:#d39b00}.state-wait .state-badge,.state-watch .state-badge{background:#fff2c8;color:#765800}.state-do-not-enter,.state-blocked,.state-stale-data{border-left-color:#c62020}.state-do-not-enter .state-badge,.state-blocked .state-badge,.state-stale-data .state-badge{background:#ffe0e0;color:#8a1111}.state-no-setup{border-left-color:#737983}.paper-control-preview{margin:12px 0;padding:12px;border-radius:14px;background:#f6f7f8}.paper-control{display:block;text-align:center;padding:13px;border-radius:12px;font-weight:950}.bright-green{background:#18a84a;color:#fff}.priority-red{background:#c62020;color:#fff}.exit-control-preview{border:2px solid #c62020}.enter-control-preview{border:2px solid #159447}@media(max-width:560px){.decision-grid{grid-template-columns:1fr}.decision-card-head{align-items:center}.state-badge{font-size:.8rem}}
+body{font-family:system-ui;margin:0;background:#f3f5f7;color:#111;padding:14px}.wrap{max-width:820px;margin:auto}.hero,.card,.decision-card{background:#fff;border-radius:18px;padding:15px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:#fff}.performance-positive{border-left:8px solid #159447}.performance-negative{border-left:8px solid #c62020}.performance-neutral{border-left:8px solid #737983}.hero h1{margin:.2rem 0}.decision-card{border-left:8px solid #8a8f98}.decision-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.decision-card h2{margin:0;font-size:1.6rem}.company-name{margin:.15rem 0;color:#68707a}.state-badge{border-radius:999px;padding:9px 12px;font-weight:900;white-space:nowrap;background:#eceff2}.decision-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.decision-grid p{margin:0;padding:10px;background:#f6f7f8;border-radius:12px}.decision-grid b,.decision-grid span{display:block}.decision-grid span{margin-top:4px;font-weight:700}.timestamp{font-size:.9rem;color:#555}.reasons ul{margin:.35rem 0 .75rem;padding-left:1.2rem}.detail-link{display:block;text-align:center;padding:12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:850}.state-enter{border-left-color:#159447}.state-enter .state-badge{background:#dff7e7;color:#11652e}.state-exit{border-left-color:#c62020}.state-exit .state-badge{background:#ffe0e0;color:#8a1111}.state-wait,.state-watch{border-left-color:#d39b00}.state-wait .state-badge,.state-watch .state-badge{background:#fff2c8;color:#765800}.state-do-not-enter,.state-blocked,.state-stale-data{border-left-color:#c62020}.state-do-not-enter .state-badge,.state-blocked .state-badge,.state-stale-data .state-badge{background:#ffe0e0;color:#8a1111}.state-no-setup{border-left-color:#737983}.paper-control-preview{margin:12px 0;padding:12px;border-radius:14px;background:#f6f7f8}.paper-control{display:block;text-align:center;padding:13px;border-radius:12px;font-weight:950}.bright-green{background:#18a84a;color:#fff}.priority-red{background:#c62020;color:#fff}.exit-control-preview{border:2px solid #c62020}.enter-control-preview{border:2px solid #159447}@media(max-width:560px){.decision-grid{grid-template-columns:1fr}.decision-card-head{align-items:center}.state-badge{font-size:.8rem}}
 </style></head><body><main class="wrap" data-role="customer" data-tenant="${esc(dashboard.tenant ?? "customer")}">
 <section class="hero"><h1>${esc(dashboard.title)}</h1><p>${esc(dashboard.headline)}</p><p><b>Mode:</b> Decision assist / read-only</p></section>
 <section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Route:</b> ${esc(dashboard.route ?? "/customer/scanner/under-five")}<br><b>Selected states:</b> ${esc(dashboard.resultFilters?.states?.join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
+<section class="card performance-${esc(dashboard.performanceReport?.tone ?? "neutral")}"><b>Total earnings — ${esc(dashboard.performanceReport?.period ?? "daily")}</b><p>Realized: $${esc(dashboard.performanceReport?.realizedPl ?? 0)} | Unrealized: $${esc(dashboard.performanceReport?.unrealizedPl ?? 0)} | Combined: $${esc(dashboard.performanceReport?.totalPl ?? 0)}</p><p>Data timestamp: ${esc(dashboard.performanceReport?.sourceTs ?? "Unavailable")} | Status: ${dashboard.performanceReport?.stale === true ? "STALE — READ ONLY" : "Current — read only"}</p></section>
 <section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(dashboard.paperAccount?.ledger?.finalDecision ?? "NO_GO_FOR_ORDER_PLACEMENT")} | No broker contact or account mutation.</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
 ${rows}

@@ -375,3 +375,53 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   assert.match(exitHtml, /class="paper-control priority-red">EXIT</);
   assert.equal(exitDashboard.orderPlacementAllowed, false);
 });
+
+
+test("customer dashboard renders read-only performance totals above scanner results", () => {
+  const dashboard = buildCustomerZeroUnderFiveDashboard(source, {
+    route: "/customer-zero/under-five-scanner",
+    tenant: "customer-zero",
+    now: new Date("2026-07-13T13:00:00.000Z"),
+    paperAccount: {
+      accountHealthy: true,
+      summary: { totalUnrealizedPl: 12.5 },
+      positions: [],
+    },
+    paperLedger: { totalRealizedPnl: -2.5 },
+    performancePeriod: "weekly",
+  });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.equal(dashboard.performanceReport.realizedPl, -2.5);
+  assert.equal(dashboard.performanceReport.unrealizedPl, 12.5);
+  assert.equal(dashboard.performanceReport.totalPl, 10);
+  assert.equal(dashboard.performanceReport.tone, "positive");
+  assert.equal(dashboard.performanceReport.stale, false);
+  assert.match(html, /Total earnings — weekly/);
+  assert.match(html, /Realized: \$-2.5/);
+  assert.match(html, /Unrealized: \$12.5/);
+  assert.match(html, /Combined: \$10/);
+  assert.match(html, /performance-positive/);
+  assert.match(html, /Current — read only/);
+  assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
+});
+
+
+test("customer scanner routes load read-only paper ledger performance source", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+
+  for (const route of [
+    "app.get('/customer/scanner/under-five', requireCustomerSession",
+    "app.get('/customer-zero/under-five-scanner'",
+  ]) {
+    const start = server.indexOf(route);
+    assert.notEqual(start, -1, route);
+    const end = server.indexOf("\napp.get(", start + 1);
+    const block = server.slice(start, end === -1 ? server.length : end);
+    assert.match(block, /paper_trade_position_state_store\.mjs/);
+    assert.match(block, /readPaperTradePositionStateStoreDashboard\(\)/);
+    assert.match(block, /const paperLedger = paperPositionLedger\.latestRecord \?\? \{\}/);
+    assert.match(block, /paperLedger,/);
+    assert.match(block, /performanceSourceTs: paperLedger\.lastUpdatedAt \?\? paperLedger\.createdAt \?\? null/);
+  }
+});
