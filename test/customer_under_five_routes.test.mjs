@@ -186,3 +186,57 @@ test("customer decision card gives stale data blocking priority", () => {
   assert.match(html, /STALE — BLOCKED/);
   assert.match(html, /No order placement, broker contact, or account mutation controls/);
 });
+
+
+test("customer dashboard renders read-only allocation controls and calculated preview", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ...source,
+    candidates: [{
+      symbol: "SIZE",
+      price: 4,
+      decision: "ENTER",
+      resultState: "ENTER",
+      sourceStale: false,
+      scannerRiskLimitDollars: 120,
+      portfolioExposureLimitDollars: 90,
+      liquidityCapacityLimitDollars: 80,
+    }],
+  }, {
+    route: "/customer/scanner/under-five",
+    tenant: "customer",
+    buyingPower: 1000,
+    availableFundsPct: 20,
+    maxDollarsPerStock: 100,
+  });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.equal(dashboard.candidates[0].allocationPreview.preview.finalNotional, 80);
+  assert.equal(dashboard.candidates[0].allocationPreview.preview.estimatedWholeShares, 20);
+  assert.match(html, /Read-only allocation controls/);
+  assert.match(html, /Available funds: 20%/);
+  assert.match(html, /Maximum per stock: \$100/);
+  assert.match(html, /Calculated amount<\/b><span>\$80/);
+  assert.match(html, /Whole shares<\/b><span>20/);
+  assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
+});
+
+test("stale customer allocation preview stays blocked", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ...source,
+    candidates: [{
+      symbol: "OLD",
+      price: 2,
+      decision: "ENTER",
+      sourceStale: true,
+    }],
+  }, {
+    buyingPower: 500,
+    availableFundsPct: 10,
+    maxDollarsPerStock: 50,
+  });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.equal(dashboard.candidates[0].allocationPreview.preview.ready, false);
+  assert.match(html, /Preview blocked: STALE_DATA_BLOCKED/);
+  assert.equal(dashboard.orderPlacementAllowed, false);
+});

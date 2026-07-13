@@ -49,6 +49,7 @@ export function buildCustomerZeroDecisionCards(candidates = []) {
       confidence: number(candidate?.readonlyPotentialScore),
       reasons,
       detailHref: candidate?.detailHref ?? null,
+      allocationPreview: candidate?.allocationPreview ?? null,
       readOnly: true,
       executionAllowed: false,
     };
@@ -73,6 +74,7 @@ export function renderCustomerZeroDecisionCardsHtml(cards = []) {
   </div>
   <p class="timestamp"><b>Data timestamp:</b> ${esc(card.sourceTs ?? "Unavailable")}</p>
   <div class="reasons"><b>Why:</b><ul>${card.reasons.length ? card.reasons.map((reason) => `<li>${esc(reason)}</li>`).join("") : "<li>No explanation available.</li>"}</ul></div>
+  ${card.allocationPreview ? `<section class="allocation-preview"><b>Read-only allocation preview</b><div class="decision-grid"><p><b>Funds %</b><span>${esc(card.allocationPreview.controls?.availableFundsPct ?? "Unavailable")}%</span></p><p><b>Max per stock</b><span>$${esc(card.allocationPreview.controls?.maxDollarsPerStock ?? "Unavailable")}</span></p><p><b>Calculated amount</b><span>$${esc(card.allocationPreview.preview?.estimatedOrderNotional ?? 0)}</span></p><p><b>Whole shares</b><span>${esc(card.allocationPreview.preview?.estimatedWholeShares ?? 0)}</span></p></div><p class="timestamp">${card.allocationPreview.preview?.ready ? "Preview calculated. No order will be placed." : `Preview blocked: ${esc(card.allocationPreview.warnings?.join(", ") || "Unavailable")}`}</p></section>` : ""}
   ${card.detailHref ? `<a class="detail-link" href="${esc(card.detailHref)}">Open decision details</a>` : ""}
 </article>`).join("") || '<section class="card"><p>No scanner decisions match the selected filters.</p></section>';
 }

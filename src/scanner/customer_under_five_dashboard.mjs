@@ -10,6 +10,7 @@ import {
   buildCustomerZeroDecisionCards,
   renderCustomerZeroDecisionCardsHtml,
 } from "./customer_zero_decision_cards.mjs";
+import { buildCustomerZeroReadonlyAllocationPreview } from "./customer_zero_readonly_allocation_preview.mjs";
 
 export const VERSION = "customer_under_five_dashboard_v1";
 
@@ -43,11 +44,19 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     ...options,
     detailBaseHref: route,
   });
-  const candidates = card.candidates.map((candidate, index) => ({
-    ...candidate,
-    resultState: filteredCandidates[index]?.resultState
-      ?? normalizeCustomerZeroResultState(candidate).state,
-  }));
+  const candidates = card.candidates.map((candidate, index) => {
+    const sourceCandidate = filteredCandidates[index] ?? candidate;
+    return {
+      ...candidate,
+      resultState: sourceCandidate?.resultState
+        ?? normalizeCustomerZeroResultState(candidate).state,
+      allocationPreview: buildCustomerZeroReadonlyAllocationPreview(sourceCandidate, {
+        buyingPower: options.buyingPower,
+        availableFundsPct: options.availableFundsPct,
+        maxDollarsPerStock: options.maxDollarsPerStock,
+      }),
+    };
+  });
   const { diagnosticsOnly: _diagnosticsOnly, ...customerCard } = card;
 
   return {
@@ -55,6 +64,13 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     candidates,
     candidateCount: candidates.length,
     resultFilters,
+    allocationControls: {
+      availableFundsPct: candidates[0]?.allocationPreview?.controls?.availableFundsPct ?? 5,
+      maxDollarsPerStock: candidates[0]?.allocationPreview?.controls?.maxDollarsPerStock ?? 25,
+      buyingPower: candidates[0]?.allocationPreview?.limits?.buyingPower ?? null,
+      readOnly: true,
+      previewOnly: true,
+    },
     version: VERSION,
     route,
     role,
@@ -87,6 +103,7 @@ body{font-family:system-ui;margin:0;background:#f3f5f7;color:#111;padding:14px}.
 </style></head><body><main class="wrap" data-role="customer" data-tenant="${esc(dashboard.tenant ?? "customer")}">
 <section class="hero"><h1>${esc(dashboard.title)}</h1><p>${esc(dashboard.headline)}</p><p><b>Mode:</b> Decision assist / read-only</p></section>
 <section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Route:</b> ${esc(dashboard.route ?? "/customer/scanner/under-five")}<br><b>Selected states:</b> ${esc(dashboard.resultFilters?.states?.join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
+<section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
 ${rows}
 <section class="card"><b>Customer safety:</b> Decision assist only. No order placement, broker contact, or account mutation controls.</section>
 </main></body></html>`;
