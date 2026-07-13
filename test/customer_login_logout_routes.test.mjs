@@ -835,3 +835,25 @@ test('customer display preference outcomes append bounded security audit records
   assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.timezone"), false);
   assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.locale"), false);
 });
+
+test('every customer settings mutation route records a bounded security audit outcome', () => {
+  const routeStarts = [...source.matchAll(/app\.post\('\/customer\/settings\/([^']+)'/g)];
+
+  assert.equal(routeStarts.length, 13);
+
+  for (let index = 0; index < routeStarts.length; index += 1) {
+    const match = routeStarts[index];
+    const routeName = match[1];
+    const start = match.index;
+    const end = index + 1 < routeStarts.length
+      ? routeStarts[index + 1].index
+      : source.indexOf('\n\napp.', start + 1);
+    const routeSource = source.slice(start, end === -1 ? source.length : end);
+
+    assert.equal(
+      routeSource.includes('recordCustomerSecurityAudit(req,'),
+      true,
+      `missing customer security audit for /customer/settings/${routeName}`,
+    );
+  }
+});
