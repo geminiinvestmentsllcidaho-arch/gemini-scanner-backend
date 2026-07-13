@@ -4414,6 +4414,7 @@ app.post('/customer/settings/profile', requireCustomerSession, requireCustomerSa
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'profile_update', 'failure', result.reason);
     const message = result.reason === 'first_name_required'
       ? 'First name is required.'
       : result.reason === 'last_name_required'
@@ -4425,6 +4426,7 @@ app.post('/customer/settings/profile', requireCustomerSession, requireCustomerSa
     );
   }
 
+  recordCustomerSecurityAudit(req, 'profile_updated', 'success');
   return res.redirect(303, '/customer/settings');
 });
 
@@ -4441,11 +4443,13 @@ app.post('/customer/settings/notifications', requireCustomerSession, requireCust
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'notification_preferences_update', 'failure', result.reason);
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Notifications not updated</h1><p>Notification preferences could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
   }
 
+  recordCustomerSecurityAudit(req, 'notification_preferences_updated', 'success');
   return res.redirect(303, '/customer/settings');
 });
 
@@ -4626,11 +4630,13 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
   );
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'display_preferences_update', 'failure', result.reason);
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Appearance not updated</h1><p>Display preferences could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
     );
   }
 
+  recordCustomerSecurityAudit(req, 'display_preferences_updated', 'success');
   return res.redirect(303, '/customer/settings');
 });
 

@@ -777,3 +777,61 @@ test('customer email verification success outcomes append bounded security audit
   assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
   assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, verificationRecord"), false);
 });
+
+test('customer profile update outcomes append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.post('/customer/settings/profile'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'profile_update', 'failure', result.reason);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'profile_updated', 'success');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.firstName"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.lastName"), false);
+});
+
+test('customer notification preference outcomes append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.post('/customer/settings/notifications'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'notification_preferences_update', 'failure', result.reason);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'notification_preferences_updated', 'success');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.scannerAlerts"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.productUpdates"), false);
+});
+
+test('customer display preference outcomes append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.post('/customer/settings/display'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'display_preferences_update', 'failure', result.reason);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'display_preferences_updated', 'success');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.theme"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.timezone"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.locale"), false);
+});
