@@ -103,18 +103,18 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
   }).join("");
 
   const performance = hub.performanceReport;
+  const performancePeriod = performance?.period ?? "lifetime";
+  const performanceLabel = performancePeriod === "ytd" ? "YEAR TO DATE" : performancePeriod.toUpperCase();
   const performancePanel = performance
-    ? `<section class="panel performance-${esc(performance.tone ?? "neutral")}">
-<h2>Total earnings — ${esc(performance.period ?? "daily")}</h2>
-<nav class="performance-periods" aria-label="Performance period">${["daily","weekly","monthly","yearly","ytd","lifetime"].map((period) => `<a class="${performance.period === period ? "active" : ""}" href="/customer?period=${period}">${period.toUpperCase()}</a>`).join("")}</nav>
+    ? `<details class="earnings-overlay performance-${esc(performance.tone ?? "neutral")}">
+<summary aria-label="Open earnings period selector"><span>${esc(performanceLabel)} EARNINGS</span><strong>$${esc(performance.netAfterCosts ?? performance.totalPl ?? 0)}</strong></summary>
+<div class="earnings-menu">
+<nav class="performance-periods" aria-label="Performance period">${["daily","weekly","monthly","yearly","ytd","lifetime"].map((period) => `<a class="${performance.period === period ? "active" : ""}" href="/customer?period=${period}">${period === "ytd" ? "YEAR TO DATE" : period.toUpperCase()}</a>`).join("")}</nav>
 <p>Realized: $${esc(performance.realizedPl ?? 0)} | Unrealized: $${esc(performance.unrealizedPl ?? 0)} | Combined: $${esc(performance.totalPl ?? 0)} | Net after costs: $${esc(performance.netAfterCosts ?? 0)}</p>
 <p>Winners: ${esc(performance.winners ?? 0)} | Losers: ${esc(performance.losers ?? 0)} | Win rate: ${esc(performance.winRatePct ?? 0)}%</p>
-<p>Average gain: $${esc(performance.averageGain ?? 0)} | Average loss: $${esc(performance.averageLoss ?? 0)} | Largest gain: $${esc(performance.largestGain ?? 0)} | Largest loss: $${esc(performance.largestLoss ?? 0)}</p>
-<p>Fees: $${esc(performance.fees ?? 0)} | Slippage: $${esc(performance.slippage ?? 0)}</p>
-<p>Starting equity: $${esc(performance.startingEquity ?? 0)} | Ending equity: $${esc(performance.endingEquity ?? 0)} | Peak equity: $${esc(performance.peakEquity ?? 0)} | Drawdown: $${esc(performance.drawdown ?? 0)} (${esc(performance.drawdownPct ?? 0)}%)</p>
-<p>Period snapshots: ${esc(performance.periodRecordCount ?? 0)} | Period start: ${esc(performance.periodStartTs ?? "Unavailable")} | Period end: ${esc(performance.periodEndTs ?? "Unavailable")}</p>
 <p>Data timestamp: ${esc(performance.sourceTs ?? "Unavailable")} | Status: ${performance.stale === true ? "STALE — READ ONLY" : "Current — read only"}</p>
-</section>`
+</div>
+</details>`
     : "";
 
   const accountEmail = esc(account?.email ?? "");
@@ -140,12 +140,19 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:20px}
+.wrap{max-width:980px;margin:0 auto;padding:92px 20px 20px}
 nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
 nav a{color:#dbe8ff;text-decoration:none;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#101c2f}
 .account-panel,.hero,.panel,.safety{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
-.performance-positive{border-left:8px solid #159447}.performance-negative{border-left:8px solid #c62020}.performance-neutral{border-left:8px solid #737983}
+.earnings-overlay{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:1000;width:min(94vw,620px);border:1px solid rgba(142,180,255,.65);border-radius:14px;background:rgba(16,28,47,.5);backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
+.earnings-overlay summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;cursor:pointer;list-style:none;font-weight:800}
+.earnings-overlay summary::-webkit-details-marker{display:none}
+.earnings-overlay summary span{font-size:.78rem;letter-spacing:.09em;color:#b8cfff}
+.earnings-overlay summary strong{font-size:1.3rem;color:#fff}
+.earnings-menu{padding:0 14px 14px;background:rgba(8,17,31,.78)}
+.performance-positive{border-left:6px solid #159447}.performance-negative{border-left:6px solid #c62020}.performance-neutral{border-left:6px solid #737983}
 .performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}.performance-periods a.active{background:#5b9cff;color:#08111f}
+@media(max-width:600px){.wrap{padding-top:86px}.earnings-overlay{top:6px}.earnings-overlay summary{padding:12px 14px}.earnings-overlay summary strong{font-size:1.12rem}}
 .account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
 .account-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -165,6 +172,7 @@ p{color:#b8c7dc}
 </style>
 </head>
 <body>
+${performancePanel}
 <main class="wrap" data-role="customer" data-tenant="${esc(hub.tenant)}">
 ${accountPanel}
 <nav aria-label="Customer navigation">${nav}</nav>
@@ -173,7 +181,6 @@ ${accountPanel}
 <h1>${esc(hub.title)}</h1>
 <p>${esc(hub.subtitle)}</p>
 </section>
-${performancePanel}
 <section class="panel">
 <h2>Scanner mode</h2>
 <div class="grid">${modeCards}</div>

@@ -83,15 +83,18 @@ test("customer main page renders read-only earnings and period links", () => {
   const hub = buildCustomerScannerHub({ performanceReport });
   const html = renderCustomerScannerHubHtml(hub);
 
-  assert.match(html, /Total earnings — weekly/);
+  assert.match(html, /class="earnings-overlay performance-positive"/);
+  assert.match(html, /<span>WEEKLY EARNINGS<\/span><strong>\$10<\/strong>/);
+  assert.match(html, /aria-label="Open earnings period selector"/);
   assert.match(html, /class="performance-periods"/);
   assert.match(html, /href="\/customer\?period=daily"/);
   assert.ok(html.includes('class="active" href="/customer?period=weekly">WEEKLY</a>'));
+  assert.match(html, />YEAR TO DATE<\/a>/);
   assert.match(html, /Realized: \$-2.5/);
   assert.match(html, /Unrealized: \$12.5/);
   assert.match(html, /Combined: \$10/);
   assert.match(html, /Net after costs: \$10/);
-  assert.match(html, /performance-positive/);
   assert.match(html, /Current — read only/);
-  assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
+  assert.doesNotMatch(html, /Total earnings — weekly/);
+  assert.doesNotMatch(html, /Place order|Buy now/);
 });
