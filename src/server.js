@@ -3735,6 +3735,10 @@ app.get('/diagnostics/paper-trade-lifecycle-dashboard-panel', (_req, res) => {
   res.json(readPaperTradeLifecycleDashboardPanel());
 });
 
+app.get('/diagnostics/paper-trade-position-state-auto-refresh', (_req, res) => {
+  res.json(paperPositionStateAutoRefresh.diagnostics());
+});
+
 app.get('/diagnostics/paper-trade-position-state-store', (_req, res) => {
   res.json(readPaperTradePositionStateStoreDashboard());
 });
