@@ -406,6 +406,7 @@ test("customer dashboard renders read-only performance totals above scanner resu
   assert.match(html, /Winners: 0 \| Losers: 0 \| Win rate: 0%/);
   assert.match(html, /Fees: \$0 \| Slippage: \$0/);
   assert.match(html, /Net after costs: \$10/);
+  assert.match(html, /Starting equity: \$0 \| Ending equity: \$0 \| Peak equity: \$0 \| Drawdown: \$0 \(0%\)/);
   assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
 });
 

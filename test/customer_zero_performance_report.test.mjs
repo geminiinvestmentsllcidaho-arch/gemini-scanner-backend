@@ -59,3 +59,31 @@ test("calculates winner loser gain loss and cost statistics from paper ledger po
   assert.equal(report.netAfterCosts, 21);
   assert.equal(report.orderPlacementAllowed, false);
 });
+
+
+test("normalizes supported periods and calculates equity drawdown from paper sources", () => {
+  for (const period of ["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]) {
+    const report = buildCustomerZeroPerformanceReport({
+      period,
+      sourceTs: "2026-07-13T14:30:00.000Z",
+      startingEquity: 1000,
+      peakEquity: 1200,
+      paperAccount: {
+        account: { equity: 1100 },
+        summary: { totalUnrealizedPl: 25 },
+      },
+      paperLedger: { totalRealizedPnl: 75 },
+    });
+
+    assert.equal(report.period, period);
+    assert.equal(report.startingEquity, 1000);
+    assert.equal(report.endingEquity, 1100);
+    assert.equal(report.peakEquity, 1200);
+    assert.equal(report.drawdown, 100);
+    assert.equal(report.drawdownPct, 8.33);
+    assert.equal(report.orderPlacementAllowed, false);
+  }
+
+  const fallback = buildCustomerZeroPerformanceReport({ period: "invalid" });
+  assert.equal(fallback.period, "daily");
+});

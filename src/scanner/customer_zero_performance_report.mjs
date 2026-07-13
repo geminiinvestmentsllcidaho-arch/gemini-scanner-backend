@@ -13,6 +13,13 @@ function tone(value) {
   return value > 0 ? "positive" : value < 0 ? "negative" : "neutral";
 }
 
+const PERIODS = new Set(["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]);
+
+function normalizedPeriod(value) {
+  const period = String(value ?? "daily").trim().toLowerCase();
+  return PERIODS.has(period) ? period : "daily";
+}
+
 function realizedStatistics(paperLedger = {}) {
   const values = Array.isArray(paperLedger.positions)
     ? paperLedger.positions
@@ -40,7 +47,7 @@ function realizedStatistics(paperLedger = {}) {
 export function buildCustomerZeroPerformanceReport(options = {}) {
   const paperAccount = options.paperAccount ?? {};
   const paperLedger = options.paperLedger ?? {};
-  const period = String(options.period ?? "daily").toLowerCase();
+  const period = normalizedPeriod(options.period);
   const realizedPl = round2(paperLedger.totalRealizedPnl);
   const unrealizedPl = round2(paperAccount?.summary?.totalUnrealizedPl);
   const totalPl = round2(realizedPl + unrealizedPl);
@@ -49,6 +56,24 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
   const statistics = realizedStatistics(paperLedger);
   const fees = round2(paperLedger.totalFees);
   const slippage = round2(paperLedger.totalSlippage);
+  const endingEquitySource =
+    options.endingEquity
+      ?? paperAccount?.account?.equity
+      ?? paperLedger.endingEquity;
+  const endingEquityAvailable = Number.isFinite(Number(endingEquitySource));
+  const endingEquity = endingEquityAvailable ? round2(endingEquitySource) : 0;
+  const startingEquity = round2(
+    options.startingEquity
+      ?? paperLedger.startingEquity
+      ?? (endingEquityAvailable ? endingEquity - totalPl : 0)
+  );
+  const peakEquity = round2(
+    options.peakEquity
+      ?? paperLedger.peakEquity
+      ?? Math.max(startingEquity, endingEquity)
+  );
+  const drawdown = round2(Math.max(0, peakEquity - endingEquity));
+  const drawdownPct = peakEquity > 0 ? round2((drawdown / peakEquity) * 100) : 0;
 
   return {
     version: VERSION,
@@ -61,6 +86,11 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     fees,
     slippage,
     netAfterCosts: round2(totalPl - fees - slippage),
+    startingEquity,
+    endingEquity,
+    peakEquity,
+    drawdown,
+    drawdownPct,
     sourceTs,
     stale,
     status: stale ? "stale_readonly" : "current_readonly",
