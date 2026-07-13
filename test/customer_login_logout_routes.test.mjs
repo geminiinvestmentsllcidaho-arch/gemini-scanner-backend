@@ -249,8 +249,8 @@ test('settings page exposes authenticated permanent account deletion controls', 
 test('customer settings mutations require same-origin verification', () => {
   assert.match(source, /import \{ requireCustomerSameOrigin \} from '\.\/scanner\/customer_same_origin\.mjs';/);
   assert.match(sameOriginSource, /req\.get\('origin'\)/);
-  assert.match(sameOriginSource, /originUrl\.protocol !== 'https:'/);
-  assert.match(sameOriginSource, /originHost !== expectedHost/);
+  assert.match(sameOriginSource, /sourceUrl\.protocol !== 'https:'/);
+  assert.match(sameOriginSource, /trustedSameSiteMatch/);
   assert.match(source, /app\.post\('\/customer\/settings\/profile', requireCustomerSession, requireCustomerSameOrigin,/);
   assert.match(source, /app\.post\('\/customer\/settings\/password', requireCustomerSession, requireCustomerSameOrigin,/);
   assert.match(source, /app\.post\('\/customer\/settings\/authenticator\/recovery-codes\/regenerate', requireCustomerSession, requireCustomerSameOrigin,/);
