@@ -426,6 +426,8 @@ test("customer scanner routes load read-only paper ledger performance source", (
     assert.match(block, /readPaperTradePositionStateStoreDashboard\(\)/);
     assert.match(block, /const paperLedger = paperPositionLedger\.latestRecord \?\? \{\}/);
     assert.match(block, /paperLedger,/);
+    assert.match(block, /paperLedgerHistory: paperPositionLedger\.records/);
+    assert.match(block, /performancePeriod: req\.query\.period/);
     assert.match(block, /performanceSourceTs: paperLedger\.lastUpdatedAt \?\? paperLedger\.createdAt \?\? null/);
   }
 });

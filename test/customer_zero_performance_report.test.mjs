@@ -87,3 +87,28 @@ test("normalizes supported periods and calculates equity drawdown from paper sou
   const fallback = buildCustomerZeroPerformanceReport({ period: "invalid" });
   assert.equal(fallback.period, "daily");
 });
+
+
+test("filters cumulative paper position snapshots into selected performance period", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "weekly",
+    now: new Date("2026-07-15T12:00:00.000Z"),
+    sourceTs: "2026-07-15T11:00:00.000Z",
+    paperAccount: { summary: { totalUnrealizedPl: 5 } },
+    paperLedgerHistory: [
+      { createdAt: "2026-07-12T12:00:00.000Z", totalRealizedPnl: 10, endingEquity: 1010 },
+      { createdAt: "2026-07-13T12:00:00.000Z", totalRealizedPnl: 20, endingEquity: 1020 },
+      { createdAt: "2026-07-15T11:00:00.000Z", totalRealizedPnl: 50, endingEquity: 1050 },
+    ],
+  });
+
+  assert.equal(report.periodRecordCount, 2);
+  assert.equal(report.periodStartTs, "2026-07-13T12:00:00.000Z");
+  assert.equal(report.periodEndTs, "2026-07-15T11:00:00.000Z");
+  assert.equal(report.realizedPl, 30);
+  assert.equal(report.unrealizedPl, 5);
+  assert.equal(report.totalPl, 35);
+  assert.equal(report.startingEquity, 1020);
+  assert.equal(report.endingEquity, 1050);
+  assert.equal(report.orderPlacementAllowed, false);
+});

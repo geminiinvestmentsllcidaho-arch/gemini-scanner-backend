@@ -82,6 +82,8 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       stale: options.performanceStale === true,
       paperAccount: options.paperAccount,
       paperLedger: options.paperLedger,
+      paperLedgerHistory: options.paperLedgerHistory,
+      now: options.now,
     });
 
   return {

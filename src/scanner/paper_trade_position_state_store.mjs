@@ -120,6 +120,7 @@ export function readPaperTradePositionStateStoreDashboard(options = {}) {
     recordCount: records.length,
     hasRecords: records.length > 0,
     latestStatus: latestRecord ? 'stored' : 'empty',
+    records,
     latestRecord,
     safety: {
       orderPlacement: false,

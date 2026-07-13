@@ -96,7 +96,7 @@ test('paper position state store writes local snapshot JSONL only', () => {
 test('paper position state store dashboard exposes latest snapshot safely', () => {
   const storeLedgerPath = tmpLedger();
 
-  storePaperTradePositionState({
+  const result = storePaperTradePositionState({
     storeLedgerPath,
     now: new Date('2026-06-26T12:02:00.000Z'),
     positionPreview: positionPreview()
@@ -114,6 +114,8 @@ test('paper position state store dashboard exposes latest snapshot safely', () =
   assert.equal(dashboard.latestStatus, 'stored');
   assert.equal(dashboard.latestRecord.positionCount, 1);
   assert.equal(dashboard.latestRecord.totalRealizedPnl, 50);
+  assert.equal(dashboard.records.length, 1);
+  assert.equal(dashboard.records[0].snapshotId, result.record.snapshotId);
   assert.equal(dashboard.safety.brokerContact, false);
   assert.equal(dashboard.safety.orderPlacement, false);
   assert.equal(dashboard.safety.accountMutation, false);

@@ -20,6 +20,51 @@ function normalizedPeriod(value) {
   return PERIODS.has(period) ? period : "daily";
 }
 
+function periodStart(period, now) {
+  const start = new Date(now);
+  if (period === "daily") start.setUTCHours(0, 0, 0, 0);
+  else if (period === "weekly") {
+    const day = start.getUTCDay() || 7;
+    start.setUTCDate(start.getUTCDate() - day + 1);
+    start.setUTCHours(0, 0, 0, 0);
+  } else if (period === "monthly") {
+    start.setUTCDate(1);
+    start.setUTCHours(0, 0, 0, 0);
+  } else if (period === "yearly" || period === "ytd") {
+    start.setUTCMonth(0, 1);
+    start.setUTCHours(0, 0, 0, 0);
+  } else return null;
+  return start;
+}
+
+function periodLedger(history, period, now) {
+  const records = Array.isArray(history)
+    ? history.filter((record) => Number.isFinite(Date.parse(record?.createdAt)))
+    : [];
+  if (!records.length) return null;
+  const start = periodStart(period, now);
+  const filtered = start
+    ? records.filter((record) => new Date(record.createdAt) >= start && new Date(record.createdAt) <= now)
+    : records.filter((record) => new Date(record.createdAt) <= now);
+  if (!filtered.length) return null;
+  const first = filtered[0];
+  const latest = filtered[filtered.length - 1];
+  const realizedStart = round2(first.totalRealizedPnl);
+  const realizedEnd = round2(latest.totalRealizedPnl);
+  return {
+    ...latest,
+    totalRealizedPnl: round2(realizedEnd - realizedStart),
+    startingEquity: first.endingEquity ?? first.startingEquity ?? null,
+    endingEquity: latest.endingEquity ?? null,
+    peakEquity: Math.max(
+      ...filtered.map((record) => finite(record.endingEquity ?? record.peakEquity))
+    ),
+    periodRecordCount: filtered.length,
+    periodStartTs: first.createdAt ?? null,
+    periodEndTs: latest.createdAt ?? null,
+  };
+}
+
 function realizedStatistics(paperLedger = {}) {
   const values = Array.isArray(paperLedger.positions)
     ? paperLedger.positions
@@ -46,8 +91,11 @@ function realizedStatistics(paperLedger = {}) {
 
 export function buildCustomerZeroPerformanceReport(options = {}) {
   const paperAccount = options.paperAccount ?? {};
-  const paperLedger = options.paperLedger ?? {};
   const period = normalizedPeriod(options.period);
+  const now = options.now instanceof Date ? options.now : new Date();
+  const paperLedger = periodLedger(options.paperLedgerHistory, period, now)
+    ?? options.paperLedger
+    ?? {};
   const realizedPl = round2(paperLedger.totalRealizedPnl);
   const unrealizedPl = round2(paperAccount?.summary?.totalUnrealizedPl);
   const totalPl = round2(realizedPl + unrealizedPl);
@@ -78,6 +126,9 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
   return {
     version: VERSION,
     period,
+    periodRecordCount: paperLedger.periodRecordCount ?? 0,
+    periodStartTs: paperLedger.periodStartTs ?? null,
+    periodEndTs: paperLedger.periodEndTs ?? null,
     realizedPl,
     unrealizedPl,
     totalPl,
