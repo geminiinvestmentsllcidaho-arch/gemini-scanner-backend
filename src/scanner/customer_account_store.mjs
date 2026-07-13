@@ -839,6 +839,63 @@ export function consumeCustomerAuthenticatorRecoveryCode(accountId, code, option
 }
 
 
+export function getCustomerWatchlist(accountId, options = {}) {
+  const account = findCustomerAccountById(accountId, options);
+  if (!account) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const symbols = Array.isArray(account.watchlistSymbols)
+    ? account.watchlistSymbols
+        .map((value) => clean(value).toUpperCase())
+        .filter((value, index, list) => /^[A-Z][A-Z0-9.\-]{0,9}$/.test(value) && list.indexOf(value) === index)
+    : [];
+
+  return Object.freeze({
+    ok: true,
+    symbols: Object.freeze(symbols),
+    updatedAt: account.watchlistUpdatedAt ?? null,
+  });
+}
+
+export function updateCustomerWatchlist(accountId, symbols = [], options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const raw = Array.isArray(symbols) ? symbols : String(symbols ?? "").split(",");
+  const normalized = [];
+  for (const value of raw) {
+    const symbol = clean(value).toUpperCase();
+    if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol)) continue;
+    if (!normalized.includes(symbol)) normalized.push(symbol);
+    if (normalized.length >= 50) break;
+  }
+
+  records[index] = {
+    ...records[index],
+    watchlistSymbols: Object.freeze(normalized),
+    watchlistUpdatedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({
+    ok: true,
+    symbols: Object.freeze(normalized),
+    account: Object.freeze(records[index]),
+  });
+}
+
+
 export function appendCustomerAccountRecord(record, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   fs.mkdirSync(path.dirname(storePath), { recursive: true });

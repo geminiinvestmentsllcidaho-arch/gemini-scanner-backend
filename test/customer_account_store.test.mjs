@@ -15,6 +15,8 @@ import {
   normalizeCustomerEmail,
   validateSignupInput,
   verifyCustomerPassword,
+  getCustomerWatchlist,
+  updateCustomerWatchlist,
 } from "../src/scanner/customer_account_store.mjs";
 
 test("normalizes and validates signup input", () => {
@@ -120,4 +122,35 @@ test("marks customer email verified with atomic private store rewrite", () => {
   assert.equal(findCustomerAccountByEmail(record.email, { storePath })?.emailVerified, true);
   assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
   assert.equal(markCustomerEmailVerified("missing", { storePath }).reason, "account_not_found");
+});
+
+test("stores a normalized persistent customer watchlist with private permissions", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-account-watchlist-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({
+    firstName: "Zero",
+    lastName: "Customer",
+    email: "zero@example.com",
+    password: "correct horse battery staple",
+    confirmPassword: "correct horse battery staple",
+    termsAccepted: true,
+  });
+  appendCustomerAccountRecord(record, { storePath });
+
+  const updated = updateCustomerWatchlist(
+    record.id,
+    [" aapl ", "MSFT", "aapl", "bad symbol", "BRK.B"],
+    { storePath, now: "2026-07-13T04:30:00.000Z" },
+  );
+
+  assert.equal(updated.ok, true);
+  assert.deepEqual(updated.symbols, ["AAPL", "MSFT", "BRK.B"]);
+  assert.equal(updated.account.watchlistUpdatedAt, "2026-07-13T04:30:00.000Z");
+  assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+
+  const loaded = getCustomerWatchlist(record.id, { storePath });
+  assert.equal(loaded.ok, true);
+  assert.deepEqual(loaded.symbols, ["AAPL", "MSFT", "BRK.B"]);
+  assert.equal(loaded.updatedAt, "2026-07-13T04:30:00.000Z");
+  assert.equal(getCustomerWatchlist("missing", { storePath }).reason, "account_not_found");
 });
