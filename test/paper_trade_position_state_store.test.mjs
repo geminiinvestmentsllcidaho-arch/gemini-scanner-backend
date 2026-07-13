@@ -147,3 +147,28 @@ test('paper position state store panel exposes operator dashboard card', () => {
   assert.equal(panel.safety.orderPlacement, false);
   assert.equal(panel.safety.accountMutation, false);
 });
+
+
+test('skips duplicate paper position snapshots when state is unchanged', () => {
+  const storeLedgerPath = tmpLedger();
+  const preview = positionPreview();
+
+  const first = storePaperTradePositionState({
+    storeLedgerPath,
+    now: new Date('2026-06-26T12:02:00.000Z'),
+    positionPreview: preview
+  });
+  const second = storePaperTradePositionState({
+    storeLedgerPath,
+    now: new Date('2026-06-26T12:03:00.000Z'),
+    positionPreview: preview
+  });
+
+  assert.equal(first.snapshotStored, true);
+  assert.equal(second.status, 'unchanged');
+  assert.equal(second.snapshotStored, false);
+  assert.equal(second.wroteRecord, false);
+  assert.equal(second.unchanged, true);
+  assert.equal(second.recordCount, 1);
+  assert.equal(readPaperTradePositionStateRecords(storeLedgerPath).length, 1);
+});

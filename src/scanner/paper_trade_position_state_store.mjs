@@ -23,6 +23,19 @@ export function readPaperTradePositionStateRecords(
     .map((line) => JSON.parse(line));
 }
 
+function snapshotStateKey(record = {}) {
+  return JSON.stringify({
+    sourceRecordCount: record.sourceRecordCount ?? 0,
+    ignoredRecordCount: record.ignoredRecordCount ?? 0,
+    positionCount: record.positionCount ?? 0,
+    openPositionCount: record.openPositionCount ?? 0,
+    closedPositionCount: record.closedPositionCount ?? 0,
+    totalCostBasis: record.totalCostBasis ?? 0,
+    totalRealizedPnl: record.totalRealizedPnl ?? 0,
+    positions: record.positions ?? []
+  });
+}
+
 function createSnapshotRecord(positionPreview, now) {
   const ts = now.toISOString();
 
@@ -73,7 +86,15 @@ export function storePaperTradePositionState(options = {}) {
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
 
   const record = createSnapshotRecord(positionPreview, now);
-  fs.appendFileSync(ledgerPath, `${JSON.stringify(record)}\n`);
+  const recordsBefore = readPaperTradePositionStateRecords(ledgerPath);
+  const latestRecord = recordsBefore.length ? recordsBefore[recordsBefore.length - 1] : null;
+  const unchanged = latestRecord
+    ? snapshotStateKey(latestRecord) === snapshotStateKey(record)
+    : false;
+
+  if (!unchanged) {
+    fs.appendFileSync(ledgerPath, `${JSON.stringify(record)}\n`);
+  }
 
   return {
     ok: true,
@@ -81,11 +102,12 @@ export function storePaperTradePositionState(options = {}) {
     monitorOnly: true,
     previewOnly: true,
     paperOnly: true,
-    status: 'stored',
-    snapshotStored: true,
-    wroteRecord: true,
+    status: unchanged ? 'unchanged' : 'stored',
+    snapshotStored: !unchanged,
+    wroteRecord: !unchanged,
+    unchanged,
     ledgerPath,
-    recordCount: readPaperTradePositionStateRecords(ledgerPath).length,
+    recordCount: recordsBefore.length + (unchanged ? 0 : 1),
     positionPreview,
     record,
     safety: {
