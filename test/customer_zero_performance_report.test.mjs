@@ -5,6 +5,7 @@ import { buildCustomerZeroPerformanceReport } from "../src/scanner/customer_zero
 test("builds read-only Customer Zero performance totals from paper sources", () => {
   const report = buildCustomerZeroPerformanceReport({
     period: "weekly",
+    now: new Date("2026-07-13T13:01:00.000Z"),
     sourceTs: "2026-07-13T13:00:00.000Z",
     paperAccount: { summary: { totalUnrealizedPl: 12.34 } },
     paperLedger: { totalRealizedPnl: -2.34 },
@@ -111,4 +112,30 @@ test("filters cumulative paper position snapshots into selected performance peri
   assert.equal(report.startingEquity, 1010);
   assert.equal(report.endingEquity, 1050);
   assert.equal(report.orderPlacementAllowed, false);
+});
+
+
+test("performance report marks aged position snapshots stale deterministically", () => {
+  const current = buildCustomerZeroPerformanceReport({
+    now: new Date("2026-07-13T16:52:10.000Z"),
+    sourceTs: "2026-07-13T16:51:10.000Z",
+    maxAgeSec: 120,
+    paperLedger: {},
+  });
+  assert.equal(current.sourceAgeSec, 60);
+  assert.equal(current.maxAgeSec, 120);
+  assert.equal(current.stale, false);
+  assert.equal(current.status, "current_readonly");
+
+  const stale = buildCustomerZeroPerformanceReport({
+    now: new Date("2026-07-13T16:54:11.000Z"),
+    sourceTs: "2026-07-13T16:51:10.000Z",
+    maxAgeSec: 120,
+    paperLedger: {},
+  });
+  assert.equal(stale.sourceAgeSec, 181);
+  assert.equal(stale.maxAgeSec, 120);
+  assert.equal(stale.stale, true);
+  assert.equal(stale.status, "stale_readonly");
+  assert.equal(stale.orderPlacementAllowed, false);
 });

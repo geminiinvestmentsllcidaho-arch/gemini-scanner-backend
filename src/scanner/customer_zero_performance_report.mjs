@@ -105,7 +105,17 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
   const unrealizedPl = round2(paperAccount?.summary?.totalUnrealizedPl);
   const totalPl = round2(realizedPl + unrealizedPl);
   const sourceTs = options.sourceTs ?? null;
-  const stale = options.stale === true || !sourceTs;
+  const parsedSourceTs = Date.parse(sourceTs);
+  const maxAgeSec = Number.isFinite(Number(options.maxAgeSec))
+    ? Math.max(0, Number(options.maxAgeSec))
+    : 120;
+  const sourceAgeSec = Number.isFinite(parsedSourceTs)
+    ? Math.max(0, Math.floor((now.getTime() - parsedSourceTs) / 1000))
+    : null;
+  const stale =
+    options.stale === true
+    || sourceAgeSec === null
+    || sourceAgeSec > maxAgeSec;
   const statistics = realizedStatistics(paperLedger);
   const fees = round2(paperLedger.totalFees);
   const slippage = round2(paperLedger.totalSlippage);
@@ -148,6 +158,8 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     drawdown,
     drawdownPct,
     sourceTs,
+    sourceAgeSec,
+    maxAgeSec,
     stale,
     status: stale ? "stale_readonly" : "current_readonly",
     readOnly: true,
