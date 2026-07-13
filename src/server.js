@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -3984,10 +3984,24 @@ app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
 });
 
 app.get('/customer/watchlist', requireCustomerSession, async (req, res) => {
-  const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const hub = mod.buildCustomerScannerHub();
+  const mod = await import('./scanner/customer_watchlist_page.mjs');
+  const watchlist = getCustomerWatchlist(req.customerAccount?.id);
+  const page = mod.buildCustomerWatchlistPage({
+    symbols: watchlist.ok ? watchlist.symbols : [],
+    updatedAt: watchlist.ok ? watchlist.updatedAt : null,
+    saved: req.query?.saved === '1',
+  });
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
+  res.type('html').send(mod.renderCustomerWatchlistPageHtml(page, req.customerAccount));
+});
+
+app.post('/customer/watchlist', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  const symbols = String(req.body?.symbols ?? '').split(',');
+  const result = updateCustomerWatchlist(req.customerAccount?.id, symbols);
+  if (!result.ok) {
+    return res.status(404).type('text').send('Customer account not found.');
+  }
+  return res.redirect(303, '/customer/watchlist?saved=1');
 });
 
 app.get('/customer/settings', requireCustomerSession, async (req, res) => {

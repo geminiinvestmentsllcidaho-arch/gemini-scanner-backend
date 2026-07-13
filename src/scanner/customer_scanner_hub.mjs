@@ -32,7 +32,7 @@ const MODES = Object.freeze([
   Object.freeze({
     id: "watchlist",
     label: "Watchlist",
-    status: "coming_soon",
+    status: "available",
     href: "/customer/watchlist",
     default: false,
   }),

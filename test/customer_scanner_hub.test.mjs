@@ -44,3 +44,10 @@ test("customer hub keeps decision-assist safety locks closed", () => {
   assert.equal(hub.orderPlacementAllowed, false);
   assert.equal(hub.accountMutationAllowed, false);
 });
+
+test("customer hub marks watchlist available", () => {
+  const hub = buildCustomerScannerHub();
+  const watchlist = hub.modes.find((mode) => mode.id === "watchlist");
+  assert.equal(watchlist?.status, "available");
+  assert.equal(watchlist?.href, "/customer/watchlist");
+});

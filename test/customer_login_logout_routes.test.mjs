@@ -857,3 +857,11 @@ test('every customer settings mutation route records a bounded security audit ou
     );
   }
 });
+
+test('customer watchlist uses authenticated persistent storage and same-origin mutation protection', () => {
+  assert.match(source, /getCustomerWatchlist\(req\.customerAccount\?\.id\)/);
+  assert.match(source, /renderCustomerWatchlistPageHtml\(page, req\.customerAccount\)/);
+  assert.match(source, /app\.post\('\/customer\/watchlist', requireCustomerSession, requireCustomerSameOrigin,/);
+  assert.match(source, /updateCustomerWatchlist\(req\.customerAccount\?\.id, symbols\)/);
+  assert.match(source, /res\.redirect\(303, '\/customer\/watchlist\?saved=1'\)/);
+});
