@@ -631,3 +631,149 @@ test('customer reset-password outcomes append bounded security audit records', (
   assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, newPassword"), false);
   assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
 });
+
+test('customer signup rate limits append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/signup'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_attempt', 'blocked', 'rate_limited');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.email"), false);
+});
+
+test('customer signup disabled attempts append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/signup'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_attempt', 'blocked', 'signup_disabled');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.email"), false);
+});
+
+test('customer signup unavailable email delivery appends a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/signup'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_attempt', 'blocked', 'email_delivery_unavailable');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, process.env.RESEND_API_KEY"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, process.env.CUSTOMER_EMAIL_FROM"), false);
+});
+
+test('customer signup duplicate accounts append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/signup'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'account_already_exists', existingAccount.id);"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.email"), false);
+});
+
+test('customer signup verification delivery failures append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/signup'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'verification_delivery_failed', record.id);"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, verification.token"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, record.email"), false);
+});
+
+test('customer signup success and validation failures append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.post('/signup'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_created', 'success', undefined, record.id);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'invalid_signup');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, codes"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, error?.codes"), false);
+});
+
+test('customer email verification invalid tokens append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.get('/verify-email'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'email_verification', 'failure', 'invalid_or_expired_token');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, tokenHash"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, verificationRecord"), false);
+});
+
+test('customer email verification account update failures append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.get('/verify-email'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'email_verification', 'failure', 'account_update_failed', result.accountId);"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, accountResult"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, result.email"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
+});
+
+test('customer email verification success outcomes append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.get('/verify-email'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("isEmailChange ? 'email_change_verified' : 'email_verified'"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(\n    req,\n    isEmailChange ? 'email_change_verified' : 'email_verified',\n    'success',\n    undefined,\n    result.accountId,\n  );"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, result.email"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, verificationRecord"), false);
+});

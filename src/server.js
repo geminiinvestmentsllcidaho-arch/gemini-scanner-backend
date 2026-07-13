@@ -314,6 +314,7 @@ app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   if (customerSignupRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'signup_attempt', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(
       '<!doctype html><html><body><main><h1>Too many attempts</h1><p>Please wait before trying again.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
@@ -321,6 +322,7 @@ app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
   }
 
   if (process.env.CUSTOMER_SIGNUP_ENABLED !== '1') {
+    recordCustomerSecurityAudit(req, 'signup_attempt', 'blocked', 'signup_disabled');
     return res.status(503).type('html').send(
       '<!doctype html><html><body><main><h1>Signup unavailable</h1><p>Registration is temporarily disabled.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
     );
@@ -331,13 +333,16 @@ app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
     || !String(process.env.RESEND_API_KEY ?? '').trim()
     || !String(process.env.CUSTOMER_EMAIL_FROM ?? '').trim()
   ) {
+    recordCustomerSecurityAudit(req, 'signup_attempt', 'blocked', 'email_delivery_unavailable');
     return res.status(503).type('html').send(
       '<!doctype html><html><body><main><h1>Signup temporarily unavailable</h1><p>Email verification delivery is not configured yet.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
     );
   }
 
   try {
-    if (findCustomerAccountByEmail(req.body?.email)) {
+    const existingAccount = findCustomerAccountByEmail(req.body?.email);
+    if (existingAccount) {
+      recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'account_already_exists', existingAccount.id);
       return res.status(409).type('html').send(
         '<!doctype html><html><body><main><h1>Account already exists</h1><p>Use the sign-in or password-recovery flow for this email.</p><p><a href="/login">Sign in</a></p></main></body></html>',
       );
@@ -355,15 +360,18 @@ app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
     });
 
     if (!delivery.ok) {
+      recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'verification_delivery_failed', record.id);
       return res.status(503).type('html').send(
         '<!doctype html><html><body><main><h1>Verification email delayed</h1><p>Your account is pending verification, but the email could not be delivered. Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
       );
     }
 
+    recordCustomerSecurityAudit(req, 'signup_created', 'success', undefined, record.id);
     return res.status(201).type('html').send(
       '<!doctype html><html><body><main><h1>Check your email</h1><p>Your GeminiScanner customer account was created. Open the verification link sent to your email address.</p><p><a href="/">Return home</a></p></main></body></html>',
     );
   } catch (error) {
+    recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'invalid_signup');
     const codes = Array.isArray(error?.codes) ? error.codes.join(', ') : 'invalid_signup';
     return res.status(400).type('html').send(
       `<!doctype html><html><body><main><h1>Signup needs attention</h1><p>${codes}</p><p><a href="/signup">Return to signup</a></p></main></body></html>`,
@@ -380,6 +388,7 @@ app.get('/verify-email', (req, res) => {
   const result = verifyCustomerEmailToken(token, verificationRecord ?? {});
 
   if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'email_verification', 'failure', 'invalid_or_expired_token');
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Verification link unavailable</h1><p>This email verification link is invalid, expired, or already used.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
     );
@@ -394,12 +403,20 @@ app.get('/verify-email', (req, res) => {
     ? completeCustomerEmailChange(result.accountId, result.email)
     : markCustomerEmailVerified(result.accountId);
   if (!accountResult.ok) {
+    recordCustomerSecurityAudit(req, 'email_verification', 'failure', 'account_update_failed', result.accountId);
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Verification could not be completed</h1><p>Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
     );
   }
 
   markCustomerEmailVerificationConsumed(verificationRecord.tokenHash);
+  recordCustomerSecurityAudit(
+    req,
+    isEmailChange ? 'email_change_verified' : 'email_verified',
+    'success',
+    undefined,
+    result.accountId,
+  );
 
   return res.status(200).type('html').send(
     isEmailChange
