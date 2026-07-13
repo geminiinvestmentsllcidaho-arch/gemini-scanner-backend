@@ -4772,11 +4772,17 @@ app.get('/customer/scanner/under-five/:symbol', requireCustomerSession, async (r
 app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res) => {
   try {
     const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
+    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const source = await getUnderFiveSharedSource();
+    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const resultFilters = getCustomerZeroResultFilters(req.customerAccount?.id).filters;
     const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
       route: '/customer/scanner/under-five',
       resultFilters,
+      paperAccount,
+      buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
       role: 'customer',
       roleLabel: 'Customer',
       tenant: 'customer',
@@ -4834,9 +4840,15 @@ app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
 app.get('/customer-zero/under-five-scanner', async (req, res) => {
   try {
     const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
+    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const source = await getUnderFiveSharedSource();
+    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
       route: '/customer-zero/under-five-scanner',
+      paperAccount,
+      buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
       role: 'customer',
       roleLabel: 'Customer',
       tenant: 'customer-zero',

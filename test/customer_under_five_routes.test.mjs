@@ -240,3 +240,80 @@ test("stale customer allocation preview stays blocked", () => {
   assert.match(html, /Preview blocked: STALE_DATA_BLOCKED/);
   assert.equal(dashboard.orderPlacementAllowed, false);
 });
+
+
+test("customer dashboard exposes connected paper account buying power positions and no-go ledger", () => {
+  const paperAccount = {
+    connected: true,
+    accountHealthy: true,
+    status: "connected_readonly",
+    displayState: "CUSTOMER_ZERO_PAPER_ACCOUNT_CONNECTED_READONLY",
+    account: {
+      cash: 800,
+      buyingPower: 1600,
+      equity: 1200,
+      portfolioValue: 1200,
+      currency: "USD",
+      accountStatus: "ACTIVE",
+      patternDayTrader: false,
+      tradingBlocked: false,
+      accountBlocked: false,
+    },
+    positions: [{ symbol: "TEST", qty: 5 }],
+    summary: {
+      positionsCount: 1,
+      totalMarketValue: 20,
+      totalUnrealizedPl: 2,
+      operatorMessage: "GET only.",
+    },
+    ledger: {
+      finalDecision: "NO_GO_FOR_ORDER_PLACEMENT",
+      readyForOrderPlacement: false,
+      noExecutableOrder: true,
+      noBrokerContact: true,
+      noAccountMutation: true,
+    },
+    issues: [],
+    readOnly: true,
+    paperOnly: true,
+    decisionAssistOnly: true,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  };
+
+  const dashboard = buildCustomerZeroUnderFiveDashboard(source, {
+    route: "/customer-zero/under-five-scanner",
+    tenant: "customer-zero",
+    paperAccount,
+    buyingPower: paperAccount.account.buyingPower,
+  });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.equal(dashboard.paperAccount.account.buyingPower, 1600);
+  assert.equal(dashboard.paperAccount.summary.positionsCount, 1);
+  assert.equal(dashboard.candidates[0].allocationPreview.limits.buyingPower, 1600);
+  assert.match(html, /Paper account — read only/);
+  assert.match(html, /Buying power: \$1600/);
+  assert.match(html, /Positions: 1/);
+  assert.match(html, /NO_GO_FOR_ORDER_PLACEMENT/);
+  assert.doesNotMatch(html, /Place order|Buy now|type="submit"/);
+});
+
+test("customer scanner routes fetch and bridge paper account read-only", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+
+  for (const route of [
+    "app.get('/customer/scanner/under-five', requireCustomerSession",
+    "app.get('/customer-zero/under-five-scanner'",
+  ]) {
+    const start = server.indexOf(route);
+    assert.notEqual(start, -1, route);
+    const end = server.indexOf("\\napp.get(", start + 1);
+    const block = server.slice(start, end === -1 ? server.length : end);
+    assert.match(block, /fetchAlpacaPaperAccountReadonly\(\)/);
+    assert.match(block, /buildCustomerZeroPaperAccountBridge\(fetchedPaperAccount\)/);
+    assert.match(block, /buyingPower: paperAccount\.accountHealthy \? paperAccount\.account\.buyingPower : null/);
+    assert.match(block, /paperAccount,/);
+  }
+});

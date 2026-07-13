@@ -64,6 +64,44 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     candidates,
     candidateCount: candidates.length,
     resultFilters,
+    paperAccount: options.paperAccount ?? {
+      connected: false,
+      accountHealthy: false,
+      status: "blocked_readonly",
+      displayState: "CUSTOMER_ZERO_PAPER_ACCOUNT_BLOCKED_READONLY",
+      account: {
+        cash: null,
+        buyingPower: null,
+        equity: null,
+        portfolioValue: null,
+        currency: "USD",
+        accountStatus: "unknown",
+        patternDayTrader: false,
+        tradingBlocked: false,
+        accountBlocked: false,
+      },
+      positions: [],
+      summary: {
+        positionsCount: 0,
+        totalMarketValue: 0,
+        totalUnrealizedPl: 0,
+        operatorMessage: "Paper account data is unavailable.",
+      },
+      ledger: {
+        finalDecision: "NO_GO_FOR_ORDER_PLACEMENT",
+        readyForOrderPlacement: false,
+        noExecutableOrder: true,
+        noBrokerContact: true,
+        noAccountMutation: true,
+      },
+      issues: ["PAPER_ACCOUNT_NOT_CONNECTED"],
+      readOnly: true,
+      paperOnly: true,
+      decisionAssistOnly: true,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false,
+    },
     allocationControls: {
       availableFundsPct: candidates[0]?.allocationPreview?.controls?.availableFundsPct ?? 5,
       maxDollarsPerStock: candidates[0]?.allocationPreview?.controls?.maxDollarsPerStock ?? 25,
@@ -103,6 +141,7 @@ body{font-family:system-ui;margin:0;background:#f3f5f7;color:#111;padding:14px}.
 </style></head><body><main class="wrap" data-role="customer" data-tenant="${esc(dashboard.tenant ?? "customer")}">
 <section class="hero"><h1>${esc(dashboard.title)}</h1><p>${esc(dashboard.headline)}</p><p><b>Mode:</b> Decision assist / read-only</p></section>
 <section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Route:</b> ${esc(dashboard.route ?? "/customer/scanner/under-five")}<br><b>Selected states:</b> ${esc(dashboard.resultFilters?.states?.join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
+<section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(dashboard.paperAccount?.ledger?.finalDecision ?? "NO_GO_FOR_ORDER_PLACEMENT")} | No broker contact or account mutation.</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
 ${rows}
 <section class="card"><b>Customer safety:</b> Decision assist only. No order placement, broker contact, or account mutation controls.</section>
