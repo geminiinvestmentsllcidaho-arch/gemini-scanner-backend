@@ -584,6 +584,7 @@ app.get('/forgot-password', (_req, res) => {
 app.post('/forgot-password', requireCustomerSameOrigin, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (customerPasswordResetRateLimiter.isLimited(req)) {
+    recordCustomerSecurityAudit(req, 'password_reset_request', 'blocked', 'rate_limited');
     res.set('Retry-After', '900');
     return res.status(429).type('html').send(customerForgotPasswordHtml('Please wait before trying again.'));
   }
@@ -591,6 +592,7 @@ app.post('/forgot-password', requireCustomerSameOrigin, async (req, res) => {
   const genericMessage = 'If that email belongs to an active account, a password reset link has been sent.';
   const account = findCustomerAccountByEmail(req.body?.email);
   if (!account || account.emailVerified !== true || account.status !== 'active') {
+    recordCustomerSecurityAudit(req, 'password_reset_request', 'failure', 'account_unavailable');
     return res.status(200).type('html').send(customerForgotPasswordHtml(genericMessage));
   }
 
@@ -602,9 +604,11 @@ app.post('/forgot-password', requireCustomerSameOrigin, async (req, res) => {
   });
 
   if (!delivery.ok) {
+    recordCustomerSecurityAudit(req, 'password_reset_request', 'failure', 'delivery_failed', account.id);
     markCustomerPasswordResetConsumed(reset.record.tokenHash);
     console.error('[customer-password-reset] delivery_failed');
   } else {
+    recordCustomerSecurityAudit(req, 'password_reset_requested', 'success', undefined, account.id);
     revokeCustomerPasswordResetsForAccount(account.id, {
       excludeTokenHash: reset.record.tokenHash,
     });
@@ -632,6 +636,7 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   const confirmPassword = String(req.body?.confirmPassword ?? '');
 
   if (newPassword !== confirmPassword) {
+    recordCustomerSecurityAudit(req, 'password_reset', 'failure', 'password_confirmation_mismatch');
     return res.status(400).type('html').send(customerResetPasswordHtml(token, 'New password and confirmation do not match.'));
   }
 
@@ -639,11 +644,13 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   const record = findCustomerPasswordResetByTokenHash(tokenHash);
   const verified = verifyCustomerPasswordResetToken(token, record ?? {});
   if (!verified.ok) {
+    recordCustomerSecurityAudit(req, 'password_reset', 'failure', 'invalid_or_expired_token');
     return res.status(400).type('html').send(customerResetPasswordHtml('', 'This password reset link is invalid, expired, or already used.'));
   }
 
   const changed = resetCustomerPassword(verified.accountId, newPassword);
   if (!changed.ok) {
+    recordCustomerSecurityAudit(req, 'password_reset', 'failure', changed.reason ?? 'password_reset_failed', verified.accountId);
     const message = changed.reason === 'new_password_too_short'
       ? 'New password must be at least 12 characters.'
       : changed.reason === 'new_password_must_differ'
@@ -652,6 +659,7 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
     return res.status(400).type('html').send(customerResetPasswordHtml(token, message));
   }
 
+  recordCustomerSecurityAudit(req, 'password_reset', 'success', undefined, verified.accountId);
   markCustomerPasswordResetConsumed(record.tokenHash);
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
   return res.status(200).type('html').send(

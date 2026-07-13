@@ -554,3 +554,80 @@ test('customer logout appends a bounded security audit record', () => {
   );
   assert.equal(routeSource.includes('req.body'), false);
 });
+
+test('customer password reset rate limits append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/forgot-password'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.get('/reset-password'", routeStart);
+  const routeSource = source.slice(
+    routeStart,
+    routeEnd === -1 ? source.length : routeEnd,
+   );
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset_request', 'blocked', 'rate_limited');"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset_request', 'failure', 'account_unavailable');"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset_request', 'failure', 'delivery_failed', account.id);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset_requested', 'success', undefined, account.id);"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, req.body?.email"), false);
+});
+
+test('customer reset-password confirmation mismatches append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/reset-password'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset', 'failure', 'password_confirmation_mismatch');"),
+    true,
+  );
+  assert.equal(routeSource.includes('recordCustomerSecurityAudit(req, token'), false);
+  assert.equal(routeSource.includes('recordCustomerSecurityAudit(req, newPassword'), false);
+});
+
+test('customer reset-password invalid tokens append a bounded security audit record', () => {
+  const routeStart = source.indexOf("app.post('/reset-password'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset', 'failure', 'invalid_or_expired_token');"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
+});
+
+test('customer reset-password outcomes append bounded security audit records', () => {
+  const routeStart = source.indexOf("app.post('/reset-password'");
+  assert.notEqual(routeStart, -1);
+
+  const routeEnd = source.indexOf("\n\napp.", routeStart + 1);
+  const routeSource = source.slice(routeStart, routeEnd === -1 ? source.length : routeEnd);
+
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset', 'failure', changed.reason ?? 'password_reset_failed', verified.accountId);"),
+    true,
+  );
+  assert.equal(
+    routeSource.includes("recordCustomerSecurityAudit(req, 'password_reset', 'success', undefined, verified.accountId);"),
+    true,
+  );
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, newPassword"), false);
+  assert.equal(routeSource.includes("recordCustomerSecurityAudit(req, token"), false);
+});
