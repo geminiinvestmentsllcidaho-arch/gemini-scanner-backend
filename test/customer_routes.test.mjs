@@ -11,6 +11,14 @@ test("server exposes dedicated customer landing and scanner routes", () => {
   assert.match(server, /renderCustomerScannerHubHtml/);
 });
 
+test("customer main route defaults earnings period to lifetime", () => {
+  const source = fs.readFileSync("src/server.js", "utf8");
+  const routeStart = source.indexOf("app.get('/customer', requireCustomerSession");
+  const routeEnd = source.indexOf("app.get('/customer/scanner'", routeStart);
+  const route = source.slice(routeStart, routeEnd);
+  assert.match(route, /period: req\.query\.period \?\? "lifetime"/);
+});
+
 test("customer routes render the shared customer interface without admin middleware", () => {
   const server = fs.readFileSync("src/server.js", "utf8");
   const block = server.match(

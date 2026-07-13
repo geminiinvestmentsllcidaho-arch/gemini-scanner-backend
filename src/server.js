@@ -3994,7 +3994,7 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
   const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
   const paperLedger = paperPositionLedger.latestRecord ?? {};
   const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
-    period: req.query.period,
+    period: req.query.period ?? "lifetime",
     sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
     paperAccount,
     paperLedger,
