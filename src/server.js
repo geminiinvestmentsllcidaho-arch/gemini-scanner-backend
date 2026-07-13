@@ -75,6 +75,7 @@ import { readPaperTradeFillSimulationStorePanel } from './scanner/paper_trade_fi
 import { buildPaperTradePositionStatePreview, buildPaperTradePositionStatePreviewPanel } from './scanner/paper_trade_position_state_preview.mjs';
 import { readPaperTradePositionStateStoreDashboard } from './scanner/paper_trade_position_state_store.mjs';
 import { readPaperTradePositionStateStorePanel } from './scanner/paper_trade_position_state_store_panel.mjs';
+import { createPaperTradePositionStateAutoRefresh } from './scanner/paper_trade_position_state_auto_refresh.mjs';
 import { readPaperTradeLifecycleDashboard, readPaperTradeLifecycleDashboardPanel } from './scanner/paper_trade_lifecycle_dashboard.mjs';
 import { previewPaperTradeLifecycleRun, readPaperTradeLifecycleRunnerPanel } from './scanner/paper_trade_lifecycle_runner.mjs';
 import { readPaperTradeLifecycleRunnerAuditDashboard } from './scanner/paper_trade_lifecycle_runner_audit.mjs';
@@ -3314,6 +3315,8 @@ app.get("/app", (req, res) => {
 });
 
 
+const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
+
 app.listen(PORT, HOST, async () => {
   const underFiveCache = await underFiveSharedCachePromise;
   if (underFiveCache) {
@@ -3322,6 +3325,11 @@ app.listen(PORT, HOST, async () => {
     });
   }
   console.log(`[server] listening on http://${HOST}:${PORT}`);
+  const paperPositionRefresh = paperPositionStateAutoRefresh.start();
+  console.log('[paper-position-auto-refresh] started', {
+    intervalMs: paperPositionRefresh.intervalMs,
+    status: paperPositionRefresh.lastStatus
+  });
   try {
     await startMarketDataStream();
     console.log('[server] market data stream started');
