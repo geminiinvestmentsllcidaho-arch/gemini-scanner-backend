@@ -2,6 +2,11 @@ import {
   buildAlpacaUnderFiveUniverseAppCard,
   renderAlpacaUnderFiveUniverseAppCardHtml,
 } from "./alpaca_under_five_universe_app_card.mjs";
+import {
+  filterCustomerZeroResults,
+  normalizeCustomerZeroResultFilters,
+} from "./customer_zero_result_filters.mjs";
+import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
 
 export const VERSION = "customer_under_five_dashboard_v1";
 
@@ -20,14 +25,33 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
   const roleLabel = String(options.roleLabel ?? "Customer");
   const tenant = String(options.tenant ?? "customer");
   const title = String(options.title ?? "Under $5 Scanner");
-  const card = buildAlpacaUnderFiveUniverseAppCard(source, {
+  const resultFilters = normalizeCustomerZeroResultFilters(options.resultFilters);
+  const filteredCandidates = filterCustomerZeroResults(source.candidates, resultFilters)
+    .map((candidate) => ({
+      ...candidate,
+      resultState: normalizeCustomerZeroResultState(candidate).state,
+    }));
+  const filteredSource = {
+    ...source,
+    candidates: filteredCandidates,
+    candidateCount: filteredCandidates.length,
+  };
+  const card = buildAlpacaUnderFiveUniverseAppCard(filteredSource, {
     ...options,
     detailBaseHref: route,
   });
+  const candidates = card.candidates.map((candidate, index) => ({
+    ...candidate,
+    resultState: filteredCandidates[index]?.resultState
+      ?? normalizeCustomerZeroResultState(candidate).state,
+  }));
   const { diagnosticsOnly: _diagnosticsOnly, ...customerCard } = card;
 
   return {
     ...customerCard,
+    candidates,
+    candidateCount: candidates.length,
+    resultFilters,
     version: VERSION,
     route,
     role,

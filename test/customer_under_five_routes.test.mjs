@@ -94,3 +94,36 @@ test("server customer under-five handlers each read shared source once", () => {
   assert.match(server, /app\.get\('\/customer\/watchlist'/);
   assert.match(server, /app\.get\('\/customer\/settings'/);
 });
+
+
+test("authenticated customer dashboard applies saved Customer Zero result filters", () => {
+  const filteredSource = {
+    ...source,
+    candidates: [
+      { symbol: "ENTER", price: 4.5, decision: "ENTER", tradeAllowed: true },
+      { symbol: "WAIT", price: 3.5, decision: "WAIT" },
+      { symbol: "NOPE", price: 2.5, decision: "DO_NOT_ENTER" },
+    ],
+  };
+  const dashboard = buildCustomerUnderFiveDashboard(filteredSource, {
+    route: "/customer/scanner/under-five",
+    tenant: "customer",
+    resultFilters: { states: ["WAIT", "ENTER"] },
+    now: new Date("2026-07-10T12:00:00Z"),
+  });
+
+  assert.deepEqual(dashboard.resultFilters.states, ["WAIT", "ENTER"]);
+  assert.deepEqual(dashboard.candidates.map((candidate) => candidate.symbol), ["ENTER", "WAIT"]);
+  assert.deepEqual(dashboard.candidates.map((candidate) => candidate.resultState), ["ENTER", "WAIT"]);
+  assert.equal(dashboard.candidateCount, 2);
+});
+
+test("authenticated customer under-five route loads account result filters", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  const start = server.indexOf("app.get('/customer/scanner/under-five', requireCustomerSession");
+  const end = server.indexOf("\\napp.get(", start + 1);
+  const block = server.slice(start, end === -1 ? server.length : end);
+
+  assert.match(block, /getCustomerZeroResultFilters\(req\.customerAccount\?\.id\)\.filters/);
+  assert.match(block, /resultFilters,/);
+});

@@ -4771,8 +4771,10 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
   try {
     const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
     const source = await getUnderFiveSharedSource();
+    const resultFilters = getCustomerZeroResultFilters(req.customerAccount?.id).filters;
     const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
       route: '/customer/scanner/under-five',
+      resultFilters,
       role: 'customer',
       roleLabel: 'Customer',
       tenant: 'customer',
