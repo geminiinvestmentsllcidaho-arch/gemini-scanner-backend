@@ -403,6 +403,9 @@ test("customer dashboard renders read-only performance totals above scanner resu
   assert.match(html, /Combined: \$10/);
   assert.match(html, /performance-positive/);
   assert.match(html, /Current — read only/);
+  assert.match(html, /Winners: 0 \| Losers: 0 \| Win rate: 0%/);
+  assert.match(html, /Fees: \$0 \| Slippage: \$0/);
+  assert.match(html, /Net after costs: \$10/);
   assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
 });
 
