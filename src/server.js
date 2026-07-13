@@ -4004,6 +4004,15 @@ app.post('/customer/watchlist', requireCustomerSession, requireCustomerSameOrigi
   return res.redirect(303, '/customer/watchlist?saved=1');
 });
 
+app.get('/customer/security-activity', requireCustomerSession, async (req, res) => {
+  const mod = await import('./scanner/customer_security_activity_page.mjs');
+  const activity = listCustomerSecurityActivity(req.customerAccount?.id, { limit: 50 });
+  const page = mod.buildCustomerSecurityActivityPage({ activity });
+  res.set('Cache-Control', 'no-store');
+  res.type('html').send(mod.renderCustomerSecurityActivityPageHtml(page));
+});
+
+
 app.get('/customer/settings', requireCustomerSession, async (req, res) => {
   const account = req.customerAccount;
   const esc = (value) => String(value ?? '')
@@ -4026,8 +4035,6 @@ app.get('/customer/settings', requireCustomerSession, async (req, res) => {
   const status = esc(account?.status || 'unknown');
   const verificationStatus = account?.emailVerified ? 'Verified' : 'Not verified';
   const customerId = esc(account?.id || 'Unavailable');
-  const securityActivity = listCustomerSecurityActivity(account?.id, { limit: 20 });
-
   res.set('Cache-Control', 'no-store');
   res.type('html').send(`<!doctype html>
 <html lang="en">
@@ -4091,10 +4098,8 @@ ${(Array.isArray(account?.recentLoginHistory) ? account.recentLoginHistory : [])
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security activity</h2>
-<p style="color:#9eb0c9">Recent security changes for this customer account. This history is read-only.</p>
-${securityActivity.length
-  ? `<div class="details">${securityActivity.map((entry) => `<div class="row"><div class="label">${esc(entry.eventAt)}</div><div class="value"><strong>${esc(entry.eventLabel)}</strong><br>${esc(entry.outcome)} | ${esc(entry.ip)} | ${esc(entry.userAgent)}</div></div>`).join('')}</div>`
-  : '<p style="color:#9eb0c9">No security activity is available yet.</p>'}
+<p style="color:#9eb0c9">Review recent account security changes on the dedicated read-only activity page.</p>
+<p><a href="/customer/security-activity">View security activity</a></p>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security</h2>

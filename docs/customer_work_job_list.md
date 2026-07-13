@@ -3,7 +3,7 @@
 ## Current priorities
 
 - [x] Build persistent customer watchlist storage and a real `/customer/watchlist` page.
-- [ ] Add a separate customer Security Activity page or tab.
+- [x] Add a separate customer Security Activity page or tab.
 - [ ] Add a separate customer Recent Sign-in Activity page or tab.
 - [ ] Remove the long Security Activity and Recent Sign-in Activity sections from the main Settings page after the separate pages are connected.
 - [ ] Confirm the login page visibly exposes the `Forgot password?` link.
