@@ -1,12 +1,15 @@
 import {
   buildAlpacaUnderFiveUniverseAppCard,
-  renderAlpacaUnderFiveUniverseAppCardHtml,
 } from "./alpaca_under_five_universe_app_card.mjs";
 import {
   filterCustomerZeroResults,
   normalizeCustomerZeroResultFilters,
 } from "./customer_zero_result_filters.mjs";
 import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
+import {
+  buildCustomerZeroDecisionCards,
+  renderCustomerZeroDecisionCardsHtml,
+} from "./customer_zero_decision_cards.mjs";
 
 export const VERSION = "customer_under_five_dashboard_v1";
 
@@ -71,16 +74,22 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
 }
 
 export function renderCustomerUnderFiveDashboardHtml(dashboard = {}) {
-  const base = renderAlpacaUnderFiveUniverseAppCardHtml(dashboard);
-  return base
-    .replace(
-      '<main class="wrap">',
-      `<main class="wrap" data-role="customer" data-tenant="${esc(dashboard.tenant ?? "customer")}"><section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")}<br><b>Mode:</b> Read-only<br><b>Route:</b> ${esc(dashboard.route ?? "/customer/scanner/under-five")}</section>`
-    )
-    .replace(
-      "</main></body></html>",
-      '<section class="card"><b>Customer safety:</b> Decision assist only. No order placement or account mutation controls.</section></main></body></html>'
-    );
+  const cards = buildCustomerZeroDecisionCards(dashboard.candidates);
+  const rows = renderCustomerZeroDecisionCardsHtml(cards);
+  const refreshSec = Number.isFinite(Number(dashboard.refreshIntervalSec))
+    ? Number(dashboard.refreshIntervalSec)
+    : 30;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(dashboard.title)}</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f3f5f7;color:#111;padding:14px}.wrap{max-width:820px;margin:auto}.hero,.card,.decision-card{background:#fff;border-radius:18px;padding:15px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:#fff}.hero h1{margin:.2rem 0}.decision-card{border-left:8px solid #8a8f98}.decision-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.decision-card h2{margin:0;font-size:1.6rem}.company-name{margin:.15rem 0;color:#68707a}.state-badge{border-radius:999px;padding:9px 12px;font-weight:900;white-space:nowrap;background:#eceff2}.decision-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.decision-grid p{margin:0;padding:10px;background:#f6f7f8;border-radius:12px}.decision-grid b,.decision-grid span{display:block}.decision-grid span{margin-top:4px;font-weight:700}.timestamp{font-size:.9rem;color:#555}.reasons ul{margin:.35rem 0 .75rem;padding-left:1.2rem}.detail-link{display:block;text-align:center;padding:12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:850}.state-enter{border-left-color:#159447}.state-enter .state-badge{background:#dff7e7;color:#11652e}.state-exit{border-left-color:#c62020}.state-exit .state-badge{background:#ffe0e0;color:#8a1111}.state-wait,.state-watch{border-left-color:#d39b00}.state-wait .state-badge,.state-watch .state-badge{background:#fff2c8;color:#765800}.state-do-not-enter,.state-blocked,.state-stale-data{border-left-color:#c62020}.state-do-not-enter .state-badge,.state-blocked .state-badge,.state-stale-data .state-badge{background:#ffe0e0;color:#8a1111}.state-no-setup{border-left-color:#737983}@media(max-width:560px){.decision-grid{grid-template-columns:1fr}.decision-card-head{align-items:center}.state-badge{font-size:.8rem}}
+</style></head><body><main class="wrap" data-role="customer" data-tenant="${esc(dashboard.tenant ?? "customer")}">
+<section class="hero"><h1>${esc(dashboard.title)}</h1><p>${esc(dashboard.headline)}</p><p><b>Mode:</b> Decision assist / read-only</p></section>
+<section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Route:</b> ${esc(dashboard.route ?? "/customer/scanner/under-five")}<br><b>Selected states:</b> ${esc(dashboard.resultFilters?.states?.join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
+${rows}
+<section class="card"><b>Customer safety:</b> Decision assist only. No order placement, broker contact, or account mutation controls.</section>
+</main></body></html>`;
 }
 
 export const buildCustomerZeroUnderFiveDashboard = buildCustomerUnderFiveDashboard;

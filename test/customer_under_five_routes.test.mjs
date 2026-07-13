@@ -127,3 +127,62 @@ test("authenticated customer under-five route loads account result filters", () 
   assert.match(block, /getCustomerZeroResultFilters\(req\.customerAccount\?\.id\)\.filters/);
   assert.match(block, /resultFilters,/);
 });
+
+
+test("customer dashboard renders compact operator decision cards", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ...source,
+    candidates: [{
+      symbol: "FAST",
+      name: "Fast Example",
+      price: 4.75,
+      decision: "ENTER",
+      tradeAllowed: true,
+      readonlyPotentialLabel: "strong_watch",
+      readonlyPotentialScore: 82,
+      sourceTs: "2026-07-10T11:59:50Z",
+      sourceAgeSec: 10,
+      sourceStale: false,
+      briefExplanation: "Fresh liquid setup with positive momentum.",
+    }],
+  }, {
+    route: "/customer/scanner/under-five",
+    tenant: "customer",
+    now: new Date("2026-07-10T12:00:00Z"),
+  });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.match(html, /class="decision-card state-enter"/);
+  assert.match(html, />ENTER</);
+  assert.match(html, /<b>Price<\/b><span>4\.75<\/span>/);
+  assert.match(html, /<b>Freshness<\/b><span>10s old<\/span>/);
+  assert.match(html, /<b>Setup<\/b><span>strong_watch<\/span>/);
+  assert.match(html, /<b>Confidence<\/b><span>82<\/span>/);
+  assert.match(html, /Fresh liquid setup with positive momentum/);
+  assert.doesNotMatch(html, /Read-only potential score|Flags:|Broker contact attempted/);
+});
+
+test("customer decision card gives stale data blocking priority", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ...source,
+    candidates: [{
+      symbol: "OLD",
+      price: 2.5,
+      decision: "DO_NOT_ENTER",
+      sourceStale: true,
+      sourceAgeSec: 999,
+      briefExplanation: "Do not enter: stale source.",
+      blockingFlags: ["stale_source"],
+    }],
+  }, {
+    route: "/customer/scanner/under-five",
+    tenant: "customer",
+    now: new Date("2026-07-10T12:00:00Z"),
+  });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.match(html, /class="decision-card state-stale-data"/);
+  assert.match(html, />STALE DATA</);
+  assert.match(html, /STALE — BLOCKED/);
+  assert.match(html, /No order placement, broker contact, or account mutation controls/);
+});
