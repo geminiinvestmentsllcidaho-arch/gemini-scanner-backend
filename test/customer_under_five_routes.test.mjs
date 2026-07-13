@@ -398,6 +398,13 @@ test("customer dashboard renders read-only performance totals above scanner resu
   assert.equal(dashboard.performanceReport.tone, "positive");
   assert.equal(dashboard.performanceReport.stale, false);
   assert.match(html, /Total earnings — weekly/);
+  assert.match(html, /class="performance-periods"/);
+  assert.match(html, /href="\/customer-zero\/under-five-scanner\?period=daily"/);
+  assert.match(html, /class="active" href="\/customer-zero\/under-five-scanner\?period=weekly">WEEKLY<\/a>/);
+  assert.match(html, />MONTHLY<\/a>/);
+  assert.match(html, />YEARLY<\/a>/);
+  assert.match(html, />YTD<\/a>/);
+  assert.match(html, />LIFETIME<\/a>/);
   assert.match(html, /Realized: \$-2.5/);
   assert.match(html, /Unrealized: \$12.5/);
   assert.match(html, /Combined: \$10/);
