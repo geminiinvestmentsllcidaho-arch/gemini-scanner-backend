@@ -50,6 +50,7 @@ export function buildCustomerZeroDecisionCards(candidates = []) {
       reasons,
       detailHref: candidate?.detailHref ?? null,
       allocationPreview: candidate?.allocationPreview ?? null,
+      paperEnterExitGate: candidate?.paperEnterExitGate ?? null,
       readOnly: true,
       executionAllowed: false,
     };
@@ -75,6 +76,8 @@ export function renderCustomerZeroDecisionCardsHtml(cards = []) {
   <p class="timestamp"><b>Data timestamp:</b> ${esc(card.sourceTs ?? "Unavailable")}</p>
   <div class="reasons"><b>Why:</b><ul>${card.reasons.length ? card.reasons.map((reason) => `<li>${esc(reason)}</li>`).join("") : "<li>No explanation available.</li>"}</ul></div>
   ${card.allocationPreview ? `<section class="allocation-preview"><b>Read-only allocation preview</b><div class="decision-grid"><p><b>Funds %</b><span>${esc(card.allocationPreview.controls?.availableFundsPct ?? "Unavailable")}%</span></p><p><b>Max per stock</b><span>$${esc(card.allocationPreview.controls?.maxDollarsPerStock ?? "Unavailable")}</span></p><p><b>Calculated amount</b><span>$${esc(card.allocationPreview.preview?.estimatedOrderNotional ?? 0)}</span></p><p><b>Whole shares</b><span>${esc(card.allocationPreview.preview?.estimatedWholeShares ?? 0)}</span></p></div><p class="timestamp">${card.allocationPreview.preview?.ready ? "Preview calculated. No order will be placed." : `Preview blocked: ${esc(card.allocationPreview.warnings?.join(", ") || "Unavailable")}`}</p></section>` : ""}
+  ${card.paperEnterExitGate?.exit?.visible ? `<section class="paper-control-preview exit-control-preview"><b>EXIT control preview</b><p class="paper-control priority-red">${esc(card.paperEnterExitGate.exit.label)}</p><p>Quantity: ${esc(card.paperEnterExitGate.exit.quantityPreview)} | Confirmation required: ${esc(card.paperEnterExitGate.exit.confirmationRequired)}</p><p>${card.paperEnterExitGate.exit.ready ? "All preview gates passed." : `Blocked: ${esc(card.paperEnterExitGate.exit.blockedReasons?.join(", ") || "Unavailable")}`}</p><p>No broker contact or order placement.</p></section>` : ""}
+  ${card.paperEnterExitGate?.enter?.visible ? `<section class="paper-control-preview enter-control-preview"><b>ENTER control preview</b><p class="paper-control bright-green">${esc(card.paperEnterExitGate.enter.label)}</p><p>Quantity: ${esc(card.paperEnterExitGate.enter.quantityPreview)} | Confirmation required: ${esc(card.paperEnterExitGate.enter.confirmationRequired)}</p><p>${card.paperEnterExitGate.enter.ready ? "All preview gates passed." : `Blocked: ${esc(card.paperEnterExitGate.enter.blockedReasons?.join(", ") || "Unavailable")}`}</p><p>No broker contact or order placement.</p></section>` : ""}
   ${card.detailHref ? `<a class="detail-link" href="${esc(card.detailHref)}">Open decision details</a>` : ""}
 </article>`).join("") || '<section class="card"><p>No scanner decisions match the selected filters.</p></section>';
 }

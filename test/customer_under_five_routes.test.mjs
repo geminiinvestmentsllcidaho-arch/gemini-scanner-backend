@@ -317,3 +317,61 @@ test("customer scanner routes fetch and bridge paper account read-only", () => {
     assert.match(block, /paperAccount,/);
   }
 });
+
+
+test("customer decision cards render paper-only ENTER and priority EXIT control previews without execution", () => {
+  const enterDashboard = buildCustomerUnderFiveDashboard({
+    sourceStatus: "connected_readonly",
+    marketClock: { isOpen: true },
+    candidates: [{
+      symbol: "BUY",
+      price: 4,
+      decision: "ENTER",
+      tradeAllowed: true,
+      sourceAgeSec: 5,
+      sourceStale: false,
+    }],
+  }, {
+    buyingPower: 1000,
+    availableFundsPct: 10,
+    maxDollarsPerStock: 50,
+    paperAccount: { accountHealthy: true, positions: [] },
+    marketOpen: true,
+    paperExecutionEnabled: true,
+    operatorApproved: true,
+    killSwitchActive: false,
+    duplicateOrderDetected: false,
+    priceDeviationOk: true,
+    spreadLiquidityOk: true,
+  });
+  const enterHtml = renderCustomerUnderFiveDashboardHtml(enterDashboard);
+  assert.match(enterHtml, /ENTER control preview/);
+  assert.match(enterHtml, /ENTER \/ BUY/);
+  assert.match(enterHtml, /No broker contact or order placement/);
+
+  const exitDashboard = buildCustomerUnderFiveDashboard({
+    sourceStatus: "connected_readonly",
+    marketClock: { isOpen: true },
+    candidates: [{
+      symbol: "SELL",
+      price: 7,
+      decision: "EXIT",
+      exitRequired: true,
+      sourceAgeSec: 5,
+      sourceStale: false,
+    }],
+  }, {
+    paperAccount: { accountHealthy: true, positions: [{ symbol: "SELL", qty: 6 }] },
+    marketOpen: true,
+    paperExecutionEnabled: true,
+    operatorApproved: true,
+    killSwitchActive: false,
+    duplicateOrderDetected: false,
+    priceDeviationOk: true,
+    spreadLiquidityOk: true,
+  });
+  const exitHtml = renderCustomerUnderFiveDashboardHtml(exitDashboard);
+  assert.match(exitHtml, /EXIT control preview/);
+  assert.match(exitHtml, /class="paper-control priority-red">EXIT</);
+  assert.equal(exitDashboard.orderPlacementAllowed, false);
+});
