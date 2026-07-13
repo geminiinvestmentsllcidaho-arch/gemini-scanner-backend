@@ -52,6 +52,7 @@ import { computeContext as computeContextV3 } from './pillar3/context_engine.mjs
 import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
+import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
@@ -197,7 +198,8 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
 async function getUnderFiveSharedSource() {
   const cache = await underFiveSharedCachePromise;
   if (!cache) throw new Error('under_five_shared_cache_unavailable');
-  return cache.getLatest() ?? cache.refreshNow();
+  const source = cache.getLatest() ?? await cache.refreshNow();
+  return bridgeCustomerZeroFreshRankings(source, readScannerRankings());
 }
 
 function paperDiagnosticBool(value, fallback = false) {
