@@ -836,7 +836,7 @@ test('customer display preference outcomes append bounded security audit records
 test('every customer settings mutation route records a bounded security audit outcome', () => {
   const routeStarts = [...source.matchAll(/app\.post\('\/customer\/settings\/([^']+)'/g)];
 
-  assert.equal(routeStarts.length, 13);
+  assert.equal(routeStarts.length, 14);
 
   for (let index = 0; index < routeStarts.length; index += 1) {
     const match = routeStarts[index];
@@ -853,6 +853,15 @@ test('every customer settings mutation route records a bounded security audit ou
       `missing customer security audit for /customer/settings/${routeName}`,
     );
   }
+});
+
+
+test('Customer Zero result filters use authenticated persistent settings storage', () => {
+  assert.match(source, /getCustomerZeroResultFilters\(account\?\.id\)\.filters\.states\.includes\(state\)/);
+  assert.match(source, /app\.post\('\/customer\/settings\/customer-zero-filters', requireCustomerSession, requireCustomerSameOrigin,/);
+  assert.match(source, /updateCustomerZeroResultFilters\(\s*req\.customerAccount\.id,/);
+  assert.match(source, /recordCustomerSecurityAudit\(req, 'customer_zero_result_filters_updated', 'success'\);/);
+  assert.match(source, /res\.redirect\(303, '\/customer\/settings'\)/);
 });
 
 test('customer watchlist uses authenticated persistent storage and same-origin mutation protection', () => {

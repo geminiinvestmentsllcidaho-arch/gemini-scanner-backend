@@ -16,7 +16,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -4193,6 +4193,14 @@ ${account?.authenticatorEnabled ? `
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>Customer Zero scanner filters</h2>
+<p style="color:#9eb0c9">Choose which normalized scanner result states appear. Selections are saved to this account.</p>
+<form method="post" action="/customer/settings/customer-zero-filters">
+${["ENTER","DO_NOT_ENTER","WAIT","EXIT","BLOCKED","WATCH","NO_SETUP","STALE_DATA"].map((state) => `<p><label><input name="states" type="checkbox" value="${state}"${getCustomerZeroResultFilters(account?.id).filters.states.includes(state) ? ' checked' : ''}> ${state.replaceAll('_', ' ')}</label></p>`).join('')}
+<p><button type="submit" style="background:#3d72d9">Save scanner filters</button></p>
+</form>
+</section>
+<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Your data</h2>
 <p style="color:#9eb0c9">Download a JSON copy of your customer account data. Password and authenticator secrets are excluded.</p>
 <form method="post" action="/customer/settings/data/export">
@@ -4656,6 +4664,32 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
   }
 
   recordCustomerSecurityAudit(req, 'display_preferences_updated', 'success');
+  return res.redirect(303, '/customer/settings');
+});
+
+
+app.post('/customer/settings/customer-zero-filters', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const states = Array.isArray(req.body?.states)
+    ? req.body.states
+    : req.body?.states
+      ? [req.body.states]
+      : [];
+
+  const result = updateCustomerZeroResultFilters(
+    req.customerAccount.id,
+    { states },
+  );
+
+  if (!result.ok) {
+    recordCustomerSecurityAudit(req, 'customer_zero_result_filters_update', 'failure', result.reason);
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Scanner filters not updated</h1><p>Customer Zero scanner filters could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+    );
+  }
+
+  recordCustomerSecurityAudit(req, 'customer_zero_result_filters_updated', 'success');
   return res.redirect(303, '/customer/settings');
 });
 
