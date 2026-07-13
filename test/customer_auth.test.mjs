@@ -24,6 +24,8 @@ import {
   updateCustomerProfile,
   updateCustomerNotificationPreferences,
   updateCustomerDisplayPreferences,
+  getCustomerZeroResultFilters,
+  updateCustomerZeroResultFilters,
   beginCustomerAuthenticatorSetup,
   confirmCustomerAuthenticatorSetup,
   disableCustomerAuthenticator,
@@ -433,6 +435,51 @@ test("updates customer display preferences with normalized defaults", () => {
       updated.account.displayPreferencesUpdatedAt,
       "2026-07-12T01:20:00.000Z",
     );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("persists normalized Customer Zero result filters per account", () => {
+  const f = fixture();
+  try {
+    const updated = updateCustomerZeroResultFilters(
+      f.record.id,
+      { states: ["enter", "WAIT", "enter", "unknown"] },
+      { storePath: f.storePath, now: "2026-07-13T06:45:00.000Z" },
+    );
+    assert.equal(updated.ok, true);
+    assert.deepEqual(updated.filters.states, ["ENTER", "WAIT"]);
+    assert.equal(updated.filters.showAll, false);
+    assert.equal(
+      updated.account.customerZeroResultFiltersUpdatedAt,
+      "2026-07-13T06:45:00.000Z",
+    );
+
+    const loaded = getCustomerZeroResultFilters(
+      f.record.id,
+      { storePath: f.storePath },
+    );
+    assert.equal(loaded.ok, true);
+    assert.deepEqual(loaded.filters.states, ["ENTER", "WAIT"]);
+    assert.equal(loaded.updatedAt, "2026-07-13T06:45:00.000Z");
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("Customer Zero result filters default to show all", () => {
+  const f = fixture();
+  try {
+    const loaded = getCustomerZeroResultFilters(
+      f.record.id,
+      { storePath: f.storePath },
+    );
+    assert.equal(loaded.ok, true);
+    assert.equal(loaded.filters.showAll, true);
+    assert.equal(loaded.filters.states.length, 8);
+    assert.equal(loaded.updatedAt, null);
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
