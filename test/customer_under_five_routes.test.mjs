@@ -377,7 +377,7 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
 });
 
 
-test("customer dashboard renders read-only performance totals above scanner results", () => {
+test("customer under-five scanner omits earnings after move to customer main page", () => {
   const dashboard = buildCustomerZeroUnderFiveDashboard(source, {
     route: "/customer-zero/under-five-scanner",
     tenant: "customer-zero",
@@ -397,28 +397,10 @@ test("customer dashboard renders read-only performance totals above scanner resu
   assert.equal(dashboard.performanceReport.totalPl, 10);
   assert.equal(dashboard.performanceReport.tone, "positive");
   assert.equal(dashboard.performanceReport.stale, false);
-  assert.match(html, /Total earnings — weekly/);
-  assert.match(html, /class="performance-periods"/);
-  assert.match(html, /href="\/customer-zero\/under-five-scanner\?period=daily"/);
-  assert.match(html, /class="active" href="\/customer-zero\/under-five-scanner\?period=weekly">WEEKLY<\/a>/);
-  assert.match(html, />MONTHLY<\/a>/);
-  assert.match(html, />YEARLY<\/a>/);
-  assert.match(html, />YTD<\/a>/);
-  assert.match(html, />LIFETIME<\/a>/);
-  assert.match(html, /Realized: \$-2.5/);
-  assert.match(html, /Unrealized: \$12.5/);
-  assert.match(html, /Combined: \$10/);
-  assert.match(html, /performance-positive/);
-  assert.match(html, /Current — read only/);
-  assert.match(html, /Winners: 0 \| Losers: 0 \| Win rate: 0%/);
-  assert.match(html, /Fees: \$0 \| Slippage: \$0/);
-  assert.match(html, /Net after costs: \$10/);
-  assert.match(html, /Starting equity: \$0 \| Ending equity: \$0 \| Peak equity: \$0 \| Drawdown: \$0 \(0%\)/);
+  assert.doesNotMatch(html, /Total earnings/);
+  assert.doesNotMatch(html, /class="performance-periods"/);
+  assert.doesNotMatch(html, /Net after costs:/);
   assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
-  assert.match(html, /Period snapshots:/);
-  assert.match(html, /Period start:/);
-  assert.match(html, /Period end:/);
-
 });
 
 

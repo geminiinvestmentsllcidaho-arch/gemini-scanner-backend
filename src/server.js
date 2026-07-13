@@ -3985,7 +3985,23 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 
 app.get('/customer', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const hub = mod.buildCustomerScannerHub();
+  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+  const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+  const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
+  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+  const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
+  const paperLedger = paperPositionLedger.latestRecord ?? {};
+  const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
+    period: req.query.period,
+    sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+    paperAccount,
+    paperLedger,
+    paperLedgerHistory: paperPositionLedger.records,
+    now: new Date(),
+  });
+  const hub = mod.buildCustomerScannerHub({ performanceReport });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });

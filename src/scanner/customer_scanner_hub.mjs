@@ -68,6 +68,7 @@ export function buildCustomerScannerHub(options = {}) {
     defaultAssetType: "stocks",
     modes: MODES,
     assetTypes: ASSET_TYPES,
+    performanceReport: options.performanceReport ?? null,
     navigation: Object.freeze([
       Object.freeze({ label: "Home", href: "/customer" }),
       Object.freeze({ label: "Scanner", href: "/customer/scanner" }),
@@ -101,6 +102,21 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
     return `<div class="choice ${asset.status === "available" ? "available selected" : "disabled"}" aria-disabled="${asset.status !== "available"}"><b>${esc(asset.label)}</b><span>${esc(state)}</span></div>`;
   }).join("");
 
+  const performance = hub.performanceReport;
+  const performancePanel = performance
+    ? `<section class="panel performance-${esc(performance.tone ?? "neutral")}">
+<h2>Total earnings — ${esc(performance.period ?? "daily")}</h2>
+<nav class="performance-periods" aria-label="Performance period">${["daily","weekly","monthly","yearly","ytd","lifetime"].map((period) => `<a class="${performance.period === period ? "active" : ""}" href="/customer?period=${period}">${period.toUpperCase()}</a>`).join("")}</nav>
+<p>Realized: $${esc(performance.realizedPl ?? 0)} | Unrealized: $${esc(performance.unrealizedPl ?? 0)} | Combined: $${esc(performance.totalPl ?? 0)} | Net after costs: $${esc(performance.netAfterCosts ?? 0)}</p>
+<p>Winners: ${esc(performance.winners ?? 0)} | Losers: ${esc(performance.losers ?? 0)} | Win rate: ${esc(performance.winRatePct ?? 0)}%</p>
+<p>Average gain: $${esc(performance.averageGain ?? 0)} | Average loss: $${esc(performance.averageLoss ?? 0)} | Largest gain: $${esc(performance.largestGain ?? 0)} | Largest loss: $${esc(performance.largestLoss ?? 0)}</p>
+<p>Fees: $${esc(performance.fees ?? 0)} | Slippage: $${esc(performance.slippage ?? 0)}</p>
+<p>Starting equity: $${esc(performance.startingEquity ?? 0)} | Ending equity: $${esc(performance.endingEquity ?? 0)} | Peak equity: $${esc(performance.peakEquity ?? 0)} | Drawdown: $${esc(performance.drawdown ?? 0)} (${esc(performance.drawdownPct ?? 0)}%)</p>
+<p>Period snapshots: ${esc(performance.periodRecordCount ?? 0)} | Period start: ${esc(performance.periodStartTs ?? "Unavailable")} | Period end: ${esc(performance.periodEndTs ?? "Unavailable")}</p>
+<p>Data timestamp: ${esc(performance.sourceTs ?? "Unavailable")} | Status: ${performance.stale === true ? "STALE — READ ONLY" : "Current — read only"}</p>
+</section>`
+    : "";
+
   const accountEmail = esc(account?.email ?? "");
   const accountPanel = accountEmail
     ? `<section class="account-panel">
@@ -128,6 +144,8 @@ body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-syst
 nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
 nav a{color:#dbe8ff;text-decoration:none;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#101c2f}
 .account-panel,.hero,.panel,.safety{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
+.performance-positive{border-left:8px solid #159447}.performance-negative{border-left:8px solid #c62020}.performance-neutral{border-left:8px solid #737983}
+.performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}.performance-periods a.active{background:#5b9cff;color:#08111f}
 .account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
 .account-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -155,6 +173,7 @@ ${accountPanel}
 <h1>${esc(hub.title)}</h1>
 <p>${esc(hub.subtitle)}</p>
 </section>
+${performancePanel}
 <section class="panel">
 <h2>Scanner mode</h2>
 <div class="grid">${modeCards}</div>

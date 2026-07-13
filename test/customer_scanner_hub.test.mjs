@@ -51,3 +51,47 @@ test("customer hub marks watchlist available", () => {
   assert.equal(watchlist?.status, "available");
   assert.equal(watchlist?.href, "/customer/watchlist");
 });
+
+test("customer main page renders read-only earnings and period links", () => {
+  const performanceReport = {
+    period: "weekly",
+    tone: "positive",
+    realizedPl: -2.5,
+    unrealizedPl: 12.5,
+    totalPl: 10,
+    netAfterCosts: 10,
+    winners: 0,
+    losers: 0,
+    winRatePct: 0,
+    averageGain: 0,
+    averageLoss: 0,
+    largestGain: 0,
+    largestLoss: 0,
+    fees: 0,
+    slippage: 0,
+    startingEquity: 0,
+    endingEquity: 0,
+    peakEquity: 0,
+    drawdown: 0,
+    drawdownPct: 0,
+    periodRecordCount: 0,
+    periodStartTs: "Unavailable",
+    periodEndTs: "Unavailable",
+    sourceTs: "2026-07-13T13:00:00.000Z",
+    stale: false,
+  };
+  const hub = buildCustomerScannerHub({ performanceReport });
+  const html = renderCustomerScannerHubHtml(hub);
+
+  assert.match(html, /Total earnings — weekly/);
+  assert.match(html, /class="performance-periods"/);
+  assert.match(html, /href="\/customer\?period=daily"/);
+  assert.ok(html.includes('class="active" href="/customer?period=weekly">WEEKLY</a>'));
+  assert.match(html, /Realized: \$-2.5/);
+  assert.match(html, /Unrealized: \$12.5/);
+  assert.match(html, /Combined: \$10/);
+  assert.match(html, /Net after costs: \$10/);
+  assert.match(html, /performance-positive/);
+  assert.match(html, /Current — read only/);
+  assert.doesNotMatch(html, /type="submit"|Place order|Buy now/);
+});
