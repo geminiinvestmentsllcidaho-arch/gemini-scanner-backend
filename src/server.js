@@ -4136,6 +4136,37 @@ app.get('/customer/security-activity', requireCustomerSession, async (req, res) 
 });
 
 
+app.get('/assets/customer-settings.js', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('application/javascript').send(`(() => {
+  const root = document.querySelector('main[data-page="settings"] .card');
+  const toolbar = root?.querySelector('.settings-toolbar');
+  if (!root || !toolbar) return;
+  const sections = [...root.querySelectorAll(':scope > section')];
+  sections.forEach((section) => {
+    const heading = section.querySelector(':scope > h2');
+    if (!heading) return;
+    const title = heading.textContent.trim();
+    const details = document.createElement('details');
+    details.className = 'settings-group';
+    if (['Deactivate account', 'Permanently delete account'].includes(title)) details.classList.add('danger-settings');
+    details.open = ['Security', 'Customer Zero scanner filters'].includes(title);
+    const summary = document.createElement('summary');
+    summary.textContent = title;
+    section.before(details);
+    details.append(summary, section);
+    const shortcut = document.createElement('button');
+    shortcut.type = 'button';
+    shortcut.textContent = title;
+    shortcut.addEventListener('click', () => {
+      details.open = true;
+      details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    toolbar.append(shortcut);
+  });
+})();`);
+});
+
 app.get('/customer/settings', requireCustomerSession, async (req, res) => {
   const account = req.customerAccount;
   const esc = (value) => String(value ?? '')
@@ -4395,35 +4426,7 @@ ${["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
-<script>
-(() => {
-  const root = document.querySelector('main[data-page="settings"] .card');
-  const toolbar = root?.querySelector('.settings-toolbar');
-  if (!root || !toolbar) return;
-  const sections = [...root.querySelectorAll(':scope > section')];
-  sections.forEach((section) => {
-    const heading = section.querySelector(':scope > h2');
-    if (!heading) return;
-    const title = heading.textContent.trim();
-    const details = document.createElement('details');
-    details.className = 'settings-group';
-    if (['Deactivate account', 'Permanently delete account'].includes(title)) details.classList.add('danger-settings');
-    details.open = ['Security', 'Customer Zero scanner filters'].includes(title);
-    const summary = document.createElement('summary');
-    summary.textContent = title;
-    section.before(details);
-    details.append(summary, section);
-    const shortcut = document.createElement('button');
-    shortcut.type = 'button';
-    shortcut.textContent = title;
-    shortcut.addEventListener('click', () => {
-      details.open = true;
-      details.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    toolbar.append(shortcut);
-  });
-})();
-</script>
+<script src="/assets/customer-settings.js" defer></script>
 </section>
 </main>
 ${renderGlobalFooter()}
