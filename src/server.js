@@ -184,6 +184,27 @@ const app = express();
 app.set('trust proxy', 'loopback');
 app.use(applyCustomerSecurityHeaders);
 
+app.get('/assets/customer-scanner-countdown.js', (_req, res) => {
+  res.type('application/javascript');
+  res.send(`(() => {
+  const node = document.querySelector("[data-scan-countdown]");
+  const refreshSec = Math.max(1, Number(document.body?.dataset?.refreshSec) || 30);
+  const deadlineMs = Date.now() + (refreshSec * 1000);
+  let reloadStarted = false;
+  const tick = () => {
+    const remaining = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
+    if (node) node.textContent = String(remaining);
+    if (remaining === 0 && reloadStarted === false) {
+      reloadStarted = true;
+      window.location.reload();
+    }
+  };
+  tick();
+  window.setInterval(tick, 250);
+})();`);
+});
+
+
 app.use((_req, res, next) => {
   const originalSend = res.send.bind(res);
   res.send = (body) => {
