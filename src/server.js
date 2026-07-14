@@ -4180,7 +4180,18 @@ input,select{width:100%;max-width:520px;border:1px solid var(--gs-line);border-r
 input[type="checkbox"]{width:auto}
 button{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);font-weight:700;cursor:pointer}
 section[style]{border-top-color:var(--gs-line)!important}
-@media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}}
+.settings-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 22px;padding:12px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.5)}
+.settings-toolbar button{padding:8px 11px;background:rgba(24,215,255,.08)}
+.settings-group{margin-top:14px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(2,9,12,.72);overflow:hidden}
+.settings-group>summary{cursor:pointer;list-style:none;padding:16px 18px;font-size:1.05rem;font-weight:900;color:var(--gs-text);display:flex;align-items:center;justify-content:space-between}
+.settings-group>summary::-webkit-details-marker{display:none}
+.settings-group>summary::after{content:"+";color:var(--gs-accent);font-size:1.35rem}
+.settings-group[open]>summary{border-bottom:1px solid var(--gs-line);background:rgba(24,215,255,.06)}
+.settings-group[open]>summary::after{content:"−"}
+.settings-group>section{margin:0!important;padding:18px!important;border:0!important;border-radius:0;background:transparent;backdrop-filter:none}
+.settings-group>section>h2{display:none}
+.danger-settings>summary{color:#ffd5da}.danger-settings{border-color:rgba(255,53,71,.48)}
+@media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}.settings-toolbar{position:sticky;top:8px;z-index:8}.settings-group>summary{padding:14px}}
 </style>
 </head>
 <body data-gs-page="customer-settings">
@@ -4195,6 +4206,8 @@ ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'Gemin
 </nav>
 <section class="card">
 <h1>Settings</h1>
+<p style="color:var(--gs-muted)">Account, scanner, security, and privacy controls are grouped below. Open only the section you need.</p>
+<div class="settings-toolbar" aria-label="Settings section shortcuts"></div>
 <h2>Account details</h2>
 <form method="post" action="/customer/settings/profile">
 <p><label for="firstName">First name</label><br>
@@ -4382,6 +4395,35 @@ ${["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
+<script>
+(() => {
+  const root = document.querySelector('main[data-page="settings"] .card');
+  const toolbar = root?.querySelector('.settings-toolbar');
+  if (!root || !toolbar) return;
+  const sections = [...root.querySelectorAll(':scope > section')];
+  sections.forEach((section) => {
+    const heading = section.querySelector(':scope > h2');
+    if (!heading) return;
+    const title = heading.textContent.trim();
+    const details = document.createElement('details');
+    details.className = 'settings-group';
+    if (['Deactivate account', 'Permanently delete account'].includes(title)) details.classList.add('danger-settings');
+    details.open = ['Security', 'Customer Zero scanner filters'].includes(title);
+    const summary = document.createElement('summary');
+    summary.textContent = title;
+    section.before(details);
+    details.append(summary, section);
+    const shortcut = document.createElement('button');
+    shortcut.type = 'button';
+    shortcut.textContent = title;
+    shortcut.addEventListener('click', () => {
+      details.open = true;
+      details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    toolbar.append(shortcut);
+  });
+})();
+</script>
 </section>
 </main>
 ${renderGlobalFooter()}
