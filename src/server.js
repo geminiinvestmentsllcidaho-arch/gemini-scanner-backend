@@ -207,7 +207,7 @@ app.use((_req, res, next) => {
 });
 
 const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_scan_cache.mjs')
-  .then((mod) => mod.createAlpacaUnderFiveSharedScanCache())
+  .then((mod) => mod.createAlpacaUnderFiveSharedScanCache({ scanOptions: { minPrice: 0, maxPrice: 1000 } }))
   .catch((error) => {
     console.error('[under-five-shared-cache] init failed', error?.message ?? String(error));
     return null;
@@ -4123,6 +4123,15 @@ app.get('/customer/scanner/run', requireCustomerSession, (req, res) => {
       ? [req.query.assets]
       : [];
 
+  const priceRanges = Array.isArray(req.query?.priceRanges)
+    ? req.query.priceRanges
+    : req.query?.priceRanges
+      ? [req.query.priceRanges]
+      : [];
+  const allowedPriceRanges = priceRanges
+    .map((value) => Number(value))
+    .filter((value) => [10, 50, 100, 1000].includes(value));
+  const maxPrice = allowedPriceRanges.length ? Math.max(...allowedPriceRanges) : 10;
   const allowedModes = modes.filter((mode) => ['intraday', 'under_five', 'watchlist'].includes(mode));
   const stocksSelected = assets.length === 0 || assets.includes('stocks');
 
@@ -4130,7 +4139,7 @@ app.get('/customer/scanner/run', requireCustomerSession, (req, res) => {
     return res.redirect(303, '/customer/scanner?runBlocked=1');
   }
   if (allowedModes.includes('under_five')) {
-    return res.redirect(303, '/customer/scanner/under-five');
+    return res.redirect(303, `/customer/scanner/under-five?maxPrice=${maxPrice}`);
   }
   if (allowedModes.includes('watchlist')) {
     return res.redirect(303, '/customer/watchlist');
@@ -5010,6 +5019,8 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
     const resultFilters = getCustomerZeroResultFilters(req.customerAccount?.id).filters;
+    const requestedMaxPrice = Number(req.query.maxPrice);
+    const maxPrice = [10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 10;
     const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
       route: '/customer/scanner/under-five',
       resultFilters,
@@ -5022,7 +5033,8 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       role: 'customer',
       roleLabel: 'Customer',
       tenant: 'customer',
-      title: 'Under $5 Scanner',
+      title: `$0–$${maxPrice.toLocaleString('en-US')} Scanner`,
+      maxPrice,
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
     });
@@ -5084,6 +5096,8 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
+    const requestedMaxPrice = Number(req.query.maxPrice);
+    const maxPrice = [10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 10;
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
       route: '/customer-zero/under-five-scanner',
       paperAccount,
@@ -5095,7 +5109,8 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
       role: 'customer',
       roleLabel: 'Customer',
       tenant: 'customer-zero',
-      title: 'Under $5 Scanner',
+      title: `$0–$${maxPrice.toLocaleString('en-US')} Scanner`,
+      maxPrice,
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
       now: new Date(),
     });

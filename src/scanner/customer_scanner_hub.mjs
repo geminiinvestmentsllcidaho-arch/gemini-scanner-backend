@@ -52,6 +52,13 @@ const ASSET_TYPES = Object.freeze([
   Object.freeze({ id: "options", label: "Options", status: "coming_soon", default: false }),
 ]);
 
+const PRICE_RANGES = Object.freeze([
+  Object.freeze({ id: "10", label: "$0–$10", status: "available", default: true }),
+  Object.freeze({ id: "50", label: "$0–$50", status: "available", default: false }),
+  Object.freeze({ id: "100", label: "$0–$100", status: "available", default: false }),
+  Object.freeze({ id: "1000", label: "$0–$1,000", status: "available", default: false }),
+]);
+
 function esc(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -75,6 +82,7 @@ export function buildCustomerScannerHub(options = {}) {
     defaultAssetType: "stocks",
     modes: MODES,
     assetTypes: ASSET_TYPES,
+    priceRanges: PRICE_RANGES,
     performanceReport: options.performanceReport ?? null,
     scannerFilters: options.scannerFilters ?? null,
     filtersSaved: options.filtersSaved === true,
@@ -100,6 +108,7 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
 
   const availableModes = hub.modes.filter((mode) => mode.status === "available");
   const availableAssets = hub.assetTypes.filter((asset) => asset.status === "available");
+  const availablePriceRanges = hub.priceRanges.filter((range) => range.status === "available");
   const scannerStates = ["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"];
   const selectedScannerStates = Array.isArray(hub.scannerFilters?.states) ? hub.scannerFilters.states : scannerStates;
 
@@ -123,6 +132,12 @@ ${dropdown({
   label: "Asset type",
   items: hub.assetTypes,
   selectedIds: availableAssets.filter((asset) => asset.default).map((asset) => asset.id),
+})}
+${dropdown({
+  name: "priceRanges",
+  label: "Price range",
+  items: hub.priceRanges,
+  selectedIds: availablePriceRanges.filter((range) => range.default).map((range) => range.id),
 })}
 <details class="multi-select" data-multiselect="states">
 <summary><span>Filter menu</span><strong data-selection-count>${selectedScannerStates.length} selected</strong></summary>

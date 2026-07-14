@@ -151,3 +151,15 @@ test("renders dropdown multi-select controls with select-all and run button", ()
   assert.match(html, /action="\/customer\/scanner\/run"/);
   assert.match(html, /src="\/assets\/customer-scanner-controls\.js"/);
 });
+
+
+test("renders selectable customer stock price range controls", () => {
+  const hub = buildCustomerScannerHub();
+  const html = renderCustomerScannerHubHtml(hub);
+  assert.deepEqual(hub.priceRanges.map((range) => range.id), ["10", "50", "100", "1000"]);
+  assert.match(html, /data-multiselect="priceRanges"/);
+  assert.match(html, /\$0–\$10/);
+  assert.match(html, /\$0–\$50/);
+  assert.match(html, /\$0–\$100/);
+  assert.match(html, /\$0–\$1,000/);
+});

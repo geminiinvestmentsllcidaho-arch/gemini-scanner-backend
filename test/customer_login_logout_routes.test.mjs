@@ -917,7 +917,7 @@ test('customer settings renders shared customer neon theme and fixed background 
 test('customer scanner run button stays authenticated and routes only to read-only customer surfaces', () => {
   assert.match(source, /app\.get\('\/customer\/scanner\/run', requireCustomerSession,/);
   assert.match(source, /\['intraday', 'under_five', 'watchlist'\]\.includes\(mode\)/);
-  assert.match(source, /res\.redirect\(303, '\/customer\/scanner\/under-five'\)/);
+  assert.match(source, /res\.redirect\(303, `\/customer\/scanner\/under-five\?maxPrice=\$\{maxPrice\}`\)/);
   assert.match(source, /res\.redirect\(303, '\/customer\/watchlist'\)/);
   assert.match(source, /res\.redirect\(303, '\/customer\/scanner\?runStarted=1'\)/);
   assert.doesNotMatch(source, /app\.post\('\/customer\/scanner\/run'/);

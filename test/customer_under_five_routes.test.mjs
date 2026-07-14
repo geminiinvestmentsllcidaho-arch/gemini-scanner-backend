@@ -440,3 +440,30 @@ test("customer under-five dashboard renders shared neon theme and fixed backgrou
   assert.match(html, /data-role="customer" data-page="under-five"/);
   assert.doesNotMatch(html, /\/admin\b/);
 });
+
+
+test("customer scanner applies validated selectable price ranges without extra execution capability", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ...source,
+    candidates: [
+      { symbol: "TEN", price: 9.99, decision: "WAIT" },
+      { symbol: "FIFTY", price: 49.99, decision: "WATCH" },
+      { symbol: "OVER", price: 1000.01, decision: "NO_SETUP" },
+    ],
+  }, { route: "/customer/scanner/under-five", tenant: "customer", maxPrice: 50 });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.equal(dashboard.maxPrice, 50);
+  assert.equal(dashboard.priceRangeLabel, "$0–$50");
+  assert.deepEqual(dashboard.candidates.map((candidate) => candidate.symbol), ["TEN", "FIFTY"]);
+  assert.match(html, /Price range:<\/b> \$0–\$50/);
+  assert.equal(dashboard.orderPlacementAllowed, false);
+});
+
+test("customer result cards use compact dark metric cells with readable text", () => {
+  const dashboard = buildCustomerUnderFiveDashboard(source, { maxPrice: 10 });
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.match(html, /\.decision-grid p\{[^}]*background:rgba\(7,20,25,.94\)/);
+  assert.match(html, /\.company-name\{[^}]*color:#c8d2d8/);
+  assert.match(html, /\.timestamp\{[^}]*color:#c4d0d6/);
+  assert.match(html, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+});
