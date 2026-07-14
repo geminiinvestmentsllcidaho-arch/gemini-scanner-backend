@@ -1,3 +1,10 @@
+import {
+  renderBackgroundLogoLayer,
+  renderGlobalFooter,
+  renderGlobalHeader,
+  renderGlobalThemeCss,
+} from "./global_theme.mjs";
+
 export const VERSION = "customer_zero_scanner_hub_v1";
 
 const MODES = Object.freeze([
@@ -114,12 +121,10 @@ export function renderCustomerZeroScannerHubHtml(hub = buildCustomerZeroScannerH
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(hub.title)}</title>
+${renderGlobalThemeCss({ surface: "customer" })}
 <style>
-:root{color-scheme:dark=}
-*{box-sizing:border-box}
-body{margin:0;background:#08111f;color:#e8eef8;font-family:system,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:20px}
-.hero,.panel,.safety{background:#101c2f;bwrder:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
+.wrap{max-width:980px;margin:0 auto;padding:42px 20px 72px}
+.hero,.panel,.safety{background:rgba(0,0,0,.72);border:1px solid var(--gs-line);border-radius:16px;padding:18px;margin-bottom:16px}
 .eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#8eb4ff}
 h1,h2{margin:.35rem 0}
 p{color:#b8c7dc}
@@ -133,8 +138,10 @@ p{color:#b8c7dc}
 .safety{font-size:.9rem}
 </style>
 </head>
-<body>
-<main class="wrap" data-role-badge="customer-zero">
+<body data-gs-page="customer-zero-scanner-hub">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: "customer", homeHref: "/customer-zero", label: "GeminiScanner" })}
+<main class="wrap" data-role-badge="customer-zero" data-page="scanner-hub">
 <section class="hero">
 <div class="eyebrow">Role: Customer Zero</div>
 <h1>${esc(hub.title)}</h1>
@@ -152,6 +159,7 @@ p{color:#b8c7dc}
 </section>
 <section class="safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
 </main>
+${renderGlobalFooter()}
 </body>
 </html>`;
 }

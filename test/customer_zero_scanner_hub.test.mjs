@@ -7,6 +7,11 @@ import {
   renderCustomerScannerHubHtml,
 } from "../src/scanner/customer_scanner_hub.mjs";
 
+import {
+  buildCustomerZeroScannerHub,
+  renderCustomerZeroScannerHubHtml,
+} from "../src/scanner/customer_zero_scanner_hub.mjs";
+
 test("Customer Zero uses the regular customer role and exact customer interface", () => {
   const regular = buildCustomerScannerHub();
   const customerZero = buildCustomerScannerHub({ tenant: "customer-zero" });
@@ -53,4 +58,16 @@ test("server routes Customer Zero through the shared customer hub", () => {
   assert.match(route, /buildCustomerScannerHub\(\{ tenant: 'customer-zero' \}\)/);
   assert.match(route, /renderCustomerScannerHubHtml/);
   assert.doesNotMatch(route, /customer_zero_scanner_hub\.mjs/);
+});
+
+test("renders Customer Zero scanner hub with shared neon theme and fixed background logo", () => {
+  const html = renderCustomerZeroScannerHubHtml(buildCustomerZeroScannerHub());
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-surface="customer"/);
+  assert.match(html, /class="gs-background-logo"/);
+  assert.match(html, /class="gs-global-header"/);
+  assert.match(html, /class="gs-global-footer"/);
+  assert.match(html, /data-gs-page="customer-zero-scanner-hub"/);
+  assert.match(html, /data-role-badge="customer-zero" data-page="scanner-hub"/);
+  assert.doesNotMatch(html, /\/admin\b/);
 });
