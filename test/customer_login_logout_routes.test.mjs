@@ -228,7 +228,9 @@ test('settings page exposes last sign-in security activity', () => {
   assert.match(source, />Last sign-in<\/div>/);
   assert.match(source, />Last sign-in IP<\/div>/);
   assert.match(source, />Last sign-in device<\/div>/);
-  assert.match(source, /<h2>Recent sign-in activity<\/h2>/);
+  assert.match(source, /<h2>Security activity<\/h2>/);
+  assert.match(source, /<h3>Recent sign-ins<\/h3>/);
+  assert.match(source, /View complete security activity/);
   assert.match(source, /recentLoginHistory/);
   assert.match(source, />Successful sign-ins<\/div>/);
 });
@@ -346,7 +348,7 @@ test('customer security activity uses a separate authenticated read-only page', 
   assert.match(source, /app\.get\('\/customer\/security-activity', requireCustomerSession,/);
   assert.match(source, /listCustomerSecurityActivity\(req\.customerAccount\?\.id, \{ limit: 50 \}\)/);
   assert.match(source, /renderCustomerSecurityActivityPageHtml\(page\)/);
-  assert.match(source, /href="\/customer\/security-activity">View security activity<\/a>/);
+  assert.match(source, /href="\/customer\/security-activity">View complete security activity<\/a>/);
   assert.doesNotMatch(source, /securityActivity\.map\(\(entry\)/);
 });
 
