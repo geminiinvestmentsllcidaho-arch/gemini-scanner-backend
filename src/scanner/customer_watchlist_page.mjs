@@ -1,3 +1,10 @@
+import {
+  renderBackgroundLogoLayer,
+  renderGlobalFooter,
+  renderGlobalHeader,
+  renderGlobalThemeCss,
+} from "./global_theme.mjs";
+
 export const VERSION = "customer_watchlist_page_v1";
 
 function esc(value) {
@@ -39,23 +46,24 @@ export function renderCustomerWatchlistPageHtml(page = buildCustomerWatchlistPag
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — ${esc(page.title)}</title>
+${renderGlobalThemeCss({ surface: "customer" })}
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:820px;margin:0 auto;padding:20px}
-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-nav a{color:#dbe8ff;text-decoration:none;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#101c2f}
-.panel{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:18px;margin-bottom:16px}
+.wrap{max-width:820px;margin:0 auto;padding:42px 20px 72px}
+.customer-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.customer-nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58);box-shadow:0 0 12px rgba(57,255,32,.15)}
+.panel{padding:18px;margin-bottom:16px}
 label{display:block;font-weight:700;margin-bottom:8px}
-textarea{width:100%;min-height:130px;border:1px solid #304766;border-radius:12px;background:#08111f;color:#e8eef8;padding:12px;font:inherit}
-button{margin-top:12px;border:1px solid #4774aa;border-radius:10px;padding:10px 14px;background:#1d4f86;color:white;font:inherit;font-weight:700;cursor:pointer}
-p,.meta{color:#b8c7dc}
-.notice{background:#173d2a;border:1px solid #2d7450;border-radius:12px;padding:12px;margin-bottom:16px}
+textarea{width:100%;min-height:130px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.72);color:var(--gs-text);padding:12px;font:inherit}
+button{margin-top:12px;border:1px solid var(--gs-line);border-radius:10px;padding:10px 14px;background:rgba(0,0,0,.72);color:var(--gs-text);font:inherit;font-weight:700;cursor:pointer}
+p,.meta{color:var(--gs-muted)}
+.notice{background:rgba(5,84,64,.34);border:1px solid rgba(64,255,198,.45);border-radius:12px;padding:12px;margin-bottom:16px;color:#caffef}
 </style>
 </head>
-<body>
+<body data-gs-page="customer-watchlist">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap" data-role="customer" data-page="watchlist">
-<nav aria-label="Customer navigation">
+<nav class="customer-nav" aria-label="Customer navigation">
 <a href="/customer">Home</a>
 <a href="/customer/scanner">Scanner</a>
 <a href="/customer/scanner/under-five">Under $5</a>
@@ -75,6 +83,7 @@ ${savedNotice}
 </section>
 <section class="panel"><b>Safety:</b> Decision assist only. Saving a symbol does not place or prepare an order.</section>
 </main>
+${renderGlobalFooter()}
 </body>
 </html>`;
 }
