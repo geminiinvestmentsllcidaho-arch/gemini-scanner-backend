@@ -37,3 +37,24 @@ test("server root route uses isolated public homepage renderer", () => {
     /\/diagnostics\/|paper broker|SPY buy|internal owner/i
   );
 });
+
+test("renders shared global black neon theme and fixed background logo", () => {
+  const html = renderPublicHomepageHtml();
+
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-surface="public"/);
+  assert.match(html, /class="gs-background-logo"/);
+  assert.match(html, /aria-hidden="true"/);
+  assert.match(html, /class="gs-global-header"/);
+  assert.match(html, /class="gs-global-footer"/);
+});
+
+test("public theme preserves public-only navigation and safety wording", () => {
+  const html = renderPublicHomepageHtml();
+
+  assert.match(html, /href="\/signup"/);
+  assert.match(html, /href="\/customer"/);
+  assert.match(html, /href="\/customer\/scanner"/);
+  assert.match(html, /Decision assist only\. No automatic execution\./);
+  assert.doesNotMatch(html, /\/admin\b|Place order|Buy now|automatic trading/i);
+});
