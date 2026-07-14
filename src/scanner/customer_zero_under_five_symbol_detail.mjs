@@ -1,3 +1,10 @@
+import {
+  renderBackgroundLogoLayer,
+  renderGlobalFooter,
+  renderGlobalHeader,
+  renderGlobalThemeCss,
+} from "./global_theme.mjs";
+
 export const VERSION = "customer_zero_under_five_symbol_detail_v1";
 
 function esc(value) {
@@ -75,9 +82,13 @@ export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}) {
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(detail.title)}</title>
+${renderGlobalThemeCss({ surface: "customer" })}
 <style>
-body{margin:0;padding:16px;background:#f5f5f5;color:#111;font-family:system-ui}.wrap{max-width:760px;margin:auto}.card{background:#fff;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:#fff}.decision{display:inline-block;padding:10px 14px;border-radius:999px;font-weight:800}.enter{background:#dff7e7;color:#11652e}.wait{background:#fff2c8;color:#765800}.do-not-enter{background:#ffe0e0;color:#8a1111}a{color:#124ea3;font-weight:700}
-</style></head><body><main class="wrap" data-role="${esc(detail.role ?? "customer")}" data-tenant="${esc(detail.tenant ?? "customer")}">
+.wrap{max-width:760px;margin:auto;padding:42px 16px 72px}.card{background:rgba(0,0,0,.72)!important;color:var(--gs-text)!important;border:1px solid var(--gs-line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 22px #0008}.hero{background:rgba(0,0,0,.82)!important}.decision{display:inline-block;padding:10px 14px;border-radius:999px;font-weight:800}.enter{background:#dff7e7;color:#11652e}.wait{background:#fff2c8;color:#765800}.do-not-enter{background:#ffe0e0;color:#8a1111}a{color:var(--gs-accent);font-weight:700}
+</style></head><body data-gs-page="customer-under-five-symbol-detail">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
+<main class="wrap" data-role="${esc(detail.role ?? "customer")}" data-page="under-five-symbol-detail" data-tenant="${esc(detail.tenant ?? "customer")}">
 <section class="card hero"><p><a href="${esc(detail.backHref ?? "/customer/scanner/under-five")}" style="color:white">← Back to scanner</a></p><h1>${esc(detail.title)}</h1><p><b>Role:</b> ${esc(detail.roleLabel ?? "Customer")}</p></section>
 <section class="card"><span class="decision ${esc(String(detail.decision).toLowerCase().replaceAll("_","-"))}">${esc(detail.decisionLabel)}</span><p>${esc(detail.briefExplanation)}</p></section>
 <section class="card"><h2>Scan results</h2>
@@ -88,5 +99,7 @@ body{margin:0;padding:16px;background:#f5f5f5;color:#111;font-family:system-ui}.
 <section class="card"><h2>Checks passed</h2><ul>${passed}</ul></section>
 <section class="card"><h2>Flags</h2><ul>${flags}</ul><h2>Blocking reasons</h2><ul>${blockers}</ul></section>
 <section class="card"><b>Decision assist only:</b> ${esc(detail.decisionAssistOnly)}<br><b>Buy recommendation:</b> ${esc(detail.buyRecommendation)}<br><b>No execution controls:</b> ${esc(detail.noExecutionControls)}</section>
-</main></body></html>`;
+</main>
+${renderGlobalFooter()}
+</body></html>`;
 }
