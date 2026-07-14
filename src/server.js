@@ -4329,7 +4329,19 @@ ${account?.authenticatorEnabled ? `
 <h2>Customer Zero scanner filters</h2>
 <p style="color:#9eb0c9">Choose which normalized scanner result states appear. Selections are saved to this account.</p>
 <form method="post" action="/customer/settings/customer-zero-filters">
-${["ENTER","DO_NOT_ENTER","WAIT","EXIT","BLOCKED","WATCH","NO_SETUP","STALE_DATA"].map((state) => `<p><label><input name="states" type="checkbox" value="${state}"${getCustomerZeroResultFilters(account?.id).filters.states.includes(state) ? ' checked' : ''}> ${state.replaceAll('_', ' ')}</label></p>`).join('')}
+${["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"].map((state) => {
+  const importanceStyle = {
+    EXIT: "border-color:#ff3547;background:rgba(255,53,71,.18);color:#ffd5da",
+    BLOCKED: "border-color:#ff3547;background:rgba(255,53,71,.12);color:#ffd5da",
+    DO_NOT_ENTER: "border-color:#ff7a1a;background:rgba(255,122,26,.14);color:#ffe0c2",
+    ENTER: "border-color:#39ff14;background:rgba(57,255,20,.13);color:#d8ffd0",
+    WAIT: "border-color:#ffd23f;background:rgba(255,210,63,.13);color:#fff1b5",
+    WATCH: "border-color:#18d7ff;background:rgba(24,215,255,.12);color:#d8f8ff",
+    STALE_DATA: "border-color:#a78bfa;background:rgba(167,139,250,.12);color:#e8ddff",
+    NO_SETUP: "border-color:#78848b;background:rgba(120,132,139,.12);color:#d7dde0",
+  }[state];
+  return `<p style="margin:10px 0"><label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid;border-left-width:6px;border-radius:12px;font-weight:800;${importanceStyle}"><input name="states" type="checkbox" value="${state}"${getCustomerZeroResultFilters(account?.id).filters.states.includes(state) ? ' checked' : ''}> ${state.replaceAll('_', ' ')}</label></p>`;
+}).join('')}
 <p><button type="submit" style="background:#3d72d9">Save scanner filters</button></p>
 </form>
 </section>
