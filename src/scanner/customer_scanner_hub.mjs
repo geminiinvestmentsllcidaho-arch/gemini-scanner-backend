@@ -98,33 +98,48 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
     .map((item) => `<a href="${esc(item.href)}">${esc(item.label)}</a>`)
     .join("");
 
-  const modeCards = hub.modes.map((mode) => {
-    const state = mode.status === "available" ? "Available" : "Coming soon";
-    const body = `<b>${esc(mode.label)}</b><span>${esc(state)}</span>`;
-    return mode.href
-      ? `<a class="choice available${mode.default ? " selected" : ""}" href="${esc(mode.href)}">${body}</a>`
-      : `<div class="choice disabled" aria-disabled="true">${body}</div>`;
-  }).join("");
-
-  const assetCards = hub.assetTypes.map((asset) => {
-    const state = asset.status === "available" ? "Available" : "Coming soon";
-    return `<div class="choice ${asset.status === "available" ? "available selected" : "disabled"}" aria-disabled="${asset.status !== "available"}"><b>${esc(asset.label)}</b><span>${esc(state)}</span></div>`;
-  }).join("");
-
+  const availableModes = hub.modes.filter((mode) => mode.status === "available");
+  const availableAssets = hub.assetTypes.filter((asset) => asset.status === "available");
   const scannerStates = ["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"];
   const selectedScannerStates = Array.isArray(hub.scannerFilters?.states) ? hub.scannerFilters.states : scannerStates;
-  const scannerFilterPanel = `<section class="card panel scanner-filters">
-<h2>Scanner filters</h2>
-<p>Choose which normalized scanner result states appear. Selections are saved to this account.</p>
-${hub.filtersSaved ? '<div class="filter-notice" role="status">Scanner filters saved.</div>' : ''}
-<form method="post" action="/customer/scanner/filters">
-<div class="filter-grid">${scannerStates.map((state) => {
+
+  const dropdown = ({ name, label, items, selectedIds }) => `<details class="multi-select" data-multiselect="${esc(name)}">
+<summary><span>${esc(label)}</span><strong data-selection-count>${selectedIds.length} selected</strong></summary>
+<div class="multi-select-menu">
+<label class="select-all"><input type="checkbox" data-select-all="${esc(name)}"${selectedIds.length === items.filter((item) => item.status === "available").length ? " checked" : ""}> Select all that apply</label>
+<div class="option-list">${items.map((item) => `<label class="option-row${item.status !== "available" ? " disabled-option" : ""}"><input name="${esc(name)}" type="checkbox" value="${esc(item.id)}"${selectedIds.includes(item.id) ? " checked" : ""}${item.status !== "available" ? " disabled" : ""}><span>${esc(item.label)}</span><small>${item.status === "available" ? "Available" : "Coming soon"}</small></label>`).join("")}</div>
+</div>
+</details>`;
+
+  const scannerControls = `<form class="scanner-run-form" method="get" action="/customer/scanner/run">
+${dropdown({
+  name: "modes",
+  label: "Scanner mode",
+  items: hub.modes,
+  selectedIds: availableModes.filter((mode) => mode.default).map((mode) => mode.id),
+})}
+${dropdown({
+  name: "assets",
+  label: "Asset type",
+  items: hub.assetTypes,
+  selectedIds: availableAssets.filter((asset) => asset.default).map((asset) => asset.id),
+})}
+<details class="multi-select" data-multiselect="states">
+<summary><span>Filter menu</span><strong data-selection-count>${selectedScannerStates.length} selected</strong></summary>
+<div class="multi-select-menu">
+<label class="select-all"><input type="checkbox" data-select-all="states"${selectedScannerStates.length === scannerStates.length ? " checked" : ""}> Select all that apply</label>
+<div class="option-list">${scannerStates.map((state) => {
   const className = `state-${state.toLowerCase().replaceAll("_", "-")}`;
-  return `<label class="filter-choice ${className}"><input name="states" type="checkbox" value="${state}"${selectedScannerStates.includes(state) ? " checked" : ""}><span>${state.replaceAll("_", " ")}</span></label>`;
+  return `<label class="option-row filter-choice ${className}"><input name="states" type="checkbox" value="${state}"${selectedScannerStates.includes(state) ? " checked" : ""}><span>${state.replaceAll("_", " ")}</span></label>`;
 }).join("")}</div>
-<p><button class="save-filters" type="submit">Save scanner filters</button></p>
-</form>
-</section>`;
+</div>
+</details>
+${hub.filtersSaved ? '<div class="filter-notice" role="status">Scanner filters saved.</div>' : ''}
+<div class="scanner-actions">
+<button class="save-filters" type="submit" formaction="/customer/scanner/filters" formmethod="post">Save selections</button>
+<button class="run-scanners" type="submit">Run scanner(s) now</button>
+</div>
+</form>`;
 
   const performance = hub.performanceReport;
   const performancePeriod = performance?.period ?? "lifetime";
@@ -207,6 +222,25 @@ p{color:var(--gs-muted)}
 .state-no-setup{border-color:#78848b;color:#d7dde0;background:rgba(120,132,139,.10)}
 .save-filters{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:#3d72d9;color:#fff;font:inherit;font-weight:800;cursor:pointer}
 .filter-notice{margin:12px 0;padding:11px 13px;border:1px solid rgba(57,255,20,.7);border-radius:10px;background:rgba(57,255,20,.1);color:#d8ffd0;font-weight:800}
+.scanner-run-form{display:grid;gap:12px;margin-top:14px}
+.multi-select{border:1px solid var(--gs-line);border-radius:13px;background:rgba(0,0,0,.58);overflow:hidden}
+.multi-select>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;cursor:pointer;list-style:none;font-weight:900}
+.multi-select>summary::-webkit-details-marker{display:none}
+.multi-select>summary::after{content:"+";color:var(--gs-accent);font-size:1.3rem}
+.multi-select[open]>summary::after{content:"−"}
+.multi-select>summary strong{font-size:.82rem;color:var(--gs-accent)}
+.multi-select-menu{padding:0 14px 14px;border-top:1px solid var(--gs-line)}
+.select-all,.option-row{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid rgba(120,145,160,.2)}
+.select-all{font-weight:900;color:var(--gs-accent)}
+.option-row:last-child{border-bottom:0}
+.option-row input,.select-all input{width:auto}
+.option-row span{flex:1;font-weight:800}
+.option-row small{color:var(--gs-muted)}
+.disabled-option{opacity:.45}
+.scanner-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+.run-scanners,.save-filters{flex:1;min-width:210px;padding:14px 20px;border-radius:11px;font:inherit;font-weight:900;cursor:pointer}
+.run-scanners{border:1px solid #39ff14;background:rgba(57,255,20,.18);color:#d8ffd0;box-shadow:0 0 18px rgba(57,255,20,.18)}
+
 </style>
 </head>
 <body data-gs-page="customer-scanner-hub">
@@ -221,18 +255,15 @@ ${accountPanel}
 <h1>${esc(hub.title)}</h1>
 <p>${esc(hub.subtitle)}</p>
 </section>
-<section class="card panel">
-<h2>Scanner mode</h2>
-<div class="grid">${modeCards}</div>
+<section class="card panel scanner-controls">
+<h2>Scanner controls</h2>
+<p>Select all scanner modes, asset types, and result filters that apply.</p>
+${scannerControls}
 </section>
-<section class="card panel">
-<h2>Asset type</h2>
-<div class="grid">${assetCards}</div>
-</section>
-${scannerFilterPanel}
 <section class="card safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
 </main>
 ${renderGlobalFooter()}
+<script src="/assets/customer-scanner-controls.js" defer></script>
 </body>
 </html>`;
 }

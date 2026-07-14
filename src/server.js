@@ -4111,6 +4111,33 @@ app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
 
+app.get('/customer/scanner/run', requireCustomerSession, (req, res) => {
+  const modes = Array.isArray(req.query?.modes)
+    ? req.query.modes
+    : req.query?.modes
+      ? [req.query.modes]
+      : [];
+  const assets = Array.isArray(req.query?.assets)
+    ? req.query.assets
+    : req.query?.assets
+      ? [req.query.assets]
+      : [];
+
+  const allowedModes = modes.filter((mode) => ['intraday', 'under_five', 'watchlist'].includes(mode));
+  const stocksSelected = assets.length === 0 || assets.includes('stocks');
+
+  if (!stocksSelected || allowedModes.length === 0) {
+    return res.redirect(303, '/customer/scanner?runBlocked=1');
+  }
+  if (allowedModes.includes('under_five')) {
+    return res.redirect(303, '/customer/scanner/under-five');
+  }
+  if (allowedModes.includes('watchlist')) {
+    return res.redirect(303, '/customer/watchlist');
+  }
+  return res.redirect(303, '/customer/scanner?runStarted=1');
+});
+
 app.get('/customer/watchlist', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_watchlist_page.mjs');
   const watchlist = getCustomerWatchlist(req.customerAccount?.id);
@@ -4140,6 +4167,37 @@ app.get('/customer/security-activity', requireCustomerSession, async (req, res) 
   res.type('html').send(mod.renderCustomerSecurityActivityPageHtml(page));
 });
 
+
+app.get('/assets/customer-scanner-controls.js', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('application/javascript').send(`(() => {
+  const groups = [...document.querySelectorAll('[data-multiselect]')];
+  const update = (group) => {
+    const boxes = [...group.querySelectorAll('input[type="checkbox"][name]:not(:disabled)')];
+    const checked = boxes.filter((box) => box.checked);
+    const count = group.querySelector('[data-selection-count]');
+    const selectAll = group.querySelector('[data-select-all]');
+    if (count) count.textContent = checked.length + ' selected';
+    if (selectAll) {
+      selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+    }
+  };
+  groups.forEach((group) => {
+    const selectAll = group.querySelector('[data-select-all]');
+    selectAll?.addEventListener('change', () => {
+      group.querySelectorAll('input[type="checkbox"][name]:not(:disabled)').forEach((box) => {
+        box.checked = selectAll.checked;
+      });
+      update(group);
+    });
+    group.querySelectorAll('input[type="checkbox"][name]').forEach((box) => {
+      box.addEventListener('change', () => update(group));
+    });
+    update(group);
+  });
+})();`);
+});
 
 app.get('/assets/customer-settings.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');

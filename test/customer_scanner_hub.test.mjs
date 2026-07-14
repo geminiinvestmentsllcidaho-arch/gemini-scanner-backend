@@ -123,10 +123,31 @@ test("renders persistent scanner filters inside the Scanner tab", () => {
     { email: "customer@example.com" },
   );
 
-  assert.match(html, /<h2>Scanner filters<\/h2>/);
-  assert.match(html, /form method="post" action="\/customer\/scanner\/filters"/);
+  assert.match(html, /data-multiselect="states"/);
+  assert.match(html, /<summary><span>Filter menu<\/span>/);
+  assert.match(html, /formaction="\/customer\/scanner\/filters"/);
+  assert.match(html, /formmethod="post"/);
   assert.match(html, /value="ENTER" checked/);
   assert.match(html, /value="WAIT" checked/);
   assert.doesNotMatch(html, /value="EXIT" checked/);
   assert.match(html, /Scanner filters saved\./);
+});
+
+test("renders dropdown multi-select controls with select-all and run button", () => {
+  const html = renderCustomerScannerHubHtml(
+    buildCustomerScannerHub({
+      scannerFilters: { states: ["ENTER", "WAIT"] },
+    }),
+    { email: "customer@example.com" },
+  );
+
+  assert.match(html, /data-multiselect="modes"/);
+  assert.match(html, /data-multiselect="assets"/);
+  assert.match(html, /data-multiselect="states"/);
+  assert.match(html, /data-select-all="modes"/);
+  assert.match(html, /data-select-all="assets"/);
+  assert.match(html, /data-select-all="states"/);
+  assert.match(html, /Run scanner\(s\) now/);
+  assert.match(html, /action="\/customer\/scanner\/run"/);
+  assert.match(html, /src="\/assets\/customer-scanner-controls\.js"/);
 });
