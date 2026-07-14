@@ -4154,25 +4154,35 @@ app.get('/customer/settings', requireCustomerSession, async (req, res) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Customer settings</title>
+<title>GeminiScanner — Customer settings</title>
+${renderGlobalThemeCss({ surface: 'customer' })}
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#08111f;color:#e8eef8;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:760px;margin:0 auto;padding:20px}
-.card{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:20px}
+.wrap{max-width:860px;margin:0 auto;padding:42px 20px 72px}
+.card{padding:20px}
 .details{margin:20px 0}
-.row{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:16px;padding:12px 0;border-bottom:1px solid #263a58}
+.row{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:16px;padding:12px 0;border-bottom:1px solid var(--gs-line)}
 .row:last-child{border-bottom:0}
-.label{color:#9eb0c9;font-weight:700}
+.label{color:var(--gs-muted);font-weight:700}
 .value{overflow-wrap:anywhere}
-a{color:#9fc2ff}
-button{padding:12px 18px;border:0;border-radius:10px;background:#ef6b73;color:#fff;font-weight:700}
+.settings-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.settings-nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58);box-shadow:0 0 12px rgba(57,255,32,.15)}
+input,select{width:100%;max-width:520px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);padding:10px;font:inherit}
+input[type="checkbox"]{width:auto}
+button{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);font-weight:700;cursor:pointer}
+section[style]{border-top-color:var(--gs-line)!important}
 @media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}}
 </style>
 </head>
-<body>
-<main class="wrap">
-<p><a href="/customer">&larr; Customer home</a></p>
+<body data-gs-page="customer-settings">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'GeminiScanner' })}
+<main class="wrap" data-role="customer" data-page="settings">
+<nav class="settings-nav" aria-label="Customer navigation">
+<a href="/customer">Home</a>
+<a href="/customer/scanner">Scanner</a>
+<a href="/customer/watchlist">Watchlist</a>
+<a href="/customer/security-activity">Security activity</a>
+</nav>
 <section class="card">
 <h1>Settings</h1>
 <h2>Account details</h2>
@@ -4352,6 +4362,7 @@ ${["ENTER","DO_NOT_ENTER","WAIT","EXIT","BLOCKED","WATCH","NO_SETUP","STALE_DATA
 </form>
 </section>
 </main>
+${renderGlobalFooter()}
 </body>
 </html>`);
 });

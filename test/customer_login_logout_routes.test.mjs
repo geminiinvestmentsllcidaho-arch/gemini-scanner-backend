@@ -891,3 +891,12 @@ test('customer password recovery pages render shared public neon theme and fixed
     2,
   );
 });
+
+test('customer settings renders shared customer neon theme and fixed background logo', () => {
+  assert.match(source, /<body data-gs-page="customer-settings">/);
+  assert.match(source, /renderGlobalThemeCss\(\{ surface: 'customer' \}\)/);
+  assert.match(source, /renderBackgroundLogoLayer\(\)/);
+  assert.match(source, /renderGlobalHeader\(\{ surface: 'customer', homeHref: '\/customer', label: 'GeminiScanner' \}\)/);
+  assert.match(source, /renderGlobalFooter\(\)/);
+  assert.match(source, /data-role="customer" data-page="settings"/);
+});
