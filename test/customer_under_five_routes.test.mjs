@@ -455,7 +455,7 @@ test("customer scanner applies validated selectable price ranges without extra e
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
   assert.equal(dashboard.maxPrice, 50);
   assert.equal(dashboard.priceRangeLabel, "$0–$50");
-  assert.deepEqual(dashboard.candidates.map((candidate) => candidate.symbol), ["TEN", "FIFTY"]);
+  assert.deepEqual(dashboard.candidates.map((candidate) => candidate.symbol), ["FIFTY", "TEN"]);
   assert.match(html, /Price range:<\/b> \$0–\$50/);
   assert.equal(dashboard.orderPlacementAllowed, false);
 });
@@ -467,4 +467,38 @@ test("customer result cards use compact dark metric cells with readable text", (
   assert.match(html, /\.company-name\{[^}]*color:#c8d2d8/);
   assert.match(html, /\.timestamp\{[^}]*color:#c4d0d6/);
   assert.match(html, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+});
+
+
+test("customer scanner prioritizes ENTER results and hides unowned EXIT results", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    sourceStatus: "connected_readonly",
+    candidates: [
+      { symbol: "WAIT1", price: 4, decision: "WAIT", readonlyPotentialScore: 90 },
+      { symbol: "EXITNO", price: 4, decision: "EXIT", readonlyPotentialScore: 99 },
+      { symbol: "ENTER2", price: 4, decision: "ENTER", tradeAllowed: true, readonlyPotentialScore: 70 },
+      { symbol: "ENTER1", price: 4, decision: "ENTER", tradeAllowed: true, readonlyPotentialScore: 95 },
+      { symbol: "EXITOWN", price: 4, decision: "EXIT", readonlyPotentialScore: 80 },
+      { symbol: "WATCH1", price: 4, decision: "WATCH", readonlyPotentialScore: 85 },
+    ],
+  }, {
+    paperAccount: {
+      accountHealthy: true,
+      positions: [{ symbol: "EXITOWN", qty: 3 }],
+    },
+  });
+
+  assert.deepEqual(
+    dashboard.candidates.map((candidate) => candidate.symbol),
+    ["ENTER1", "ENTER2", "EXITOWN", "WATCH1", "WAIT1"],
+  );
+  assert.equal(
+    dashboard.candidates.some((candidate) => candidate.symbol === "EXITNO"),
+    false,
+  );
+  assert.equal(
+    dashboard.candidates.find((candidate) => candidate.symbol === "EXITOWN")
+      ?.paperEnterExitGate?.exit?.visible,
+    true,
+  );
 });

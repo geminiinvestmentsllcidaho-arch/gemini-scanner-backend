@@ -86,6 +86,38 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       maxSourceAgeSec: options.maxSourceAgeSec,
     }),
   }));
+  const ownedSymbols = new Set(
+    (Array.isArray(options.paperAccount?.positions) ? options.paperAccount.positions : [])
+      .filter((position) => Number(position?.qty) > 0)
+      .map((position) => String(position?.symbol ?? "").trim().toUpperCase())
+      .filter(Boolean),
+  );
+  const priorityByState = Object.freeze({
+    ENTER: 0,
+    EXIT: 1,
+    WATCH: 2,
+    WAIT: 3,
+    DO_NOT_ENTER: 4,
+    BLOCKED: 5,
+    STALE_DATA: 6,
+    NO_SETUP: 7,
+  });
+  const prioritizedCandidates = gatedCandidates
+    .filter((candidate) => {
+      const state = String(candidate?.resultState ?? "NO_SETUP").toUpperCase();
+      if (state !== "EXIT") return true;
+      return ownedSymbols.has(String(candidate?.symbol ?? "").trim().toUpperCase());
+    })
+    .sort((left, right) => {
+      const leftState = String(left?.resultState ?? "NO_SETUP").toUpperCase();
+      const rightState = String(right?.resultState ?? "NO_SETUP").toUpperCase();
+      const stateDelta = (priorityByState[leftState] ?? 99) - (priorityByState[rightState] ?? 99);
+      if (stateDelta !== 0) return stateDelta;
+      const confidenceDelta =
+        Number(right?.readonlyPotentialScore ?? -1) - Number(left?.readonlyPotentialScore ?? -1);
+      if (confidenceDelta !== 0) return confidenceDelta;
+      return String(left?.symbol ?? "").localeCompare(String(right?.symbol ?? ""));
+    });
   const { diagnosticsOnly: _diagnosticsOnly, ...customerCard } = card;
   const performanceReport = options.performanceReport
     ?? buildCustomerZeroPerformanceReport({
@@ -100,8 +132,8 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
 
   return {
     ...customerCard,
-    candidates: gatedCandidates,
-    candidateCount: gatedCandidates.length,
+    candidates: prioritizedCandidates,
+    candidateCount: prioritizedCandidates.length,
     resultFilters,
     performanceReport,
     paperAccount: options.paperAccount ?? {
