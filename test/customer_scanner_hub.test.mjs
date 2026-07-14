@@ -98,3 +98,18 @@ test("customer main page renders read-only earnings and period links", () => {
   assert.doesNotMatch(html, /Total earnings — weekly/);
   assert.doesNotMatch(html, /Place order|Buy now/);
 });
+
+test("renders customer scanner hub with shared global neon theme and fixed background logo", () => {
+  const html = renderCustomerScannerHubHtml(
+    buildCustomerScannerHub(),
+    { email: "customer@example.com" },
+  );
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-surface="customer"/);
+  assert.match(html, /class="gs-background-logo"/);
+  assert.match(html, /class="gs-global-header"/);
+  assert.match(html, /class="gs-global-footer"/);
+  assert.match(html, /data-gs-page="customer-scanner-hub"/);
+  assert.match(html, /form method="post" action="\/logout"/);
+  assert.doesNotMatch(html, /\/admin\b/);
+});

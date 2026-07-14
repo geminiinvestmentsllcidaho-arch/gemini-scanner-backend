@@ -1,4 +1,9 @@
-import { renderGeminiScannerLogoSvg } from "./brand_header.mjs";
+import {
+  renderBackgroundLogoLayer,
+  renderGlobalFooter,
+  renderGlobalHeader,
+  renderGlobalThemeCss,
+} from "./global_theme.mjs";
 export const VERSION = "customer_scanner_hub_v1";
 
 const MODES = Object.freeze([
@@ -120,7 +125,7 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
 
   const accountEmail = esc(account?.email ?? "");
   const accountPanel = accountEmail
-    ? `<section class="account-panel">
+    ? `<section class="card account-panel">
 <div>
 <div class="eyebrow">Signed in account</div>
 <strong>${accountEmail}</strong>
@@ -138,65 +143,65 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(hub.title)}</title>
+${renderGlobalThemeCss({ surface: "customer" })}
 <style>
-*{box-sizing:border-box}
-
-.customer-brand{position:fixed;top:0;left:0;right:0;z-index:999;display:flex;align-items:center;padding:10px 18px;background:#000;border-bottom:1px solid #1ef000;box-shadow:0 0 18px rgba(57,255,20,.18)}
-.customer-brand a{display:flex;align-items:center;gap:10px;color:#39ff14;text-decoration:none;font-weight:900;font-size:1.08rem}
-.customer-brand .gs-brand-logo{display:block;flex:none}
-body{margin:0;background:#000;color:#39ff14;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:156px 20px 20px}
-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-nav a{color:#39ff14;text-decoration:none;border:1px solid #1ef000;border-radius:10px;padding:9px 12px;background:#000;box-shadow:0 0 12px rgba(57,255,20,.18)}
-.account-panel,.hero,.panel,.safety{background:#000;border:1px solid #1ef000;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 0 18px rgba(57,255,20,.08)}
-.earnings-overlay{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:1000;width:min(94vw,620px);border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}
+.wrap{max-width:980px;margin:0 auto;padding:42px 20px 72px}
+.customer-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.customer-nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58);box-shadow:0 0 12px rgba(57,255,32,.15)}
+.account-panel,.hero,.panel,.safety{padding:18px;margin-bottom:16px}
+.account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
+.account-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.account-actions a,.account-actions button{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.72);color:var(--gs-text);text-decoration:none;font:inherit;font-weight:700;cursor:pointer}
+.account-actions form{margin:0}
+.account-actions button{border-color:rgba(255,65,84,.68);color:#ffd8dd}
+.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gs-accent)}
+h1,h2{margin:.35rem 0}
+p{color:var(--gs-muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.choice{display:flex;min-height:92px;flex-direction:column;justify-content:center;gap:8px;padding:15px;border-radius:14px;border:1px solid var(--gs-line);text-decoration:none;color:var(--gs-text);background:rgba(0,0,0,.62)}
+.choice span{font-size:.85rem;color:var(--gs-muted)}
+.available{border-color:rgba(57,255,32,.68)}
+.selected{outline:2px solid var(--gs-accent)}
+.disabled{opacity:.5}
+.safety{font-size:.9rem}
+.earnings-overlay{position:sticky;top:76px;z-index:20;width:min(100%,620px);margin:0 auto 18px;border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}
 .earnings-overlay summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;cursor:pointer;list-style:none;font-weight:800}
 .earnings-overlay summary::-webkit-details-marker{display:none}
 .earnings-overlay summary span{font-size:.78rem;letter-spacing:.09em;color:#000}
 .earnings-overlay summary strong{font-size:1.3rem;color:#000}
 .earnings-menu{padding:0 14px 14px;background:rgba(255,255,255,.12)}
-.performance-positive{background:rgba(57,255,20,.90);border:2px solid #39ff14}.performance-negative{background:rgba(255,36,36,.90);border:2px solid #ff2424}.performance-neutral{background:rgba(149,155,165,.92);border:2px solid #959ba5}
-.performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}.performance-periods a.active{background:#5b9cff;color:#08111f}
-@media(max-width:600px){.wrap{padding-top:150px}.earnings-overlay{top:64px}.earnings-overlay summary{padding:12px 14px}.earnings-overlay summary strong{font-size:1.12rem}}
-.account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
-.account-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.account-actions a,.account-actions button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #304766;border-radius:10px;padding:9px 12px;background:#132844;color:#e8eef8;text-decoration:none;font:inherit;font-weight:700;cursor:pointer}
-.account-actions form{margin:0}
-.account-actions button{background:#7c2d3a;border-color:#a33c4c}
-.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#39ff14}
-h1,h2{margin:.35rem 0}
-p{color:#39ff14}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.choice{display:flex;min-height:92px;flex-direction:column;justify-content:center;gap:8px;padding:15px;border-radius:14px;border:1px solid #304766;text-decoration:none;color:#e8eef8}
-.choice span{font-size:.85rem;color:#9fb0c7}
-.available{background:#000;border-color:#1ef000}
-.selected{outline:2px solid #39ff14}
-.disabled{background:#000;opacity:.55}
-.safety{font-size:.9rem}
+.performance-positive{background:rgba(57,255,32,.90);border:2px solid #39ff20}
+.performance-negative{background:rgba(255,36,36,.90);border:2px solid #ff2424}
+.performance-neutral{background:rgba(149,155,165,.92);border:2px solid #959ba5}
+.performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}
+.performance-periods a.active{background:#5b9cff;color:#08111f}
 </style>
 </head>
-<body>
-<header class="customer-brand"><a href="/customer" aria-label="GeminiScanner customer home">${renderGeminiScannerLogoSvg({ size: 42 })}<span>GeminiScanner</span></a></header>
-${performancePanel}
+<body data-gs-page="customer-scanner-hub">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap" data-role="customer" data-tenant="${esc(hub.tenant)}">
+${performancePanel}
 ${accountPanel}
-<nav aria-label="Customer navigation">${nav}</nav>
-<section class="hero">
+<nav class="customer-nav" aria-label="Customer navigation">${nav}</nav>
+<section class="card hero">
 <div class="eyebrow">Customer account</div>
 <h1>${esc(hub.title)}</h1>
 <p>${esc(hub.subtitle)}</p>
 </section>
-<section class="panel">
+<section class="card panel">
 <h2>Scanner mode</h2>
 <div class="grid">${modeCards}</div>
 </section>
-<section class="panel">
+<section class="card panel">
 <h2>Asset type</h2>
 <div class="grid">${assetCards}</div>
 </section>
-<section class="safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
+<section class="card safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
 </main>
+${renderGlobalFooter()}
 </body>
 </html>`;
 }
