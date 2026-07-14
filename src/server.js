@@ -187,7 +187,17 @@ app.use((_req, res, next) => {
   const originalSend = res.send.bind(res);
   res.send = (body) => {
     const contentType = String(res.getHeader('Content-Type') ?? '');
-    if (typeof body === 'string' && (contentType.includes('text/html') || /<!doctype html|<html[\s>]/i.test(body))) {
+    const isHtml =
+      typeof body === 'string'
+      && (contentType.includes('text/html') || /<!doctype html|<html[\s>]/i.test(body));
+    const alreadyUsesGlobalTheme =
+      isHtml
+      && (
+        body.includes('class="gs-global-header"')
+        || body.includes('data-gs-global-theme=')
+      );
+
+    if (isHtml && !alreadyUsesGlobalTheme) {
       return originalSend(injectGeminiScannerBrandHeader(body));
     }
     return originalSend(body);
