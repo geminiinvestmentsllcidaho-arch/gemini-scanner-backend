@@ -532,7 +532,7 @@ test("watchlist scanner has no price ceiling and renders top scan status", () =>
   assert.match(html, /\/assets\/customer-scanner-countdown\.js/);
   assert.doesNotMatch(html, /<script>\s*\(\(\) =>/);
   const serverSource = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
-  assert.match(serverSource, /deadlineMs = Date\.now\(\) \+ \(refreshSec \* 1000\)/);
-  assert.match(serverSource, /Math\.ceil\(\(deadlineMs - Date\.now\(\)\) \/ 1000\)/);
+  assert.match(serverSource, /intervalMs = refreshSec \* 1000/);
+  assert.match(serverSource, /Math\.floor\(Date\.now\(\) \/ intervalMs\) \* intervalMs/);
   assert.match(serverSource, /window\.location\.reload\(\)/);
 });

@@ -189,16 +189,27 @@ app.get('/assets/customer-scanner-countdown.js', (_req, res) => {
   res.send(`(() => {
   const node = document.querySelector("[data-scan-countdown]");
   const refreshSec = Math.max(1, Number(document.body?.dataset?.refreshSec) || 30);
-  const deadlineMs = Date.now() + (refreshSec * 1000);
+  const intervalMs = refreshSec * 1000;
   let reloadStarted = false;
+  let observedBoundaryMs = Math.floor(Date.now() / intervalMs) * intervalMs;
+
   const tick = () => {
-    const remaining = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
+    const nowMs = Date.now();
+    const currentBoundaryMs = Math.floor(nowMs / intervalMs) * intervalMs;
+    const nextBoundaryMs = currentBoundaryMs + intervalMs;
+    const remaining = Math.max(0, Math.ceil((nextBoundaryMs - nowMs) / 1000));
+
     if (node) node.textContent = String(remaining);
-    if (remaining === 0 && reloadStarted === false) {
+
+    if (currentBoundaryMs > observedBoundaryMs && reloadStarted === false) {
       reloadStarted = true;
       window.location.reload();
+      return;
     }
+
+    observedBoundaryMs = currentBoundaryMs;
   };
+
   tick();
   window.setInterval(tick, 250);
 })();`);
