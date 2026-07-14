@@ -232,9 +232,19 @@ test('settings page exposes last sign-in security activity', () => {
   assert.match(source, /<h3>Recent sign-ins<\/h3>/);
   assert.match(source, /View complete security activity/);
   assert.match(source, /recentLoginHistory/);
+  assert.match(source, /recentLoginHistory\.slice\(1\)/);
+  assert.match(source, /class="signin-history"/);
+  assert.match(source, /formatCustomerDateTime\(latestLogin\.loginAt/);
   assert.match(source, />Successful sign-ins<\/div>/);
 });
 
+
+test('customer-facing account times use saved locale and timezone formatting', () => {
+  assert.match(source, /from '\.\/scanner\/customer_time\.mjs'/);
+  assert.match(source, /formatCustomerDate\(account\?\.createdAt, account/);
+  assert.match(source, /formatCustomerDateTime\(account\?\.lastLoginAt, account/);
+  assert.match(source, /account: req\.customerAccount/);
+});
 
 test('settings page exposes authenticated permanent account deletion controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/account\/delete"/);

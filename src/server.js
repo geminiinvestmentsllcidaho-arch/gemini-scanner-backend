@@ -42,6 +42,7 @@ import { createCustomerPasswordResetRateLimiter } from './scanner/customer_passw
 import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
 import { appendCustomerSecurityAuditRecord } from './scanner/customer_security_audit_store.mjs';
 import { listCustomerSecurityActivity } from './scanner/customer_security_activity_reader.mjs';
+import { formatCustomerDate, formatCustomerDateTime } from './scanner/customer_time.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -4130,7 +4131,7 @@ app.post('/customer/watchlist', requireCustomerSession, requireCustomerSameOrigi
 app.get('/customer/security-activity', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_security_activity_page.mjs');
   const activity = listCustomerSecurityActivity(req.customerAccount?.id, { limit: 50 });
-  const page = mod.buildCustomerSecurityActivityPage({ activity });
+  const page = mod.buildCustomerSecurityActivityPage({ activity, account: req.customerAccount });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerSecurityActivityPageHtml(page));
 });
@@ -4176,14 +4177,11 @@ app.get('/customer/settings', requireCustomerSession, async (req, res) => {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-  const createdAt = new Date(account?.createdAt);
-  const memberSince = account?.createdAt && !Number.isNaN(createdAt.getTime())
-    ? new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }).format(createdAt)
-    : 'Unavailable';
+  const memberSince = formatCustomerDate(account?.createdAt, account, { fallback: 'Unavailable' });
+  const lastSignIn = formatCustomerDateTime(account?.lastLoginAt, account);
+  const recentLoginHistory = Array.isArray(account?.recentLoginHistory) ? account.recentLoginHistory : [];
+  const latestLogin = recentLoginHistory[0] ?? null;
+  const earlierLogins = recentLoginHistory.slice(1);
 
   const email = esc(account?.email);
   const status = esc(account?.status || 'unknown');
@@ -4222,6 +4220,8 @@ section[style]{border-top-color:var(--gs-line)!important}
 .settings-group>section{margin:0!important;padding:18px!important;border:0!important;border-radius:0;background:transparent;backdrop-filter:none}
 .settings-group>section>h2{display:none}
 .danger-settings>summary{color:#ffd5da}.danger-settings{border-color:rgba(255,53,71,.48)}
+.signin-history{margin-top:10px;border:1px solid var(--gs-line);border-radius:12px;padding:0 14px;background:rgba(0,0,0,.32)}
+.signin-history>summary{cursor:pointer;padding:12px 2px;font-weight:800;color:var(--gs-accent)}
 @media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}.settings-toolbar{position:sticky;top:8px;z-index:8}.settings-group>summary{padding:14px}}
 </style>
 </head>
@@ -4262,7 +4262,7 @@ ${account?.pendingEmail ? `<div class="row"><div class="label">Pending email</di
 <div class="row"><div class="label">Email verification</div><div class="value">${verificationStatus}</div></div>
 <div class="row"><div class="label">Customer ID</div><div class="value">${customerId}</div></div>
 <div class="row"><div class="label">Member since</div><div class="value">${esc(memberSince)}</div></div>
-<div class="row"><div class="label">Last sign-in</div><div class="value">${esc(account?.lastLoginAt || 'Not available')}</div></div>
+<div class="row"><div class="label">Last sign-in</div><div class="value">${esc(lastSignIn)}</div></div>
 <div class="row"><div class="label">Last sign-in IP</div><div class="value">${esc(account?.lastLoginIp || 'Not available')}</div></div>
 <div class="row"><div class="label">Last sign-in device</div><div class="value">${esc(account?.lastLoginUserAgent || 'Not available')}</div></div>
 <div class="row"><div class="label">Successful sign-ins</div><div class="value">${esc(account?.loginCount ?? 0)}</div></div>
@@ -4270,8 +4270,8 @@ ${account?.pendingEmail ? `<div class="row"><div class="label">Pending email</di
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Security activity</h2>
 <h3>Recent sign-ins</h3>
-${(Array.isArray(account?.recentLoginHistory) ? account.recentLoginHistory : []).length
-  ? `<div class="details">${account.recentLoginHistory.map((entry) => `<div class="row"><div class="label">${esc(entry?.loginAt || 'Unknown time')}</div><div class="value">${esc(entry?.ip || 'unknown')} | ${esc(entry?.userAgent || 'unknown')}</div></div>`).join('')}</div>`
+${latestLogin
+  ? `<div class="details"><div class="row"><div class="label">${esc(formatCustomerDateTime(latestLogin.loginAt, account, { fallback: 'Unknown time' }))}</div><div class="value">${esc(latestLogin.ip || 'unknown')} | ${esc(latestLogin.userAgent || 'unknown')}</div></div></div>${earlierLogins.length ? `<details class="signin-history"><summary>Show ${earlierLogins.length} earlier sign-in${earlierLogins.length === 1 ? '' : 's'}</summary><div class="details">${earlierLogins.map((entry) => `<div class="row"><div class="label">${esc(formatCustomerDateTime(entry?.loginAt, account, { fallback: 'Unknown time' }))}</div><div class="value">${esc(entry?.ip || 'unknown')} | ${esc(entry?.userAgent || 'unknown')}</div></div>`).join('')}</div></details>` : ''}`
   : '<p style="color:#9eb0c9">No recent sign-in activity is available yet.</p>'}
 <p style="color:#9eb0c9">Review password, email, authenticator, session, and account security changes on the complete read-only activity page.</p>
 <p><a href="/customer/security-activity">View complete security activity</a></p>

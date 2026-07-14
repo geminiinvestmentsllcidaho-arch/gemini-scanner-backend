@@ -4,6 +4,7 @@ import {
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
+import { formatCustomerDateTime } from "./customer_time.mjs";
 
 export const VERSION = "customer_security_activity_page_v1";
 
@@ -23,6 +24,7 @@ export function buildCustomerSecurityActivityPage(options = {}) {
     version: VERSION,
     route: "/customer/security-activity",
     title: "Security activity",
+    account: options.account ?? null,
     activity: Object.freeze(activity),
     readOnly: true,
     customerOnly: true,
@@ -35,7 +37,7 @@ export function renderCustomerSecurityActivityPageHtml(
   const rows = page.activity.length
     ? page.activity.map((entry) => `
 <div class="row">
-  <div class="label">${esc(entry?.eventAt || "Unknown time")}</div>
+  <div class="label">${esc(formatCustomerDateTime(entry?.eventAt, page.account, { fallback: "Unknown time" }))}</div>
   <div class="value">
     <strong>${esc(entry?.eventLabel || "Security activity")}</strong><br>
     ${esc(entry?.outcome || "unknown")} | ${esc(entry?.ip || "unknown")} | ${esc(entry?.userAgent || "unknown")}
