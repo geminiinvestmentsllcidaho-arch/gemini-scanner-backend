@@ -30,7 +30,7 @@ test("renders customer-only navigation without admin or internal route reference
   assert.match(html, /data-role="customer"/);
   assert.match(html, /data-tenant="customer-zero"/);
   assert.match(html, /Customer navigation/);
-  assert.match(html, /\/customer\/scanner\/under-five/);
+  assert.doesNotMatch(html, /\/customer\/scanner\/under-five/);
   assert.doesNotMatch(
     html,
     /\/admin\b|\/diagnostics\b|\/app\b|customer-zero\/|internal owner|paper trading|broker|deployment|security/i

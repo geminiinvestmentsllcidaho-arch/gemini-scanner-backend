@@ -35,7 +35,7 @@ test("Customer Zero renders the same customer navigation without admin access", 
     buildCustomerScannerHub({ tenant: "customer-zero" })
   );
 
-  for (const label of ["Home", "Scanner", "Under $5", "Watchlist", "Settings"]) {
+  for (const label of ["Home", "Scanner", "Watchlist", "Settings"]) {
     assert.equal(regularHtml.includes(`>${label}<`), true);
     assert.equal(customerZeroHtml.includes(`>${label}<`), true);
   }

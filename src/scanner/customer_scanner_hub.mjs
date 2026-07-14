@@ -16,13 +16,6 @@ const MODES = Object.freeze([
     default: true,
   }),
   Object.freeze({
-    id: "under_five",
-    label: "Under $5",
-    status: "available",
-    href: "/customer/scanner/under-five",
-    default: false,
-  }),
-  Object.freeze({
     id: "swing",
     label: "Swing",
     status: "coming_soon",
@@ -90,7 +83,6 @@ export function buildCustomerScannerHub(options = {}) {
     navigation: Object.freeze([
       Object.freeze({ label: "Home", href: "/customer" }),
       Object.freeze({ label: "Scanner", href: "/customer/scanner" }),
-      Object.freeze({ label: "Under $5", href: "/customer/scanner/under-five" }),
       Object.freeze({ label: "Watchlist", href: "/customer/watchlist" }),
       Object.freeze({ label: "Settings", href: "/customer/settings" }),
     ]),
@@ -129,16 +121,16 @@ ${dropdown({
   selectedIds: availableModes.filter((mode) => mode.default).map((mode) => mode.id),
 })}
 ${dropdown({
-  name: "assets",
-  label: "Asset type",
-  items: hub.assetTypes,
-  selectedIds: availableAssets.filter((asset) => asset.default).map((asset) => asset.id),
-})}
-${dropdown({
   name: "priceRanges",
   label: "Price range",
   items: hub.priceRanges,
   selectedIds: availablePriceRanges.filter((range) => range.default).map((range) => range.id),
+})}
+${dropdown({
+  name: "assets",
+  label: "Asset type",
+  items: hub.assetTypes,
+  selectedIds: availableAssets.filter((asset) => asset.default).map((asset) => asset.id),
 })}
 <details class="multi-select" data-multiselect="states">
 <summary><span>Filter menu</span><strong data-selection-count>${selectedScannerStates.length} selected</strong></summary>
