@@ -44,3 +44,24 @@ test("renders account security activity without internal identifiers or admin co
   assert.doesNotMatch(html, /must-not-render/);
   assert.doesNotMatch(html, /\/admin\b|\/diagnostics\b|\/app\b|broker|place order/i);
 });
+
+test("renders customer security activity with shared global neon theme and fixed background logo", () => {
+  const html = renderCustomerSecurityActivityPageHtml(
+    buildCustomerSecurityActivityPage({
+      activity: [{
+        eventAt: "2026-07-13T19:00:00.000Z",
+        eventLabel: "Sign in",
+        outcome: "success",
+        ip: "127.0.0.1",
+        userAgent: "test",
+      }],
+    }),
+  );
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-surface="customer"/);
+  assert.match(html, /class="gs-background-logo"/);
+  assert.match(html, /class="gs-global-header"/);
+  assert.match(html, /class="gs-global-footer"/);
+  assert.match(html, /data-gs-page="customer-security-activity"/);
+  assert.doesNotMatch(html, /\/admin\b/);
+});
