@@ -4132,15 +4132,30 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
   if (!stocksSelected || allowedModes.length === 0) {
     return res.redirect(303, '/customer/scanner?runBlocked=1');
   }
-  if (allowedModes.includes('watchlist') && !allowedModes.includes('intraday')) {
-    return res.redirect(303, '/customer/watchlist');
-  }
+  const watchlistOnly = allowedModes.includes('watchlist') && !allowedModes.includes('intraday');
 
   const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
   const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
   const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
   const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
-  const source = await getUnderFiveSharedSource({ refresh: true });
+  let source;
+  if (watchlistOnly) {
+    const watchlist = getCustomerWatchlist(req.customerAccount?.id);
+    const watchlistSymbols = watchlist.ok ? watchlist.symbols : [];
+    if (watchlistSymbols.length === 0) {
+      return res.redirect(303, '/customer/watchlist');
+    }
+    const watchlistSourceMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
+    source = await watchlistSourceMod.fetchAlpacaUnderFiveUniverseReadonly({
+      minPrice: 0,
+      maxPrice: Number.POSITIVE_INFINITY,
+      minDailyVolume: 0,
+      maxAssets: 50,
+      symbols: watchlistSymbols,
+    });
+  } else {
+    source = await getUnderFiveSharedSource({ refresh: true });
+  }
   const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
   const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
   const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
@@ -4150,6 +4165,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     route: '/customer/scanner/run',
     resultFilters,
     maxPrice,
+    noPriceCeiling: watchlistOnly,
     paperAccount,
     paperLedger,
     paperLedgerHistory: paperPositionLedger.records,
@@ -4158,7 +4174,9 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     role: 'customer',
     roleLabel: 'Customer',
     tenant: 'customer',
-    title: `$0–$${maxPrice.toLocaleString('en-US')} Intraday Scanner`,
+    title: watchlistOnly
+      ? 'Watchlist Scanner'
+      : `$0–$${maxPrice.toLocaleString('en-US')} Intraday Scanner`,
   });
   res.set('Cache-Control', 'no-store');
   return res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard, req.customerAccount));

@@ -7,20 +7,27 @@ const server = fs.readFileSync(
   "utf8",
 );
 
-const routeBlock = server.slice(
-  server.indexOf("app.get('/app/alpaca-under-five-universe'"),
-  server.indexOf("app.get('/diagnostics/alpaca-paper-account-dashboard'"),
-);
+const sharedRouteBlocks = [
+  ["app.get('/app/alpaca-under-five-universe'", "app.get('/customer'"],
+  ["app.get('/customer/scanner/under-five/:symbol'", "app.get('/customer/scanner/under-five'"],
+  ["app.get('/customer/scanner/under-five'", "app.get('/customer-zero'"],
+  ["app.get('/customer-zero/under-five-scanner/:symbol'", "app.get('/customer-zero/under-five-scanner'"],
+  ["app.get('/customer-zero/under-five-scanner'", "app.get('/diagnostics/alpaca-paper-account-dashboard'"],
+].map(([startMarker, endMarker]) => {
+  const start = server.indexOf(startMarker);
+  const end = server.indexOf(endMarker, start);
+  return server.slice(start, end);
+}).join("\n");
 
 test("under-five pages share one cached backend scan", () => {
   assert.match(server, /createAlpacaUnderFiveSharedScanCache/);
   assert.match(server, /async function getUnderFiveSharedSource/);
   assert.equal(
-    (routeBlock.match(/const source = await getUnderFiveSharedSource\(\);/g) ?? []).length,
+    (sharedRouteBlocks.match(/const source = await getUnderFiveSharedSource\(\);/g) ?? []).length,
     5,
   );
   assert.doesNotMatch(
-    routeBlock,
+    sharedRouteBlocks,
     /fetchAlpacaUnderFiveUniverseReadonly/,
   );
 });
@@ -28,11 +35,11 @@ test("under-five pages share one cached backend scan", () => {
 test("shared cache starts with server and customer-zero refresh stays adaptive", () => {
   assert.match(server, /underFiveCache\.start\(\)\.catch/);
   assert.match(
-    routeBlock,
+    sharedRouteBlocks,
     /refreshIntervalSec: req\.query\.refreshIntervalSec \?\? req\.query\.refresh,/,
   );
   assert.doesNotMatch(
-    routeBlock,
+    sharedRouteBlocks,
     /refreshIntervalSec: req\.query\.refreshIntervalSec \?\? req\.query\.refresh \?\? 30,/,
   );
 });

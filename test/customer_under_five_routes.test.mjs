@@ -502,3 +502,28 @@ test("customer scanner prioritizes ENTER results and hides unowned EXIT results"
     true,
   );
 });
+
+
+test("watchlist scanner has no price ceiling and renders top scan status", () => {
+  const source = {
+    status: "connected_readonly",
+    refreshIntervalSec: 15,
+    marketClock: { isOpen: true },
+    candidates: [
+      { symbol: "BRK.A", price: 650000, dailyVolume: 1, readonlyPotentialScore: 80 },
+    ],
+  };
+  const dashboard = buildCustomerUnderFiveDashboard(source, {
+    noPriceCeiling: true,
+    maxPrice: 5,
+    title: "Watchlist Scanner",
+    resultFilters: { states: [] },
+  });
+  assert.equal(dashboard.noPriceCeiling, true);
+  assert.equal(dashboard.priceRangeLabel, "No price ceiling");
+  assert.equal(dashboard.candidates.length, 1);
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.match(html, /MARKET OPEN/);
+  assert.match(html, /NEXT SCAN IN/);
+  assert.match(html, /data-scan-countdown/);
+});

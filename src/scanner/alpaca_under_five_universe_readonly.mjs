@@ -153,6 +153,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
   minDailyVolume = 100000,
   snapshotBatchSize = 200,
   maxAssets = 10000,
+  symbols = null,
   nowMs = Date.now(),
   maxSourceAgeSec = 120,
 } = {}) {
@@ -261,6 +262,12 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
     };
   }
 
+  const requestedSymbols = new Set(
+    (Array.isArray(symbols) ? symbols : [])
+      .map((value) => clean(value).toUpperCase())
+      .filter(Boolean),
+  );
+
   const assets = assetsResult.json
     .map((asset) => ({
       symbol: clean(asset.symbol).toUpperCase(),
@@ -274,7 +281,8 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       asset.symbol &&
       asset.status === "active" &&
       asset.tradable === true &&
-      ["NYSE", "NASDAQ", "AMEX", "ARCA", "BATS"].includes(asset.exchange)
+      ["NYSE", "NASDAQ", "AMEX", "ARCA", "BATS"].includes(asset.exchange) &&
+      (requestedSymbols.size === 0 || requestedSymbols.has(asset.symbol))
     )
     .slice(0, Math.max(1, Number(maxAssets) || 10000));
   const snapshotMap = {};
@@ -325,7 +333,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
     .filter((asset) =>
       asset.price !== null &&
       asset.price >= filters.minPrice &&
-      asset.price <= filters.maxPrice &&
+      (!Number.isFinite(filters.maxPrice) || asset.price <= filters.maxPrice) &&
       asset.dailyVolume >= filters.minDailyVolume
     )
     .sort((left, right) =>

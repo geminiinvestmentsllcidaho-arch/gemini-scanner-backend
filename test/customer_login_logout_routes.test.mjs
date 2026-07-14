@@ -926,7 +926,7 @@ test('customer scanner run button stays authenticated and routes only to read-on
 
 test('customer scanner run renders live filtered results', () => {
   assert.match(source, /app\.post\('\/customer\/scanner\/run', requireCustomerSession, requireCustomerSameOrigin, async \(req, res\) =>/);
-  assert.match(source, /const source = await getUnderFiveSharedSource\(\{ refresh: true \}\);/);
+  assert.match(source, /source = await getUnderFiveSharedSource\(\{ refresh: true \}\);/);
   assert.match(source, /buildCustomerUnderFiveDashboard\(source,/);
   assert.match(source, /renderCustomerUnderFiveDashboardHtml\(dashboard, req\.customerAccount\)/);
 });
@@ -935,4 +935,13 @@ test('customer scanner save persists modes assets price ranges and states', () =
   assert.match(source, /updateCustomerScannerSelections\(\s*req\.customerAccount\.id,/);
   assert.match(source, /\{ modes, assets, priceRanges \}/);
   assert.match(source, /updateCustomerZeroResultFilters\(\s*req\.customerAccount\.id,/);
+});
+
+
+test("customer watchlist-only scanner fetches saved symbols without a price ceiling", () => {
+  assert.match(source, /const watchlistOnly = allowedModes\.includes\('watchlist'\)/);
+  assert.match(source, /getCustomerWatchlist\(req\.customerAccount\?\.id\)/);
+  assert.match(source, /maxPrice: Number\.POSITIVE_INFINITY/);
+  assert.match(source, /symbols: watchlistSymbols/);
+  assert.match(source, /noPriceCeiling: watchlistOnly/);
 });
