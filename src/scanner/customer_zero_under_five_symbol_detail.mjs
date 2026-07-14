@@ -4,6 +4,7 @@ import {
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
+import { formatCustomerDateTime } from "./customer_time.mjs";
 
 export const VERSION = "customer_zero_under_five_symbol_detail_v1";
 
@@ -75,7 +76,7 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
   };
 }
 
-export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}) {
+export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}, account = null) {
   const passed = list(detail.passedChecks).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
   const flags = list(detail.flags).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
   const blockers = list(detail.blockers).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
@@ -95,6 +96,7 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <p><b>Score:</b> ${esc(detail.score)} | <b>Potential:</b> ${esc(detail.potentialLabel)}</p>
 <p><b>Price:</b> ${esc(detail.price)} | <b>Previous close:</b> ${esc(detail.previousClose)} | <b>Change:</b> ${esc(detail.changePct)}%</p>
 <p><b>Spread:</b> ${esc(detail.spreadPct)}% | <b>Daily volume:</b> ${esc(detail.dailyVolume)} | <b>Dollar volume:</b> ${esc(detail.dollarVolume)}</p>
+<p><b>Data timestamp:</b> ${esc(formatCustomerDateTime(detail.sourceTs, account, { fallback: "Unavailable" }))}</p>
 <p><b>Source age:</b> ${esc(detail.sourceAgeSec)}s | <b>Stale:</b> ${esc(detail.sourceStale)}</p></section>
 <section class="card"><h2>Checks passed</h2><ul>${passed}</ul></section>
 <section class="card"><h2>Flags</h2><ul>${flags}</ul><h2>Blocking reasons</h2><ul>${blockers}</ul></section>

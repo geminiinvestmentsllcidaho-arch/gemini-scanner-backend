@@ -1,3 +1,5 @@
+import { formatCustomerDateTime } from "./customer_time.mjs";
+
 export const VERSION = "customer_zero_decision_cards_v1";
 
 function esc(value) {
@@ -57,7 +59,7 @@ export function buildCustomerZeroDecisionCards(candidates = []) {
   });
 }
 
-export function renderCustomerZeroDecisionCardsHtml(cards = []) {
+export function renderCustomerZeroDecisionCardsHtml(cards = [], account = null) {
   return list(cards).map((card) => `
 <article class="decision-card state-${esc(card.stateClass)}">
   <div class="decision-card-head">
@@ -73,7 +75,7 @@ export function renderCustomerZeroDecisionCardsHtml(cards = []) {
     <p><b>Setup</b><span>${esc(card.setupName)}</span></p>
     <p><b>Confidence</b><span>${esc(card.confidence ?? "Unavailable")}</span></p>
   </div>
-  <p class="timestamp"><b>Data timestamp:</b> ${esc(card.sourceTs ?? "Unavailable")}</p>
+  <p class="timestamp"><b>Data timestamp:</b> ${esc(formatCustomerDateTime(card.sourceTs, account, { fallback: "Unavailable" }))}</p>
   <div class="reasons"><b>Why:</b><ul>${card.reasons.length ? card.reasons.map((reason) => `<li>${esc(reason)}</li>`).join("") : "<li>No explanation available.</li>"}</ul></div>
   ${card.allocationPreview ? `<section class="allocation-preview"><b>Read-only allocation preview</b><div class="decision-grid"><p><b>Funds %</b><span>${esc(card.allocationPreview.controls?.availableFundsPct ?? "Unavailable")}%</span></p><p><b>Max per stock</b><span>$${esc(card.allocationPreview.controls?.maxDollarsPerStock ?? "Unavailable")}</span></p><p><b>Calculated amount</b><span>$${esc(card.allocationPreview.preview?.estimatedOrderNotional ?? 0)}</span></p><p><b>Whole shares</b><span>${esc(card.allocationPreview.preview?.estimatedWholeShares ?? 0)}</span></p></div><p class="timestamp">${card.allocationPreview.preview?.ready ? "Preview calculated. No order will be placed." : `Preview blocked: ${esc(card.allocationPreview.warnings?.join(", ") || "Unavailable")}`}</p></section>` : ""}
   ${card.paperEnterExitGate?.exit?.visible ? `<section class="paper-control-preview exit-control-preview"><b>EXIT control preview</b><p class="paper-control priority-red">${esc(card.paperEnterExitGate.exit.label)}</p><p>Quantity: ${esc(card.paperEnterExitGate.exit.quantityPreview)} | Confirmation required: ${esc(card.paperEnterExitGate.exit.confirmationRequired)}</p><p>${card.paperEnterExitGate.exit.ready ? "All preview gates passed." : `Blocked: ${esc(card.paperEnterExitGate.exit.blockedReasons?.join(", ") || "Unavailable")}`}</p><p>No broker contact or order placement.</p></section>` : ""}

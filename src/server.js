@@ -4950,7 +4950,7 @@ app.get('/customer/scanner/under-five/:symbol', requireCustomerSession, async (r
       tenant: 'customer',
     });
     res.set('Cache-Control', 'no-store');
-    res.type('html').send(detailMod.renderCustomerZeroUnderFiveSymbolDetailHtml(detail));
+    res.type('html').send(detailMod.renderCustomerZeroUnderFiveSymbolDetailHtml(detail, req.customerAccount));
   } catch (_err) {
     res.status(500).type('html').send('<!doctype html><html><body><h1>Scan detail unavailable</h1><p>Read-only. No execution controls.</p></body></html>');
   }
@@ -4985,7 +4985,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       now: new Date(),
     });
     res.set('Cache-Control', 'no-store');
-    res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard));
+    res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard, req.customerAccount));
   } catch (_err) {
     res.status(500).type('html').send('<!doctype html><html><body><h1>Under $5 Scanner</h1><p>Unavailable.</p><p>Read-only. No execution controls.</p></body></html>');
   }

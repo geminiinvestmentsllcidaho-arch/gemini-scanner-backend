@@ -161,9 +161,9 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
   };
 }
 
-export function renderCustomerUnderFiveDashboardHtml(dashboard = {}) {
+export function renderCustomerUnderFiveDashboardHtml(dashboard = {}, account = null) {
   const cards = buildCustomerZeroDecisionCards(dashboard.candidates);
-  const rows = renderCustomerZeroDecisionCardsHtml(cards);
+  const rows = renderCustomerZeroDecisionCardsHtml(cards, account);
   const refreshSec = Number.isFinite(Number(dashboard.refreshIntervalSec))
     ? Number(dashboard.refreshIntervalSec)
     : 30;

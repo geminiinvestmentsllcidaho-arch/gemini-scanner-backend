@@ -4,6 +4,7 @@ import {
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
+import { formatCustomerDateTime } from "./customer_time.mjs";
 
 export const VERSION = "customer_watchlist_page_v1";
 
@@ -35,7 +36,7 @@ export function buildCustomerWatchlistPage(options = {}) {
 
 export function renderCustomerWatchlistPageHtml(page = buildCustomerWatchlistPage(), account = null) {
   const symbolValue = esc(page.symbols.join(", "));
-  const updated = page.updatedAt ? esc(page.updatedAt) : "Not saved yet";
+  const updated = formatCustomerDateTime(page.updatedAt, account, { fallback: "Not saved yet" });
   const savedNotice = page.saved
     ? '<div class="notice" role="status">Watchlist saved.</div>'
     : "";
