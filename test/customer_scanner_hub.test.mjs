@@ -113,3 +113,20 @@ test("renders customer scanner hub with shared global neon theme and fixed backg
   assert.match(html, /form method="post" action="\/logout"/);
   assert.doesNotMatch(html, /\/admin\b/);
 });
+
+test("renders persistent scanner filters inside the Scanner tab", () => {
+  const html = renderCustomerScannerHubHtml(
+    buildCustomerScannerHub({
+      scannerFilters: { states: ["ENTER", "WAIT"] },
+      filtersSaved: true,
+    }),
+    { email: "customer@example.com" },
+  );
+
+  assert.match(html, /<h2>Scanner filters<\/h2>/);
+  assert.match(html, /form method="post" action="\/customer\/scanner\/filters"/);
+  assert.match(html, /value="ENTER" checked/);
+  assert.match(html, /value="WAIT" checked/);
+  assert.doesNotMatch(html, /value="EXIT" checked/);
+  assert.match(html, /Scanner filters saved\./);
+});

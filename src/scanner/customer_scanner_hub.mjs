@@ -76,6 +76,8 @@ export function buildCustomerScannerHub(options = {}) {
     modes: MODES,
     assetTypes: ASSET_TYPES,
     performanceReport: options.performanceReport ?? null,
+    scannerFilters: options.scannerFilters ?? null,
+    filtersSaved: options.filtersSaved === true,
     navigation: Object.freeze([
       Object.freeze({ label: "Home", href: "/customer" }),
       Object.freeze({ label: "Scanner", href: "/customer/scanner" }),
@@ -108,6 +110,21 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
     const state = asset.status === "available" ? "Available" : "Coming soon";
     return `<div class="choice ${asset.status === "available" ? "available selected" : "disabled"}" aria-disabled="${asset.status !== "available"}"><b>${esc(asset.label)}</b><span>${esc(state)}</span></div>`;
   }).join("");
+
+  const scannerStates = ["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"];
+  const selectedScannerStates = Array.isArray(hub.scannerFilters?.states) ? hub.scannerFilters.states : scannerStates;
+  const scannerFilterPanel = `<section class="card panel scanner-filters">
+<h2>Scanner filters</h2>
+<p>Choose which normalized scanner result states appear. Selections are saved to this account.</p>
+${hub.filtersSaved ? '<div class="filter-notice" role="status">Scanner filters saved.</div>' : ''}
+<form method="post" action="/customer/scanner/filters">
+<div class="filter-grid">${scannerStates.map((state) => {
+  const className = `state-${state.toLowerCase().replaceAll("_", "-")}`;
+  return `<label class="filter-choice ${className}"><input name="states" type="checkbox" value="${state}"${selectedScannerStates.includes(state) ? " checked" : ""}><span>${state.replaceAll("_", " ")}</span></label>`;
+}).join("")}</div>
+<p><button class="save-filters" type="submit">Save scanner filters</button></p>
+</form>
+</section>`;
 
   const performance = hub.performanceReport;
   const performancePeriod = performance?.period ?? "lifetime";
@@ -178,6 +195,18 @@ p{color:var(--gs-muted)}
 .performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
 .performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}
 .performance-periods a.active{background:#5b9cff;color:#08111f}
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+.filter-choice{display:flex;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--gs-line);border-left-width:6px;border-radius:12px;font-weight:800;background:rgba(0,0,0,.54)}
+.filter-choice input{width:auto}
+.state-exit,.state-blocked{border-color:#ff3547;color:#ffd5da;background:rgba(255,53,71,.12)}
+.state-do-not-enter{border-color:#ff7a1a;color:#ffe0c2;background:rgba(255,122,26,.12)}
+.state-enter{border-color:#39ff14;color:#d8ffd0;background:rgba(57,255,20,.11)}
+.state-wait{border-color:#ffd23f;color:#fff1b5;background:rgba(255,210,63,.11)}
+.state-watch{border-color:#18d7ff;color:#d8f8ff;background:rgba(24,215,255,.10)}
+.state-stale-data{border-color:#a78bfa;color:#e8ddff;background:rgba(167,139,250,.10)}
+.state-no-setup{border-color:#78848b;color:#d7dde0;background:rgba(120,132,139,.10)}
+.save-filters{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:#3d72d9;color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.filter-notice{margin:12px 0;padding:11px 13px;border:1px solid rgba(57,255,20,.7);border-radius:10px;background:rgba(57,255,20,.1);color:#d8ffd0;font-weight:800}
 </style>
 </head>
 <body data-gs-page="customer-scanner-hub">
@@ -200,6 +229,7 @@ ${accountPanel}
 <h2>Asset type</h2>
 <div class="grid">${assetCards}</div>
 </section>
+${scannerFilterPanel}
 <section class="card safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
 </main>
 ${renderGlobalFooter()}

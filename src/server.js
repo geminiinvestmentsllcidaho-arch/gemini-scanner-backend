@@ -4102,7 +4102,11 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
 
 app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const hub = mod.buildCustomerScannerHub();
+  const scannerFilters = getCustomerZeroResultFilters(req.customerAccount?.id);
+  const hub = mod.buildCustomerScannerHub({
+    scannerFilters: scannerFilters.ok ? scannerFilters.filters : null,
+    filtersSaved: req.query?.filtersSaved === '1',
+  });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
@@ -4151,7 +4155,7 @@ app.get('/assets/customer-settings.js', (_req, res) => {
     const details = document.createElement('details');
     details.className = 'settings-group';
     if (['Deactivate account', 'Permanently delete account'].includes(title)) details.classList.add('danger-settings');
-    details.open = ['Security', 'Customer Zero scanner filters'].includes(title);
+    details.open = ['Security'].includes(title);
     const summary = document.createElement('summary');
     summary.textContent = title;
     section.before(details);
@@ -4365,26 +4369,6 @@ ${account?.authenticatorEnabled ? `
 </select></p>
 <p><label><input name="reducedMotion" type="checkbox"${account?.displayPreferences?.reducedMotion ? ' checked' : ''}> Reduce motion</label></p>
 <p><button type="submit" style="background:#3d72d9">Save appearance</button></p>
-</form>
-</section>
-<section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Customer Zero scanner filters</h2>
-<p style="color:#9eb0c9">Choose which normalized scanner result states appear. Selections are saved to this account.</p>
-<form method="post" action="/customer/settings/customer-zero-filters">
-${["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"].map((state) => {
-  const importanceStyle = {
-    EXIT: "border-color:#ff3547;background:rgba(255,53,71,.18);color:#ffd5da",
-    BLOCKED: "border-color:#ff3547;background:rgba(255,53,71,.12);color:#ffd5da",
-    DO_NOT_ENTER: "border-color:#ff7a1a;background:rgba(255,122,26,.14);color:#ffe0c2",
-    ENTER: "border-color:#39ff14;background:rgba(57,255,20,.13);color:#d8ffd0",
-    WAIT: "border-color:#ffd23f;background:rgba(255,210,63,.13);color:#fff1b5",
-    WATCH: "border-color:#18d7ff;background:rgba(24,215,255,.12);color:#d8f8ff",
-    STALE_DATA: "border-color:#a78bfa;background:rgba(167,139,250,.12);color:#e8ddff",
-    NO_SETUP: "border-color:#78848b;background:rgba(120,132,139,.12);color:#d7dde0",
-  }[state];
-  return `<p style="margin:10px 0"><label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid;border-left-width:6px;border-radius:12px;font-weight:800;${importanceStyle}"><input name="states" type="checkbox" value="${state}"${getCustomerZeroResultFilters(account?.id).filters.states.includes(state) ? ' checked' : ''}> ${state.replaceAll('_', ' ')}</label></p>`;
-}).join('')}
-<p><button type="submit" style="background:#3d72d9">Save scanner filters</button></p>
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
@@ -4857,7 +4841,7 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
 });
 
 
-app.post('/customer/settings/customer-zero-filters', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+app.post('/customer/scanner/filters', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const states = Array.isArray(req.body?.states)
@@ -4874,12 +4858,12 @@ app.post('/customer/settings/customer-zero-filters', requireCustomerSession, req
   if (!result.ok) {
     recordCustomerSecurityAudit(req, 'customer_zero_result_filters_update', 'failure', result.reason);
     return res.status(400).type('html').send(
-      '<!doctype html><html><body><main><h1>Scanner filters not updated</h1><p>Customer Zero scanner filters could not be saved.</p><p><a href="/customer/settings">Return to settings</a></p></main></body></html>',
+      '<!doctype html><html><body><main><h1>Scanner filters not updated</h1><p>Customer scanner filters could not be saved.</p><p><a href="/customer/scanner">Return to scanner</a></p></main></body></html>',
     );
   }
 
   recordCustomerSecurityAudit(req, 'customer_zero_result_filters_updated', 'success');
-  return res.redirect(303, '/customer/settings');
+  return res.redirect(303, '/customer/scanner?filtersSaved=1');
 });
 
 
