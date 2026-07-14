@@ -22,7 +22,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, getCustomerScannerSelections, updateCustomerScannerSelections, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -213,10 +213,10 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
     return null;
   });
 
-async function getUnderFiveSharedSource() {
+async function getUnderFiveSharedSource({ refresh = false } = {}) {
   const cache = await underFiveSharedCachePromise;
   if (!cache) throw new Error('under_five_shared_cache_unavailable');
-  const source = cache.getLatest() ?? await cache.refreshNow();
+  const source = refresh ? await cache.refreshNow() : (cache.getLatest() ?? await cache.refreshNow());
   return bridgeCustomerZeroFreshRankings(source, readScannerRankings());
 }
 
@@ -4103,48 +4103,65 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
 app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const scannerFilters = getCustomerZeroResultFilters(req.customerAccount?.id);
+  const scannerSelections = getCustomerScannerSelections(req.customerAccount?.id);
   const hub = mod.buildCustomerScannerHub({
     scannerFilters: scannerFilters.ok ? scannerFilters.filters : null,
+    scannerSelections: scannerSelections.ok ? scannerSelections.selections : null,
     filtersSaved: req.query?.filtersSaved === '1',
+    runStarted: req.query?.runStarted === '1',
+    runBlocked: req.query?.runBlocked === '1',
   });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
 
-app.get('/customer/scanner/run', requireCustomerSession, (req, res) => {
-  const modes = Array.isArray(req.query?.modes)
-    ? req.query.modes
-    : req.query?.modes
-      ? [req.query.modes]
-      : [];
-  const assets = Array.isArray(req.query?.assets)
-    ? req.query.assets
-    : req.query?.assets
-      ? [req.query.assets]
-      : [];
+app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  const toArray = (value) => Array.isArray(value) ? value : value ? [value] : [];
+  const modes = toArray(req.body?.modes);
+  const assets = toArray(req.body?.assets);
+  const priceRanges = toArray(req.body?.priceRanges);
+  const states = toArray(req.body?.states);
 
-  const priceRanges = Array.isArray(req.query?.priceRanges)
-    ? req.query.priceRanges
-    : req.query?.priceRanges
-      ? [req.query.priceRanges]
-      : [];
   const allowedPriceRanges = priceRanges
     .map((value) => Number(value))
     .filter((value) => [5, 10, 50, 100, 1000].includes(value));
   const maxPrice = allowedPriceRanges.length ? Math.max(...allowedPriceRanges) : 5;
-  const allowedModes = modes.filter((mode) => ['intraday', 'under_five', 'watchlist'].includes(mode));
-  const stocksSelected = assets.length === 0 || assets.includes('stocks');
+  const allowedModes = modes.filter((mode) => ['intraday', 'watchlist'].includes(mode));
+  const stocksSelected = assets.includes('stocks');
 
   if (!stocksSelected || allowedModes.length === 0) {
     return res.redirect(303, '/customer/scanner?runBlocked=1');
   }
-  if (allowedModes.includes('under_five')) {
-    return res.redirect(303, `/customer/scanner/under-five?maxPrice=${maxPrice}`);
-  }
-  if (allowedModes.includes('watchlist')) {
+  if (allowedModes.includes('watchlist') && !allowedModes.includes('intraday')) {
     return res.redirect(303, '/customer/watchlist');
   }
-  return res.redirect(303, '/customer/scanner?runStarted=1');
+
+  const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
+  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+  const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+  const source = await getUnderFiveSharedSource({ refresh: true });
+  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+  const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
+  const paperLedger = paperPositionLedger.latestRecord ?? {};
+  const resultFilters = states.length ? { states } : getCustomerZeroResultFilters(req.customerAccount?.id).filters;
+  const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
+    route: '/customer/scanner/run',
+    resultFilters,
+    maxPrice,
+    paperAccount,
+    paperLedger,
+    paperLedgerHistory: paperPositionLedger.records,
+    performanceSourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+    buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
+    role: 'customer',
+    roleLabel: 'Customer',
+    tenant: 'customer',
+    title: `$0–$${maxPrice.toLocaleString('en-US')} Intraday Scanner`,
+  });
+  res.set('Cache-Control', 'no-store');
+  return res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard, req.customerAccount));
 });
 
 app.get('/customer/watchlist', requireCustomerSession, async (req, res) => {
@@ -4922,19 +4939,23 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
 app.post('/customer/scanner/filters', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 
-  const states = Array.isArray(req.body?.states)
-    ? req.body.states
-    : req.body?.states
-      ? [req.body.states]
-      : [];
+  const toArray = (value) => Array.isArray(value) ? value : value ? [value] : [];
+  const states = toArray(req.body?.states);
+  const modes = toArray(req.body?.modes);
+  const assets = toArray(req.body?.assets);
+  const priceRanges = toArray(req.body?.priceRanges);
 
   const result = updateCustomerZeroResultFilters(
     req.customerAccount.id,
     { states },
   );
+  const selectionsResult = updateCustomerScannerSelections(
+    req.customerAccount.id,
+    { modes, assets, priceRanges },
+  );
 
-  if (!result.ok) {
-    recordCustomerSecurityAudit(req, 'customer_zero_result_filters_update', 'failure', result.reason);
+  if (!result.ok || !selectionsResult.ok) {
+    recordCustomerSecurityAudit(req, 'customer_zero_result_filters_update', 'failure', result.reason ?? selectionsResult.reason);
     return res.status(400).type('html').send(
       '<!doctype html><html><body><main><h1>Scanner filters not updated</h1><p>Customer scanner filters could not be saved.</p><p><a href="/customer/scanner">Return to scanner</a></p></main></body></html>',
     );

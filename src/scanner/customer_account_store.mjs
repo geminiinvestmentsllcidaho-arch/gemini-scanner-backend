@@ -616,6 +616,64 @@ export function getCustomerZeroResultFilters(accountId, options = {}) {
   });
 }
 
+function normalizeCustomerScannerSelections(input = {}) {
+  const modes = [...new Set((Array.isArray(input.modes) ? input.modes : []).map(clean))]
+    .filter((value) => ["intraday", "watchlist"].includes(value));
+  const assets = [...new Set((Array.isArray(input.assets) ? input.assets : []).map(clean))]
+    .filter((value) => value === "stocks");
+  const priceRanges = [...new Set((Array.isArray(input.priceRanges) ? input.priceRanges : [])
+    .map((value) => Number(value))
+    .filter((value) => [5, 10, 50, 100, 1000].includes(value)))];
+
+  return Object.freeze({
+    modes: Object.freeze(modes.length ? modes : ["intraday"]),
+    assets: Object.freeze(assets.length ? assets : ["stocks"]),
+    priceRanges: Object.freeze(priceRanges.length ? priceRanges : [5]),
+  });
+}
+
+export function getCustomerScannerSelections(accountId, options = {}) {
+  const account = findCustomerAccountById(accountId, options);
+  if (!account) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  return Object.freeze({
+    ok: true,
+    selections: normalizeCustomerScannerSelections(account.customerScannerSelections),
+    updatedAt: account.customerScannerSelectionsUpdatedAt ?? null,
+  });
+}
+
+export function updateCustomerScannerSelections(accountId, input = {}, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({
+    storePath,
+    authenticatorMasterKey: options.authenticatorMasterKey,
+  })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const selections = normalizeCustomerScannerSelections(input);
+  records[index] = {
+    ...records[index],
+    customerScannerSelections: selections,
+    customerScannerSelectionsUpdatedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({
+    ok: true,
+    selections,
+    account: Object.freeze(records[index]),
+  });
+}
+
 export function updateCustomerZeroResultFilters(accountId, input = {}, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerAccountRecords({

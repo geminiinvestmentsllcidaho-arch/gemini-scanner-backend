@@ -915,10 +915,24 @@ test('customer settings renders shared customer neon theme and fixed background 
 });
 
 test('customer scanner run button stays authenticated and routes only to read-only customer surfaces', () => {
-  assert.match(source, /app\.get\('\/customer\/scanner\/run', requireCustomerSession,/);
-  assert.match(source, /\['intraday', 'under_five', 'watchlist'\]\.includes\(mode\)/);
-  assert.match(source, /res\.redirect\(303, `\/customer\/scanner\/under-five\?maxPrice=\$\{maxPrice\}`\)/);
+  assert.match(source, /app\.post\('\/customer\/scanner\/run', requireCustomerSession, requireCustomerSameOrigin, async \(req, res\) =>/);
+  assert.match(source, /\['intraday', 'watchlist'\]\.includes\(mode\)/);
   assert.match(source, /res\.redirect\(303, '\/customer\/watchlist'\)/);
-  assert.match(source, /res\.redirect\(303, '\/customer\/scanner\?runStarted=1'\)/);
-  assert.doesNotMatch(source, /app\.post\('\/customer\/scanner\/run'/);
+  assert.match(source, /buildCustomerUnderFiveDashboard\(source,/);
+  assert.match(source, /renderCustomerUnderFiveDashboardHtml\(dashboard, req\.customerAccount\)/);
+  assert.match(source, /getUnderFiveSharedSource\(\{ refresh: true \}\)/);
+});
+
+
+test('customer scanner run renders live filtered results', () => {
+  assert.match(source, /app\.post\('\/customer\/scanner\/run', requireCustomerSession, requireCustomerSameOrigin, async \(req, res\) =>/);
+  assert.match(source, /const source = await getUnderFiveSharedSource\(\{ refresh: true \}\);/);
+  assert.match(source, /buildCustomerUnderFiveDashboard\(source,/);
+  assert.match(source, /renderCustomerUnderFiveDashboardHtml\(dashboard, req\.customerAccount\)/);
+});
+
+test('customer scanner save persists modes assets price ranges and states', () => {
+  assert.match(source, /updateCustomerScannerSelections\(\s*req\.customerAccount\.id,/);
+  assert.match(source, /\{ modes, assets, priceRanges \}/);
+  assert.match(source, /updateCustomerZeroResultFilters\(\s*req\.customerAccount\.id,/);
 });

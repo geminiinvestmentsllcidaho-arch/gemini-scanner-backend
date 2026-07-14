@@ -40,11 +40,11 @@ test("shared cache starts with server and customer-zero refresh stays adaptive",
 
 test("shared under-five source bridges scanner rankings before customer routes render", () => {
   const server = fs.readFileSync("src/server.js", "utf8");
-  const start = server.indexOf("async function getUnderFiveSharedSource()");
+  const start = server.indexOf("async function getUnderFiveSharedSource(");
   const end = server.indexOf("\nfunction paperDiagnosticBool", start);
   const block = server.slice(start, end);
 
   assert.match(server, /import \{ bridgeCustomerZeroFreshRankings \} from '\.\/scanner\/customer_zero_fresh_ranking_bridge\.mjs';/);
-  assert.match(block, /const source = cache\.getLatest\(\) \?\? await cache\.refreshNow\(\);/);
+  assert.match(block, /const source = refresh \? await cache\.refreshNow\(\) : \(cache\.getLatest\(\) \?\? await cache\.refreshNow\(\)\);/);
   assert.match(block, /return bridgeCustomerZeroFreshRankings\(source, readScannerRankings\(\)\);/);
 });

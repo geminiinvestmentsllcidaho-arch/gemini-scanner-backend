@@ -130,7 +130,7 @@ test("renders persistent scanner filters inside the Scanner tab", () => {
   assert.match(html, /value="ENTER" checked/);
   assert.match(html, /value="WAIT" checked/);
   assert.doesNotMatch(html, /value="EXIT" checked/);
-  assert.match(html, /Scanner filters saved\./);
+  assert.match(html, /Scanner selections saved\./);
 });
 
 test("renders dropdown multi-select controls with select-all and run button", () => {
@@ -163,4 +163,23 @@ test("renders selectable customer stock price range controls", () => {
   assert.match(html, /\$0–\$50/);
   assert.match(html, /\$0–\$100/);
   assert.match(html, /\$0–\$1,000/);
+});
+
+
+test("scanner selections persist in rendered controls", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    scannerSelections: {
+      modes: ["watchlist"],
+      assets: ["stocks"],
+      priceRanges: [100],
+    },
+    scannerFilters: { states: ["ENTER", "WAIT"] },
+    filtersSaved: true,
+  }));
+
+  assert.match(html, /name="modes"[^>]*value="watchlist"[^>]* checked/);
+  assert.match(html, /name="priceRanges"[^>]*value="100"[^>]* checked/);
+  assert.match(html, /name="assets"[^>]*value="stocks"[^>]* checked/);
+  assert.match(html, /name="states"[^>]*value="ENTER"[^>]* checked/);
+  assert.match(html, /Scanner selections saved/);
 });

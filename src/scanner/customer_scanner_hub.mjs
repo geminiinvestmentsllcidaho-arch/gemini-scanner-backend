@@ -79,7 +79,10 @@ export function buildCustomerScannerHub(options = {}) {
     priceRanges: PRICE_RANGES,
     performanceReport: options.performanceReport ?? null,
     scannerFilters: options.scannerFilters ?? null,
+    scannerSelections: options.scannerSelections ?? null,
     filtersSaved: options.filtersSaved === true,
+    runStarted: options.runStarted === true,
+    runBlocked: options.runBlocked === true,
     navigation: Object.freeze([
       Object.freeze({ label: "Home", href: "/customer" }),
       Object.freeze({ label: "Scanner", href: "/customer/scanner" }),
@@ -104,6 +107,15 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
   const availablePriceRanges = hub.priceRanges.filter((range) => range.status === "available");
   const scannerStates = ["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"];
   const selectedScannerStates = Array.isArray(hub.scannerFilters?.states) ? hub.scannerFilters.states : scannerStates;
+  const selectedModes = Array.isArray(hub.scannerSelections?.modes)
+    ? hub.scannerSelections.modes
+    : availableModes.filter((mode) => mode.default).map((mode) => mode.id);
+  const selectedPriceRanges = Array.isArray(hub.scannerSelections?.priceRanges)
+    ? hub.scannerSelections.priceRanges.map(String)
+    : availablePriceRanges.filter((range) => range.default).map((range) => String(range.id));
+  const selectedAssets = Array.isArray(hub.scannerSelections?.assets)
+    ? hub.scannerSelections.assets
+    : availableAssets.filter((asset) => asset.default).map((asset) => asset.id);
 
   const dropdown = ({ name, label, items, selectedIds }) => `<details class="multi-select" data-multiselect="${esc(name)}">
 <summary><span>${esc(label)}</span><strong data-selection-count>${selectedIds.length} selected</strong></summary>
@@ -113,24 +125,24 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
 </div>
 </details>`;
 
-  const scannerControls = `<form class="scanner-run-form" method="get" action="/customer/scanner/run">
+  const scannerControls = `<form class="scanner-run-form" method="post" action="/customer/scanner/run">
 ${dropdown({
   name: "modes",
   label: "Scanner mode",
   items: hub.modes,
-  selectedIds: availableModes.filter((mode) => mode.default).map((mode) => mode.id),
+  selectedIds: selectedModes,
 })}
 ${dropdown({
   name: "priceRanges",
   label: "Price range",
   items: hub.priceRanges,
-  selectedIds: availablePriceRanges.filter((range) => range.default).map((range) => range.id),
+  selectedIds: selectedPriceRanges,
 })}
 ${dropdown({
   name: "assets",
   label: "Asset type",
   items: hub.assetTypes,
-  selectedIds: availableAssets.filter((asset) => asset.default).map((asset) => asset.id),
+  selectedIds: selectedAssets,
 })}
 <details class="multi-select" data-multiselect="states">
 <summary><span>Filter menu</span><strong data-selection-count>${selectedScannerStates.length} selected</strong></summary>
@@ -142,7 +154,9 @@ ${dropdown({
 }).join("")}</div>
 </div>
 </details>
-${hub.filtersSaved ? '<div class="filter-notice" role="status">Scanner filters saved.</div>' : ''}
+${hub.filtersSaved ? '<div class="filter-notice" role="status">Scanner selections saved.</div>' : ''}
+${hub.runStarted ? '<div class="filter-notice" role="status">Scanner completed. Results are shown below.</div>' : ''}
+${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available scanner mode and Stocks before running.</div>' : ''}
 <div class="scanner-actions">
 <button class="save-filters" type="submit" formaction="/customer/scanner/filters" formmethod="post">Save selections</button>
 <button class="run-scanners" type="submit">Run scanner(s) now</button>

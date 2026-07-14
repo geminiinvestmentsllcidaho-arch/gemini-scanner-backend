@@ -26,6 +26,8 @@ import {
   updateCustomerDisplayPreferences,
   getCustomerZeroResultFilters,
   updateCustomerZeroResultFilters,
+  getCustomerScannerSelections,
+  updateCustomerScannerSelections,
   beginCustomerAuthenticatorSetup,
   confirmCustomerAuthenticatorSetup,
   disableCustomerAuthenticator,
@@ -440,6 +442,32 @@ test("updates customer display preferences with normalized defaults", () => {
   }
 });
 
+
+test("persists normalized customer scanner selections per account", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-scanner-selections-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({ firstName: "Zero", lastName: "Customer", email: "scanner-selections@example.com", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", termsAccepted: true });
+  appendCustomerAccountRecord(record, { storePath });
+  const updated = updateCustomerScannerSelections(record.id, { modes: ["watchlist", "watchlist", "invalid"], assets: ["stocks", "crypto"], priceRanges: [100, "100", 1000, 9999] }, { storePath, now: "2026-07-14T18:01:00.000Z" });
+  assert.equal(updated.ok, true);
+  assert.deepEqual(updated.selections, { modes: ["watchlist"], assets: ["stocks"], priceRanges: [100, 1000] });
+  assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+  const saved = getCustomerScannerSelections(record.id, { storePath });
+  assert.equal(saved.ok, true);
+  assert.deepEqual(saved.selections, updated.selections);
+  assert.equal(saved.updatedAt, "2026-07-14T18:01:00.000Z");
+});
+
+test("customer scanner selections use safe defaults", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-scanner-defaults-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({ firstName: "Zero", lastName: "Customer", email: "scanner-defaults@example.com", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", termsAccepted: true });
+  appendCustomerAccountRecord(record, { storePath });
+  const saved = getCustomerScannerSelections(record.id, { storePath });
+  assert.equal(saved.ok, true);
+  assert.deepEqual(saved.selections, { modes: ["intraday"], assets: ["stocks"], priceRanges: [5] });
+  assert.equal(saved.updatedAt, null);
+});
 
 test("persists normalized Customer Zero result filters per account", () => {
   const f = fixture();
