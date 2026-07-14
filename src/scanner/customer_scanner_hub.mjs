@@ -165,7 +165,7 @@ p{color:var(--gs-muted)}
 .selected{outline:2px solid var(--gs-accent)}
 .disabled{opacity:.5}
 .safety{font-size:.9rem}
-.earnings-overlay{position:sticky;top:76px;z-index:20;width:min(100%,620px);margin:0 auto 18px;border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}
+.earnings-overlay{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:20;width:min(calc(100% - 32px),620px);margin:0;border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}.wrap.has-earnings{padding-top:86px}
 .earnings-overlay summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;cursor:pointer;list-style:none;font-weight:800}
 .earnings-overlay summary::-webkit-details-marker{display:none}
 .earnings-overlay summary span{font-size:.78rem;letter-spacing:.09em;color:#000}
@@ -182,7 +182,7 @@ p{color:var(--gs-muted)}
 <body data-gs-page="customer-scanner-hub">
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
-<main class="wrap" data-role="customer" data-tenant="${esc(hub.tenant)}">
+<main class="wrap${performancePanel ? " has-earnings" : ""}" data-role="customer" data-tenant="${esc(hub.tenant)}">
 ${performancePanel}
 ${accountPanel}
 <nav class="customer-nav" aria-label="Customer navigation">${nav}</nav>
