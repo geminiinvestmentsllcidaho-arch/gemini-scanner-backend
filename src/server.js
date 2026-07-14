@@ -588,17 +588,95 @@ function recordCustomerSecurityAudit(req, eventType, outcome, reason, accountId)
 
 function customerForgotPasswordHtml(message = '') {
   const notice = message
-    ? `<p role="status">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`
+    ? `<div class="notice" role="status">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</div>`
     : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset password</title></head><body><main><h1>Reset password</h1><p>Enter your customer email address.</p>${notice}<form method="post" action="/forgot-password"><label>Email <input name="email" type="email" autocomplete="email" required></label><button type="submit">Send reset link</button></form><p><a href="/login">Return to sign in</a></p></main></body></html>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reset password</title>
+${renderGlobalThemeCss({ surface: 'public' })}
+<style>
+main{min-height:calc(100vh - 132px);display:grid;place-items:center;padding:34px 18px 64px}
+.auth-card{width:min(100%,500px);padding:28px}
+h1{margin:0 0 10px;font-size:clamp(32px,8vw,46px);letter-spacing:-.035em}
+.sub{margin:0 0 24px;color:var(--gs-muted);line-height:1.55}
+form{display:grid;gap:16px}
+label{display:grid;gap:8px;font-weight:800}
+button{width:100%;padding:14px 18px}
+.links{margin:20px 0 0;text-align:center}
+.notice{margin:0 0 18px;padding:12px 14px;border:1px solid rgba(64,255,198,.45);border-radius:12px;background:rgba(5,84,64,.34);color:#caffef}
+</style>
+</head>
+<body data-gs-page="customer-forgot-password">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: 'public', homeHref: '/', label: 'GeminiScanner' })}
+<main>
+<section class="card auth-card">
+<h1>Reset password</h1>
+<p class="sub">Enter your customer email address.</p>
+${notice}
+<form method="post" action="/forgot-password">
+<label>Email
+<input name="email" type="email" autocomplete="email" required>
+</label>
+<button type="submit">Send reset link</button>
+</form>
+<p class="links"><a href="/login">Return to sign in</a></p>
+</section>
+</main>
+${renderGlobalFooter()}
+</body>
+</html>`;
 }
 
 function customerResetPasswordHtml(token, message = '') {
   const safeToken = String(token ?? '').replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const notice = message
-    ? `<p role="alert">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`
+    ? `<div class="notice" role="alert">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</div>`
     : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Choose new password</title></head><body><main><h1>Choose new password</h1>${notice}<form method="post" action="/reset-password"><input name="token" type="hidden" value="${safeToken}"><label>New password <input name="newPassword" type="password" minlength="12" autocomplete="new-password" required></label><label>Confirm new password <input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></label><button type="submit">Reset password</button></form><p><a href="/login">Return to sign in</a></p></main></body></html>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Choose new password</title>
+${renderGlobalThemeCss({ surface: 'public' })}
+<style>
+main{min-height:calc(100vh - 132px);display:grid;place-items:center;padding:34px 18px 64px}
+.auth-card{width:min(100%,500px);padding:28px}
+h1{margin:0 0 20px;font-size:clamp(32px,8vw,46px);letter-spacing:-.035em}
+form{display:grid;gap:16px}
+label{display:grid;gap:8px;font-weight:800}
+button{width:100%;padding:14px 18px}
+.links{margin:20px 0 0;text-align:center}
+.notice{margin:0 0 18px;padding:12px 14px;border:1px solid rgba(255,65,84,.55);border-radius:12px;background:rgba(91,12,24,.42);color:#ffd8dd}
+</style>
+</head>
+<body data-gs-page="customer-reset-password">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: 'public', homeHref: '/', label: 'GeminiScanner' })}
+<main>
+<section class="card auth-card">
+<h1>Choose new password</h1>
+${notice}
+<form method="post" action="/reset-password">
+<input name="token" type="hidden" value="${safeToken}">
+<label>New password
+<input name="newPassword" type="password" minlength="12" autocomplete="new-password" required>
+</label>
+<label>Confirm new password
+<input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required>
+</label>
+<button type="submit">Reset password</button>
+</form>
+<p class="links"><a href="/login">Return to sign in</a></p>
+</section>
+</main>
+${renderGlobalFooter()}
+</body>
+</html>`;
 }
 
 app.get('/forgot-password', (_req, res) => {

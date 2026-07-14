@@ -879,3 +879,15 @@ test('customer login renders shared public neon theme and fixed background logo'
   assert.match(source, /renderGlobalFooter\(\)/);
   assert.match(source, /data-gs-page="customer-login"/);
 });
+
+test('customer password recovery pages render shared public neon theme and fixed background logo', () => {
+  for (const page of ['customer-forgot-password', 'customer-reset-password']) {
+    assert.match(source, new RegExp(`data-gs-page="${page}"`));
+  }
+  assert.match(source, /function customerForgotPasswordHtml[\s\S]*?renderGlobalThemeCss\(\{ surface: 'public' \}\)/);
+  assert.match(source, /function customerResetPasswordHtml[\s\S]*?renderGlobalThemeCss\(\{ surface: 'public' \}\)/);
+  assert.equal(
+    [...source.matchAll(/function customer(?:Forgot|Reset)PasswordHtml[\s\S]*?renderBackgroundLogoLayer\(\)/g)].length,
+    2,
+  );
+});
