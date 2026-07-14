@@ -17,3 +17,15 @@ test("renders signup fields without enabling account creation", () => {
   assert.match(html, /type="submit" disabled/);
   assert.doesNotMatch(html, /admin/i);
 });
+
+test("renders shared black neon signup theme without changing signup safety gate", () => {
+  const html = renderCustomerSignupPageHtml();
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-surface="public"/);
+  assert.match(html, /class="gs-background-logo"/);
+  assert.match(html, /class="gs-global-header"/);
+  assert.match(html, /class="gs-global-footer"/);
+  assert.match(html, /form method="post" action="\/signup"/);
+  assert.match(html, /type="submit" disabled/);
+  assert.doesNotMatch(html, /\/admin\b|\/app\b|broker|order placement/i);
+});
