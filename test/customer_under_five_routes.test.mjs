@@ -424,3 +424,19 @@ test("customer scanner routes load read-only paper ledger performance source", (
     assert.match(block, /performanceSourceTs: paperLedger\.lastUpdatedAt \?\? paperLedger\.createdAt \?\? null/);
   }
 });
+
+test("customer under-five dashboard renders shared neon theme and fixed background logo", () => {
+  const dashboard = buildCustomerUnderFiveDashboard(
+    { candidates: [] },
+    { route: "/customer/scanner/under-five", tenant: "customer" },
+  );
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-surface="customer"/);
+  assert.match(html, /class="gs-background-logo"/);
+  assert.match(html, /class="gs-global-header"/);
+  assert.match(html, /class="gs-global-footer"/);
+  assert.match(html, /data-gs-page="customer-under-five"/);
+  assert.match(html, /data-role="customer" data-page="under-five"/);
+  assert.doesNotMatch(html, /\/admin\b/);
+});
