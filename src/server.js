@@ -4130,8 +4130,8 @@ app.get('/customer/scanner/run', requireCustomerSession, (req, res) => {
       : [];
   const allowedPriceRanges = priceRanges
     .map((value) => Number(value))
-    .filter((value) => [10, 50, 100, 1000].includes(value));
-  const maxPrice = allowedPriceRanges.length ? Math.max(...allowedPriceRanges) : 10;
+    .filter((value) => [5, 10, 50, 100, 1000].includes(value));
+  const maxPrice = allowedPriceRanges.length ? Math.max(...allowedPriceRanges) : 5;
   const allowedModes = modes.filter((mode) => ['intraday', 'under_five', 'watchlist'].includes(mode));
   const stocksSelected = assets.length === 0 || assets.includes('stocks');
 
@@ -4181,6 +4181,14 @@ app.get('/assets/customer-scanner-controls.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.type('application/javascript').send(`(() => {
   const groups = [...document.querySelectorAll('[data-multiselect]')];
+  const priceRangeGroup = document.querySelector('[data-multiselect="priceRanges"]');
+  const includeNestedPriceRanges = (changedBox) => {
+    if (!priceRangeGroup || !changedBox?.checked) return;
+    const ceiling = Number(changedBox.value);
+    priceRangeGroup.querySelectorAll('input[name="priceRanges"]:not(:disabled)').forEach((box) => {
+      if (Number(box.value) <= ceiling) box.checked = true;
+    });
+  };
   const update = (group) => {
     const boxes = [...group.querySelectorAll('input[type="checkbox"][name]:not(:disabled)')];
     const checked = boxes.filter((box) => box.checked);
@@ -4201,7 +4209,10 @@ app.get('/assets/customer-scanner-controls.js', (_req, res) => {
       update(group);
     });
     group.querySelectorAll('input[type="checkbox"][name]').forEach((box) => {
-      box.addEventListener('change', () => update(group));
+      box.addEventListener('change', () => {
+        if (box.name === 'priceRanges') includeNestedPriceRanges(box);
+        update(group);
+      });
     });
     update(group);
   });
@@ -5020,7 +5031,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
     const paperLedger = paperPositionLedger.latestRecord ?? {};
     const resultFilters = getCustomerZeroResultFilters(req.customerAccount?.id).filters;
     const requestedMaxPrice = Number(req.query.maxPrice);
-    const maxPrice = [10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 10;
+    const maxPrice = [5, 10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 5;
     const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
       route: '/customer/scanner/under-five',
       resultFilters,
@@ -5097,7 +5108,7 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
     const requestedMaxPrice = Number(req.query.maxPrice);
-    const maxPrice = [10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 10;
+    const maxPrice = [5, 10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 5;
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
       route: '/customer-zero/under-five-scanner',
       paperAccount,

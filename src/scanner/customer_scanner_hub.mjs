@@ -53,7 +53,8 @@ const ASSET_TYPES = Object.freeze([
 ]);
 
 const PRICE_RANGES = Object.freeze([
-  Object.freeze({ id: "10", label: "$0–$10", status: "available", default: true }),
+  Object.freeze({ id: "5", label: "$0–$5", status: "available", default: true }),
+  Object.freeze({ id: "10", label: "$0–$10", status: "available", default: false }),
   Object.freeze({ id: "50", label: "$0–$50", status: "available", default: false }),
   Object.freeze({ id: "100", label: "$0–$100", status: "available", default: false }),
   Object.freeze({ id: "1000", label: "$0–$1,000", status: "available", default: false }),
@@ -153,6 +154,7 @@ ${hub.filtersSaved ? '<div class="filter-notice" role="status">Scanner filters s
 <div class="scanner-actions">
 <button class="save-filters" type="submit" formaction="/customer/scanner/filters" formmethod="post">Save selections</button>
 <button class="run-scanners" type="submit">Run scanner(s) now</button>
+<p class="nested-range-note">Nested ranges run once at the highest selected ceiling. All lower ranges are included automatically.</p>
 </div>
 </form>`;
 
@@ -253,6 +255,7 @@ p{color:var(--gs-muted)}
 .option-row small{color:var(--gs-muted)}
 .disabled-option{opacity:.45}
 .scanner-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+.nested-range-note{flex-basis:100%;margin:0;color:#b9c8ce;font-size:.86rem;line-height:1.4}
 .run-scanners,.save-filters{flex:1;min-width:210px;padding:14px 20px;border-radius:11px;font:inherit;font-weight:900;cursor:pointer}
 .run-scanners{border:1px solid #39ff14;background:rgba(57,255,20,.18);color:#d8ffd0;box-shadow:0 0 18px rgba(57,255,20,.18)}
 

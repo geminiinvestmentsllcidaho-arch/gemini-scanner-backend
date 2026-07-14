@@ -361,6 +361,7 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
       sourceStale: false,
     }],
   }, {
+    maxPrice: 10,
     paperAccount: { accountHealthy: true, positions: [{ symbol: "SELL", qty: 6 }] },
     marketOpen: true,
     paperExecutionEnabled: true,

@@ -36,9 +36,9 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
   const role = String(options.role ?? "customer");
   const roleLabel = String(options.roleLabel ?? "Customer");
   const tenant = String(options.tenant ?? "customer");
-  const maxPrice = [10, 50, 100, 1000].includes(Number(options.maxPrice))
+  const maxPrice = [5, 10, 50, 100, 1000].includes(Number(options.maxPrice))
     ? Number(options.maxPrice)
-    : 10;
+    : 5;
   const title = String(options.title ?? `$0–$${maxPrice.toLocaleString("en-US")} Scanner`);
   const resultFilters = normalizeCustomerZeroResultFilters(options.resultFilters);
   const priceFilteredCandidates = Array.isArray(source.candidates)
