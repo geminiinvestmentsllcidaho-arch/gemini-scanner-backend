@@ -871,3 +871,11 @@ test('customer watchlist uses authenticated persistent storage and same-origin m
   assert.match(source, /updateCustomerWatchlist\(req\.customerAccount\?\.id, symbols\)/);
   assert.match(source, /res\.redirect\(303, '\/customer\/watchlist\?saved=1'\)/);
 });
+
+test('customer login renders shared public neon theme and fixed background logo', () => {
+  assert.match(source, /renderGlobalThemeCss\(\{ surface: 'public' \}\)/);
+  assert.match(source, /renderBackgroundLogoLayer\(\)/);
+  assert.match(source, /renderGlobalHeader\(\{ surface: 'public'/);
+  assert.match(source, /renderGlobalFooter\(\)/);
+  assert.match(source, /data-gs-page="customer-login"/);
+});

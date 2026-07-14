@@ -1,4 +1,10 @@
 import { buildPaperAttemptOperatorReviewPacketPanel, renderPaperAttemptOperatorReviewPacketPanelHtml } from "./scanner/paper_attempt_operator_review_packet_panel.mjs";
+import {
+  renderBackgroundLogoLayer,
+  renderGlobalFooter,
+  renderGlobalHeader,
+  renderGlobalThemeCss,
+} from './scanner/global_theme.mjs';
 import { buildPaperAttemptOperatorReviewPacketAppScreen, renderPaperAttemptOperatorReviewPacketAppScreenHtml } from "./scanner/paper_attempt_operator_review_packet_app_screen.mjs";
 import { buildPaperAttemptOperatorReviewPacketAuditDashboardAppScreen, renderPaperAttemptOperatorReviewPacketAuditDashboardAppScreenHtml } from "./scanner/paper_attempt_operator_review_packet_audit_dashboard_app_screen.mjs";
 import { buildPaperAttemptModuleCompleteSelectorAppScreen, renderPaperAttemptModuleCompleteSelectorAppScreenHtml } from "./scanner/paper_attempt_module_complete_selector_app_screen.mjs";
@@ -448,28 +454,26 @@ function customerLoginHtml(message = '') {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Customer sign in</title>
+${renderGlobalThemeCss({ surface: 'public' })}
 <style>
-:root{color-scheme:dark;--bg:#07101d;--panel:#0e1a2b;--line:#263a58;--text:#eef5ff;--muted:#9fb0c7;--accent:#dbe4ff}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(circle at top right,#14213a 0,#07101d 45%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
-main{min-height:calc(100vh - 64px);display:grid;place-items:center;padding:28px 18px}
-.card{width:min(100%,460px);background:linear-gradient(180deg,#111d2f,#0d1828);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 24px 70px #0008}
-.eyebrow{margin:0 0 8px;color:#8aa4ff;font-size:12px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+main{min-height:calc(100vh - 132px);display:grid;place-items:center;padding:34px 18px 64px}
+.auth-card{width:min(100%,460px);padding:28px}
+.eyebrow{margin:0 0 8px;color:var(--gs-accent);font-size:12px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
 h1{margin:0 0 8px;font-size:clamp(32px,8vw,46px);line-height:1.05;letter-spacing:-.035em}
-.sub{margin:0 0 24px;color:var(--muted);line-height:1.55}
+.sub{margin:0 0 24px;color:var(--gs-muted);line-height:1.55}
 form{display:grid;gap:16px}
 label{display:grid;gap:8px;font-weight:800}
-input{width:100%;padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:#081321;color:var(--text);font:inherit;outline:none}
-input:focus{border-color:#8aa4ff;box-shadow:0 0 0 3px #8aa4ff22}
-button{width:100%;padding:14px 18px;border:0;border-radius:12px;background:var(--accent);color:#09111e;font:inherit;font-weight:900;cursor:pointer}
-.links{margin:20px 0 0;text-align:center;color:var(--muted)}
-.links a{color:#b9c8ff;font-weight:800;text-decoration:none}
-.notice{margin:0 0 18px;padding:12px 14px;border:1px solid #8a3f49;border-radius:12px;background:#2a151b;color:#ffd8dd}
+button{width:100%;padding:14px 18px}
+.links{margin:20px 0 0;text-align:center;color:var(--gs-muted)}
+.links a{font-weight:800;text-decoration:none}
+.notice{margin:0 0 18px;padding:12px 14px;border:1px solid rgba(255,65,84,.55);border-radius:12px;background:rgba(91,12,24,.42);color:#ffd8dd}
 </style>
 </head>
-<body>
+<body data-gs-page="customer-login">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: 'public', homeHref: '/', label: 'GeminiScanner' })}
 <main>
-<section class="card">
+<section class="card auth-card">
 <p class="eyebrow">GeminiScanner customer portal</p>
 <h1>Sign in</h1>
 <p class="sub">Access your scanner, watchlist, and account settings.</p>
@@ -493,6 +497,7 @@ ${notice}
 <p class="links">New to GeminiScanner? <a href="/signup">Create an account</a></p>
 </section>
 </main>
+${renderGlobalFooter()}
 </body>
 </html>`;
 }
