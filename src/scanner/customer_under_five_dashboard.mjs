@@ -52,6 +52,11 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
         (noPriceCeiling || Number(candidate?.price) <= maxPrice)
       )
     : [];
+  const selectedStateLabels = Array.isArray(resultFilters.states)
+    ? resultFilters.states
+        .map((value) => String(value ?? "").replaceAll("_", " ").trim())
+        .filter(Boolean)
+    : [];
   const filteredCandidates = filterCustomerZeroResults(priceFilteredCandidates, resultFilters)
     .map((candidate) => ({
       ...candidate,
@@ -197,6 +202,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     title,
     maxPrice,
     noPriceCeiling,
+    selectedStateLabels,
     priceRangeLabel: noPriceCeiling ? "No price ceiling" : `$0–$${maxPrice.toLocaleString("en-US")}`,
     headline: noPriceCeiling
       ? "Live read-only watchlist scanner — no price ceiling"
@@ -235,9 +241,9 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <div class="scan-status-item ${marketOpen ? "market-open" : "market-closed"}" data-market-status>${marketLabel}</div>
 <div class="scan-status-item scan-countdown">NEXT SCAN IN <span data-scan-countdown>${esc(refreshSec)}</span>s</div>
 </section>
-<section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Price range:</b> ${esc(dashboard.priceRangeLabel ?? "$0–$10")}<br><b>Selected states:</b> ${esc(dashboard.resultFilters?.states?.join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
+<section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Price range:</b> ${esc(dashboard.priceRangeLabel ?? "$0–$10")}<br><b>Selected states:</b> ${esc((dashboard.selectedStateLabels ?? []).join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
 
-<section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(dashboard.paperAccount?.ledger?.finalDecision ?? "NO_GO_FOR_ORDER_PLACEMENT")} | No broker contact or account mutation.</p></section>
+<section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(String(dashboard.paperAccount?.ledger?.finalDecision ?? "NO GO FOR ORDER PLACEMENT").replaceAll("_", " "))} | No broker contact or account mutation.</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
 ${rows}
 <section class="card"><b>Customer safety:</b> Decision assist only. No order placement, broker contact, or account mutation controls.</section>
@@ -245,13 +251,16 @@ ${rows}
 ${renderGlobalFooter()}
 <script>
 (() => {
-  let remaining = ${refreshSec};
+  const refreshSec = Math.max(1, Number(${refreshSec}) || 30);
   const node = document.querySelector("[data-scan-countdown]");
-  window.setInterval(() => {
-    remaining = Math.max(0, remaining - 1);
+  const deadlineMs = Date.now() + (refreshSec * 1000);
+  const tick = () => {
+    const remaining = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000));
     if (node) node.textContent = String(remaining);
     if (remaining === 0) window.location.reload();
-  }, 1000);
+  };
+  tick();
+  window.setInterval(tick, 250);
 })();
 </script>
 </body></html>`;

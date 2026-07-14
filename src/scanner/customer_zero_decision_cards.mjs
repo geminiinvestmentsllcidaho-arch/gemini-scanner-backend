@@ -72,7 +72,7 @@ export function renderCustomerZeroDecisionCardsHtml(cards = [], account = null) 
   <div class="decision-grid">
     <p><b>Price</b><span>${esc(card.price ?? "Unavailable")}</span></p>
     <p><b>Freshness</b><span>${card.stale ? "STALE — BLOCKED" : `${esc(card.sourceAgeSec ?? "Unknown")}s old`}</span></p>
-    <p><b>Setup</b><span>${esc(card.setupName)}</span></p>
+    <p><b>Setup</b><span>${esc(String(card.setupName ?? "unclassified").replaceAll("_", " "))}</span></p>
     <p><b>Confidence</b><span>${esc(card.confidence ?? "Unavailable")}</span></p>
   </div>
   <p class="timestamp"><b>Data timestamp:</b> ${esc(formatCustomerDateTime(card.sourceTs, account, { fallback: "Unavailable" }))}</p>

@@ -156,7 +156,8 @@ test("customer dashboard renders compact operator decision cards", () => {
   assert.match(html, />ENTER</);
   assert.match(html, /<b>Price<\/b><span>4\.75<\/span>/);
   assert.match(html, /<b>Freshness<\/b><span>10s old<\/span>/);
-  assert.match(html, /<b>Setup<\/b><span>strong_watch<\/span>/);
+  assert.match(html, /<b>Setup<\/b><span>strong watch<\/span>/);
+  assert.doesNotMatch(html, /strong_watch/);
   assert.match(html, /<b>Confidence<\/b><span>82<\/span>/);
   assert.match(html, /Fresh liquid setup with positive momentum/);
   assert.doesNotMatch(html, /Read-only potential score|Flags:|Broker contact attempted/);
@@ -296,7 +297,8 @@ test("customer dashboard exposes connected paper account buying power positions 
   assert.match(html, /Paper account — read only/);
   assert.match(html, /Buying power: \$1600/);
   assert.match(html, /Positions: 1/);
-  assert.match(html, /NO_GO_FOR_ORDER_PLACEMENT/);
+  assert.match(html, /NO GO FOR ORDER PLACEMENT/);
+  assert.doesNotMatch(html, /NO_GO_FOR_ORDER_PLACEMENT/);
   assert.doesNotMatch(html, /Place order|Buy now|type="submit"/);
 });
 
@@ -526,4 +528,7 @@ test("watchlist scanner has no price ceiling and renders top scan status", () =>
   assert.match(html, /MARKET OPEN/);
   assert.match(html, /NEXT SCAN IN/);
   assert.match(html, /data-scan-countdown/);
+  assert.match(html, /deadlineMs = Date\.now\(\) \+ \(refreshSec \* 1000\)/);
+  assert.match(html, /Math\.ceil\(\(deadlineMs - Date\.now\(\)\) \/ 1000\)/);
+  assert.match(html, /window\.location\.reload\(\)/);
 });
