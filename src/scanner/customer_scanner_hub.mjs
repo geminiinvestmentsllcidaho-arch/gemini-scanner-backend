@@ -159,6 +159,7 @@ ${hub.runStarted ? '<div class="filter-notice" role="status">Scanner completed. 
 ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available scanner mode and Stocks before running.</div>' : ''}
 <div class="scanner-actions">
 <button class="save-filters" type="submit" formaction="/customer/scanner/filters" formmethod="post">Save selections</button>
+<button class="reset-filters" type="submit" formaction="/customer/scanner/reset" formmethod="post">Reset all settings</button>
 <button class="run-scanners" type="submit">Run scanner(s) now</button>
 <p class="nested-range-note">Nested ranges run once at the highest selected ceiling. All lower ranges are included automatically.</p>
 </div>
@@ -262,8 +263,9 @@ p{color:var(--gs-muted)}
 .disabled-option{opacity:.45}
 .scanner-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
 .nested-range-note{flex-basis:100%;margin:0;color:#b9c8ce;font-size:.86rem;line-height:1.4}
-.run-scanners,.save-filters{flex:1;min-width:210px;padding:14px 20px;border-radius:11px;font:inherit;font-weight:900;cursor:pointer}
+.run-scanners,.save-filters,.reset-filters{flex:1;min-width:210px;padding:14px 20px;border-radius:11px;font:inherit;font-weight:900;cursor:pointer}
 .run-scanners{border:1px solid #39ff14;background:rgba(57,255,20,.18);color:#d8ffd0;box-shadow:0 0 18px rgba(57,255,20,.18)}
+.reset-filters{border:1px solid #ff7a1a;background:rgba(255,122,26,.14);color:#ffe0c2}
 
 </style>
 </head>

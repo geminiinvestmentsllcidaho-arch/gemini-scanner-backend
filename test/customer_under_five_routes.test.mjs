@@ -519,7 +519,6 @@ test("watchlist scanner has no price ceiling and renders top scan status", () =>
     noPriceCeiling: true,
     maxPrice: 5,
     title: "Watchlist Scanner",
-    resultFilters: { states: [] },
   });
   assert.equal(dashboard.noPriceCeiling, true);
   assert.equal(dashboard.priceRangeLabel, "No price ceiling");

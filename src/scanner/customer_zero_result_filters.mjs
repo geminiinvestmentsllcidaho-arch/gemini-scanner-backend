@@ -16,12 +16,13 @@ function normalizeState(value) {
   return STATE_SET.has(state) ? state : null;
 }
 
-export function normalizeCustomerZeroResultFilters(input = {}) {
+export function normalizeCustomerZeroResultFilters(input) {
+  const hasSavedSelection = Array.isArray(input) || Array.isArray(input?.states);
   const raw = Array.isArray(input)
     ? input
     : Array.isArray(input?.states)
       ? input.states
-      : [];
+      : [...CUSTOMER_ZERO_RESULT_STATES];
 
   const states = [];
   for (const value of raw) {
@@ -29,7 +30,7 @@ export function normalizeCustomerZeroResultFilters(input = {}) {
     if (state && !states.includes(state)) states.push(state);
   }
 
-  const selected = states.length > 0
+  const selected = hasSavedSelection
     ? states
     : [...CUSTOMER_ZERO_RESULT_STATES];
 

@@ -133,6 +133,13 @@ test("renders persistent scanner filters inside the Scanner tab", () => {
   assert.match(html, /Scanner selections saved\./);
 });
 
+test("renders reset all settings control", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub());
+  assert.match(html, /Reset all settings/);
+  assert.match(html, /formaction="\/customer\/scanner\/reset"/);
+  assert.match(html, /formmethod="post"/);
+});
+
 test("renders dropdown multi-select controls with select-all and run button", () => {
   const html = renderCustomerScannerHubHtml(
     buildCustomerScannerHub({

@@ -4986,6 +4986,29 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
 });
 
 
+app.post('/customer/scanner/reset', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  const result = updateCustomerZeroResultFilters(
+    req.customerAccount.id,
+    { states: [] },
+  );
+  const selectionsResult = updateCustomerScannerSelections(
+    req.customerAccount.id,
+    { modes: [], assets: [], priceRanges: [] },
+  );
+
+  if (!result.ok || !selectionsResult.ok) {
+    recordCustomerSecurityAudit(req, 'customer_scanner_settings_reset', 'failure', result.reason ?? selectionsResult.reason);
+    return res.status(400).type('html').send(
+      '<!doctype html><html><body><main><h1>Scanner settings not reset</h1><p>Customer scanner settings could not be reset.</p><p><a href="/customer/scanner">Return to scanner</a></p></main></body></html>',
+    );
+  }
+
+  recordCustomerSecurityAudit(req, 'customer_scanner_settings_reset', 'success');
+  return res.redirect(303, '/customer/scanner?filtersSaved=1');
+});
+
 app.post('/customer/scanner/filters', requireCustomerSession, requireCustomerSameOrigin, (req, res) => {
   res.set('Cache-Control', 'no-store');
 

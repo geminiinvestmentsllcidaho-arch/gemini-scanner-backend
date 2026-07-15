@@ -868,6 +868,13 @@ test('every customer settings mutation route records a bounded security audit ou
 });
 
 
+test('customer scanner reset clears all persisted scanner criteria', () => {
+  assert.match(source, /app\.post\('\/customer\/scanner\/reset', requireCustomerSession, requireCustomerSameOrigin,/);
+  assert.match(source, /updateCustomerZeroResultFilters\(\s*req\.customerAccount\.id,\s*\{ states: \[\] \}/);
+  assert.match(source, /updateCustomerScannerSelections\(\s*req\.customerAccount\.id,\s*\{ modes: \[\], assets: \[\], priceRanges: \[\] \}/);
+  assert.match(source, /recordCustomerSecurityAudit\(req, 'customer_scanner_settings_reset', 'success'\);/);
+});
+
 test('Customer Zero result filters use authenticated persistent scanner-tab storage', () => {
   assert.match(source, /getCustomerZeroResultFilters\(req\.customerAccount\?\.id\)/);
   assert.match(source, /app\.post\('\/customer\/scanner\/filters', requireCustomerSession, requireCustomerSameOrigin,/);

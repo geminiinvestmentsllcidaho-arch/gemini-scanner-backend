@@ -6,7 +6,7 @@ import {
   filterCustomerZeroResults,
 } from "../src/scanner/customer_zero_result_filters.mjs";
 
-test("defaults to showing all Customer Zero result states", () => {
+test("defaults to all Customer Zero result states when no saved selection exists", () => {
   const preferences = normalizeCustomerZeroResultFilters();
   assert.equal(preferences.showAll, true);
   assert.equal(preferences.states.length, 8);
@@ -34,7 +34,8 @@ test("filters results by normalized state", () => {
   assert.deepEqual(filtered.map((item) => item.symbol), ["MSFT", "NVDA"]);
 });
 
-test("empty saved selection falls back to show all", () => {
+test("empty saved selection keeps no result states selected", () => {
   const preferences = normalizeCustomerZeroResultFilters({ states: [] });
-  assert.equal(preferences.showAll, true);
+  assert.equal(preferences.showAll, false);
+  assert.deepEqual(preferences.states, []);
 });

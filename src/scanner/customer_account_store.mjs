@@ -616,7 +616,23 @@ export function getCustomerZeroResultFilters(accountId, options = {}) {
   });
 }
 
-function normalizeCustomerScannerSelections(input = {}) {
+function normalizeCustomerScannerSelections(input) {
+  const hasSavedSelections = input !== null
+    && typeof input === "object"
+    && (
+      Array.isArray(input.modes)
+      || Array.isArray(input.assets)
+      || Array.isArray(input.priceRanges)
+    );
+
+  if (!hasSavedSelections) {
+    return Object.freeze({
+      modes: Object.freeze(["intraday"]),
+      assets: Object.freeze(["stocks"]),
+      priceRanges: Object.freeze([5]),
+    });
+  }
+
   const modes = [...new Set((Array.isArray(input.modes) ? input.modes : []).map(clean))]
     .filter((value) => ["intraday", "watchlist"].includes(value));
   const assets = [...new Set((Array.isArray(input.assets) ? input.assets : []).map(clean))]
@@ -626,9 +642,9 @@ function normalizeCustomerScannerSelections(input = {}) {
     .filter((value) => [5, 10, 50, 100, 1000].includes(value)))];
 
   return Object.freeze({
-    modes: Object.freeze(modes.length ? modes : ["intraday"]),
-    assets: Object.freeze(assets.length ? assets : ["stocks"]),
-    priceRanges: Object.freeze(priceRanges.length ? priceRanges : [5]),
+    modes: Object.freeze(modes),
+    assets: Object.freeze(assets),
+    priceRanges: Object.freeze(priceRanges),
   });
 }
 
