@@ -122,6 +122,12 @@ test('settings page exposes authenticated profile update controls', () => {
 test('settings page exposes authenticated notification preference controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/notifications"/);
   assert.match(source, /name="scannerAlerts"/);
+  assert.match(source, /name="reportEmailEnabled"/);
+  assert.match(source, /name="reportSmsEnabled"/);
+  assert.match(source, /name="reportSmsPhone"/);
+  assert.match(source, /name="reportDelivery_\$\{value\}"/);
+  assert.match(source, /reportDeliveryPeriods/);
+  assert.match(source, /["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]/);
   assert.match(source, /name="accountSecurityEmails" type="checkbox" checked disabled/);
   assert.match(source, /name="productUpdates"/);
   assert.match(source, /app\.post\('\/customer\/settings\/notifications', requireCustomerSession,/);

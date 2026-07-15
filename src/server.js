@@ -4529,6 +4529,15 @@ ${account?.authenticatorEnabled ? `
 <p><label><input name="accountSecurityEmails" type="checkbox" checked disabled> Account security emails</label><br>
 <span style="color:#9eb0c9">Required security notices cannot be disabled.</span></p>
 <p><label><input name="productUpdates" type="checkbox"${account?.notificationPreferences?.productUpdates ? ' checked' : ''}> Product updates</label></p>
+<fieldset style="margin:16px 0;padding:14px;border:1px solid rgba(24,215,255,.34);border-radius:12px">
+<legend><b>Report delivery</b></legend>
+<p><label><input name="reportEmailEnabled" type="checkbox"${account?.notificationPreferences?.reportEmailEnabled ? ' checked' : ''}> Email reports to my account email</label></p>
+<p><label><input name="reportSmsEnabled" type="checkbox"${account?.notificationPreferences?.reportSmsEnabled ? ' checked' : ''}> Text me when reports are ready</label></p>
+<p><label>Mobile number<br><input name="reportSmsPhone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(account?.notificationPreferences?.reportSmsPhone ?? '')}" placeholder="+1 208 555 0123"></label></p>
+<p><b>Report schedules</b></p>
+${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly'],['ytd','Year-to-Date'],['lifetime','Lifetime']].map(([value,label]) => `<p><label><input name="reportDelivery_${value}" type="checkbox"${account?.notificationPreferences?.reportDeliveryPeriods?.includes?.(value) ? ' checked' : ''}> ${label}</label></p>`).join('')}
+<p style="color:#9fb6bf">Delivery remains off until the selected channel is configured and verified. Text delivery will send a secure report-ready notice, not trading instructions.</p>
+</fieldset>
 <p><button type="submit" style="background:#3d72d9">Save notifications</button></p>
 </form>
 </section>
@@ -4834,6 +4843,11 @@ app.post('/customer/settings/notifications', requireCustomerSession, requireCust
     {
       scannerAlerts: req.body?.scannerAlerts,
       productUpdates: req.body?.productUpdates,
+      reportEmailEnabled: req.body?.reportEmailEnabled,
+      reportSmsEnabled: req.body?.reportSmsEnabled,
+      reportSmsPhone: req.body?.reportSmsPhone,
+      reportDeliveryPeriods: ["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]
+        .filter((period) => req.body?.[`reportDelivery_${period}`] === "on"),
     },
   );
 

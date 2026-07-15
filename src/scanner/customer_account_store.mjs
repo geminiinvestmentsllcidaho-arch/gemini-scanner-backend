@@ -529,10 +529,17 @@ export function updateCustomerNotificationPreferences(accountId, input = {}, opt
   const index = records.findIndex((record) => clean(record.id) === clean(accountId));
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
+  const reportDeliveryPeriods = ["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]
+    .filter((period) => input.reportDeliveryPeriods?.includes?.(period) || input[`reportDelivery_${period}`] === true || input[`reportDelivery_${period}`] === "on");
+
   const preferences = Object.freeze({
     scannerAlerts: input.scannerAlerts === true || input.scannerAlerts === "on",
     accountSecurityEmails: true,
     productUpdates: input.productUpdates === true || input.productUpdates === "on",
+    reportEmailEnabled: input.reportEmailEnabled === true || input.reportEmailEnabled === "on",
+    reportSmsEnabled: input.reportSmsEnabled === true || input.reportSmsEnabled === "on",
+    reportDeliveryPeriods: Object.freeze(reportDeliveryPeriods),
+    reportSmsPhone: clean(input.reportSmsPhone),
   });
 
   records[index] = {
