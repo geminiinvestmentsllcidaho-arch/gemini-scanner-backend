@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { listCustomerAccountRecords } from "../src/scanner/customer_account_store.mjs";
 import { runCustomerReportDeliveryForAccount } from "../src/scanner/customer_report_delivery_runner.mjs";
 import { buildCustomerReportModel } from "../src/scanner/customer_report_model.mjs";
