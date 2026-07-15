@@ -376,6 +376,10 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   const exitHtml = renderCustomerUnderFiveDashboardHtml(exitDashboard);
   assert.match(exitHtml, /EXIT control preview/);
   assert.match(exitHtml, /class="paper-control priority-red">EXIT</);
+  assert.match(exitHtml, /@keyframes gs-exit-flash/);
+  assert.match(exitHtml, /\.state-exit \.state-badge\{[^}]*animation:gs-exit-flash/);
+  assert.match(exitHtml, /\.priority-red\{[^}]*animation:gs-exit-flash/);
+  assert.match(exitHtml, /\.market-closed\{color:#ff2929/);
   assert.equal(exitDashboard.orderPlacementAllowed, false);
 });
 
