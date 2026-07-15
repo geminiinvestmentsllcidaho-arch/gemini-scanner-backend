@@ -78,7 +78,9 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
   assert.match(html, /Equity curve placeholder/);
   assert.match(html, /Period comparison placeholder/);
   assert.match(html, /AAA/);
-  assert.match(html, /No order placement, broker contact, or account mutation/);
+  assert.match(html, /Performance and scanner analytics from paper-trading activity/);
+  assert.match(html, /Paper-trading performance • Mountain Time/);
+  assert.match(html, /Data status: Paper-trading data is current/);
 });
 
 test("renders stale empty report without fabricating activity", () => {
@@ -94,8 +96,10 @@ test("renders stale empty report without fabricating activity", () => {
     },
   }));
 
-  assert.match(html, /Status: stale_readonly/);
+  assert.match(html, /Data status: Waiting for current paper-trading data/);
   assert.match(html, /No in-range paper activity is available/);
-  assert.match(html, /Unavailable/);
+  assert.match(html, /No data yet/);
+  assert.doesNotMatch(html, /stale_readonly/);
+  assert.doesNotMatch(html, /Unavailable/);
   assert.doesNotMatch(html, /undefined/);
 });

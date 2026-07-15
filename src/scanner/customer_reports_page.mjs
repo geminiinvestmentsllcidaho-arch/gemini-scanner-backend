@@ -33,7 +33,7 @@ function finite(value) {
 
 function money(value, locale = "en-US") {
   const number = finite(value);
-  if (number === null) return "Unavailable";
+  if (number === null) return "No data yet";
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "USD",
@@ -43,12 +43,27 @@ function money(value, locale = "en-US") {
 
 function number(value, locale = "en-US", suffix = "") {
   const parsed = finite(value);
-  if (parsed === null) return "Unavailable";
+  if (parsed === null) return "No data yet";
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(parsed)}${suffix}`;
 }
 
 function metric(label, value, className = "") {
   return `<article class="metric ${esc(className)}"><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`;
+}
+
+function timeZoneLabel(timeZone) {
+  const labels = {
+    "America/New_York": "Eastern Time",
+    "America/Chicago": "Central Time",
+    "America/Denver": "Mountain Time",
+    "America/Los_Angeles": "Pacific Time",
+  };
+  return labels[timeZone] ?? String(timeZone || "Local time").replaceAll("_", " ");
+}
+
+function reportStatusLabel(report = {}) {
+  if (report.stale) return "Waiting for current paper-trading data";
+  return "Paper-trading data is current";
 }
 
 export function buildCustomerReportsPage(options = {}) {
@@ -138,10 +153,10 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 </nav>
 
 <section class="card hero">
-<p class="muted">Paper performance • ${esc(timeZone)}</p>
+<p class="muted">Paper-trading performance • ${esc(timeZoneLabel(timeZone))}</p>
 <h1>Reports</h1>
-<p>Read-only performance and scanner analytics. No order placement, broker contact, or account mutation.</p>
-<p class="status${report.stale ? " stale" : ""}">Status: ${esc(report.status ?? "stale_readonly")}</p>
+<p>Performance and scanner analytics from paper-trading activity.</p>
+<p class="status${report.stale ? " stale" : ""}">Data status: ${esc(reportStatusLabel(report))}</p>
 <nav class="periods" aria-label="Report period">${periodLinks}</nav>
 </section>
 
@@ -169,7 +184,7 @@ ${metric("Losing trades", number(trades.losingTrades, locale))}
 ${metric("Win rate", number(trades.winRatePct, locale, "%"))}
 ${metric("Average gain", money(trades.averageGain, locale))}
 ${metric("Average loss", money(trades.averageLoss, locale))}
-${metric("Average hold time", trades.averageHoldTime ?? "Unavailable")}
+${metric("Average hold time", trades.averageHoldTime ?? "No data yet")}
 ${metric("Average dollars / trade", money(trades.averageDollarsPerTrade, locale))}
 </div>
 </section>
@@ -188,8 +203,8 @@ ${metric("Avg confidence", number(scanner.averageConfidence, locale))}
 ${metric("Avg potential", number(scanner.averagePotentialScore, locale))}
 ${metric("Profitable signals", number(scanner.profitableSignals, locale))}
 ${metric("Failed signals", number(scanner.failedSignals, locale))}
-${metric("Best scanner mode", scanner.bestScannerMode ?? "Unavailable")}
-${metric("Best price range", scanner.bestPriceRange ?? "Unavailable")}
+${metric("Best scanner mode", scanner.bestScannerMode ?? "No data yet")}
+${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 </div>
 </section>
 </div>
