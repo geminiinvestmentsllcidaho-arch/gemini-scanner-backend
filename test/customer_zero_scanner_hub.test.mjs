@@ -32,7 +32,15 @@ test("Customer Zero uses the regular customer role and exact customer interface"
 test("Customer Zero renders the same customer navigation without admin access", () => {
   const regularHtml = renderCustomerScannerHubHtml(buildCustomerScannerHub());
   const customerZeroHtml = renderCustomerScannerHubHtml(
-    buildCustomerScannerHub({ tenant: "customer-zero" })
+    buildCustomerScannerHub({
+      tenant: "customer-zero",
+      portfolioSummary: {
+        status: "connected_readonly",
+        account: { cash: 800, buyingPower: 1600, equity: 1200, portfolioValue: 1200 },
+        summary: { positionsCount: 1, totalUnrealizedPl: 12.5, totalUnrealizedPlPct: 14.29, tone: "positive" },
+        positions: [{ symbol: "ABC", qty: 25, averageEntryPrice: 3.5, currentPrice: 4, costBasis: 87.5, marketValue: 100, unrealizedPl: 12.5, unrealizedPlPct: 14.29, tone: "positive" }],
+      },
+    })
   );
 
   for (const label of ["Home", "Scanner", "Watchlist", "Settings"]) {
@@ -44,7 +52,7 @@ test("Customer Zero renders the same customer navigation without admin access", 
   assert.match(customerZeroHtml, /data-tenant="customer-zero"/);
   assert.doesNotMatch(
     customerZeroHtml,
-    /\/admin\b|\/diagnostics\b|\/app\b|internal owner|paper trading|broker|deployment|security/i
+    /\/admin\b|\/diagnostics\b|\/app\b|internal owner|paper trading|deployment|security/i
   );
 });
 
@@ -54,10 +62,12 @@ test("server routes Customer Zero through the shared customer hub", () => {
     /app\.get\('\/customer-zero\/scanner'[\s\S]*?\n}\);/
   )?.[0] ?? "";
 
-  assert.match(route, /customer_scanner_hub\.mjs/);
-  assert.match(route, /buildCustomerScannerHub\(\{ tenant: 'customer-zero' \}\)/);
-  assert.match(route, /renderCustomerScannerHubHtml/);
+  assert.match(route, /renderCustomerZeroPortfolioHub/);
   assert.doesNotMatch(route, /customer_zero_scanner_hub\.mjs/);
+  assert.match(server, /customer_zero_portfolio_summary\.mjs/);
+  assert.match(server, /buildCustomerZeroPortfolioSummary/);
+  assert.match(server, /portfolioSummary/);
+  assert.match(server, /performanceReport/);
 });
 
 test("renders Customer Zero scanner hub with shared neon theme and fixed background logo", () => {

@@ -5248,18 +5248,43 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
 
 
 
-app.get('/customer-zero', async (_req, res) => {
+async function renderCustomerZeroPortfolioHub(req, res) {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const hub = mod.buildCustomerScannerHub({ tenant: 'customer-zero' });
+  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+  const portfolioMod = await import('./scanner/customer_zero_portfolio_summary.mjs');
+  const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
+  const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+
+  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+  const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
+  const paperLedger = paperPositionLedger.latestRecord ?? {};
+  const portfolioSummary = portfolioMod.buildCustomerZeroPortfolioSummary({ paperAccount });
+  const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
+    period: req.query.period ?? 'lifetime',
+    defaultPeriod: 'lifetime',
+    sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+    paperAccount,
+    paperLedger,
+    paperLedgerHistory: paperPositionLedger.records,
+    now: new Date(),
+  });
+  const hub = mod.buildCustomerScannerHub({
+    tenant: 'customer-zero',
+    portfolioSummary,
+    performanceReport,
+  });
   res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+  return res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+}
+
+app.get('/customer-zero', async (req, res) => {
+  return renderCustomerZeroPortfolioHub(req, res);
 });
 
-app.get('/customer-zero/scanner', async (_req, res) => {
-  const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const hub = mod.buildCustomerScannerHub({ tenant: 'customer-zero' });
-  res.set('Cache-Control', 'no-store');
-  res.type('html').send(mod.renderCustomerScannerHubHtml(hub));
+app.get('/customer-zero/scanner', async (req, res) => {
+  return renderCustomerZeroPortfolioHub(req, res);
 });
 
 

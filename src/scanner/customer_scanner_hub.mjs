@@ -78,6 +78,7 @@ export function buildCustomerScannerHub(options = {}) {
     assetTypes: ASSET_TYPES,
     priceRanges: PRICE_RANGES,
     performanceReport: options.performanceReport ?? null,
+    portfolioSummary: options.portfolioSummary ?? null,
     scannerFilters: options.scannerFilters ?? null,
     scannerSelections: options.scannerSelections ?? null,
     filtersSaved: options.filtersSaved === true,
@@ -167,6 +168,40 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 </div>
 </form>`;
 
+  const portfolio = hub.portfolioSummary;
+  const portfolioRows = Array.isArray(portfolio?.positions)
+    ? portfolio.positions.map((position) => `<tr>
+<td>${esc(position.symbol)}</td>
+<td>${esc(position.qty ?? "—")}</td>
+<td>$${esc(position.averageEntryPrice ?? "—")}</td>
+<td>$${esc(position.currentPrice ?? "—")}</td>
+<td>$${esc(position.costBasis ?? "—")}</td>
+<td>$${esc(position.marketValue ?? "—")}</td>
+<td class="portfolio-${esc(position.tone ?? "neutral")}">$${esc(position.unrealizedPl ?? 0)} (${esc(position.unrealizedPlPct ?? 0)}%)</td>
+</tr>`).join("")
+    : "";
+  const portfolioPanel = portfolio
+    ? `<section class="card portfolio-panel portfolio-${esc(portfolio.summary?.tone ?? "neutral")}">
+<div class="portfolio-head">
+<div><div class="eyebrow">Customer Zero paper portfolio</div><h2>Portfolio dashboard</h2></div>
+<strong>${portfolio.status === "connected_readonly" ? "CONNECTED — READ ONLY" : "BLOCKED — READ ONLY"}</strong>
+</div>
+<div class="portfolio-metrics">
+<div><span>Cash</span><b>$${esc(portfolio.account?.cash ?? "—")}</b></div>
+<div><span>Buying power</span><b>$${esc(portfolio.account?.buyingPower ?? "—")}</b></div>
+<div><span>Equity</span><b>$${esc(portfolio.account?.equity ?? "—")}</b></div>
+<div><span>Portfolio value</span><b>$${esc(portfolio.account?.portfolioValue ?? "—")}</b></div>
+<div><span>Positions</span><b>${esc(portfolio.summary?.positionsCount ?? 0)}</b></div>
+<div><span>Unrealized P/L</span><b>$${esc(portfolio.summary?.totalUnrealizedPl ?? 0)} (${esc(portfolio.summary?.totalUnrealizedPlPct ?? 0)}%)</b></div>
+</div>
+<div class="portfolio-table-wrap"><table class="portfolio-table">
+<thead><tr><th>Symbol</th><th>Qty</th><th>Avg entry</th><th>Current</th><th>Cost basis</th><th>Market value</th><th>Unrealized P/L</th></tr></thead>
+<tbody>${portfolioRows || '<tr><td colspan="7">No paper positions loaded.</td></tr>'}</tbody>
+</table></div>
+<p class="portfolio-safety">Paper only · Read only · No broker contact · No order placement · No account mutation.</p>
+</section>`
+    : "";
+
   const performance = hub.performanceReport;
   const performancePeriod = performance?.period ?? "lifetime";
   const performanceLabel = performancePeriod === "ytd" ? "YEAR TO DATE" : performancePeriod.toUpperCase();
@@ -224,6 +259,24 @@ p{color:var(--gs-muted)}
 .selected{outline:2px solid var(--gs-accent)}
 .disabled{opacity:.5}
 .safety{font-size:.9rem}
+.portfolio-panel{padding:18px;margin-bottom:16px;border-left:7px solid #737983}
+.portfolio-panel.portfolio-positive{border-left-color:#39ff20}
+.portfolio-panel.portfolio-negative{border-left-color:#ff3547}
+.portfolio-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.portfolio-head strong{font-size:.78rem;letter-spacing:.06em;color:var(--gs-accent)}
+.portfolio-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:14px 0}
+.portfolio-metrics div{padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.66)}
+.portfolio-metrics span,.portfolio-metrics b{display:block}
+.portfolio-metrics span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gs-muted)}
+.portfolio-metrics b{margin-top:5px;font-size:1.02rem}
+.portfolio-table-wrap{overflow-x:auto}
+.portfolio-table{width:100%;border-collapse:collapse;min-width:760px}
+.portfolio-table th,.portfolio-table td{padding:10px;border-bottom:1px solid rgba(120,145,160,.25);text-align:right}
+.portfolio-table th:first-child,.portfolio-table td:first-child{text-align:left}
+.portfolio-positive{color:#8cff9e}
+.portfolio-negative{color:#ff8d98}
+.portfolio-neutral{color:#d4d9dd}
+.portfolio-safety{margin:12px 0 0;font-size:.84rem}
 .earnings-overlay{position:relative;z-index:20;width:min(100%,620px);margin:0 auto 18px;border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}
 .earnings-overlay summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;cursor:pointer;list-style:none;font-weight:800}
 .earnings-overlay summary::-webkit-details-marker{display:none}
@@ -276,6 +329,7 @@ ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap" data-role="customer" data-tenant="${esc(hub.tenant)}">
 ${performancePanel}
+${portfolioPanel}
 ${accountPanel}
 <nav class="customer-nav" aria-label="Customer navigation">${nav}</nav>
 <section class="card hero">
