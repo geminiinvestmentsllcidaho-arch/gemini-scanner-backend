@@ -161,6 +161,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <button class="save-filters" type="submit" formaction="/customer/scanner/filters" formmethod="post">Save selections</button>
 <button class="reset-filters" type="submit" formaction="/customer/scanner/reset" formmethod="post">Reset all settings</button>
 <button class="run-scanners" type="submit">Run scanner(s) now</button>
+<a class="exit-demo-link" href="/customer/scanner/exit-demo">View flashing EXIT demo</a>
 <p class="nested-range-note">Nested ranges run once at the highest selected ceiling. All lower ranges are included automatically.</p>
 </div>
 </form>`;
