@@ -5090,6 +5090,52 @@ app.post('/customer/settings/password', requireCustomerSession, requireCustomerS
   );
 });
 
+
+app.get('/customer/scanner/exit-demo', requireCustomerSession, async (req, res) => {
+  try {
+    const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
+    const dashboard = viewMod.buildCustomerUnderFiveDashboard({
+      sourceStatus: 'connected_readonly',
+      marketClock: { isOpen: true },
+      candidates: [{
+        symbol: 'DEMO',
+        companyName: 'Flashing EXIT demonstration',
+        price: 12.34,
+        decision: 'EXIT',
+        exitRequired: true,
+        sourceAgeSec: 1,
+        sourceStale: false,
+        reason: ['Demonstration only — no broker contact or order placement.'],
+      }],
+    }, {
+      route: '/customer/scanner/exit-demo',
+      maxPrice: 50,
+      paperAccount: {
+        connected: true,
+        accountHealthy: true,
+        positions: [{ symbol: 'DEMO', qty: 1 }],
+      },
+      marketOpen: true,
+      paperExecutionEnabled: true,
+      operatorApproved: true,
+      killSwitchActive: false,
+      duplicateOrderDetected: false,
+      priceDeviationOk: true,
+      spreadLiquidityOk: true,
+      role: 'customer',
+      roleLabel: 'Customer',
+      tenant: 'customer',
+      title: 'Flashing EXIT Demo',
+      refreshIntervalSec: 0,
+      now: new Date(),
+    });
+    res.set('Cache-Control', 'no-store');
+    res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard, req.customerAccount));
+  } catch (_err) {
+    res.status(500).type('html').send('<!doctype html><html><body><h1>EXIT demo unavailable</h1><p>Read-only. No execution controls.</p></body></html>');
+  }
+});
+
 app.get('/customer/scanner/under-five/:symbol', requireCustomerSession, async (req, res) => {
   try {
     const detailMod = await import('./scanner/customer_zero_under_five_symbol_detail.mjs');
