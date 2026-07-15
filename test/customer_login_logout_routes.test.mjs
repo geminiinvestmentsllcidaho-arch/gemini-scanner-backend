@@ -27,6 +27,7 @@ test('customer routes require signed customer sessions', () => {
   for (const route of [
     '/customer',
     '/customer/scanner',
+    '/customer/reports',
     '/customer/watchlist',
     '/customer/settings',
     '/customer/scanner/under-five/:symbol',

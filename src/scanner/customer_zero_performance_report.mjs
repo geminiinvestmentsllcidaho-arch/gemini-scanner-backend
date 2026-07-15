@@ -1,3 +1,9 @@
+import {
+  buildCustomerReportPeriodRange,
+  customerReportTimestampInRange,
+  normalizeCustomerReportPeriod,
+} from "./customer_report_periods.mjs";
+
 export const VERSION = "customer_zero_performance_report_v1";
 
 function finite(value) {
@@ -13,49 +19,31 @@ function tone(value) {
   return value > 0 ? "positive" : value < 0 ? "negative" : "neutral";
 }
 
-const PERIODS = new Set(["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]);
-
-function normalizedPeriod(value) {
-  const period = String(value ?? "daily").trim().toLowerCase();
-  return PERIODS.has(period) ? period : "daily";
-}
-
-function periodStart(period, now) {
-  const start = new Date(now);
-  if (period === "daily") start.setUTCHours(0, 0, 0, 0);
-  else if (period === "weekly") {
-    const day = start.getUTCDay() || 7;
-    start.setUTCDate(start.getUTCDate() - day + 1);
-    start.setUTCHours(0, 0, 0, 0);
-  } else if (period === "monthly") {
-    start.setUTCDate(1);
-    start.setUTCHours(0, 0, 0, 0);
-  } else if (period === "yearly" || period === "ytd") {
-    start.setUTCMonth(0, 1);
-    start.setUTCHours(0, 0, 0, 0);
-  } else return null;
-  return start;
-}
-
-function periodLedger(history, period, now) {
+function periodLedger(history, range) {
   const records = Array.isArray(history)
     ? history.filter((record) => Number.isFinite(Date.parse(record?.createdAt)))
     : [];
   if (!records.length) return null;
+
   records.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
-  const start = periodStart(period, now);
-  const eligible = records.filter((record) => new Date(record.createdAt) <= now);
-  const filtered = start
-    ? eligible.filter((record) => new Date(record.createdAt) >= start)
-    : eligible;
+
+  const eligible = records.filter((record) => {
+    const parsed = Date.parse(record.createdAt);
+    return Number.isFinite(parsed) && parsed <= range.end.getTime();
+  });
+  const filtered = eligible.filter((record) =>
+    customerReportTimestampInRange(record.createdAt, range)
+  );
   if (!filtered.length) return null;
-  const baseline = start
-    ? eligible.filter((record) => new Date(record.createdAt) < start).at(-1) ?? null
+
+  const baseline = range.start
+    ? eligible.filter((record) => Date.parse(record.createdAt) < range.start.getTime()).at(-1) ?? null
     : null;
   const first = filtered[0];
   const latest = filtered[filtered.length - 1];
   const realizedStart = round2(baseline?.totalRealizedPnl);
   const realizedEnd = round2(latest.totalRealizedPnl);
+
   return {
     ...latest,
     totalRealizedPnl: round2(realizedEnd - realizedStart),
@@ -96,9 +84,16 @@ function realizedStatistics(paperLedger = {}) {
 
 export function buildCustomerZeroPerformanceReport(options = {}) {
   const paperAccount = options.paperAccount ?? {};
-  const period = normalizedPeriod(options.period);
   const now = options.now instanceof Date ? options.now : new Date();
-  const paperLedger = periodLedger(options.paperLedgerHistory, period, now)
+  const period = normalizeCustomerReportPeriod(options.period, options.defaultPeriod ?? "daily");
+  const periodRange = buildCustomerReportPeriodRange({
+    period,
+    now,
+    timeZone: options.timeZone ?? "UTC",
+    weekStartsOn: options.weekStartsOn ?? 1,
+    year: options.year,
+  });
+  const paperLedger = periodLedger(options.paperLedgerHistory, periodRange)
     ?? options.paperLedger
     ?? {};
   const realizedPl = round2(paperLedger.totalRealizedPnl);
@@ -141,6 +136,12 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
   return {
     version: VERSION,
     period,
+    periodRange: {
+      startIso: periodRange.startIso,
+      endIso: periodRange.endIso,
+      timeZone: periodRange.timeZone,
+      weekStartsOn: periodRange.weekStartsOn,
+    },
     periodRecordCount: paperLedger.periodRecordCount ?? 0,
     periodStartTs: paperLedger.periodStartTs ?? null,
     periodEndTs: paperLedger.periodEndTs ?? null,

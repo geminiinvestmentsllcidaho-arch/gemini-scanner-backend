@@ -190,3 +190,9 @@ test("scanner selections persist in rendered controls", () => {
   assert.match(html, /name="states"[^>]*value="ENTER"[^>]* checked/);
   assert.match(html, /Scanner selections saved/);
 });
+
+test("customer hub navigation exposes authenticated reports", () => {
+  const hub = buildCustomerScannerHub();
+  const reports = hub.navigation.find((item) => item.label === "Reports");
+  assert.equal(reports?.href, "/customer/reports");
+});

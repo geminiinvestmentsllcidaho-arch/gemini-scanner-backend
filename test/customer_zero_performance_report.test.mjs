@@ -139,3 +139,50 @@ test("performance report marks aged position snapshots stale deterministically",
   assert.equal(stale.status, "stale_readonly");
   assert.equal(stale.orderPlacementAllowed, false);
 });
+
+test("performance report uses saved customer timezone for daily period boundary", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "daily",
+    now: new Date("2026-07-14T22:30:00.000Z"),
+    timeZone: "America/Denver",
+    sourceTs: "2026-07-14T22:29:00.000Z",
+    paperAccount: { summary: { totalUnrealizedPl: 0 } },
+    paperLedgerHistory: [
+      { createdAt: "2026-07-14T05:59:00.000Z", totalRealizedPnl: 10, endingEquity: 1010 },
+      { createdAt: "2026-07-14T06:00:00.000Z", totalRealizedPnl: 20, endingEquity: 1020 },
+      { createdAt: "2026-07-14T22:29:00.000Z", totalRealizedPnl: 50, endingEquity: 1050 },
+    ],
+  });
+
+  assert.equal(report.period, "daily");
+  assert.deepEqual(report.periodRange, {
+    startIso: "2026-07-14T06:00:00.000Z",
+    endIso: "2026-07-14T22:30:00.000Z",
+    timeZone: "America/Denver",
+    weekStartsOn: 1,
+  });
+  assert.equal(report.periodRecordCount, 2);
+  assert.equal(report.realizedPl, 40);
+  assert.equal(report.startingEquity, 1010);
+  assert.equal(report.endingEquity, 1050);
+});
+
+test("performance report can default to lifetime without fabricating a lower boundary", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    defaultPeriod: "lifetime",
+    now: new Date("2026-07-14T22:30:00.000Z"),
+    timeZone: "America/Denver",
+    sourceTs: "2026-07-14T22:29:00.000Z",
+    paperAccount: { summary: { totalUnrealizedPl: 0 } },
+    paperLedgerHistory: [
+      { createdAt: "2025-12-31T23:00:00.000Z", totalRealizedPnl: 10, endingEquity: 1010 },
+      { createdAt: "2026-07-14T22:29:00.000Z", totalRealizedPnl: 50, endingEquity: 1050 },
+    ],
+  });
+
+  assert.equal(report.period, "lifetime");
+  assert.equal(report.periodRange.startIso, null);
+  assert.equal(report.periodRecordCount, 2);
+  assert.equal(report.realizedPl, 50);
+  assert.equal(report.orderPlacementAllowed, false);
+});

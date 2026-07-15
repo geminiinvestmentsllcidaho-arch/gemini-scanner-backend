@@ -47,3 +47,9 @@ test("renders customer watchlist with shared global neon theme and fixed backgro
   assert.match(html, /form method="post" action="\/customer\/watchlist"/);
   assert.doesNotMatch(html, /\/admin\b/);
 });
+
+test("customer watchlist navigation links to reports", () => {
+  const page = buildCustomerWatchlistPage({ symbols: [] });
+  const html = renderCustomerWatchlistPageHtml(page);
+  assert.match(html, /href="\/customer\/reports">Reports<\/a>/);
+});

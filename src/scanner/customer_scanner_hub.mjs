@@ -86,6 +86,7 @@ export function buildCustomerScannerHub(options = {}) {
     navigation: Object.freeze([
       Object.freeze({ label: "Home", href: "/customer" }),
       Object.freeze({ label: "Scanner", href: "/customer/scanner" }),
+      Object.freeze({ label: "Reports", href: "/customer/reports" }),
       Object.freeze({ label: "Watchlist", href: "/customer/watchlist" }),
       Object.freeze({ label: "Settings", href: "/customer/settings" }),
     ]),

@@ -68,6 +68,7 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <a href="/customer">Home</a>
 <a href="/customer/scanner">Scanner</a>
 <a href="/customer/scanner/under-five">Under $5</a>
+<a href="/customer/reports">Reports</a>
 <a href="/customer/watchlist">Watchlist</a>
 <a href="/customer/settings">Settings</a>
 </nav>

@@ -4132,6 +4132,55 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
 
+
+app.get('/customer/reports', requireCustomerSession, async (req, res) => {
+  try {
+    const reportModelMod = await import('./scanner/customer_report_model.mjs');
+    const reportPageMod = await import('./scanner/customer_reports_page.mjs');
+    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+    const timeMod = await import('./scanner/customer_time.mjs');
+
+    const now = new Date();
+    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
+    const paperLedgerHistory = Array.isArray(paperPositionLedger.records)
+      ? paperPositionLedger.records
+      : [];
+    const rankingRoot = readScannerRankings();
+    const scannerEvents = Array.isArray(rankingRoot?.rankings)
+      ? rankingRoot.rankings
+      : [];
+
+    const report = reportModelMod.buildCustomerReportModel({
+      period: req.query.period ?? 'lifetime',
+      year: req.query.year,
+      now,
+      timeZone: timeMod.customerTimezone(req.customerAccount),
+      weekStartsOn: 1,
+      paperAccount,
+      paperLedgerHistory,
+      scannerEvents,
+    });
+
+    const page = reportPageMod.buildCustomerReportsPage({
+      report,
+      account: req.customerAccount,
+    });
+
+    res.set('Cache-Control', 'no-store');
+    return res.type('html').send(reportPageMod.renderCustomerReportsPageHtml(page));
+  } catch (_error) {
+    res.set('Cache-Control', 'no-store');
+    return res.status(500).type('html').send(
+      '<!doctype html><html><body><main><h1>Reports unavailable</h1><p>Paper analytics could not be loaded.</p><p>Read-only. No order placement, broker contact, or account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
+    );
+  }
+});
+
+
 app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const scannerFilters = getCustomerZeroResultFilters(req.customerAccount?.id);
@@ -4381,6 +4430,7 @@ ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'Gemin
 <nav class="settings-nav" aria-label="Customer navigation">
 <a href="/customer">Home</a>
 <a href="/customer/scanner">Scanner</a>
+<a href="/customer/reports">Reports</a>
 <a href="/customer/watchlist">Watchlist</a>
 <a href="/customer/security-activity">Security activity</a>
 </nav>
