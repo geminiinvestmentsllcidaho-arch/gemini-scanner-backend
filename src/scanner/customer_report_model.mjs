@@ -9,6 +9,7 @@ import { buildDeterministicLogicProposals } from "./customer_report_ai_review.mj
 export const VERSION = "customer_report_model_v1";
 
 function finite(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -101,11 +102,6 @@ function performanceSummary(records, baseline, options = {}) {
   const first = records[0] ?? null;
   const latest = records.at(-1) ?? null;
   const startingRecord = baseline ?? first;
-  const startingBalance = round2(
-    options.startingBalance
-      ?? startingRecord?.endingEquity
-      ?? startingRecord?.startingEquity
-  );
   const endingBalance = round2(
     options.endingBalance
       ?? options.paperAccount?.account?.equity
@@ -118,6 +114,16 @@ function performanceSummary(records, baseline, options = {}) {
   const totalPl = realizedPl === null && unrealizedPl === null
     ? null
     : round2((realizedPl ?? 0) + (unrealizedPl ?? 0));
+  const explicitStartingBalance = round2(
+    options.startingBalance
+      ?? startingRecord?.endingEquity
+      ?? startingRecord?.startingEquity
+  );
+  const startingBalance = explicitStartingBalance !== null
+    ? explicitStartingBalance
+    : endingBalance !== null && totalPl !== null
+      ? round2(endingBalance - totalPl)
+      : null;
   const totalReturnPct = startingBalance && totalPl !== null
     ? round2((totalPl / startingBalance) * 100)
     : null;
@@ -217,6 +223,8 @@ export function buildCustomerReportModel(options = {}) {
     performance,
     trades: Object.freeze({
       ...trades,
+      metricDefinition: "realized_position_outcomes",
+      fillEventsObserved: activity.reduce((sum, row) => sum + (finite(row?.fillCount) ?? 0), 0),
       averageDollarsPerTrade: trades.totalTrades && performance.totalCapitalUsed !== null
         ? round2(performance.totalCapitalUsed / trades.totalTrades)
         : null,

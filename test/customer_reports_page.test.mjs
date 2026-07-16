@@ -144,3 +144,42 @@ test("renders optional real-time AI review without mutation controls", () => {
   assert.match(html, /Backtest tighter confidence thresholds/);
   assert.doesNotMatch(html, /Apply AI changes/);
 });
+
+
+test("renders current report performance field names", () => {
+  const page = buildCustomerReportsPage({
+    report: {
+      period: "lifetime",
+      range: { label: "Lifetime" },
+      stale: false,
+      status: "current_readonly",
+      performance: {
+        startingBalance: 100000,
+        endingBalance: 100005.81,
+        totalPl: 5.81,
+        realizedPl: 0,
+        unrealizedPl: 5.81,
+        totalReturnPct: 0.01,
+        maxDrawdown: 0,
+        totalCapitalUsed: 1999.8,
+      },
+      trades: {},
+      scanner: {},
+      activity: [],
+      largestWinners: [],
+      largestLosers: [],
+      equityCurve: [],
+      aiReview: {},
+      readOnly: true,
+      paperOnly: true,
+      decisionAssistOnly: true,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false,
+    },
+    account: { displayPreferences: { locale: "en-US", timeZone: "America/Denver" } },
+  });
+  const html = renderCustomerReportsPageHtml(page);
+  assert.match(html, /\$5\.81/);
+  assert.match(html, /\$100,005\.81/);
+});

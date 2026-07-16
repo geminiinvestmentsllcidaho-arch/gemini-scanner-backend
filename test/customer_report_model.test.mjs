@@ -156,6 +156,8 @@ test("calculates report performance trade and activity metrics from cumulative p
   assert.equal(report.performance.totalCapitalUsed, 400);
   assert.equal(report.performance.maxDrawdown, 0);
   assert.equal(report.trades.totalTrades, 2);
+  assert.equal(report.trades.metricDefinition, "realized_position_outcomes");
+  assert.equal(report.trades.fillEventsObserved, 0);
   assert.equal(report.trades.winningTrades, 1);
   assert.equal(report.trades.losingTrades, 1);
   assert.equal(report.trades.winRatePct, 50);
@@ -167,4 +169,45 @@ test("calculates report performance trade and activity metrics from cumulative p
   assert.equal(report.largestLosers[0].symbol, "BBB");
   assert.equal(report.activity.length, 2);
   assert.equal(report.equityCurve.length, 2);
+});
+
+
+test("uses paper account equity and P/L for a non-fabricated fallback baseline", () => {
+  const report = buildCustomerReportModel({
+    period: "lifetime",
+    now,
+    timeZone: "America/Denver",
+    maxAgeSec: 99999999,
+    paperAccount: {
+      account: { equity: 100005.81 },
+      summary: { totalUnrealizedPl: 5.81 },
+    },
+    paperLedgerHistory: [
+      {
+        createdAt: "2026-07-01T15:40:23.808Z",
+        totalCostBasis: 999.9,
+        totalRealizedPnl: 0,
+        positions: [
+          { symbol: "SOFI", qty: 99, avgEntryPrice: 10.1, costBasis: 999.9, realizedPnl: 0, fillCount: 1 },
+        ],
+      },
+      {
+        createdAt: "2026-07-01T15:41:04.277Z",
+        totalCostBasis: 1999.8,
+        totalRealizedPnl: 0,
+        positions: [
+          { symbol: "SOFI", qty: 198, avgEntryPrice: 10.1, costBasis: 1999.8, realizedPnl: 0, fillCount: 2 },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(report.performance.startingBalance, 100000);
+  assert.equal(report.performance.endingBalance, 100005.81);
+  assert.equal(report.performance.totalPl, 5.81);
+  assert.equal(report.performance.totalReturnPct, 0.01);
+  assert.equal(report.trades.totalTrades, 0);
+  assert.equal(report.trades.metricDefinition, "realized_position_outcomes");
+  assert.equal(report.trades.fillEventsObserved, 2);
+  assert.deepEqual(report.equityCurve.map((point) => point.equity), [null, null]);
 });

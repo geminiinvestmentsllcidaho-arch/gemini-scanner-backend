@@ -172,9 +172,9 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <div class="grid">
 ${metric("Starting balance", money(performance.startingBalance ?? performance.startingEquity, locale))}
 ${metric("Ending balance", money(performance.endingBalance ?? performance.endingEquity, locale))}
-${metric("Total P/L", money(performance.totalPnl, locale))}
-${metric("Realized P/L", money(performance.realizedPnl, locale))}
-${metric("Unrealized P/L", money(performance.unrealizedPnl, locale))}
+${metric("Total P/L", money(performance.totalPl ?? performance.totalPnl, locale))}
+${metric("Realized P/L", money(performance.realizedPl ?? performance.realizedPnl, locale))}
+${metric("Unrealized P/L", money(performance.unrealizedPl ?? performance.unrealizedPnl, locale))}
 ${metric("Total return", number(performance.totalReturnPct, locale, "%"))}
 ${metric("Max drawdown", money(performance.maxDrawdown, locale))}
 ${metric("Capital used", money(performance.totalCapitalUsed, locale))}
