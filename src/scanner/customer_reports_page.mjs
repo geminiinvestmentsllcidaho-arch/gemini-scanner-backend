@@ -102,6 +102,10 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const calibrationRows = Array.isArray(proposalCalibrationReview.calibrationReviewQueue)
     ? proposalCalibrationReview.calibrationReviewQueue
     : [];
+  const proposalCalibrationHistory = report.proposalCalibrationHistory ?? {};
+  const calibrationHistoryRows = Array.isArray(proposalCalibrationHistory.records)
+    ? proposalCalibrationHistory.records
+    : [];
   const activities = Array.isArray(report.activity) ? report.activity : [];
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
@@ -311,6 +315,26 @@ ${calibrationCards}
 <span>Scanner mutation locked</span>
 <span>Threshold mutation locked</span>
 <span>Paper-only decision assist</span>
+</div>
+</section>
+
+<section class="card panel">
+<h2>Calibration History</h2>
+<p>This local read-only history tracks changes in proposal evidence over time. Duplicate snapshots are skipped automatically.</p>
+<div class="grid">
+${metric("Saved snapshots", number(proposalCalibrationHistory.recordCount, locale))}
+${metric("Storage", proposalCalibrationHistory.localJsonlOnly === true ? "Local JSONL only" : "No history yet")}
+${metric("Automatic learning", proposalCalibrationHistory.automaticLearningAllowed === true ? "Allowed" : "Locked")}
+${metric("Scanner mutation", proposalCalibrationHistory.scannerLogicMutationAllowed === true ? "Allowed" : "Locked")}
+</div>
+${calibrationHistoryRows.length
+  ? calibrationHistoryRows.slice(0, 10).map((row) => `<article class="report-row"><h3>${esc(formatCustomerDateTime(row.generatedAt, account))}</h3><p><strong>Analyzed proposals:</strong> ${esc(number(row.analyzedProposalCount, locale))} | <strong>Review groups:</strong> ${esc(number(row.calibrationReviewQueueCount, locale))}</p><p><strong>Proposal groups:</strong> ${esc(number(row.proposalTypeGroupCount, locale))} | <strong>Target-area groups:</strong> ${esc(number(row.targetAreaGroupCount, locale))}</p></article>`).join("")
+  : "<p>No calibration history snapshots are available yet.</p>"}
+<div class="safety-locks">
+<span>Local history only</span>
+<span>Duplicate snapshots skipped</span>
+<span>No automatic learning</span>
+<span>No scanner mutation</span>
 </div>
 </section>
 

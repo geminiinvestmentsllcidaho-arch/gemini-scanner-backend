@@ -4193,6 +4193,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const realtimeAiMod = await import('./scanner/customer_report_realtime_ai_client.mjs');
     const qualityProposalMod = await import('./scanner/decision_quality_proposal_generation.mjs');
     const calibrationReviewMod = await import('./scanner/proposal_evidence_aggregation_calibration_review.mjs');
+    const calibrationHistoryMod = await import('./scanner/proposal_calibration_history_store.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
@@ -4230,11 +4231,24 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
         maxReviewGroups: 100,
       },
     );
+    const proposalCalibrationHistoryWrite = calibrationHistoryMod.persistProposalCalibrationHistory(
+      decisionQualityProposals,
+      proposalCalibrationReview,
+      {
+        now,
+        maxGroups: 100,
+      },
+    );
+    const proposalCalibrationHistory = calibrationHistoryMod.readProposalCalibrationHistory({
+      maxRecords: 30,
+    });
     const reportWithRealtimeAi = Object.freeze({
       ...report,
       realtimeAiReview,
       decisionQualityProposals,
       proposalCalibrationReview,
+      proposalCalibrationHistory,
+      proposalCalibrationHistoryWrite,
     });
 
     const page = reportPageMod.buildCustomerReportsPage({

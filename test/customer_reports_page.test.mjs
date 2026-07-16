@@ -225,11 +225,27 @@ test("renders historical decision-quality proposals and calibration review read 
         }],
       },
     },
+    proposalCalibrationHistory: {
+      recordCount: 1,
+      localJsonlOnly: true,
+      automaticLearningAllowed: false,
+      scannerLogicMutationAllowed: false,
+      records: [{
+        generatedAt: "2026-07-16T20:00:00.000Z",
+        analyzedProposalCount: 100,
+        calibrationReviewQueueCount: 1,
+        proposalTypeGroupCount: 2,
+        targetAreaGroupCount: 2,
+      }],
+    },
   }));
 
   assert.match(html, /Historical Decision-Quality Proposals/);
   assert.match(html, /Review entry confirmation requirements/);
   assert.match(html, /Proposal Evidence Calibration/);
+  assert.match(html, /Calibration History/);
+  assert.match(html, /Saved snapshots/);
+  assert.match(html, /Duplicate snapshots skipped/);
   assert.match(html, /High Calibration Concern/);
   assert.match(html, /66\.67%/);
   assert.match(html, /Automatic learning/);
