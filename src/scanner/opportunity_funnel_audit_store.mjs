@@ -109,15 +109,40 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
   if (!fs.existsSync(auditPath)) return Object.freeze([]);
 
   const maxRecords = Math.max(1, Math.min(1000, Number(options.maxRecords) || 100));
-  const records = fs.readFileSync(auditPath, "utf8")
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => JSON.parse(line))
-    .slice(-maxRecords)
-    .reverse()
-    .map((record) => Object.freeze(record));
+  const chunkSize = Math.max(
+    4096,
+    Math.min(1024 * 1024, Number(options.chunkSize) || 64 * 1024),
+  );
+  const fd = fs.openSync(auditPath, "r");
 
-  return Object.freeze(records);
+  try {
+    const stat = fs.fstatSync(fd);
+    let position = stat.size;
+    let text = "";
+    let newlineCount = 0;
+
+    while (position > 0 && newlineCount <= maxRecords) {
+      const bytesToRead = Math.min(chunkSize, position);
+      position -= bytesToRead;
+      const buffer = Buffer.allocUnsafe(bytesToRead);
+      const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, position);
+      const chunk = buffer.subarray(0, bytesRead).toString("utf8");
+      text = chunk + text;
+      newlineCount += (chunk.match(/\n/g) ?? []).length;
+    }
+
+    const records = text
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(-maxRecords)
+      .map((line) => JSON.parse(line))
+      .reverse()
+      .map((record) => Object.freeze(record));
+
+    return Object.freeze(records);
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 export default {
