@@ -4222,6 +4222,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     });
     const decisionQualityProposals = qualityProposalMod.readDecisionQualityProposalReport({
       now,
+      maxRecords: 20,
       maxProposals: 100,
     });
     const proposalCalibrationReview = calibrationReviewMod.buildProposalEvidenceAggregationCalibrationReview(
