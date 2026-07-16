@@ -4219,6 +4219,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     });
     const realtimeAiReview = await realtimeAiMod.requestCustomerReportRealtimeAiReview({
       input: report.aiReview?.input ?? {},
+      timeoutMs: 5000,
     });
     const decisionQualityProposals = qualityProposalMod.readDecisionQualityProposalReport({
       now,

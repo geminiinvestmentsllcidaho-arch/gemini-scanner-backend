@@ -73,3 +73,30 @@ test("calls Responses API and returns bounded review text", async () => {
   assert.equal(result.automaticLogicMutationAllowed, false);
   assert.equal(result.orderPlacementAllowed, false);
 });
+
+test("supports a bounded per-request timeout override", async () => {
+  let capturedSignal;
+  const resultPromise = requestCustomerReportRealtimeAiReview({
+    input: { period: "daily" },
+    env: {
+      GS_REALTIME_AI_ENABLED: "true",
+      OPENAI_API_KEY: "test-key",
+      GS_REALTIME_AI_TIMEOUT_MS: "30000",
+    },
+    timeoutMs: 10,
+    fetchImpl: async (_url, options) => {
+      capturedSignal = options.signal;
+      await new Promise((_resolve, reject) => {
+        options.signal.addEventListener("abort", () => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        }, { once: true });
+      });
+    },
+  });
+
+  const result = await resultPromise;
+  assert.equal(capturedSignal.aborted, true);
+  assert.equal(result.status, "timeout");
+});

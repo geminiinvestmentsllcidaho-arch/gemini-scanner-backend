@@ -52,8 +52,13 @@ export async function requestCustomerReportRealtimeAiReview({
   input,
   env = process.env,
   fetchImpl = globalThis.fetch,
+  timeoutMs,
 } = {}) {
-  const config = getCustomerReportRealtimeAiConfig(env);
+  const baseConfig = getCustomerReportRealtimeAiConfig(env);
+  const config = Object.freeze({
+    ...baseConfig,
+    timeoutMs: positiveInt(timeoutMs, baseConfig.timeoutMs),
+  });
   if (!config.enabled) {
     return Object.freeze({
       version: VERSION,

@@ -23,6 +23,13 @@ test('public customer authentication mutations require same-origin verification'
   }
 });
 
+test('reports route bounds realtime AI latency', () => {
+  assert.match(
+    source,
+    /requestCustomerReportRealtimeAiReview\(\{\s*input: report\.aiReview\?\.input \?\? \{\},\s*timeoutMs: 5000,\s*\}\)/s,
+  );
+});
+
 test('customer routes require signed customer sessions', () => {
   for (const route of [
     '/customer',
