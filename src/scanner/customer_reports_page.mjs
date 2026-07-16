@@ -94,6 +94,14 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const realtimeAiText = typeof realtimeAiReview.reviewText === "string"
     ? realtimeAiReview.reviewText.trim()
     : "";
+  const decisionQualityProposals = report.decisionQualityProposals ?? {};
+  const proposalRows = Array.isArray(decisionQualityProposals.proposals)
+    ? decisionQualityProposals.proposals
+    : [];
+  const proposalCalibrationReview = report.proposalCalibrationReview ?? {};
+  const calibrationRows = Array.isArray(proposalCalibrationReview.calibrationReviewQueue)
+    ? proposalCalibrationReview.calibrationReviewQueue
+    : [];
   const activities = Array.isArray(report.activity) ? report.activity : [];
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
@@ -115,6 +123,31 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const rankingRows = (rows, emptyText) => rows.length
     ? rows.map((row) => `<li><strong>${esc(row.symbol ?? "Unknown")}</strong> ${esc(money(row.realizedPnl ?? row.pnl, locale))}</li>`).join("")
     : `<li>${esc(emptyText)}</li>`;
+
+  const labelToken = (value) => String(value ?? "")
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+  const proposalCards = proposalRows.length
+    ? proposalRows.slice(0, 12).map((proposal) => `<article class="report-row proposal-card">
+<h3>${esc(proposal.title ?? labelToken(proposal.proposalType) ?? "Review proposal")}</h3>
+<p><strong>Area:</strong> ${esc(labelToken(proposal.targetArea) || "General review")} | <strong>Risk:</strong> ${esc(labelToken(proposal.riskLevel) || "Review")}</p>
+<p><strong>Suggested direction:</strong> ${esc(proposal.suggestedDirection ?? "Historical review required.")}</p>
+<p><strong>Evidence:</strong> ${esc(proposal.evidence?.symbol ?? "No symbol")} · confidence ${esc(number(proposal.evidence?.rankingConfidence, locale))} · potential ${esc(number(proposal.evidence?.readonlyPotentialScore, locale))}</p>
+</article>`).join("")
+    : "<p>No historical decision-quality proposals are available yet.</p>";
+
+  const calibrationCards = calibrationRows.length
+    ? calibrationRows.slice(0, 12).map((group) => `<article class="report-row calibration-card">
+<h3>${esc(labelToken(group.groupKey) || "Calibration review group")}</h3>
+<p><strong>Status:</strong> ${esc(labelToken(group.calibrationReviewStatus))} | <strong>Sample:</strong> ${esc(number(group.sampleCount, locale))} | <strong>Band:</strong> ${esc(labelToken(group.calibrationBand))}</p>
+<p><strong>High-confidence concern rate:</strong> ${esc(number(group.disagreementRatePct, locale, "%"))} | <strong>Average confidence:</strong> ${esc(number(group.averageRankingConfidence, locale))}</p>
+<p><strong>Symbols:</strong> ${esc(number(group.uniqueSymbolCount, locale))} | <strong>Scans:</strong> ${esc(number(group.uniqueScanCount, locale))}</p>
+</article>`).join("")
+    : "<p>No calibration review groups are available yet.</p>";
 
   return `<!doctype html>
 <html lang="en">
@@ -143,6 +176,10 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .placeholder{min-height:130px;display:grid;place-items:center;border:1px dashed var(--gs-line);border-radius:14px;color:var(--gs-muted)}
 .status{font-weight:800;color:var(--gs-accent)}
 .status.stale{color:#ffd166}
+.report-row{padding:14px;margin-top:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.42)}
+.report-row h3{margin:0 0 8px}
+.safety-locks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.safety-locks span{border:1px solid var(--gs-line);border-radius:999px;padding:6px 9px;font-size:12px;color:var(--gs-muted)}
 @media(max-width:620px){.wrap{padding:24px 12px 56px}.metric strong{font-size:19px}}
 </style>
 </head>
@@ -239,6 +276,42 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 ${aiProposals.length
   ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(({ data_quality: "Data freshness", signal_quality: "Signal quality", entry_logic: "Entry quality", exit_logic: "Exit timing", risk_logic: "Risk controls", ranking_logic: "Ranking quality", observation: "Review status" })[proposal?.category] ?? "Review item")} · ${esc(({ high: "Important", medium: "Review", low: "Informational" })[proposal?.severity] ?? "Informational")}</h3><p><strong>What we found:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Suggested next step:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
   : "<p>No improvement suggestions are available for this report yet.</p>"}
+</section>
+
+<section class="card panel">
+<h2>Historical Decision-Quality Proposals</h2>
+<p>These are bounded review proposals generated from measured scanner outcomes. They do not change scanner logic, thresholds, accounts, or orders.</p>
+<div class="grid">
+${metric("Proposals found", number(decisionQualityProposals.proposalCount, locale))}
+${metric("Proposals shown", number(decisionQualityProposals.returnedProposalCount, locale))}
+${metric("Source review items", number(decisionQualityProposals.sourceReviewRequiredCount, locale))}
+${metric("Automatic learning", decisionQualityProposals.automaticLearningAllowed === true ? "Allowed" : "Locked")}
+</div>
+${proposalCards}
+<div class="safety-locks">
+<span>Human review required</span>
+<span>Separate approval required</span>
+<span>No implementation included</span>
+<span>No automatic patching</span>
+</div>
+</section>
+
+<section class="card panel">
+<h2>Proposal Evidence Calibration</h2>
+<p>This view groups historical proposals and identifies where high-confidence scanner decisions still produced review concerns.</p>
+<div class="grid">
+${metric("Analyzed proposals", number(proposalCalibrationReview.analyzedProposalCount, locale))}
+${metric("Proposal groups", number(proposalCalibrationReview.proposalTypeGroupCount, locale))}
+${metric("Target-area groups", number(proposalCalibrationReview.targetAreaGroupCount, locale))}
+${metric("Review groups", number(proposalCalibrationReview.calibrationReviewQueueCount, locale))}
+</div>
+${calibrationCards}
+<div class="safety-locks">
+<span>Historical measurement only</span>
+<span>Scanner mutation locked</span>
+<span>Threshold mutation locked</span>
+<span>Paper-only decision assist</span>
+</div>
 </section>
 
 <section class="card panel">

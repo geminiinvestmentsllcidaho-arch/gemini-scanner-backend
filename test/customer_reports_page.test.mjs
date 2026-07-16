@@ -183,3 +183,58 @@ test("renders current report performance field names", () => {
   assert.match(html, /\$5\.81/);
   assert.match(html, /\$100,005\.81/);
 });
+
+
+test("renders historical decision-quality proposals and calibration review read only", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    account: { displayPreferences: { locale: "en-US", timezone: "America/Denver" } },
+    report: {
+      period: "lifetime",
+      decisionQualityProposals: {
+        proposalCount: 1,
+        returnedProposalCount: 1,
+        sourceReviewRequiredCount: 1,
+        automaticLearningAllowed: false,
+        proposals: [{
+          proposalType: "REDUCE_FALSE_POSITIVES",
+          title: "Review entry confirmation requirements",
+          targetArea: "entry_confirmation",
+          suggestedDirection: "Require stronger confirmation evidence before ENTER decisions.",
+          riskLevel: "high",
+          evidence: {
+            symbol: "XYZ",
+            rankingConfidence: 0.82,
+            readonlyPotentialScore: 73,
+          },
+        }],
+      },
+      proposalCalibrationReview: {
+        analyzedProposalCount: 6,
+        proposalTypeGroupCount: 1,
+        targetAreaGroupCount: 1,
+        calibrationReviewQueueCount: 1,
+        calibrationReviewQueue: [{
+          groupKey: "entry_confirmation",
+          calibrationReviewStatus: "HIGH_CALIBRATION_CONCERN",
+          sampleCount: 6,
+          calibrationBand: "EARLY_SAMPLE",
+          disagreementRatePct: 66.67,
+          averageRankingConfidence: 0.8,
+          uniqueSymbolCount: 4,
+          uniqueScanCount: 6,
+        }],
+      },
+    },
+  }));
+
+  assert.match(html, /Historical Decision-Quality Proposals/);
+  assert.match(html, /Review entry confirmation requirements/);
+  assert.match(html, /Proposal Evidence Calibration/);
+  assert.match(html, /High Calibration Concern/);
+  assert.match(html, /66\.67%/);
+  assert.match(html, /Automatic learning/);
+  assert.match(html, /Locked/);
+  assert.match(html, /Scanner mutation locked/);
+  assert.doesNotMatch(html, /Apply proposal/);
+  assert.doesNotMatch(html, /Enable automatic learning/);
+});
