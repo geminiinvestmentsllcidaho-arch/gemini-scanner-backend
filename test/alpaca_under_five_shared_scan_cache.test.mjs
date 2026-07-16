@@ -153,3 +153,46 @@ test("initial start failure still schedules a retry", async () => {
 
   cache.stop();
 });
+
+
+test("publishes each completed scan to a non-blocking audit hook", async () => {
+  const published = [];
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => Date.parse("2026-07-16T15:55:00.000Z"),
+    fetchScan: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      marketClock: { isOpen: true },
+      candidates: [{ symbol: "AUDIT", decision: "WAIT" }],
+    }),
+    async onScanComplete(snapshot) {
+      published.push(snapshot);
+    },
+  });
+
+  const result = await cache.refreshNow();
+
+  assert.equal(published.length, 1);
+  assert.equal(published[0], result);
+  assert.equal(published[0].sharedCache.scanCount, 1);
+});
+
+test("audit hook failures do not fail or stop completed scans", async () => {
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    fetchScan: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      marketClock: { isOpen: false },
+      candidates: [],
+    }),
+    async onScanComplete() {
+      throw new Error("audit unavailable");
+    },
+  });
+
+  const result = await cache.refreshNow();
+
+  assert.equal(result.ok, true);
+  assert.equal(cache.getDiagnostics().scanCount, 1);
+  assert.equal(cache.getDiagnostics().lastError, null);
+});

@@ -55,3 +55,15 @@ test("shared under-five source bridges scanner rankings before customer routes r
   assert.match(block, /const source = refresh \? await cache\.refreshNow\(\) : \(cache\.getLatest\(\) \?\? await cache\.refreshNow\(\)\);/);
   assert.match(block, /return bridgeCustomerZeroFreshRankings\(source, readScannerRankings\(\)\);/);
 });
+
+
+test("server wires completed shared scans into the local read-only opportunity funnel audit", () => {
+  assert.match(
+    server,
+    /import \{ appendOpportunityFunnelAuditRecord \} from '\.\/scanner\/opportunity_funnel_audit_store\.mjs';/,
+  );
+  assert.match(server, /onScanComplete\(snapshot\) \{/);
+  assert.match(server, /appendOpportunityFunnelAuditRecord\(\{/);
+  assert.match(server, /scanner: 'alpaca_under_five_shared'/);
+  assert.match(server, /candidates: snapshot\?\.candidates/);
+});

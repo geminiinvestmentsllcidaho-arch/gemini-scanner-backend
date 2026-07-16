@@ -18,6 +18,7 @@ export function createAlpacaUnderFiveSharedScanCache({
   setTimeoutImpl = globalThis.setTimeout,
   clearTimeoutImpl = globalThis.clearTimeout,
   scanOptions = {},
+  onScanComplete = null,
 } = {}) {
   let latest = null;
   let timer = null;
@@ -61,6 +62,15 @@ export function createAlpacaUnderFiveSharedScanCache({
             readOnly: true,
           },
         };
+
+        if (typeof onScanComplete === "function") {
+          try {
+            await onScanComplete(latest);
+          } catch {
+            // Audit/reporting failures must never stop the shared scanner.
+          }
+        }
+
         return latest;
       } catch (error) {
         lastError = error?.message ?? String(error);

@@ -60,6 +60,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
+import { appendOpportunityFunnelAuditRecord } from './scanner/opportunity_funnel_audit_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
@@ -239,7 +240,22 @@ app.use((_req, res, next) => {
 });
 
 const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_scan_cache.mjs')
-  .then((mod) => mod.createAlpacaUnderFiveSharedScanCache({ scanOptions: { minPrice: 0, maxPrice: 1000 } }))
+  .then((mod) => mod.createAlpacaUnderFiveSharedScanCache({
+    scanOptions: { minPrice: 0, maxPrice: 1000 },
+    onScanComplete(snapshot) {
+      appendOpportunityFunnelAuditRecord({
+        scanId: `under-five-${snapshot?.sharedCache?.scanCount ?? 'unknown'}-${snapshot?.sharedCache?.generatedAt ?? Date.now()}`,
+        scanner: 'alpaca_under_five_shared',
+        sourceVersion: snapshot?.version,
+        sourceStatus: snapshot?.status,
+        marketOpen: snapshot?.marketClock?.isOpen === true,
+        assetCount: snapshot?.assetCount,
+        snapshotCount: snapshot?.snapshotCount,
+        candidateCount: snapshot?.candidateCount,
+        candidates: snapshot?.candidates,
+      });
+    },
+  }))
   .catch((error) => {
     console.error('[under-five-shared-cache] init failed', error?.message ?? String(error));
     return null;
