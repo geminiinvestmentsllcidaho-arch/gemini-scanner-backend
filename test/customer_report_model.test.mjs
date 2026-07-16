@@ -52,6 +52,10 @@ test("builds lifetime read-only report scanner summary from in-range events", ()
   assert.equal(report.orderPlacementAllowed, false);
   assert.equal(report.brokerContactAllowed, false);
   assert.equal(report.accountMutationAllowed, false);
+  assert.equal(report.aiReview.automaticLogicMutationAllowed, false);
+  assert.equal(report.aiReview.requiresBacktest, true);
+  assert.equal(report.aiReview.requiresOperatorApproval, true);
+  assert.ok(Array.isArray(report.aiReview.proposals));
 });
 
 test("filters scanner events using saved timezone daily boundary", () => {

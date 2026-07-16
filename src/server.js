@@ -4133,6 +4133,39 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
 });
 
 
+app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
+  try {
+    const portfolioModelMod = await import('./scanner/customer_portfolio_model.mjs');
+    const portfolioPageMod = await import('./scanner/customer_portfolio_page.mjs');
+    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+
+    const now = new Date();
+    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const model = portfolioModelMod.buildCustomerPortfolioModel({
+      paperAccount,
+      sourceTs: now.toISOString(),
+      now,
+    });
+    const page = portfolioPageMod.buildCustomerPortfolioPage({
+      model,
+      account: req.customerAccount,
+    });
+
+    res.set('Cache-Control', 'no-store');
+    return res.type('html').send(
+      portfolioPageMod.renderCustomerPortfolioPageHtml(page),
+    );
+  } catch (_error) {
+    res.set('Cache-Control', 'no-store');
+    return res.status(500).type('html').send(
+      '<!doctype html><html><body><main><h1>Portfolio unavailable</h1><p>Paper account balances and positions could not be loaded.</p><p>Read-only. No live trading, order placement, broker contact, or account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
+    );
+  }
+});
+
+
 app.get('/customer/reports', requireCustomerSession, async (req, res) => {
   try {
     const reportModelMod = await import('./scanner/customer_report_model.mjs');
@@ -4430,6 +4463,7 @@ ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'Gemin
 <nav class="settings-nav" aria-label="Customer navigation">
 <a href="/customer">Home</a>
 <a href="/customer/scanner">Scanner</a>
+<a href="/customer/portfolio">Portfolio</a>
 <a href="/customer/reports">Reports</a>
 <a href="/customer/watchlist">Watchlist</a>
 <a href="/customer/security-activity">Security activity</a>

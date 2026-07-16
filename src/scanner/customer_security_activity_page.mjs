@@ -72,6 +72,8 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <nav class="customer-nav" aria-label="Customer navigation">
 <a href="/customer">Home</a>
 <a href="/customer/scanner">Scanner</a>
+<a href="/customer/portfolio">Portfolio</a>
+<a href="/customer/reports">Reports</a>
 <a href="/customer/watchlist">Watchlist</a>
 <a href="/customer/settings">Settings</a>
 </nav>

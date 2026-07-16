@@ -88,6 +88,8 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const performance = report.performance ?? {};
   const trades = report.trades ?? {};
   const scanner = report.scanner ?? {};
+  const aiReview = report.aiReview ?? {};
+  const aiProposals = Array.isArray(aiReview.proposals) ? aiReview.proposals : [];
   const activities = Array.isArray(report.activity) ? report.activity : [];
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
@@ -147,6 +149,7 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <nav class="customer-nav" aria-label="Customer navigation">
 <a href="/customer">Home</a>
 <a href="/customer/scanner">Scanner</a>
+<a href="/customer/portfolio">Portfolio</a>
 <a href="/customer/reports" aria-current="page">Reports</a>
 <a href="/customer/watchlist">Watchlist</a>
 <a href="/customer/settings">Settings</a>
@@ -224,6 +227,15 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 <section class="card panel"><h2>Equity curve</h2><div class="placeholder">Equity curve placeholder</div></section>
 <section class="card panel"><h2>Period comparison</h2><div class="placeholder">Period comparison placeholder</div></section>
 </div>
+
+<section class="card panel">
+<h2>AI Logic Review</h2>
+<p>This review inspects report evidence and creates proposals only. It cannot modify scanner logic, contact a broker, or place orders.</p>
+<p><strong>Backtest required:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Operator approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
+${aiProposals.length
+  ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(proposal?.category ?? "Review")}: ${esc(proposal?.severity ?? "low")}</h3><p><strong>Observation:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Proposal:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
+  : "<p>No AI review proposals are available for this report.</p>"}
+</section>
 
 <section class="card panel">
 <h2>Detailed activity</h2>

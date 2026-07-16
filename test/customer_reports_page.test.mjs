@@ -51,6 +51,16 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
         profitableSignals: 3,
         failedSignals: 1,
       },
+      aiReview: {
+        requiresBacktest: true,
+        requiresOperatorApproval: true,
+        proposals: [{
+          category: "ranking_logic",
+          severity: "medium",
+          observation: "Average confidence is below the review floor.",
+          proposal: "Backtest a higher confidence floor before approval.",
+        }],
+      },
       largestWinners: [{ symbol: "AAA", realizedPnl: 80 }],
       largestLosers: [{ symbol: "BBB", realizedPnl: -25 }],
       activity: [{
@@ -81,6 +91,10 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
   assert.match(html, /Performance and scanner analytics from paper-trading activity/);
   assert.match(html, /Paper-trading performance • Mountain Time/);
   assert.match(html, /Data status: Paper-trading data is current/);
+  assert.match(html, /AI Logic Review/);
+  assert.match(html, /Backtest required:<\/strong> Yes/);
+  assert.match(html, /Operator approval required:<\/strong> Yes/);
+  assert.match(html, /Backtest a higher confidence floor before approval/);
 });
 
 test("renders stale empty report without fabricating activity", () => {

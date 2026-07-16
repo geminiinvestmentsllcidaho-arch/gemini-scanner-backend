@@ -4,6 +4,7 @@ import {
   normalizeCustomerReportPeriod,
 } from "./customer_report_periods.mjs";
 import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
+import { buildDeterministicLogicProposals } from "./customer_report_ai_review.mjs";
 
 export const VERSION = "customer_report_model_v1";
 
@@ -202,7 +203,7 @@ export function buildCustomerReportModel(options = {}) {
     : 120;
   const stale = options.stale === true || sourceAgeSec === null || sourceAgeSec > maxAgeSec;
 
-  return Object.freeze({
+  const baseReport = {
     version: VERSION,
     route: "/customer/reports",
     period,
@@ -245,6 +246,11 @@ export function buildCustomerReportModel(options = {}) {
     orderPlacementAllowed: false,
     brokerContactAllowed: false,
     accountMutationAllowed: false,
+  };
+
+  return Object.freeze({
+    ...baseReport,
+    aiReview: buildDeterministicLogicProposals(baseReport),
   });
 }
 
