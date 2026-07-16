@@ -86,15 +86,19 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
   assert.match(html, /\$1,000\.00/);
   assert.match(html, /Scanner accuracy/);
   assert.match(html, /Equity curve placeholder/);
-  assert.match(html, /Period comparison placeholder/);
+  assert.match(html, /Comparison details will appear after enough paper-trading history is available\./);
   assert.match(html, /AAA/);
   assert.match(html, /Performance and scanner analytics from paper-trading activity/);
   assert.match(html, /Paper-trading performance • Mountain Time/);
   assert.match(html, /Data status: Paper-trading data is current/);
-  assert.match(html, /AI Logic Review/);
-  assert.match(html, /Backtest required:<\/strong> Yes/);
-  assert.match(html, /Operator approval required:<\/strong> Yes/);
+  assert.match(html, /Report Improvement Review/);
+  assert.match(html, /Testing required before changes:<\/strong> Yes/);
+  assert.match(html, /Manual approval required:<\/strong> Yes/);
   assert.match(html, /Backtest a higher confidence floor before approval/);
+  assert.match(html, /Ranking quality · Review/);
+  assert.match(html, /What we found:/);
+  assert.match(html, /Suggested next step:/);
+  assert.match(html, /Comparison details will appear after enough paper-trading history is available/);
 });
 
 test("renders stale empty report without fabricating activity", () => {

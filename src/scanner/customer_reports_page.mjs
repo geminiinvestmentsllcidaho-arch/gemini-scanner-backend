@@ -225,16 +225,16 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 
 <div class="two">
 <section class="card panel"><h2>Equity curve</h2><div class="placeholder">Equity curve placeholder</div></section>
-<section class="card panel"><h2>Period comparison</h2><div class="placeholder">Period comparison placeholder</div></section>
+<section class="card panel"><h2>Period comparison</h2><div class="placeholder">Comparison details will appear after enough paper-trading history is available.</div></section>
 </div>
 
 <section class="card panel">
-<h2>AI Logic Review</h2>
-<p>This review inspects report evidence and creates proposals only. It cannot modify scanner logic, contact a broker, or place orders.</p>
-<p><strong>Backtest required:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Operator approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
+<h2>Report Improvement Review</h2>
+<p>This review checks your paper-trading results for areas that may need attention. It only provides suggestions and cannot change the scanner or place trades.</p>
+<p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
 ${aiProposals.length
-  ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(proposal?.category ?? "Review")}: ${esc(proposal?.severity ?? "low")}</h3><p><strong>Observation:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Proposal:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
-  : "<p>No AI review proposals are available for this report.</p>"}
+  ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(({ data_quality: "Data freshness", signal_quality: "Signal quality", entry_logic: "Entry quality", exit_logic: "Exit timing", risk_logic: "Risk controls", ranking_logic: "Ranking quality", observation: "Review status" })[proposal?.category] ?? "Review item")} · ${esc(({ high: "Important", medium: "Review", low: "Informational" })[proposal?.severity] ?? "Informational")}</h3><p><strong>What we found:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Suggested next step:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
+  : "<p>No improvement suggestions are available for this report yet.</p>"}
 </section>
 
 <section class="card panel">
