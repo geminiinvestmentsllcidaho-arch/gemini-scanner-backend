@@ -94,6 +94,11 @@ export async function requestCustomerReportRealtimeAiReview({
         instructions: [
           "Review GeminiScanner paper-trading report data.",
           "Return concise observations and testing proposals only.",
+          "Honor input.dataSemantics exactly and distinguish verified evidence from hypotheses.",
+          "Treat null or unavailable values as missing data, never as zero.",
+          "Do not infer a P/L inconsistency from lastFillPrice differing from current mark-to-market P/L.",
+          "Do not compare totalTrades with fillCount as though they measure the same thing.",
+          "Do not infer broken scanner linkage solely because fills exist without scanner events.",
           "Never claim to change scanner logic.",
           "Never recommend placing an order.",
           "All changes require backtesting and manual operator approval.",

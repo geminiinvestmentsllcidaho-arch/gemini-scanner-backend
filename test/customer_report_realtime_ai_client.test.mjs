@@ -64,6 +64,10 @@ test("calls Responses API and returns bounded review text", async () => {
   assert.equal(request.options.method, "POST");
   assert.equal(request.options.headers.authorization, "Bearer test-key");
   assert.match(request.options.body, /manual operator approval/);
+  assert.match(request.options.body, /Honor input\.dataSemantics exactly/);
+  assert.match(request.options.body, /Treat null or unavailable values as missing data, never as zero/);
+  assert.match(request.options.body, /Do not compare totalTrades with fillCount/);
+  assert.match(request.options.body, /Do not infer broken scanner linkage/);
   assert.equal(result.status, "completed_readonly");
   assert.equal(result.responseId, "resp_test");
   assert.equal(result.automaticLogicMutationAllowed, false);

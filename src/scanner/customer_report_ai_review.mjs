@@ -1,6 +1,7 @@
 export const VERSION = "customer_report_ai_review_v1";
 
 function finite(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -82,6 +83,17 @@ export function buildCustomerReportAiReviewInput(report = {}) {
         && report?.trades?.averageHoldTime !== undefined,
       activityCount: Array.isArray(report?.activity) ? report.activity.length : 0,
       equityPointCount: Array.isArray(report?.equityCurve) ? report.equityCurve.length : 0,
+      equityAvailablePointCount: (Array.isArray(report?.equityCurve) ? report.equityCurve : [])
+        .filter((row) => finite(row?.equity) !== null).length,
+    }),
+    dataSemantics: Object.freeze({
+      lastFillPrice: "Execution price of the latest recorded fill; it is not a current market quote.",
+      unrealizedPl: "Current paper-account mark-to-market P/L; it may differ from lastFillPrice without inconsistency.",
+      totalTrades: "Count of activity rows with a non-zero realized P/L delta during the report period; it is not fill count.",
+      fillCount: "Cumulative recorded executions for the symbol, including partial fills.",
+      equityCurve: "Built only from ledger endingEquity values; null means unavailable and must never be interpreted as zero.",
+      scannerEvents: "Scanner-event evidence is independent from fill-ledger evidence and may be absent for legacy or external fills.",
+      staleEvidence: "Stale report evidence limits conclusions and must be described as provisional.",
     }),
     safety: Object.freeze({
       readOnly: true,

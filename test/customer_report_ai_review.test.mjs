@@ -87,6 +87,23 @@ test("includes bounded report evidence for missing-information review", () => {
   assert.equal(input.completeness.paperRecordCount, 3);
   assert.equal(input.completeness.activityCount, 30);
   assert.equal(input.completeness.equityPointCount, 60);
+  assert.equal(input.completeness.equityAvailablePointCount, 60);
   assert.equal(input.completeness.averageHoldTimeAvailable, false);
+  assert.equal(input.dataSemantics.lastFillPrice.includes("not a current market quote"), true);
+  assert.equal(input.dataSemantics.totalTrades.includes("not fill count"), true);
+  assert.equal(input.dataSemantics.equityCurve.includes("null means unavailable"), true);
   assert.equal(input.scanner.doNotEnter, 1);
+});
+
+test("marks unavailable equity evidence without converting null to zero", () => {
+  const input = buildCustomerReportAiReviewInput({
+    equityCurve: [
+      { timestamp: "2026-07-01T00:00:00Z", equity: null },
+      { timestamp: "2026-07-02T00:00:00Z" },
+    ],
+  });
+
+  assert.deepEqual(input.equityCurve.map((row) => row.equity), [null, null]);
+  assert.equal(input.completeness.equityPointCount, 2);
+  assert.equal(input.completeness.equityAvailablePointCount, 0);
 });
