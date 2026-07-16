@@ -121,3 +121,26 @@ test("renders stale empty report without fabricating activity", () => {
   assert.doesNotMatch(html, /Unavailable/);
   assert.doesNotMatch(html, /undefined/);
 });
+
+test("renders optional real-time AI review without mutation controls", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    account: {},
+    report: {
+      period: "weekly",
+      aiReview: { proposals: [] },
+      realtimeAiReview: {
+        status: "completed_readonly",
+        reviewText: "Backtest tighter confidence thresholds before manual approval.",
+        requiresBacktest: true,
+        requiresOperatorApproval: true,
+        automaticLogicMutationAllowed: false,
+        orderPlacementAllowed: false,
+      },
+    },
+  }));
+
+  assert.match(html, /Real-Time AI Review/);
+  assert.match(html, /Completed — read only/);
+  assert.match(html, /Backtest tighter confidence thresholds/);
+  assert.doesNotMatch(html, /Apply AI changes/);
+});

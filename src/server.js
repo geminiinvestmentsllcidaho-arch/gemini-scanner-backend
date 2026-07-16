@@ -4174,6 +4174,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
     const timeMod = await import('./scanner/customer_time.mjs');
+    const realtimeAiMod = await import('./scanner/customer_report_realtime_ai_client.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
@@ -4197,9 +4198,16 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       paperLedgerHistory,
       scannerEvents,
     });
+    const realtimeAiReview = await realtimeAiMod.requestCustomerReportRealtimeAiReview({
+      input: report.aiReview?.input ?? {},
+    });
+    const reportWithRealtimeAi = Object.freeze({
+      ...report,
+      realtimeAiReview,
+    });
 
     const page = reportPageMod.buildCustomerReportsPage({
-      report,
+      report: reportWithRealtimeAi,
       account: req.customerAccount,
     });
 

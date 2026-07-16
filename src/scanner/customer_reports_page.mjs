@@ -90,6 +90,10 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const scanner = report.scanner ?? {};
   const aiReview = report.aiReview ?? {};
   const aiProposals = Array.isArray(aiReview.proposals) ? aiReview.proposals : [];
+  const realtimeAiReview = report.realtimeAiReview ?? {};
+  const realtimeAiText = typeof realtimeAiReview.reviewText === "string"
+    ? realtimeAiReview.reviewText.trim()
+    : "";
   const activities = Array.isArray(report.activity) ? report.activity : [];
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
@@ -235,6 +239,24 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 ${aiProposals.length
   ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(({ data_quality: "Data freshness", signal_quality: "Signal quality", entry_logic: "Entry quality", exit_logic: "Exit timing", risk_logic: "Risk controls", ranking_logic: "Ranking quality", observation: "Review status" })[proposal?.category] ?? "Review item")} · ${esc(({ high: "Important", medium: "Review", low: "Informational" })[proposal?.severity] ?? "Informational")}</h3><p><strong>What we found:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Suggested next step:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
   : "<p>No improvement suggestions are available for this report yet.</p>"}
+</section>
+
+<section class="card panel">
+<h2>Real-Time AI Review</h2>
+<p>This optional review uses the current paper report only. It cannot change scanner logic, contact a broker, place orders, or modify an account.</p>
+<p><strong>Status:</strong> ${esc(({
+  disabled: "Disabled",
+  not_configured: "Not configured",
+  completed_readonly: "Completed — read only",
+  empty_response: "No review returned",
+  provider_error: "Provider error",
+  timeout: "Timed out",
+  request_failed: "Request failed",
+})[realtimeAiReview.status] ?? "Not active")}</p>
+${realtimeAiText
+  ? `<article class="report-row"><p>${esc(realtimeAiText).replaceAll("\n", "<br>")}</p></article>`
+  : "<p>No real-time AI review is available. The deterministic report review above remains active.</p>"}
+<p><strong>Backtesting required:</strong> ${esc(realtimeAiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(realtimeAiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
 </section>
 
 <section class="card panel">
