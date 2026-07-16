@@ -16,6 +16,9 @@ test("builds bounded read-only report review input", () => {
   assert.equal(input.period, "weekly");
   assert.equal(input.safety.automaticLogicMutationAllowed, false);
   assert.equal(input.safety.orderPlacementAllowed, false);
+  assert.equal(input.scanner.doNotEnter, 0);
+  assert.deepEqual(input.activity, []);
+  assert.equal(input.completeness.activityCount, 0);
 });
 
 test("creates proposals without mutating scanner logic", () => {
@@ -44,4 +47,46 @@ test("creates proposals without mutating scanner logic", () => {
   assert.ok(review.proposals.some((proposal) => proposal.id === "drawdown_risk_review"));
   assert.ok(review.proposals.length >= 5);
   assert.ok(review.proposals.every((proposal) => proposal.suggestedPatch === null));
+});
+
+
+test("includes bounded report evidence for missing-information review", () => {
+  const input = buildCustomerReportAiReviewInput({
+    period: "daily",
+    sourceTs: "2026-07-15T20:00:00Z",
+    sourceAgeSec: 15,
+    maxAgeSec: 120,
+    paperRecordCount: 3,
+    trades: { averageHoldTime: null },
+    scanner: { signalsGenerated: 2, doNotEnter: 1 },
+    activity: Array.from({ length: 30 }, (_, index) => ({
+      symbol: "T" + index,
+      qty: index + 1,
+      avgEntryPrice: 10 + index,
+      costBasis: 100 + index,
+      realizedPnl: index - 5,
+      lastFillPrice: 11 + index,
+      lastUpdatedAt: "2026-07-15T20:00:00Z",
+      fillCount: 1,
+      secret: "must-not-pass",
+    })),
+    largestWinners: [{ symbol: "WIN", realizedPnl: 50, secret: "omit" }],
+    largestLosers: [{ symbol: "LOSS", realizedPnl: -20, secret: "omit" }],
+    equityCurve: Array.from({ length: 60 }, (_, index) => ({
+      timestamp: "2026-07-15T20:" + String(index).padStart(2, "0") + ":00Z",
+      equity: 1000 + index,
+    })),
+  });
+
+  assert.equal(input.activity.length, 25);
+  assert.equal(input.activity[0].symbol, "T0");
+  assert.equal("secret" in input.activity[0], false);
+  assert.equal(input.largestWinners[0].symbol, "WIN");
+  assert.equal(input.largestLosers[0].symbol, "LOSS");
+  assert.equal(input.equityCurve.length, 50);
+  assert.equal(input.completeness.paperRecordCount, 3);
+  assert.equal(input.completeness.activityCount, 30);
+  assert.equal(input.completeness.equityPointCount, 60);
+  assert.equal(input.completeness.averageHoldTimeAvailable, false);
+  assert.equal(input.scanner.doNotEnter, 1);
 });

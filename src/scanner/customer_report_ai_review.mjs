@@ -35,12 +35,53 @@ export function buildCustomerReportAiReviewInput(report = {}) {
       enter: finite(report?.scanner?.enter) ?? 0,
       exit: finite(report?.scanner?.exit) ?? 0,
       wait: finite(report?.scanner?.wait) ?? 0,
+      doNotEnter: finite(report?.scanner?.doNotEnter) ?? 0,
       blocked: finite(report?.scanner?.blocked) ?? 0,
       stale: finite(report?.scanner?.stale) ?? 0,
       averageConfidence: finite(report?.scanner?.averageConfidence),
       averagePotentialScore: finite(report?.scanner?.averagePotentialScore),
       profitableSignals: finite(report?.scanner?.profitableSignals) ?? 0,
       failedSignals: finite(report?.scanner?.failedSignals) ?? 0,
+    }),
+    activity: Object.freeze(
+      (Array.isArray(report?.activity) ? report.activity : []).slice(0, 25).map((row) => Object.freeze({
+        symbol: String(row?.symbol ?? "").trim().toUpperCase() || null,
+        qty: finite(row?.qty),
+        avgEntryPrice: finite(row?.avgEntryPrice),
+        costBasis: finite(row?.costBasis),
+        realizedPnl: finite(row?.realizedPnl),
+        lastFillPrice: finite(row?.lastFillPrice),
+        lastUpdatedAt: row?.lastUpdatedAt ?? null,
+        fillCount: finite(row?.fillCount),
+      }))
+    ),
+    largestWinners: Object.freeze(
+      (Array.isArray(report?.largestWinners) ? report.largestWinners : []).slice(0, 5).map((row) => Object.freeze({
+        symbol: String(row?.symbol ?? "").trim().toUpperCase() || null,
+        realizedPnl: finite(row?.realizedPnl),
+      }))
+    ),
+    largestLosers: Object.freeze(
+      (Array.isArray(report?.largestLosers) ? report.largestLosers : []).slice(0, 5).map((row) => Object.freeze({
+        symbol: String(row?.symbol ?? "").trim().toUpperCase() || null,
+        realizedPnl: finite(row?.realizedPnl),
+      }))
+    ),
+    equityCurve: Object.freeze(
+      (Array.isArray(report?.equityCurve) ? report.equityCurve : []).slice(-50).map((row) => Object.freeze({
+        timestamp: row?.timestamp ?? null,
+        equity: finite(row?.equity),
+      }))
+    ),
+    completeness: Object.freeze({
+      paperRecordCount: finite(report?.paperRecordCount) ?? 0,
+      sourceTs: report?.sourceTs ?? null,
+      sourceAgeSec: finite(report?.sourceAgeSec),
+      maxAgeSec: finite(report?.maxAgeSec),
+      averageHoldTimeAvailable: report?.trades?.averageHoldTime !== null
+        && report?.trades?.averageHoldTime !== undefined,
+      activityCount: Array.isArray(report?.activity) ? report.activity.length : 0,
+      equityPointCount: Array.isArray(report?.equityCurve) ? report.equityCurve.length : 0,
     }),
     safety: Object.freeze({
       readOnly: true,
