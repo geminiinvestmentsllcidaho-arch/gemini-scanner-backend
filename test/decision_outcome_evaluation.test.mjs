@@ -89,6 +89,41 @@ test("supports explicit evaluation thresholds without mutating source outcomes",
   assert.equal(report.thresholds.meaningfulFavorablePct, 1);
 });
 
+
+test("propagates fresh-source observability metadata without changing pending classification", () => {
+  const report = buildDecisionOutcomeEvaluationReport({
+    version: "opportunity_outcome_tracking_v1",
+    freshSourceObservationsOnly: true,
+    outcomes: [{
+      key: "scan-stale:ABC",
+      originScanId: "scan-stale",
+      originEventAt: "2026-07-16T14:00:00.000Z",
+      originMarketOpen: true,
+      originSourceStale: true,
+      originObservable: false,
+      symbol: "ABC",
+      decision: "DO_NOT_ENTER",
+      observations: 0,
+      entryPrice: 10,
+      latestPrice: null,
+      latestReturnPct: null,
+      maxFavorablePct: 0,
+      maxAdversePct: 0,
+      blockingFlags: ["stale_source"],
+    }],
+  });
+
+  assert.equal(report.freshSourceObservationsOnly, true);
+  assert.equal(report.evaluations[0].originMarketOpen, true);
+  assert.equal(report.evaluations[0].originSourceStale, true);
+  assert.equal(report.evaluations[0].originObservable, false);
+  assert.equal(report.evaluations[0].classification, "PENDING");
+  assert.equal(report.observedEvaluationCount, 0);
+  assert.equal(report.favorableDecisionCount, 0);
+  assert.equal(report.unfavorableDecisionCount, 0);
+});
+
+
 test("keeps market-closed pending outcomes out of favorable decision metrics", () => {
   const report = buildDecisionOutcomeEvaluationReport({
     version: "opportunity_outcome_tracking_v1",
