@@ -185,6 +185,11 @@ const app = express();
 app.set('trust proxy', 'loopback');
 app.use(applyCustomerSecurityHeaders);
 
+app.get('/assets/GeminiScanner-Logo.jpg', (_req, res) => {
+  res.type('image/jpeg');
+  res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/GeminiScanner-Logo.jpg');
+});
+
 app.get('/assets/customer-scanner-countdown.js', (_req, res) => {
   res.type('application/javascript');
   res.send(`(() => {

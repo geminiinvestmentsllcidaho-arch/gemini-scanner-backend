@@ -32,6 +32,7 @@ test("background logo is fixed decorative and non interactive", () => {
   assert.match(css, /\.gs-background-logo\{position:fixed/);
   assert.match(css, /pointer-events:none/);
   assert.match(layer, /aria-hidden="true"/);
+  assert.match(layer, /\/assets\/GeminiScanner-Logo\.jpg/);
   assert.doesNotMatch(layer, /role="img"/);
 });
 

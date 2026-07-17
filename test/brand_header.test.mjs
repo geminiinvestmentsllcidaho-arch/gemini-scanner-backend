@@ -9,7 +9,7 @@ import {
 
 test("renders shared GeminiScanner logo and header", () => {
   assert.match(renderGeminiScannerLogoSvg(), /GeminiScanner logo/);
-  assert.match(renderGeminiScannerLogoSvg(), /linearGradient/);
+  assert.match(renderGeminiScannerLogoSvg(), /\/assets\/GeminiScanner-Logo\.jpg/);
   assert.match(renderGeminiScannerBrandHeader(), /GeminiScanner/);
   assert.match(renderGeminiScannerBrandHeader(), new RegExp(BRAND_VERSION));
 });
