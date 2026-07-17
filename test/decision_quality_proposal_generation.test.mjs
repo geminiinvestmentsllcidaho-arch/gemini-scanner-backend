@@ -55,6 +55,46 @@ test("generates bounded review-only proposals from decision quality classes", ()
   assert.equal(report.proposals[0].patchIncluded, false);
 });
 
+
+test("propagates fresh-source observability metadata into review-only proposals", () => {
+  const report = buildDecisionQualityProposalReport({
+    version: "decision_quality_classification_v1",
+    marketOpenObservationsOnly: true,
+    freshSourceObservationsOnly: true,
+    reviewRequiredCount: 1,
+    reviewQueue: [{
+      key: "scan-fresh:ABC",
+      originScanId: "scan-fresh",
+      originEventAt: "2026-07-16T14:00:00.000Z",
+      originMarketOpen: true,
+      originSourceStale: false,
+      originObservable: true,
+      symbol: "ABC",
+      decision: "ENTER",
+      outcomeClassification: "FALSE_POSITIVE_ENTER",
+      qualityClass: "FALSE_POSITIVE",
+      latestReturnPct: -2.4,
+      maxFavorablePct: 0.3,
+      maxAdversePct: -3.1,
+      blockingFlags: [],
+    }],
+  });
+
+  assert.equal(report.marketOpenObservationsOnly, true);
+  assert.equal(report.freshSourceObservationsOnly, true);
+  assert.equal(report.proposalCount, 1);
+  assert.equal(report.proposals[0].sourceMarketOpen, true);
+  assert.equal(report.proposals[0].sourceStale, false);
+  assert.equal(report.proposals[0].sourceObservable, true);
+  assert.equal(report.proposals[0].proposalOnly, true);
+  assert.equal(report.proposals[0].implementationIncluded, false);
+  assert.equal(report.scannerLogicMutationAllowed, false);
+  assert.equal(report.thresholdMutationAllowed, false);
+  assert.equal(report.orderPlacementAllowed, false);
+  assert.equal(report.accountMutationAllowed, false);
+});
+
+
 test("keeps every proposal and report mutation lock closed", () => {
   const report = buildDecisionQualityProposalReport({
     reviewQueue: [reviewItem("FALSE_POSITIVE")],
