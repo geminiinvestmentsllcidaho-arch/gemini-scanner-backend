@@ -4266,7 +4266,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
           thresholdMutationAllowed: false,
         }),
       }),
-      timeoutMs: 5000,
+      timeoutMs: Number(process.env.GS_REALTIME_AI_TIMEOUT_MS || 30000),
     });
     const proposalCalibrationHistoryWrite = calibrationHistoryMod.persistProposalCalibrationHistory(
       decisionQualityProposals,

@@ -26,7 +26,7 @@ test('public customer authentication mutations require same-origin verification'
 test("reports route bounds realtime AI latency", () => {
   assert.match(
     source,
-    /requestCustomerReportRealtimeAiReview\(\{[\s\S]*?timeoutMs: 5000,\s*\}\)/,
+    /requestCustomerReportRealtimeAiReview\(\{[\s\S]*?timeoutMs: Number\(process\.env\.GS_REALTIME_AI_TIMEOUT_MS \|\| 30000\),\s*\}\)/,
   );
   assert.match(source, /calibrationContext:\s*Object\.freeze\(\{/);
   assert.match(source, /automaticLearningAllowed:\s*false/);
