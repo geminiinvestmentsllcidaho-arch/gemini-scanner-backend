@@ -61,6 +61,9 @@ import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
 import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords } from './scanner/opportunity_funnel_audit_store.mjs';
+import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
+import { runCustomerReportBackgroundAiReview } from './scanner/customer_report_background_ai_review_runner.mjs';
+import { listCustomerReportBackgroundAiReviewRecords } from './scanner/customer_report_background_ai_review_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
@@ -3464,6 +3467,10 @@ app.get("/app", (req, res) => {
 
 const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
 
+const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
+  runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({ now }),
+});
+
 app.listen(PORT, HOST, async () => {
   const underFiveCache = await underFiveSharedCachePromise;
   if (underFiveCache) {
@@ -3472,6 +3479,13 @@ app.listen(PORT, HOST, async () => {
     });
   }
   console.log(`[server] listening on http://${HOST}:${PORT}`);
+  const backgroundAiReviewStatus = customerReportBackgroundAiReviewWorker.start();
+  console.log('[background-ai-review] worker status', {
+    enabled: backgroundAiReviewStatus.enabled,
+    running: backgroundAiReviewStatus.running,
+    intervalMs: backgroundAiReviewStatus.intervalMs,
+    lastStatus: backgroundAiReviewStatus.lastStatus,
+  });
   const paperPositionRefresh = paperPositionStateAutoRefresh.start();
   console.log('[paper-position-auto-refresh] started', {
     intervalMs: paperPositionRefresh.intervalMs,
