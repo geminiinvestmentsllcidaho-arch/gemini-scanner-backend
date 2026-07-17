@@ -47,6 +47,8 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
       if (minDecision && decision !== minDecision) continue;
 
       const originMarketOpen = origin?.marketOpen === true;
+      const originSourceStale = candidate?.sourceStale === true;
+      const originObservable = originMarketOpen && !originSourceStale;
       let observations = 0;
       let latestPrice = null;
       let maxPrice = entryPrice;
@@ -56,16 +58,17 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
       let futureOpenScans = 0;
       for (let futureIndex = scanIndex + 1; futureIndex < ordered.length; futureIndex += 1) {
         const futureRecord = ordered[futureIndex];
-        if (!originMarketOpen || futureRecord?.marketOpen !== true) continue;
-        futureOpenScans += 1;
-        if (futureOpenScans > horizonScans) break;
+        if (!originObservable || futureRecord?.marketOpen !== true) continue;
         const futureCandidate = (Array.isArray(futureRecord.candidates)
           ? futureRecord.candidates
           : []).find((row) => clean(row?.symbol, 20).toUpperCase() === symbol);
 
+        if (!futureCandidate || futureCandidate?.sourceStale === true) continue;
         const futurePrice = finite(futureCandidate?.price);
         if (futurePrice === null || futurePrice <= 0) continue;
 
+        futureOpenScans += 1;
+        if (futureOpenScans > horizonScans) break;
         observations += 1;
         latestPrice = futurePrice;
         latestEventAt = clean(futureRecord.eventAt, 64) || null;
@@ -84,6 +87,8 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
         originScanId: clean(origin.scanId, 128),
         originEventAt: clean(origin.eventAt, 64) || null,
         originMarketOpen,
+        originSourceStale,
+        originObservable,
         symbol,
         decision,
         resultState: clean(candidate?.resultState, 32).toUpperCase() || null,
@@ -142,6 +147,7 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
     decisionAssistOnly: true,
     historicalMeasurementOnly: true,
     marketOpenObservationsOnly: true,
+    freshSourceObservationsOnly: true,
     scannerLogicMutationAllowed: false,
     thresholdMutationAllowed: false,
     brokerContactAllowed: false,

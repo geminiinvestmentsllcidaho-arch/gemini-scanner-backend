@@ -168,3 +168,44 @@ test("horizon counts market-open scans instead of closed scan records", () => {
   assert.equal(origin.latestPrice, 11);
   assert.equal(origin.latestReturnPct, 10);
 });
+
+
+test("keeps stale market-open origins pending", () => {
+  const report = buildOpportunityOutcomeTrackingReport([
+    record("open-stale-origin", "2026-07-16T14:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "ENTER", sourceStale: true },
+    ], true),
+    record("open-fresh-future", "2026-07-16T14:01:00.000Z", [
+      { symbol: "ABC", price: 11, decision: "ENTER", sourceStale: false },
+    ], true),
+  ], { horizonScans: 1 });
+
+  const origin = report.outcomes.find((row) => row.originScanId === "open-stale-origin");
+  assert.equal(origin.originMarketOpen, true);
+  assert.equal(origin.originSourceStale, true);
+  assert.equal(origin.originObservable, false);
+  assert.equal(origin.observations, 0);
+  assert.equal(origin.latestPrice, null);
+  assert.equal(origin.latestReturnPct, null);
+  assert.equal(report.freshSourceObservationsOnly, true);
+});
+
+test("stale open candidates do not consume the fresh observation horizon", () => {
+  const report = buildOpportunityOutcomeTrackingReport([
+    record("open-origin", "2026-07-16T14:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "ENTER", sourceStale: false },
+    ], true),
+    record("open-stale", "2026-07-16T14:01:00.000Z", [
+      { symbol: "ABC", price: 99, decision: "ENTER", sourceStale: true },
+    ], true),
+    record("open-fresh", "2026-07-16T14:02:00.000Z", [
+      { symbol: "ABC", price: 11, decision: "ENTER", sourceStale: false },
+    ], true),
+  ], { horizonScans: 1 });
+
+  const origin = report.outcomes.find((row) => row.originScanId === "open-origin");
+  assert.equal(origin.originObservable, true);
+  assert.equal(origin.observations, 1);
+  assert.equal(origin.latestPrice, 11);
+  assert.equal(origin.latestReturnPct, 10);
+});
