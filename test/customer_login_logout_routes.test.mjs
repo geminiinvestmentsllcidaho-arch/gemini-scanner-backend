@@ -23,6 +23,18 @@ test('public customer authentication mutations require same-origin verification'
   }
 });
 
+test("background AI review diagnostic route is read-only", () => {
+  assert.match(source, /app\.get\(["']\/diagnostics\/customer-report-background-ai-review["']/);
+  assert.match(source, /customerReportBackgroundAiReviewWorker\.getStatus\(\)/);
+  assert.match(source, /listCustomerReportBackgroundAiReviewRecords\(\{ maxRecords: 20 \}\)/);
+  assert.match(source, /automaticLearningAllowed:\s*false/);
+  assert.match(source, /scannerLogicMutationAllowed:\s*false/);
+  assert.match(source, /thresholdMutationAllowed:\s*false/);
+  assert.match(source, /orderPlacementAllowed:\s*false/);
+  assert.match(source, /brokerContactAllowed:\s*false/);
+  assert.match(source, /accountMutationAllowed:\s*false/);
+});
+
 test("reports route bounds realtime AI latency", () => {
   assert.match(
     source,

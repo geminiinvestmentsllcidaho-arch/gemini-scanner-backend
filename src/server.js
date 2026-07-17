@@ -3456,6 +3456,22 @@ app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAut
   })));
 });
 
+app.get("/diagnostics/customer-report-background-ai-review", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({
+    worker: customerReportBackgroundAiReviewWorker.getStatus(),
+    history: listCustomerReportBackgroundAiReviewRecords({ maxRecords: 20 }),
+    readOnly: true,
+    paperOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  });
+});
+
 app.get("/diagnostics/app-navigation-readonly", (req, res) => {
   res.json(buildAppNavigationReadonly({ now: new Date() }));
 });
