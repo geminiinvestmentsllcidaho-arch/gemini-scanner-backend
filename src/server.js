@@ -4217,10 +4217,6 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       paperLedgerHistory,
       scannerEvents,
     });
-    const realtimeAiReview = await realtimeAiMod.requestCustomerReportRealtimeAiReview({
-      input: report.aiReview?.input ?? {},
-      timeoutMs: 5000,
-    });
     const decisionQualityProposals = qualityProposalMod.readDecisionQualityProposalReport({
       now,
       maxRecords: 20,
@@ -4233,6 +4229,40 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
         maxReviewGroups: 100,
       },
     );
+    const realtimeAiReview = await realtimeAiMod.requestCustomerReportRealtimeAiReview({
+      input: Object.freeze({
+        ...(report.aiReview?.input ?? {}),
+        calibrationContext: Object.freeze({
+          generatedAt: proposalCalibrationReview.generatedAt ?? null,
+          analyzedProposalCount: proposalCalibrationReview.analyzedProposalCount ?? 0,
+          calibrationReviewQueueCount: proposalCalibrationReview.calibrationReviewQueueCount ?? 0,
+          marketOpenObservationsOnly: proposalCalibrationReview.marketOpenObservationsOnly === true,
+          freshSourceObservationsOnly: proposalCalibrationReview.freshSourceObservationsOnly === true,
+          groups: Object.freeze(
+            (Array.isArray(proposalCalibrationReview.calibrationReviewQueue)
+              ? proposalCalibrationReview.calibrationReviewQueue
+              : [])
+              .slice(0, 20)
+              .map((group) => Object.freeze({
+                groupBy: group?.groupBy ?? null,
+                groupKey: group?.groupKey ?? null,
+                sampleCount: group?.sampleCount ?? 0,
+                calibrationBand: group?.calibrationBand ?? null,
+                calibrationReviewStatus: group?.calibrationReviewStatus ?? null,
+                disagreementRatePct: group?.disagreementRatePct ?? null,
+                observableSourceCount: group?.observableSourceCount ?? 0,
+                staleSourceCount: group?.staleSourceCount ?? 0,
+              })),
+          ),
+          readOnly: true,
+          historicalMeasurementOnly: true,
+          automaticLearningAllowed: false,
+          scannerLogicMutationAllowed: false,
+          thresholdMutationAllowed: false,
+        }),
+      }),
+      timeoutMs: 5000,
+    });
     const proposalCalibrationHistoryWrite = calibrationHistoryMod.persistProposalCalibrationHistory(
       decisionQualityProposals,
       proposalCalibrationReview,

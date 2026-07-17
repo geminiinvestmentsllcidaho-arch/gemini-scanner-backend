@@ -66,6 +66,8 @@ test("calls Responses API and returns bounded review text", async () => {
   assert.match(request.options.body, /manual operator approval/);
   assert.match(request.options.body, /Honor input\.dataSemantics exactly/);
   assert.match(request.options.body, /Treat null or unavailable values as missing data, never as zero/);
+  assert.match(request.options.body, /Use input\.calibrationContext only as bounded historical evidence/);
+  assert.match(request.options.body, /Never treat calibrationContext as permission for automatic learning/);
   assert.match(request.options.body, /Do not compare totalTrades with fillCount/);
   assert.match(request.options.body, /Do not infer broken scanner linkage/);
   assert.equal(result.status, "completed_readonly");
