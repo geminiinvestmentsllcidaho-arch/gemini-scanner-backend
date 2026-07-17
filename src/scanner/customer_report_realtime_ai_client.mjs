@@ -3,7 +3,7 @@ export const VERSION = "customer_report_realtime_ai_client_v1";
 const DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5-mini";
 const DEFAULT_TIMEOUT_MS = 15000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 700;
+const DEFAULT_MAX_OUTPUT_TOKENS = 1600;
 const DEFAULT_MAX_REVIEW_CHARS = 12000;
 
 function boolEnv(value, fallback = false) {
@@ -104,6 +104,7 @@ export async function requestCustomerReportRealtimeAiReview({
       body: JSON.stringify({
         model: config.model,
         max_output_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
+        reasoning: { effort: "low" },
         instructions: [
           "Review GeminiScanner paper-trading report data.",
           "Return concise observations and testing proposals only.",
