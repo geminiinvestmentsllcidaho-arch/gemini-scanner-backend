@@ -40,7 +40,7 @@ function reviewStatus(sampleCount, disagreementRatePct) {
   return "CALIBRATION_OBSERVATION_ONLY";
 }
 
-function aggregateProposalGroup(proposals, key, value) {
+function aggregateProposalGroup(proposals, key, value, proposalReport = {}) {
   const rows = proposals.filter((proposal) => clean(proposal?.[key], 128) === value);
   const confidenceValues = rows.map((row) => finite(row?.evidence?.rankingConfidence));
   const potentialValues = rows.map((row) => finite(row?.evidence?.readonlyPotentialScore));
@@ -50,6 +50,8 @@ function aggregateProposalGroup(proposals, key, value) {
   const symbols = [...new Set(rows.map((row) => clean(row?.evidence?.symbol, 20)).filter(Boolean))];
   const scanIds = [...new Set(rows.map((row) => clean(row?.sourceScanId, 128)).filter(Boolean))];
   const blockingFlagCounts = {};
+  const observableSourceCount = rows.filter((row) => row?.sourceObservable === true).length;
+  const staleSourceCount = rows.filter((row) => row?.sourceStale === true).length;
 
   for (const row of rows) {
     for (const flag of Array.isArray(row?.evidence?.blockingFlags) ? row.evidence.blockingFlags : []) {
@@ -79,6 +81,8 @@ function aggregateProposalGroup(proposals, key, value) {
     averageMaxAdversePct: average(adverseReturns),
     highConfidenceConcernCount,
     disagreementRatePct,
+    observableSourceCount,
+    staleSourceCount,
     calibrationBand: calibrationBand(rows.length),
     calibrationReviewStatus: reviewStatus(rows.length, disagreementRatePct),
     blockingFlagCounts: Object.freeze({ ...blockingFlagCounts }),
@@ -101,11 +105,11 @@ export function buildProposalEvidenceAggregationCalibrationReview(proposalReport
   const targetAreas = [...new Set(proposals.map((row) => clean(row?.targetArea, 128)).filter(Boolean))];
 
   const byProposalType = proposalTypes
-    .map((value) => aggregateProposalGroup(proposals, "proposalType", value))
+    .map((value) => aggregateProposalGroup(proposals, "proposalType", value, proposalReport))
     .sort((a, b) => b.sampleCount - a.sampleCount || a.groupKey.localeCompare(b.groupKey));
 
   const byTargetArea = targetAreas
-    .map((value) => aggregateProposalGroup(proposals, "targetArea", value))
+    .map((value) => aggregateProposalGroup(proposals, "targetArea", value, proposalReport))
     .sort((a, b) => b.sampleCount - a.sampleCount || a.groupKey.localeCompare(b.groupKey));
 
   const calibrationReviewQueue = [...byProposalType, ...byTargetArea]
@@ -140,6 +144,8 @@ export function buildProposalEvidenceAggregationCalibrationReview(proposalReport
     paperOnly: true,
     decisionAssistOnly: true,
     historicalMeasurementOnly: true,
+    marketOpenObservationsOnly: proposalReport?.marketOpenObservationsOnly === true,
+    freshSourceObservationsOnly: proposalReport?.freshSourceObservationsOnly === true,
     proposalOnly: true,
     humanReviewRequired: true,
     separateApprovalRequired: true,

@@ -7,12 +7,19 @@ import {
 } from "../src/scanner/proposal_evidence_aggregation_calibration_review.mjs";
 
 function proposal(index, overrides = {}) {
+  if (index && typeof index === "object" && !Array.isArray(index)) {
+    overrides = index;
+    index = overrides.proposalId ?? "custom";
+  }
   return {
     proposalId: `p-${index}`,
     proposalType: overrides.proposalType ?? "REDUCE_FALSE_POSITIVES",
     targetArea: overrides.targetArea ?? "entry_confirmation",
     sourceKey: `key-${index}`,
     sourceScanId: overrides.sourceScanId ?? `scan-${index}`,
+    sourceMarketOpen: overrides.sourceMarketOpen === true,
+    sourceStale: overrides.sourceStale === true,
+    sourceObservable: overrides.sourceObservable === true,
     evidence: {
       symbol: overrides.symbol ?? `S${index}`,
       rankingConfidence: overrides.rankingConfidence ?? 0.8,
@@ -69,6 +76,41 @@ test("marks high-confidence disagreement groups for calibration review", () => {
   assert.equal(group.calibrationBand, "EARLY_SAMPLE");
   assert.equal(group.calibrationReviewStatus, "HIGH_CALIBRATION_CONCERN");
   assert.ok(report.calibrationReviewQueueCount >= 1);
+});
+
+
+test("propagates fresh-source observability into calibration groups", () => {
+  const report = buildProposalEvidenceAggregationCalibrationReview({
+    version: "decision_quality_proposal_generation_v1",
+    marketOpenObservationsOnly: true,
+    freshSourceObservationsOnly: true,
+    proposalCount: 2,
+    proposals: [
+      proposal({
+        proposalId: "fresh-1",
+        sourceScanId: "scan-fresh",
+        sourceMarketOpen: true,
+        sourceStale: false,
+        sourceObservable: true,
+      }),
+      proposal({
+        proposalId: "stale-1",
+        sourceScanId: "scan-stale",
+        sourceMarketOpen: true,
+        sourceStale: true,
+        sourceObservable: false,
+      }),
+    ],
+  });
+
+  assert.equal(report.marketOpenObservationsOnly, true);
+  assert.equal(report.freshSourceObservationsOnly, true);
+  assert.equal(report.byProposalType[0].observableSourceCount, 1);
+  assert.equal(report.byProposalType[0].staleSourceCount, 1);
+  assert.equal(report.scannerLogicMutationAllowed, false);
+  assert.equal(report.thresholdMutationAllowed, false);
+  assert.equal(report.orderPlacementAllowed, false);
+  assert.equal(report.accountMutationAllowed, false);
 });
 
 test("keeps calibration review read only with every mutation lock closed", () => {

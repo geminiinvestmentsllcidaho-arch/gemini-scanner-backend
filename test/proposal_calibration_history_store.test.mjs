@@ -59,6 +59,44 @@ test("builds bounded immutable proposal calibration history record", () => {
   assert.equal(Object.isFrozen(record.groups), true);
 });
 
+
+test("stores freshness observability metadata in calibration history", () => {
+  const record = buildProposalCalibrationHistoryRecord(
+    {
+      version: "decision_quality_proposal_generation_v1",
+      proposalCount: 2,
+      marketOpenObservationsOnly: true,
+      freshSourceObservationsOnly: true,
+    },
+    {
+      version: "proposal_evidence_aggregation_calibration_review_v1",
+      marketOpenObservationsOnly: true,
+      freshSourceObservationsOnly: true,
+      analyzedProposalCount: 2,
+      proposalTypeGroupCount: 1,
+      targetAreaGroupCount: 1,
+      calibrationReviewQueueCount: 1,
+      calibrationReviewQueue: [{
+        groupDimension: "proposalType",
+        groupKey: "REDUCE_FALSE_POSITIVES",
+        proposalCount: 2,
+        observableSourceCount: 1,
+        staleSourceCount: 1,
+      }],
+    },
+    { now: "2026-07-16T22:00:00.000Z" },
+  );
+
+  assert.equal(record.marketOpenObservationsOnly, true);
+  assert.equal(record.freshSourceObservationsOnly, true);
+  assert.equal(record.groups[0].observableSourceCount, 1);
+  assert.equal(record.groups[0].staleSourceCount, 1);
+  assert.equal(record.automaticLearningAllowed, false);
+  assert.equal(record.scannerLogicMutationAllowed, false);
+  assert.equal(record.orderPlacementAllowed, false);
+  assert.equal(record.accountMutationAllowed, false);
+});
+
 test("persists private local jsonl history and reads newest first", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "proposal-calibration-history-"));
   const historyPath = path.join(dir, "history.jsonl");

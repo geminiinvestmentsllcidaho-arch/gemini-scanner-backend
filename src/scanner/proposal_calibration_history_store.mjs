@@ -32,6 +32,8 @@ function normalizeGroup(group = {}) {
     averageRankingConfidence: finiteOrNull(group.averageRankingConfidence),
     averageLatestReturnPct: finiteOrNull(group.averageLatestReturnPct),
     highConfidenceConcernCount: boundedInteger(group.highConfidenceConcernCount, 0, 0, 1000000),
+    observableSourceCount: boundedInteger(group.observableSourceCount, 0, 0, 1000000),
+    staleSourceCount: boundedInteger(group.staleSourceCount, 0, 0, 1000000),
   });
 }
 
@@ -53,6 +55,12 @@ export function buildProposalCalibrationHistoryRecord(
     proposalVersion: safeText(proposalReport.version, "unknown"),
     calibrationVersion: safeText(calibrationReview.version, "unknown"),
     proposalCount: boundedInteger(proposalReport.proposalCount, 0, 0, 1000000),
+    marketOpenObservationsOnly:
+      calibrationReview.marketOpenObservationsOnly === true
+      || proposalReport.marketOpenObservationsOnly === true,
+    freshSourceObservationsOnly:
+      calibrationReview.freshSourceObservationsOnly === true
+      || proposalReport.freshSourceObservationsOnly === true,
     analyzedProposalCount: boundedInteger(calibrationReview.analyzedProposalCount, 0, 0, 1000000),
     proposalTypeGroupCount: boundedInteger(calibrationReview.proposalTypeGroupCount, 0, 0, 1000000),
     targetAreaGroupCount: boundedInteger(calibrationReview.targetAreaGroupCount, 0, 0, 1000000),
@@ -83,6 +91,8 @@ export function appendProposalCalibrationHistoryRecord(record, options = {}) {
     proposalVersion: record?.proposalVersion ?? null,
     calibrationVersion: record?.calibrationVersion ?? null,
     proposalCount: record?.proposalCount ?? 0,
+    marketOpenObservationsOnly: record?.marketOpenObservationsOnly === true,
+    freshSourceObservationsOnly: record?.freshSourceObservationsOnly === true,
     analyzedProposalCount: record?.analyzedProposalCount ?? 0,
     proposalTypeGroupCount: record?.proposalTypeGroupCount ?? 0,
     targetAreaGroupCount: record?.targetAreaGroupCount ?? 0,
@@ -101,6 +111,8 @@ export function appendProposalCalibrationHistoryRecord(record, options = {}) {
           proposalVersion: latest?.proposalVersion ?? null,
           calibrationVersion: latest?.calibrationVersion ?? null,
           proposalCount: latest?.proposalCount ?? 0,
+          marketOpenObservationsOnly: latest?.marketOpenObservationsOnly === true,
+          freshSourceObservationsOnly: latest?.freshSourceObservationsOnly === true,
           analyzedProposalCount: latest?.analyzedProposalCount ?? 0,
           proposalTypeGroupCount: latest?.proposalTypeGroupCount ?? 0,
           targetAreaGroupCount: latest?.targetAreaGroupCount ?? 0,
