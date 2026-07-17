@@ -150,6 +150,7 @@ export function renderCustomerReportsPageHtml(page = {}) {
 <p><strong>Status:</strong> ${esc(labelToken(group.calibrationReviewStatus))} | <strong>Sample:</strong> ${esc(number(group.sampleCount, locale))} | <strong>Band:</strong> ${esc(labelToken(group.calibrationBand))}</p>
 <p><strong>High-confidence concern rate:</strong> ${esc(number(group.disagreementRatePct, locale, "%"))} | <strong>Average confidence:</strong> ${esc(number(group.averageRankingConfidence, locale))}</p>
 <p><strong>Symbols:</strong> ${esc(number(group.uniqueSymbolCount, locale))} | <strong>Scans:</strong> ${esc(number(group.uniqueScanCount, locale))}</p>
+<p><strong>Observable sources:</strong> ${esc(number(group.observableSourceCount, locale))} | <strong>Stale sources:</strong> ${esc(number(group.staleSourceCount, locale))}</p>
 </article>`).join("")
     : "<p>No calibration review groups are available yet.</p>";
 
@@ -308,6 +309,8 @@ ${metric("Analyzed proposals", number(proposalCalibrationReview.analyzedProposal
 ${metric("Proposal groups", number(proposalCalibrationReview.proposalTypeGroupCount, locale))}
 ${metric("Target-area groups", number(proposalCalibrationReview.targetAreaGroupCount, locale))}
 ${metric("Review groups", number(proposalCalibrationReview.calibrationReviewQueueCount, locale))}
+${metric("Market-open evidence", proposalCalibrationReview.marketOpenObservationsOnly === true ? "Only" : "Mixed or unavailable")}
+${metric("Fresh-source evidence", proposalCalibrationReview.freshSourceObservationsOnly === true ? "Only" : "Mixed or unavailable")}
 </div>
 ${calibrationCards}
 <div class="safety-locks">
@@ -328,7 +331,7 @@ ${metric("Automatic learning", proposalCalibrationHistory.automaticLearningAllow
 ${metric("Scanner mutation", proposalCalibrationHistory.scannerLogicMutationAllowed === true ? "Allowed" : "Locked")}
 </div>
 ${calibrationHistoryRows.length
-  ? calibrationHistoryRows.slice(0, 10).map((row) => `<article class="report-row"><h3>${esc(formatCustomerDateTime(row.generatedAt, account))}</h3><p><strong>Analyzed proposals:</strong> ${esc(number(row.analyzedProposalCount, locale))} | <strong>Review groups:</strong> ${esc(number(row.calibrationReviewQueueCount, locale))}</p><p><strong>Proposal groups:</strong> ${esc(number(row.proposalTypeGroupCount, locale))} | <strong>Target-area groups:</strong> ${esc(number(row.targetAreaGroupCount, locale))}</p></article>`).join("")
+  ? calibrationHistoryRows.slice(0, 10).map((row) => `<article class="report-row"><h3>${esc(formatCustomerDateTime(row.generatedAt, account))}</h3><p><strong>Analyzed proposals:</strong> ${esc(number(row.analyzedProposalCount, locale))} | <strong>Review groups:</strong> ${esc(number(row.calibrationReviewQueueCount, locale))}</p><p><strong>Proposal groups:</strong> ${esc(number(row.proposalTypeGroupCount, locale))} | <strong>Target-area groups:</strong> ${esc(number(row.targetAreaGroupCount, locale))}</p><p><strong>Market-open evidence:</strong> ${esc(row.marketOpenObservationsOnly === true ? "Only" : "Mixed or unavailable")} | <strong>Fresh-source evidence:</strong> ${esc(row.freshSourceObservationsOnly === true ? "Only" : "Mixed or unavailable")}</p></article>`).join("")
   : "<p>No calibration history snapshots are available yet.</p>"}
 <div class="safety-locks">
 <span>Local history only</span>

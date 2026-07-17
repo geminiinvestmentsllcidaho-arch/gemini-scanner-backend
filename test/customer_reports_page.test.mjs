@@ -213,6 +213,8 @@ test("renders historical decision-quality proposals and calibration review read 
         proposalTypeGroupCount: 1,
         targetAreaGroupCount: 1,
         calibrationReviewQueueCount: 1,
+        marketOpenObservationsOnly: true,
+        freshSourceObservationsOnly: true,
         calibrationReviewQueue: [{
           groupKey: "entry_confirmation",
           calibrationReviewStatus: "HIGH_CALIBRATION_CONCERN",
@@ -222,6 +224,8 @@ test("renders historical decision-quality proposals and calibration review read 
           averageRankingConfidence: 0.8,
           uniqueSymbolCount: 4,
           uniqueScanCount: 6,
+          observableSourceCount: 5,
+          staleSourceCount: 1,
         }],
       },
     },
@@ -232,6 +236,8 @@ test("renders historical decision-quality proposals and calibration review read 
       scannerLogicMutationAllowed: false,
       records: [{
         generatedAt: "2026-07-16T20:00:00.000Z",
+        marketOpenObservationsOnly: true,
+        freshSourceObservationsOnly: true,
         analyzedProposalCount: 100,
         calibrationReviewQueueCount: 1,
         proposalTypeGroupCount: 2,
@@ -248,6 +254,11 @@ test("renders historical decision-quality proposals and calibration review read 
   assert.match(html, /Duplicate snapshots skipped/);
   assert.match(html, /High Calibration Concern/);
   assert.match(html, /66\.67%/);
+  assert.match(html, /Observable sources:<\/strong> 5/);
+  assert.match(html, /Stale sources:<\/strong> 1/);
+  assert.match(html, /Market-open evidence/);
+  assert.match(html, /Fresh-source evidence/);
+  assert.match(html, /Only/);
   assert.match(html, /Automatic learning/);
   assert.match(html, /Locked/);
   assert.match(html, /Scanner mutation locked/);
