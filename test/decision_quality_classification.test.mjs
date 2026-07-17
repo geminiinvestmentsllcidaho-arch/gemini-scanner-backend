@@ -83,6 +83,41 @@ test("builds a priority review queue while preserving read-only safety", () => {
   assert.equal(report.accountMutationAllowed, false);
 });
 
+
+test("propagates fresh-source observability metadata into pending quality items", () => {
+  const report = buildDecisionQualityClassificationReport({
+    version: "decision_outcome_evaluation_v1",
+    marketOpenObservationsOnly: true,
+    freshSourceObservationsOnly: true,
+    evaluations: [{
+      key: "scan-stale:ABC",
+      originScanId: "scan-stale",
+      originEventAt: "2026-07-16T14:00:00.000Z",
+      originMarketOpen: true,
+      originSourceStale: true,
+      originObservable: false,
+      symbol: "ABC",
+      decision: "DO_NOT_ENTER",
+      classification: "PENDING",
+      observations: 0,
+      blockingFlags: ["stale_source"],
+    }],
+  });
+
+  assert.equal(report.marketOpenObservationsOnly, true);
+  assert.equal(report.freshSourceObservationsOnly, true);
+  assert.equal(report.classifications[0].originMarketOpen, true);
+  assert.equal(report.classifications[0].originSourceStale, true);
+  assert.equal(report.classifications[0].originObservable, false);
+  assert.equal(report.classifications[0].qualityClass, "PENDING");
+  assert.equal(report.observedClassificationCount, 0);
+  assert.equal(report.reviewRequiredCount, 0);
+  assert.equal(report.scannerLogicMutationAllowed, false);
+  assert.equal(report.thresholdMutationAllowed, false);
+  assert.equal(report.orderPlacementAllowed, false);
+  assert.equal(report.accountMutationAllowed, false);
+});
+
 test("keeps pending evaluations out of observed review metrics", () => {
   const report = buildDecisionQualityClassificationReport({
     evaluations: [
