@@ -60,7 +60,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
-import { appendOpportunityFunnelAuditRecord } from './scanner/opportunity_funnel_audit_store.mjs';
+import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords } from './scanner/opportunity_funnel_audit_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
@@ -4207,10 +4207,20 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const paperLedgerHistory = Array.isArray(paperPositionLedger.records)
       ? paperPositionLedger.records
       : [];
-    const rankingRoot = readScannerRankings();
-    const scannerEvents = Array.isArray(rankingRoot?.rankings)
-      ? rankingRoot.rankings
-      : [];
+    const liveScanRecords = listOpportunityFunnelAuditRecords({ maxRecords: 120 });
+    const scannerEvents = liveScanRecords.flatMap((scan) => {
+      const eventAt = scan?.eventAt ?? null;
+      return (Array.isArray(scan?.candidates) ? scan.candidates : []).map((candidate) => Object.freeze({
+        ...candidate,
+        createdAt: eventAt,
+        sourceTs: eventAt,
+        scanId: scan?.scanId ?? null,
+        scanner: scan?.scanner ?? null,
+        marketOpen: scan?.marketOpen === true,
+        sourceStatus: scan?.sourceStatus ?? null,
+        resultState: candidate?.resultState ?? candidate?.decision ?? null,
+      }));
+    });
 
     const report = reportModelMod.buildCustomerReportModel({
       period: req.query.period ?? 'lifetime',

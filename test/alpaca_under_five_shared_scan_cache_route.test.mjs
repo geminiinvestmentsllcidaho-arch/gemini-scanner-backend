@@ -60,7 +60,7 @@ test("shared under-five source bridges scanner rankings before customer routes r
 test("server wires completed shared scans into the local read-only opportunity funnel audit", () => {
   assert.match(
     server,
-    /import \{ appendOpportunityFunnelAuditRecord \} from '\.\/scanner\/opportunity_funnel_audit_store\.mjs';/,
+    /import \{ appendOpportunityFunnelAuditRecord,\s*listOpportunityFunnelAuditRecords \} from '\.\/scanner\/opportunity_funnel_audit_store\.mjs';/,
   );
   assert.match(server, /onScanComplete\(snapshot\) \{/);
   assert.match(server, /appendOpportunityFunnelAuditRecord\(\{/);

@@ -32,6 +32,8 @@ test("reports route bounds realtime AI latency", () => {
   assert.match(source, /automaticLearningAllowed:\s*false/);
   assert.match(source, /scannerLogicMutationAllowed:\s*false/);
   assert.match(source, /thresholdMutationAllowed:\s*false/);
+  assert.match(source, /listOpportunityFunnelAuditRecords\(\{ maxRecords: 120 \}\)/);
+  assert.match(source, /resultState: candidate\?\.resultState \?\? candidate\?\.decision \?\? null/);
 });
 test('customer routes require signed customer sessions', () => {
   for (const route of [

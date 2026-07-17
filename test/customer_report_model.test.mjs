@@ -211,3 +211,35 @@ test("uses paper account equity and P/L for a non-fabricated fallback baseline",
   assert.equal(report.trades.fillEventsObserved, 2);
   assert.deepEqual(report.equityCurve.map((point) => point.equity), [null, null]);
 });
+
+
+test("summarizes fresh live opportunity scan candidates by event timestamp", () => {
+  const now = new Date("2026-07-17T19:00:00.000Z");
+  const report = buildCustomerReportModel({
+    period: "daily",
+    now,
+    timeZone: "America/Boise",
+    scannerEvents: [
+      {
+        symbol: "ASTS",
+        createdAt: "2026-07-17T18:51:20.643Z",
+        resultState: "WAIT",
+        readonlyPotentialScore: 99.91,
+      },
+      {
+        symbol: "UVXY",
+        createdAt: "2026-07-17T18:51:20.643Z",
+        resultState: "DO_NOT_ENTER",
+        readonlyPotentialScore: 99.8,
+      },
+    ],
+  });
+
+  assert.equal(report.scanner.signalsGenerated, 2);
+  assert.equal(report.scanner.wait, 1);
+  assert.equal(report.scanner.doNotEnter, 1);
+  assert.equal(report.scanner.averagePotentialScore, 99.85);
+  assert.equal(report.aiReview.input.scanner.signalsGenerated, 2);
+  assert.equal(report.readOnly, true);
+  assert.equal(report.orderPlacementAllowed, false);
+});
