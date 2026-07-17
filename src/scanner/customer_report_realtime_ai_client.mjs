@@ -3,6 +3,8 @@ export const VERSION = "customer_report_realtime_ai_client_v1";
 const DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5-mini";
 const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 700;
+const DEFAULT_MAX_REVIEW_CHARS = 12000;
 
 function boolEnv(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -14,9 +16,14 @@ function positiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function boundedText(value, maxChars = DEFAULT_MAX_REVIEW_CHARS) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text.length > maxChars ? text.slice(0, maxChars) : text;
+}
+
 function textFromResponse(payload = {}) {
   if (typeof payload.output_text === "string" && payload.output_text.trim()) {
-    return payload.output_text.trim();
+    return boundedText(payload.output_text);
   }
   const parts = [];
   for (const item of Array.isArray(payload.output) ? payload.output : []) {
@@ -26,7 +33,7 @@ function textFromResponse(payload = {}) {
       }
     }
   }
-  return parts.join("\n").trim();
+  return boundedText(parts.join("\n"));
 }
 
 export function getCustomerReportRealtimeAiConfig(env = process.env) {
@@ -96,6 +103,7 @@ export async function requestCustomerReportRealtimeAiReview({
       },
       body: JSON.stringify({
         model: config.model,
+        max_output_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
         instructions: [
           "Review GeminiScanner paper-trading report data.",
           "Return concise observations and testing proposals only.",
