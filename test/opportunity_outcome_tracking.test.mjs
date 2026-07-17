@@ -6,10 +6,11 @@ import {
   buildOpportunityOutcomeTrackingReport,
 } from "../src/scanner/opportunity_outcome_tracking.mjs";
 
-function record(scanId, eventAt, candidates) {
+function record(scanId, eventAt, candidates, marketOpen = true) {
   return {
     scanId,
     eventAt,
+    marketOpen,
     candidates,
   };
 }
@@ -104,4 +105,41 @@ test("sorts records chronologically before calculating outcomes", () => {
   const first = report.outcomes.find((row) => row.originScanId === "scan-1");
   assert.equal(first.latestPrice, 12);
   assert.equal(first.latestReturnPct, 20);
+});
+
+test("keeps market-closed scans pending instead of scoring flat prices", () => {
+  const report = buildOpportunityOutcomeTrackingReport([
+    record("closed-1", "2026-07-17T00:30:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "DO_NOT_ENTER" },
+    ], false),
+    record("closed-2", "2026-07-17T00:30:30.000Z", [
+      { symbol: "ABC", price: 10, decision: "DO_NOT_ENTER" },
+    ], false),
+  ], { horizonScans: 1 });
+
+  assert.equal(report.observedOutcomeCount, 0);
+  assert.equal(report.pendingOutcomeCount, 2);
+  assert.equal(report.outcomes[0].originMarketOpen, false);
+  assert.equal(report.outcomes[0].observations, 0);
+  assert.equal(report.outcomes[0].latestReturnPct, null);
+  assert.equal(report.marketOpenObservationsOnly, true);
+});
+
+test("ignores closed scans between open-session observations", () => {
+  const report = buildOpportunityOutcomeTrackingReport([
+    record("open-1", "2026-07-16T14:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "ENTER" },
+    ], true),
+    record("closed-1", "2026-07-17T00:30:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "DO_NOT_ENTER" },
+    ], false),
+    record("open-2", "2026-07-17T14:00:00.000Z", [
+      { symbol: "ABC", price: 11, decision: "ENTER" },
+    ], true),
+  ], { horizonScans: 2 });
+
+  const origin = report.outcomes.find((row) => row.originScanId === "open-1");
+  assert.equal(origin.observations, 1);
+  assert.equal(origin.latestPrice, 11);
+  assert.equal(origin.latestReturnPct, 10);
 });

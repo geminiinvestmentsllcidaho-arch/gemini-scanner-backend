@@ -88,3 +88,29 @@ test("supports explicit evaluation thresholds without mutating source outcomes",
   assert.equal(report.thresholds.positivePct, 0.5);
   assert.equal(report.thresholds.meaningfulFavorablePct, 1);
 });
+
+test("keeps market-closed pending outcomes out of favorable decision metrics", () => {
+  const report = buildDecisionOutcomeEvaluationReport({
+    version: "opportunity_outcome_tracking_v1",
+    outcomes: [{
+      key: "closed-1:ABC",
+      originScanId: "closed-1",
+      originEventAt: "2026-07-17T00:30:00.000Z",
+      originMarketOpen: false,
+      symbol: "ABC",
+      decision: "DO_NOT_ENTER",
+      observations: 0,
+      entryPrice: 10,
+      latestPrice: null,
+      latestReturnPct: null,
+      maxFavorablePct: 0,
+      maxAdversePct: 0,
+    }],
+  });
+
+  assert.equal(report.classificationCounts.PENDING, 1);
+  assert.equal(report.favorableDecisionCount, 0);
+  assert.equal(report.unfavorableDecisionCount, 0);
+  assert.equal(report.evaluations[0].originMarketOpen, false);
+  assert.equal(report.marketOpenObservationsOnly, true);
+});

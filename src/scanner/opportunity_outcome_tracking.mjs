@@ -46,6 +46,7 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
       if (!symbol || entryPrice === null || entryPrice <= 0) continue;
       if (minDecision && decision !== minDecision) continue;
 
+      const originMarketOpen = origin?.marketOpen === true;
       let observations = 0;
       let latestPrice = null;
       let maxPrice = entryPrice;
@@ -55,6 +56,7 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
       const endIndex = Math.min(ordered.length - 1, scanIndex + horizonScans);
       for (let futureIndex = scanIndex + 1; futureIndex <= endIndex; futureIndex += 1) {
         const futureRecord = ordered[futureIndex];
+        if (!originMarketOpen || futureRecord?.marketOpen !== true) continue;
         const futureCandidate = (Array.isArray(futureRecord.candidates)
           ? futureRecord.candidates
           : []).find((row) => clean(row?.symbol, 20).toUpperCase() === symbol);
@@ -79,6 +81,7 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
         key: candidateKey(origin.scanId, symbol),
         originScanId: clean(origin.scanId, 128),
         originEventAt: clean(origin.eventAt, 64) || null,
+        originMarketOpen,
         symbol,
         decision,
         resultState: clean(candidate?.resultState, 32).toUpperCase() || null,
@@ -136,6 +139,7 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
     paperOnly: true,
     decisionAssistOnly: true,
     historicalMeasurementOnly: true,
+    marketOpenObservationsOnly: true,
     scannerLogicMutationAllowed: false,
     thresholdMutationAllowed: false,
     brokerContactAllowed: false,
