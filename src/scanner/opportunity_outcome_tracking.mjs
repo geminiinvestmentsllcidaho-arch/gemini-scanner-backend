@@ -53,10 +53,12 @@ export function buildOpportunityOutcomeTrackingReport(records = [], options = {}
       let minPrice = entryPrice;
       let latestEventAt = null;
 
-      const endIndex = Math.min(ordered.length - 1, scanIndex + horizonScans);
-      for (let futureIndex = scanIndex + 1; futureIndex <= endIndex; futureIndex += 1) {
+      let futureOpenScans = 0;
+      for (let futureIndex = scanIndex + 1; futureIndex < ordered.length; futureIndex += 1) {
         const futureRecord = ordered[futureIndex];
         if (!originMarketOpen || futureRecord?.marketOpen !== true) continue;
+        futureOpenScans += 1;
+        if (futureOpenScans > horizonScans) break;
         const futureCandidate = (Array.isArray(futureRecord.candidates)
           ? futureRecord.candidates
           : []).find((row) => clean(row?.symbol, 20).toUpperCase() === symbol);

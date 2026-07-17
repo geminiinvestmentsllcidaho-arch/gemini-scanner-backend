@@ -143,3 +143,28 @@ test("ignores closed scans between open-session observations", () => {
   assert.equal(origin.latestPrice, 11);
   assert.equal(origin.latestReturnPct, 10);
 });
+
+test("horizon counts market-open scans instead of closed scan records", () => {
+  const report = buildOpportunityOutcomeTrackingReport([
+    record("open-1", "2026-07-16T14:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "ENTER" },
+    ], true),
+    record("closed-1", "2026-07-16T22:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "DO_NOT_ENTER" },
+    ], false),
+    record("closed-2", "2026-07-17T00:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "DO_NOT_ENTER" },
+    ], false),
+    record("closed-3", "2026-07-17T12:00:00.000Z", [
+      { symbol: "ABC", price: 10, decision: "DO_NOT_ENTER" },
+    ], false),
+    record("open-2", "2026-07-17T14:00:00.000Z", [
+      { symbol: "ABC", price: 11, decision: "ENTER" },
+    ], true),
+  ], { horizonScans: 1 });
+
+  const origin = report.outcomes.find((row) => row.originScanId === "open-1");
+  assert.equal(origin.observations, 1);
+  assert.equal(origin.latestPrice, 11);
+  assert.equal(origin.latestReturnPct, 10);
+});
