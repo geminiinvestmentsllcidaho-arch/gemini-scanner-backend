@@ -198,25 +198,20 @@ test("customer hub navigation exposes authenticated reports", () => {
 });
 
 
-test("customer hub marks premarket available", () => {
+test("customer hub excludes automatic premarket from manual scanner modes", () => {
   const hub = buildCustomerScannerHub();
-  const premarket = hub.modes.find((mode) => mode.id === "premarket");
-  assert.equal(premarket?.status, "available");
-  assert.equal(premarket?.href, "/customer/scanner");
-});
+  assert.equal(hub.modes.some((mode) => mode.id === "premarket"), false);
 
-test("renders selectable premarket scanner mode", () => {
   const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
     scannerSelections: {
-      modes: ["premarket"],
+      modes: ["premarket", "intraday"],
       assets: ["stocks"],
       priceRanges: [50],
     },
   }));
-  assert.match(html, /name="modes"[^>]*value="premarket"[^>]* checked/);
-  assert.match(html, />Premarket</);
+  assert.doesNotMatch(html, /name="modes"[^>]*value="premarket"/);
+  assert.match(html, /name="modes"[^>]*value="intraday"[^>]* checked/);
 });
-
 
 test("renders automatic premarket scheduler status evidence", () => {
   const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({

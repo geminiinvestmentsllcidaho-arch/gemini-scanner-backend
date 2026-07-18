@@ -16,13 +16,6 @@ const MODES = Object.freeze([
     default: true,
   }),
   Object.freeze({
-    id: "premarket",
-    label: "Premarket",
-    status: "available",
-    href: "/customer/scanner",
-    default: false,
-  }),
-  Object.freeze({
     id: "swing",
     label: "Swing",
     status: "coming_soon",
@@ -118,8 +111,9 @@ export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), ac
   const availablePriceRanges = hub.priceRanges.filter((range) => range.status === "available");
   const scannerStates = ["EXIT","BLOCKED","DO_NOT_ENTER","ENTER","WAIT","WATCH","STALE_DATA","NO_SETUP"];
   const selectedScannerStates = Array.isArray(hub.scannerFilters?.states) ? hub.scannerFilters.states : scannerStates;
+  const availableModeIds = new Set(availableModes.map((mode) => mode.id));
   const selectedModes = Array.isArray(hub.scannerSelections?.modes)
-    ? hub.scannerSelections.modes
+    ? hub.scannerSelections.modes.filter((mode) => availableModeIds.has(mode))
     : availableModes.filter((mode) => mode.default).map((mode) => mode.id);
   const selectedPriceRanges = Array.isArray(hub.scannerSelections?.priceRanges)
     ? hub.scannerSelections.priceRanges.map(String)

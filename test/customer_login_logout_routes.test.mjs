@@ -954,7 +954,8 @@ test('customer settings renders shared customer neon theme and fixed background 
 
 test('customer scanner run button stays authenticated and routes only to read-only customer surfaces', () => {
   assert.match(source, /app\.post\('\/customer\/scanner\/run', requireCustomerSession, requireCustomerSameOrigin, async \(req, res\) =>/);
-  assert.match(source, /\['intraday', 'premarket', 'watchlist'\]\.includes\(mode\)/);
+  assert.match(source, /\['intraday', 'watchlist'\]\.includes\(mode\)/);
+  assert.doesNotMatch(source, /\['intraday', 'premarket', 'watchlist'\]\.includes\(mode\)/);
   assert.match(source, /res\.redirect\(303, '\/customer\/watchlist'\)/);
   assert.match(source, /buildCustomerUnderFiveDashboard\(source,/);
   assert.match(source, /renderCustomerUnderFiveDashboardHtml\(dashboard, req\.customerAccount\)/);

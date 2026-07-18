@@ -542,14 +542,13 @@ test("watchlist scanner has no price ceiling and renders top scan status", () =>
 });
 
 
-test("customer scanner run route supports read-only premarket mode", async () => {
+test("customer scanner run route excludes automatic premarket from manual modes", async () => {
   const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
   const start = server.indexOf("app.post('/customer/scanner/run', requireCustomerSession");
   const end = server.indexOf("app.get('/customer/watchlist'", start);
   const block = server.slice(start, end);
-  assert.match(block, /\['intraday', 'premarket', 'watchlist'\]/);
-  assert.match(block, /getPremarketSharedSource/);
+  assert.match(block, /\['intraday', 'watchlist'\]/);
+  assert.doesNotMatch(block, /premarketOnly|getPremarketSharedSource|Premarket Scanner/);
   assert.match(server, /alpaca_premarket_shared_scan_cache\.mjs/);
   assert.match(server, /scanner: 'alpaca_premarket_shared_readonly'/);
-  assert.match(block, /Premarket Scanner/);
 });
