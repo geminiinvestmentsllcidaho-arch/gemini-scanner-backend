@@ -548,7 +548,8 @@ test("customer scanner run route supports read-only premarket mode", async () =>
   const end = server.indexOf("app.get('/customer/watchlist'", start);
   const block = server.slice(start, end);
   assert.match(block, /\['intraday', 'premarket', 'watchlist'\]/);
-  assert.match(block, /fetchAlpacaPremarketUniverseReadonly/);
-  assert.match(block, /scanner: 'alpaca_premarket_readonly'/);
+  assert.match(block, /getPremarketSharedSource/);
+  assert.match(server, /alpaca_premarket_shared_scan_cache\.mjs/);
+  assert.match(server, /scanner: 'alpaca_premarket_shared_readonly'/);
   assert.match(block, /Premarket Scanner/);
 });

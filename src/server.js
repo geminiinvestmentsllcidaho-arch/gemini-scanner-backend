@@ -269,11 +269,52 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
     return null;
   });
 
+const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_scan_cache.mjs')
+  .then(async (mod) => {
+    const cache = mod.createAlpacaPremarketSharedScanCache({
+      scanOptions: {
+        minPrice: 0.5,
+        maxPrice: 1000,
+        minDailyVolume: 100000,
+        minGapPct: 2,
+        minDollarVolume: 250000,
+        maxSpreadPct: 2,
+      },
+      onScanComplete(snapshot) {
+        appendOpportunityFunnelAuditRecord({
+          scanId: `premarket-auto-${snapshot?.sharedCache?.scanCount ?? 'unknown'}-${snapshot?.sharedCache?.generatedAt ?? Date.now()}`,
+          scanner: 'alpaca_premarket_shared_readonly',
+          sourceVersion: snapshot?.version,
+          sourceStatus: snapshot?.status,
+          marketOpen: false,
+          assetCount: snapshot?.assetCount,
+          snapshotCount: snapshot?.snapshotCount,
+          candidateCount: snapshot?.candidateCount,
+          candidates: snapshot?.candidates,
+        });
+      },
+    });
+    await cache.start();
+    return cache;
+  })
+  .catch((error) => {
+    console.error('[premarket-shared-cache] init failed', error?.message ?? String(error));
+    return null;
+  });
+
 async function getUnderFiveSharedSource({ refresh = false } = {}) {
   const cache = await underFiveSharedCachePromise;
   if (!cache) throw new Error('under_five_shared_cache_unavailable');
   const source = refresh ? await cache.refreshNow() : (cache.getLatest() ?? await cache.refreshNow());
   return bridgeCustomerZeroFreshRankings(source, readScannerRankings());
+}
+
+async function getPremarketSharedSource({ refresh = false, maxPrice = 1000 } = {}) {
+  const cache = await premarketSharedCachePromise;
+  if (!cache) throw new Error('premarket_shared_cache_unavailable');
+  const latest = cache.getLatest();
+  if (latest && Number(latest?.filters?.maxPrice) === Number(maxPrice) && !refresh) return latest;
+  return cache.refreshNow();
 }
 
 function paperDiagnosticBool(value, fallback = false) {
@@ -4385,26 +4426,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
   const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
   let source;
   if (premarketOnly) {
-    const premarketSourceMod = await import('./scanner/alpaca_premarket_universe_readonly.mjs');
-    source = await premarketSourceMod.fetchAlpacaPremarketUniverseReadonly({
-      minPrice: 0.5,
-      maxPrice,
-      minDailyVolume: 100000,
-      minGapPct: 2,
-      minDollarVolume: 250000,
-      maxSpreadPct: 2,
-    });
-    appendOpportunityFunnelAuditRecord({
-      scanId: `premarket-${Date.now()}`,
-      scanner: 'alpaca_premarket_readonly',
-      sourceVersion: source?.version,
-      sourceStatus: source?.status,
-      marketOpen: false,
-      assetCount: source?.assetCount,
-      snapshotCount: source?.snapshotCount,
-      candidateCount: source?.candidateCount,
-      candidates: source?.candidates,
-    });
+    source = await getPremarketSharedSource({ refresh: true, maxPrice });
   } else if (watchlistOnly) {
     const watchlist = getCustomerWatchlist(req.customerAccount?.id);
     const watchlistSymbols = watchlist.ok ? watchlist.symbols : [];
