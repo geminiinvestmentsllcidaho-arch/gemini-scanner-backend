@@ -148,7 +148,10 @@ test('settings page exposes authenticated notification preference controls', () 
   assert.match(source, /name="scannerAlerts"/);
   assert.match(source, /name="reportEmailEnabled"/);
   assert.match(source, /name="reportSmsEnabled"/);
+  assert.match(source, /name="reportSmsCountryCode"/);
+  assert.match(source, /United States \/ Canada \(\+1\)/);
   assert.match(source, /name="reportSmsPhone"/);
+  assert.match(source, /Messaging and data rates may apply\./);
   assert.match(source, /name="reportDelivery_\$\{value\}"/);
   assert.match(source, /reportDeliveryPeriods/);
   assert.match(source, /["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]/);

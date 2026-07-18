@@ -539,6 +539,9 @@ export function updateCustomerNotificationPreferences(accountId, input = {}, opt
     reportEmailEnabled: input.reportEmailEnabled === true || input.reportEmailEnabled === "on",
     reportSmsEnabled: input.reportSmsEnabled === true || input.reportSmsEnabled === "on",
     reportDeliveryPeriods: Object.freeze(reportDeliveryPeriods),
+    reportSmsCountryCode: ["+1", "+44", "+52", "+61", "+64"].includes(clean(input.reportSmsCountryCode))
+      ? clean(input.reportSmsCountryCode)
+      : "+1",
     reportSmsPhone: clean(input.reportSmsPhone),
   });
 

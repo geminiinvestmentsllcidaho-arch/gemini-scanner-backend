@@ -410,6 +410,7 @@ test("updates customer notification preferences with security emails locked on",
       reportEmailEnabled: false,
       reportSmsEnabled: false,
       reportDeliveryPeriods: [],
+      reportSmsCountryCode: "+1",
       reportSmsPhone: "",
     });
     assert.equal(
@@ -1058,6 +1059,38 @@ test("permanently deletes customer account only after password confirmation", ()
       authenticateCustomer(f.record.email, f.password, { storePath: f.storePath }).ok,
       false,
     );
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
+
+test("stores allowed report SMS country codes and defaults unsupported values", () => {
+  const f = fixture();
+  try {
+    const updated = updateCustomerNotificationPreferences(
+      f.record.id,
+      {
+        reportSmsEnabled: "on",
+        reportSmsCountryCode: "+44",
+        reportSmsPhone: "20 7946 0958",
+      },
+      { storePath: f.storePath, now: "2026-07-18T22:35:00.000Z" },
+    );
+    assert.equal(updated.ok, true);
+    assert.equal(updated.account.notificationPreferences.reportSmsCountryCode, "+44");
+    assert.equal(updated.account.notificationPreferences.reportSmsPhone, "20 7946 0958");
+
+    const fallback = updateCustomerNotificationPreferences(
+      f.record.id,
+      {
+        reportSmsCountryCode: "+999",
+        reportSmsPhone: "555 0100",
+      },
+      { storePath: f.storePath, now: "2026-07-18T22:36:00.000Z" },
+    );
+    assert.equal(fallback.ok, true);
+    assert.equal(fallback.account.notificationPreferences.reportSmsCountryCode, "+1");
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true });
   }
