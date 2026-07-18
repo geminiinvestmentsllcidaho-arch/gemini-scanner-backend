@@ -216,3 +216,29 @@ test("renders selectable premarket scanner mode", () => {
   assert.match(html, /name="modes"[^>]*value="premarket"[^>]* checked/);
   assert.match(html, />Premarket</);
 });
+
+
+test("renders automatic premarket scheduler status evidence", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    premarketAutoStatus: {
+      running: true,
+      schedulerState: "sleeping",
+      scanCount: 4,
+      lastCandidateCount: 7,
+      lastAutomaticScanAt: "2026-07-17T12:00:00.000Z",
+      nextWakeAt: "2026-07-20T08:00:00.000Z",
+      lastError: null,
+      session: { active: false },
+    },
+  }));
+
+  assert.match(html, /Automatic premarket scanner/);
+  assert.match(html, /Scheduler engaged/);
+  assert.match(html, /SLEEPING/);
+  assert.match(html, /Automatic scans/);
+  assert.match(html, />4</);
+  assert.match(html, /Last candidates/);
+  assert.match(html, />7</);
+  assert.match(html, /sleeping until the next valid premarket window/i);
+  assert.match(html, /No order placement or scanner-logic mutation/);
+});

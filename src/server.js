@@ -4389,9 +4389,12 @@ app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const scannerFilters = getCustomerZeroResultFilters(req.customerAccount?.id);
   const scannerSelections = getCustomerScannerSelections(req.customerAccount?.id);
+  const premarketCache = await premarketSharedCachePromise;
+  const premarketAutoStatus = premarketCache?.getDiagnostics?.() ?? null;
   const hub = mod.buildCustomerScannerHub({
     scannerFilters: scannerFilters.ok ? scannerFilters.filters : null,
     scannerSelections: scannerSelections.ok ? scannerSelections.selections : null,
+    premarketAutoStatus,
     filtersSaved: req.query?.filtersSaved === '1',
     runStarted: req.query?.runStarted === '1',
     runBlocked: req.query?.runBlocked === '1',

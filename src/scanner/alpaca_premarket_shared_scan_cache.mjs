@@ -82,16 +82,41 @@ export function createAlpacaPremarketSharedScanCache({
   let lastError = null;
   let skippedCount = 0;
 
-  const diagnostics = () => ({
+  const diagnostics = () => {
+    const nowMs = now();
+    const session = premarketSession(new Date(nowMs));
+    const nextWakeMs = msUntilNextPremarketWake(nowMs);
+    const latestSharedCache = latest?.sharedCache ?? null;
+    const latestCandidateCount = Number.isFinite(Number(latest?.candidateCount))
+      ? Number(latest.candidateCount)
+      : Array.isArray(latest?.candidates)
+        ? latest.candidates.length
+        : 0;
+    const schedulerState = !running
+      ? "stopped"
+      : lastError
+        ? "error"
+        : session.active
+          ? "scanning"
+          : "sleeping";
+
+    return ({
     version: VERSION,
     running,
+    schedulerState,
     scanCount,
     skippedCount,
     lastError,
     latest,
     hasSnapshot: latest !== null,
-    session: premarketSession(new Date(now())),
-    practicalIntervalSec: practicalPremarketIntervalSec(now()),
+    session,
+    practicalIntervalSec: practicalPremarketIntervalSec(nowMs),
+    nextWakeAt: new Date(nowMs + nextWakeMs).toISOString(),
+    nextWakeMs,
+    lastAutomaticScanAt: latestSharedCache?.generatedAt ?? null,
+    lastAutomaticScanSkipped: latestSharedCache?.skipped === true,
+    lastAutomaticScanSkipReason: latestSharedCache?.skipReason ?? null,
+    lastCandidateCount: latestCandidateCount,
     readOnly: true,
     paperOnly: true,
     decisionAssistOnly: true,
@@ -100,6 +125,7 @@ export function createAlpacaPremarketSharedScanCache({
     scannerLogicMutationAllowed: false,
     thresholdMutationAllowed: false,
   });
+  };
 
   const refreshNow = async () => {
     if (inFlight) return inFlight;

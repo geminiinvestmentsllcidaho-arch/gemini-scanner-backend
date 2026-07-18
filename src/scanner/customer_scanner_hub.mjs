@@ -88,6 +88,7 @@ export function buildCustomerScannerHub(options = {}) {
     portfolioSummary: options.portfolioSummary ?? null,
     scannerFilters: options.scannerFilters ?? null,
     scannerSelections: options.scannerSelections ?? null,
+    premarketAutoStatus: options.premarketAutoStatus ?? null,
     filtersSaved: options.filtersSaved === true,
     runStarted: options.runStarted === true,
     runBlocked: options.runBlocked === true,
@@ -225,6 +226,29 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 </details>`
     : "";
 
+  const premarket = hub.premarketAutoStatus;
+  const premarketState = premarket?.schedulerState ?? "unavailable";
+  const premarketPanel = premarket
+    ? `<section class="card premarket-auto-panel premarket-${esc(premarketState)}">
+<div class="premarket-auto-head">
+<div><div class="eyebrow">Automatic premarket scanner</div><h2>${premarket.running ? "Scheduler engaged" : "Scheduler stopped"}</h2></div>
+<strong>${esc(premarketState.replaceAll("_", " ").toUpperCase())}</strong>
+</div>
+<div class="premarket-auto-grid">
+<div><span>Session</span><b>${premarket.session?.active ? "Premarket active" : "Outside premarket"}</b></div>
+<div><span>Next activation</span><b>${esc(formatCustomerDateTime(premarket.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
+<div><span>Automatic scans</span><b>${esc(premarket.scanCount ?? 0)}</b></div>
+<div><span>Last candidates</span><b>${esc(premarket.lastCandidateCount ?? 0)}</b></div>
+<div><span>Last scan</span><b>${esc(formatCustomerDateTime(premarket.lastAutomaticScanAt, account, { fallback: "Not run yet" }))}</b></div>
+<div><span>Last error</span><b>${esc(premarket.lastError ?? "None")}</b></div>
+</div>
+<p>${premarket.session?.active
+  ? "The scanner is automatically hunting for premarket opportunities now."
+  : "The scheduler is sleeping until the next valid premarket window."}</p>
+<p class="premarket-auto-safety">Read only · Paper only · Decision assist · No order placement or scanner-logic mutation.</p>
+</section>`
+    : `<section class="card premarket-auto-panel premarket-unavailable"><div class="eyebrow">Automatic premarket scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
+
   const accountEmail = esc(account?.email ?? "");
   const accountPanel = accountEmail
     ? `<section class="card account-panel">
@@ -278,6 +302,18 @@ p{color:var(--gs-muted)}
 .portfolio-metrics span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gs-muted)}
 .portfolio-metrics b{margin-top:5px;font-size:1.02rem}
 .portfolio-table-wrap{overflow-x:auto}
+.premarket-auto-panel{padding:18px;margin-bottom:16px;border-left:7px solid #737983}
+.premarket-auto-panel.premarket-scanning{border-left-color:#39ff20}
+.premarket-auto-panel.premarket-sleeping{border-left-color:#ffd43b}
+.premarket-auto-panel.premarket-error,.premarket-auto-panel.premarket-stopped{border-left-color:#ff3547}
+.premarket-auto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.premarket-auto-head strong{font-size:.78rem;letter-spacing:.06em;color:var(--gs-accent)}
+.premarket-auto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.premarket-auto-grid div{padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.66)}
+.premarket-auto-grid span,.premarket-auto-grid b{display:block}
+.premarket-auto-grid span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gs-muted)}
+.premarket-auto-grid b{margin-top:5px;font-size:.95rem;overflow-wrap:anywhere}
+.premarket-auto-safety{font-size:.84rem}
 .portfolio-table{width:100%;border-collapse:collapse;min-width:760px}
 .portfolio-table th,.portfolio-table td{padding:10px;border-bottom:1px solid rgba(120,145,160,.25);text-align:right}
 .portfolio-table th:first-child,.portfolio-table td:first-child{text-align:left}
@@ -339,6 +375,7 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 ${performancePanel}
 ${portfolioPanel}
 ${accountPanel}
+${premarketPanel}
 <nav class="customer-nav" aria-label="Customer navigation">${nav}</nav>
 <section class="card hero">
 <div class="eyebrow">Customer account</div>

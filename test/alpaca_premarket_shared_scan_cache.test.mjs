@@ -80,3 +80,26 @@ test("scheduler does not poll every 30 seconds outside premarket", async () => {
   assert.equal(diagnostics.skippedCount, 1);
   assert.ok(scheduled?.delay > 24 * 60 * 60 * 1000);
 });
+
+
+test("exposes automatic premarket scheduler status and next wake evidence", async () => {
+  const nowMs = Date.parse("2026-07-18T02:00:00.000Z");
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => nowMs,
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {},
+  });
+
+  await cache.start();
+  const diagnostics = cache.getDiagnostics();
+
+  assert.equal(diagnostics.running, true);
+  assert.equal(diagnostics.schedulerState, "sleeping");
+  assert.equal(diagnostics.scanCount, 0);
+  assert.equal(diagnostics.lastAutomaticScanAt, null);
+  assert.equal(diagnostics.lastCandidateCount, 0);
+  assert.ok(Date.parse(diagnostics.nextWakeAt) > nowMs);
+  assert.ok(diagnostics.nextWakeMs > 0);
+  assert.equal(diagnostics.readOnly, true);
+  assert.equal(diagnostics.orderPlacementAllowed, false);
+});
