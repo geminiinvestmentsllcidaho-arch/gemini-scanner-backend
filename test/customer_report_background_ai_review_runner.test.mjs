@@ -17,6 +17,7 @@ test("flattens scan candidates into report events", () => {
     scanId: "scan-1",
     eventAt: "2026-07-17T15:00:00.000Z",
     scanner: "shared",
+    scanType: "premarket",
     marketOpen: true,
     sourceStatus: "ok",
     candidates: [{
@@ -26,6 +27,52 @@ test("flattens scan candidates into report events", () => {
   assert.equal(events[0].scanId, "scan-1");
   assert.equal(events[0].resultState, "ENTER");
   assert.equal(events[0].marketOpen, true);
+  assert.equal(events[0].scanType, "premarket");
+});
+
+
+test("runner includes premarket evidence with source-specific metadata", async () => {
+  let capturedInput = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-17T15:05:00.000Z"),
+    listScans: () => [{
+      scanId: "premarket-auto-1",
+      eventAt: "2026-07-17T12:00:00.000Z",
+      scanner: "alpaca_premarket_shared_readonly",
+      scanType: "premarket",
+      sourceStatus: "connected_readonly",
+      marketOpen: false,
+      candidates: [{
+        symbol: "PMKT",
+        decision: "WATCH",
+        readonlyPotentialScore: 74,
+        rankingConfidence: 0.72,
+        premarketGapPct: 5.4,
+        spreadPct: 0.6,
+        dollarVolume: 1200000,
+      }],
+    }],
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    readPositionStore: () => ({ records: [] }),
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        provider: "openai",
+        responseId: "premarket-review",
+        reviewText: "Premarket evidence reviewed.",
+      };
+    },
+    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "memory" }),
+  });
+
+  assert.equal(capturedInput.scanner.signalsGenerated, 1);
+  assert.equal(result.premarketScanRecordCount, 1);
+  assert.equal(result.includedPremarketEvidence, true);
+  assert.deepEqual(result.sourceCounts, { premarket: 1 });
+  assert.equal(result.automaticLearningAllowed, false);
+  assert.equal(result.scannerLogicMutationAllowed, false);
 });
 
 test("runner fails closed when scan evidence is unavailable", async () => {

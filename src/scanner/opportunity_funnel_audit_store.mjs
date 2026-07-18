@@ -45,6 +45,11 @@ export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
     eventAt: now.toISOString(),
     scanId: clean(input.scanId, 128) || `scan-${now.getTime()}`,
     scanner: clean(input.scanner, 64) || "alpaca_under_five_shared",
+    scanType: clean(input.scanType, 32) || (
+      clean(input.scanner, 64).includes("premarket") ? "premarket"
+        : clean(input.scanner, 64).includes("under_five") ? "under_five"
+          : "manual"
+    ),
     sourceVersion: clean(input.sourceVersion, 128) || null,
     sourceStatus: clean(input.sourceStatus, 64) || "unknown",
     marketOpen: input.marketOpen === true,
@@ -56,6 +61,8 @@ export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
       symbol: clean(candidate?.symbol, 20).toUpperCase(),
       price: finite(candidate?.price),
       changePct: finite(candidate?.changePct),
+      premarketGapPct: finite(candidate?.premarketGapPct),
+      momentumPct: finite(candidate?.momentumPct ?? candidate?.changePct),
       spreadPct: finite(candidate?.spreadPct),
       dollarVolume: finite(candidate?.dollarVolume),
       readonlyPotentialScore: finite(candidate?.readonlyPotentialScore),

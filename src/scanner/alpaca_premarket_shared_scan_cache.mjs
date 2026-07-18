@@ -81,6 +81,9 @@ export function createAlpacaPremarketSharedScanCache({
   let scanCount = 0;
   let lastError = null;
   let skippedCount = 0;
+  let aiEvidencePublicationCount = 0;
+  let lastAiEvidencePublishedAt = null;
+  let lastAiEvidencePublicationError = null;
 
   const diagnostics = () => {
     const nowMs = now();
@@ -117,6 +120,9 @@ export function createAlpacaPremarketSharedScanCache({
     lastAutomaticScanSkipped: latestSharedCache?.skipped === true,
     lastAutomaticScanSkipReason: latestSharedCache?.skipReason ?? null,
     lastCandidateCount: latestCandidateCount,
+    aiEvidencePublicationCount,
+    lastAiEvidencePublishedAt,
+    lastAiEvidencePublicationError,
     readOnly: true,
     paperOnly: true,
     decisionAssistOnly: true,
@@ -178,7 +184,11 @@ export function createAlpacaPremarketSharedScanCache({
         if (typeof onScanComplete === "function") {
           try {
             await onScanComplete(latest);
-          } catch {
+            aiEvidencePublicationCount += 1;
+            lastAiEvidencePublishedAt = latest?.sharedCache?.generatedAt ?? new Date(nowMs).toISOString();
+            lastAiEvidencePublicationError = null;
+          } catch (error) {
+            lastAiEvidencePublicationError = error?.message ?? String(error);
             // Audit/reporting failures must never stop the scheduler.
           }
         }

@@ -284,6 +284,7 @@ const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_sc
         appendOpportunityFunnelAuditRecord({
           scanId: `premarket-auto-${snapshot?.sharedCache?.scanCount ?? 'unknown'}-${snapshot?.sharedCache?.generatedAt ?? Date.now()}`,
           scanner: 'alpaca_premarket_shared_readonly',
+          scanType: 'premarket',
           sourceVersion: snapshot?.version,
           sourceStatus: snapshot?.status,
           marketOpen: false,

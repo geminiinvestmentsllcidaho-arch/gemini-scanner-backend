@@ -20,6 +20,7 @@ export function flattenOpportunityFunnelScans(scans = []) {
       sourceTs: eventAt,
       scanId: scan?.scanId ?? null,
       scanner: scan?.scanner ?? null,
+      scanType: scan?.scanType ?? null,
       marketOpen: scan?.marketOpen === true,
       sourceStatus: scan?.sourceStatus ?? null,
       resultState: candidate?.resultState ?? candidate?.decision ?? null,
@@ -72,7 +73,13 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     timeoutMs: Number(options.timeoutMs ?? process.env.GS_REALTIME_AI_TIMEOUT_MS ?? 30000),
   });
 
-  const latestScan = scans.at(-1) ?? {};
+  const latestScan = scans[0] ?? {};
+  const sourceCounts = scans.reduce((counts, scan) => {
+    const key = String(scan?.scanType ?? "unknown");
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
+  const premarketScanRecordCount = Number(sourceCounts.premarket ?? 0);
   const record = buildCustomerReportBackgroundAiReviewRecord({
     report,
     review,
@@ -80,6 +87,8 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       latestScanId: latestScan?.scanId ?? null,
       latestScanAt: latestScan?.eventAt ?? null,
       scanRecordCount: scans.length,
+      sourceCounts,
+      premarketScanRecordCount,
     },
   }, { now });
   const write = persistRecord(record, { ledgerPath: options.ledgerPath });
@@ -97,6 +106,9 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     ledgerPath: write?.ledgerPath ?? null,
     scanRecordCount: scans.length,
     scannerEventCount: scannerEvents.length,
+    sourceCounts: Object.freeze({ ...sourceCounts }),
+    premarketScanRecordCount,
+    includedPremarketEvidence: premarketScanRecordCount > 0,
     readOnly: true,
     paperOnly: true,
     requiresBacktest: true,

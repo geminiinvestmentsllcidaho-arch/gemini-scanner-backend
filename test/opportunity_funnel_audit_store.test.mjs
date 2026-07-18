@@ -24,6 +24,7 @@ function fixture() {
 test("builds deterministic read-only opportunity funnel scan records", () => {
   const record = buildOpportunityFunnelAuditRecord({
     scanId: "scan-1",
+    scanType: "premarket",
     sourceVersion: "fixture_v1",
     sourceStatus: "connected_readonly",
     marketOpen: true,
@@ -33,6 +34,7 @@ test("builds deterministic read-only opportunity funnel scan records", () => {
       {
         symbol: "aaa",
         price: 4.5,
+        premarketGapPct: 6.2,
         readonlyPotentialScore: 82,
         decision: "ENTER",
         blockingFlags: [],
@@ -58,6 +60,8 @@ test("builds deterministic read-only opportunity funnel scan records", () => {
 
   assert.equal(record.eventAt, "2026-07-16T15:45:00.000Z");
   assert.equal(record.candidateCount, 3);
+  assert.equal(record.scanType, "premarket");
+  assert.equal(record.candidates[0].premarketGapPct, 6.2);
   assert.deepEqual(record.decisionCounts, {
     ENTER: 1,
     WAIT: 1,

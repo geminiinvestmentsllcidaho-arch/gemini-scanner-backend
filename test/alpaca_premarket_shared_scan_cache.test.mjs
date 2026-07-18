@@ -103,3 +103,56 @@ test("exposes automatic premarket scheduler status and next wake evidence", asyn
   assert.equal(diagnostics.readOnly, true);
   assert.equal(diagnostics.orderPlacementAllowed, false);
 });
+
+
+test("completed premarket scan publishes once and publication failure does not stop scheduler", async () => {
+  const nowMs = Date.parse("2026-07-17T12:00:00.000Z");
+  let publications = 0;
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => nowMs,
+    fetchScan: async () => ({
+      status: "connected_readonly",
+      marketClock: { next_open: "2026-07-17T09:30:00-04:00" },
+      candidates: [{ symbol: "ABC", decision: "WATCH" }],
+    }),
+    onScanComplete: async () => {
+      publications += 1;
+      throw new Error("audit unavailable");
+    },
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {},
+  });
+
+  const snapshot = await cache.start();
+  assert.equal(publications, 1);
+  assert.equal(snapshot.running, true);
+  assert.equal(snapshot.scanCount, 1);
+  assert.equal(snapshot.lastError, null);
+  assert.equal(snapshot.aiEvidencePublicationCount, 0);
+  assert.equal(snapshot.lastAiEvidencePublishedAt, null);
+  assert.equal(snapshot.lastAiEvidencePublicationError, "audit unavailable");
+  assert.equal(snapshot.orderPlacementAllowed, false);
+  assert.equal(snapshot.scannerLogicMutationAllowed, false);
+});
+
+
+test("successful premarket evidence publication is exposed in diagnostics", async () => {
+  const nowMs = Date.parse("2026-07-17T12:00:00.000Z");
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => nowMs,
+    fetchScan: async () => ({
+      status: "connected_readonly",
+      marketClock: { next_open: "2026-07-17T09:30:00-04:00" },
+      candidates: [{ symbol: "XYZ", decision: "WAIT" }],
+    }),
+    onScanComplete: async () => {},
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {},
+  });
+
+  const diagnostics = await cache.start();
+  assert.equal(diagnostics.aiEvidencePublicationCount, 1);
+  assert.equal(diagnostics.lastAiEvidencePublishedAt, "2026-07-17T12:00:00.000Z");
+  assert.equal(diagnostics.lastAiEvidencePublicationError, null);
+  assert.equal(diagnostics.scannerLogicMutationAllowed, false);
+});
