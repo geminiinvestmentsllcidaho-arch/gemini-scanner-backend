@@ -196,3 +196,23 @@ test("customer hub navigation exposes authenticated reports", () => {
   const reports = hub.navigation.find((item) => item.label === "Reports");
   assert.equal(reports?.href, "/customer/reports");
 });
+
+
+test("customer hub marks premarket available", () => {
+  const hub = buildCustomerScannerHub();
+  const premarket = hub.modes.find((mode) => mode.id === "premarket");
+  assert.equal(premarket?.status, "available");
+  assert.equal(premarket?.href, "/customer/scanner");
+});
+
+test("renders selectable premarket scanner mode", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    scannerSelections: {
+      modes: ["premarket"],
+      assets: ["stocks"],
+      priceRanges: [50],
+    },
+  }));
+  assert.match(html, /name="modes"[^>]*value="premarket"[^>]* checked/);
+  assert.match(html, />Premarket</);
+});
