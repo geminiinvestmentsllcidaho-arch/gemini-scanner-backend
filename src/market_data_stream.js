@@ -30,6 +30,20 @@ function parseSymbolsEnv(v) {
   return out.length ? Array.from(new Set(out)) : null;
 }
 
+export function shouldEnforceStreamFreshness(nowMs = Date.now()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(nowMs));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (values.weekday === 'Sat' || values.weekday === 'Sun') return false;
+  const minutes = (Number(values.hour) * 60) + Number(values.minute);
+  return minutes >= 240 && minutes < 1200;
+}
+
 async function isMarketOpen() {
   const res = await fetch(CLOCK_URL, {
     headers: {
@@ -213,6 +227,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
     if (ws.readyState !== WebSocket.OPEN) return;
     if (!Number.isFinite(lastRxTsMs)) return;
     if (!Number.isFinite(staleThresholdSec)) return;
+    if (!shouldEnforceStreamFreshness(Date.now())) return;
 
     const ageSec = Math.floor((Date.now() - lastRxTsMs) / 1000);
     if (ageSec > staleThresholdSec) {
