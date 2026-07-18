@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   practicalPremarketIntervalSec,
   isPremarketTradingDay,
+  msUntilNextPremarketWake,
   createAlpacaPremarketSharedScanCache,
 } from "../src/scanner/alpaca_premarket_shared_scan_cache.mjs";
 
@@ -46,4 +47,36 @@ test("automatically scans during active premarket and remains read only", async 
   assert.equal(diagnostics.orderPlacementAllowed, false);
   assert.equal(diagnostics.accountMutationAllowed, false);
   assert.ok(scheduled?.delay > 0);
+});
+
+
+test("sleeps until the next weekday premarket window outside session", () => {
+  const fridayNight = Date.parse("2026-07-18T02:30:00.000Z");
+  const mondayWake = Date.parse("2026-07-20T08:00:00.000Z");
+  assert.equal(msUntilNextPremarketWake(fridayNight), mondayWake - fridayNight);
+
+  const mondayEarly = Date.parse("2026-07-20T07:30:00.000Z");
+  const sameDayWake = Date.parse("2026-07-20T08:00:00.000Z");
+  assert.equal(msUntilNextPremarketWake(mondayEarly), sameDayWake - mondayEarly);
+});
+
+test("scheduler does not poll every 30 seconds outside premarket", async () => {
+  const nowMs = Date.parse("2026-07-18T02:30:00.000Z");
+  let scheduled = null;
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => nowMs,
+    fetchScan: async () => {
+      throw new Error("offsession_fetch_should_not_run");
+    },
+    setTimeoutImpl(fn, delay) {
+      scheduled = { fn, delay };
+      return 1;
+    },
+    clearTimeoutImpl() {},
+  });
+
+  const diagnostics = await cache.start();
+  assert.equal(diagnostics.scanCount, 0);
+  assert.equal(diagnostics.skippedCount, 1);
+  assert.ok(scheduled?.delay > 24 * 60 * 60 * 1000);
 });

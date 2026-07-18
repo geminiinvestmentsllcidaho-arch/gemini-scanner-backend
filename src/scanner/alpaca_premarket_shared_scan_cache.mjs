@@ -50,6 +50,22 @@ export function msUntilNextPremarketBoundary(nowMs = Date.now(), intervalSec = p
   return remainder === 0 ? intervalMs : intervalMs - remainder;
 }
 
+export function msUntilNextPremarketWake(nowMs = Date.now()) {
+  const session = premarketSession(new Date(nowMs));
+  if (session.active) return msUntilNextPremarketBoundary(nowMs);
+
+  const minuteMs = 60 * 1000;
+  let probeMs = (Math.floor(Number(nowMs) / minuteMs) * minuteMs) + minuteMs;
+  const limitMs = Number(nowMs) + (8 * 24 * 60 * 60 * 1000);
+
+  while (probeMs <= limitMs) {
+    if (premarketSession(new Date(probeMs)).active) return probeMs - Number(nowMs);
+    probeMs += minuteMs;
+  }
+
+  return 60 * 60 * 1000;
+}
+
 export function createAlpacaPremarketSharedScanCache({
   fetchScan = fetchAlpacaPremarketUniverseReadonly,
   now = () => Date.now(),
@@ -156,8 +172,7 @@ export function createAlpacaPremarketSharedScanCache({
   const scheduleNext = () => {
     if (!running) return;
     const nowMs = now();
-    const intervalSec = practicalPremarketIntervalSec(nowMs);
-    const delayMs = msUntilNextPremarketBoundary(nowMs, intervalSec);
+    const delayMs = msUntilNextPremarketWake(nowMs);
 
     timer = setTimeoutImpl(async () => {
       try {
@@ -204,5 +219,6 @@ export default {
   practicalPremarketIntervalSec,
   isPremarketTradingDay,
   msUntilNextPremarketBoundary,
+  msUntilNextPremarketWake,
   createAlpacaPremarketSharedScanCache,
 };
