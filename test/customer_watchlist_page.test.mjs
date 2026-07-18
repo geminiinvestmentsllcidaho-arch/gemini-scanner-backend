@@ -48,8 +48,14 @@ test("renders customer watchlist with shared global neon theme and fixed backgro
   assert.doesNotMatch(html, /\/admin\b/);
 });
 
-test("customer watchlist navigation links to reports", () => {
+test("customer watchlist uses shared primary navigation and a clear empty state", () => {
   const page = buildCustomerWatchlistPage({ symbols: [] });
   const html = renderCustomerWatchlistPageHtml(page);
+
+  assert.match(html, /href="\/customer">Overview<\/a>/);
+  assert.match(html, /href="\/customer\/watchlist" aria-current="page">Watchlist<\/a>/);
   assert.match(html, /href="\/customer\/reports">Reports<\/a>/);
+  assert.match(html, /No symbols saved yet/);
+  assert.match(html, /Saving symbols does not run a scan/);
+  assert.doesNotMatch(html, /href="\/customer\/scanner\/under-five"/);
 });

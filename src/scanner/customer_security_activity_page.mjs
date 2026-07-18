@@ -5,6 +5,10 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 import { formatCustomerDateTime } from "./customer_time.mjs";
+import {
+  renderCustomerPrimaryNavigation,
+  renderCustomerPrimaryNavigationCss,
+} from "./customer_primary_navigation.mjs";
 
 export const VERSION = "customer_security_activity_page_v1";
 
@@ -52,10 +56,13 @@ export function renderCustomerSecurityActivityPageHtml(
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — ${esc(page.title)}</title>
 ${renderGlobalThemeCss({ surface: "customer" })}
+${renderCustomerPrimaryNavigationCss()}
 <style>
 .wrap{max-width:820px;margin:0 auto;padding:42px 20px 72px}
-.customer-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-.customer-nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58);box-shadow:0 0 12px rgba(57,255,32,.15)}
+.settings-secondary-nav{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:-4px 0 18px}
+.settings-secondary-nav a,.settings-secondary-nav span{border:1px solid var(--gs-line);border-radius:10px;padding:8px 11px;background:rgba(0,0,0,.48)}
+.settings-secondary-nav a{color:var(--gs-muted);text-decoration:none}
+.settings-secondary-nav span{color:var(--gs-accent)}
 .panel{padding:18px}
 .row{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:16px;padding:12px 0;border-bottom:1px solid var(--gs-line)}
 .row:last-child{border-bottom:0}
@@ -69,13 +76,10 @@ ${renderGlobalThemeCss({ surface: "customer" })}
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap" data-role="customer" data-page="security-activity">
-<nav class="customer-nav" aria-label="Customer navigation">
-<a href="/customer">Home</a>
-<a href="/customer/scanner">Scanner</a>
-<a href="/customer/portfolio">Portfolio</a>
-<a href="/customer/reports">Reports</a>
-<a href="/customer/watchlist">Watchlist</a>
-<a href="/customer/settings">Settings</a>
+${renderCustomerPrimaryNavigation({ active: "settings" })}
+<nav class="settings-secondary-nav" aria-label="Settings navigation">
+<a href="/customer/settings">Back to Settings</a>
+<span aria-current="page">Security activity</span>
 </nav>
 <section class="card panel">
 <h1>${esc(page.title)}</h1>

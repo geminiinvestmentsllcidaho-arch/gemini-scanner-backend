@@ -4,6 +4,10 @@ import {
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
+import {
+  renderCustomerPrimaryNavigation,
+  renderCustomerPrimaryNavigationCss,
+} from "./customer_primary_navigation.mjs";
 
 export const VERSION = "customer_portfolio_page_v1";
 
@@ -93,10 +97,9 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — Portfolio</title>
 ${renderGlobalThemeCss({ surface: "customer" })}
+${renderCustomerPrimaryNavigationCss()}
 <style>
 .wrap{max-width:1180px;margin:0 auto;padding:32px 16px 64px}
-.nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
-.nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
 .panel{padding:20px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
 .metric{padding:15px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.48)}
@@ -116,21 +119,14 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap">
-<nav class="nav" aria-label="Customer navigation">
-<a href="/customer">Home</a>
-<a href="/customer/scanner">Scanner</a>
-<a href="/customer/portfolio" aria-current="page">Portfolio</a>
-<a href="/customer/reports">Reports</a>
-<a href="/customer/watchlist">Watchlist</a>
-<a href="/customer/settings">Settings</a>
-</nav>
+${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 
 <section class="card panel">
 <p>Paper portfolio • Read only</p>
-<h1>Portfolio dashboard</h1>
-<p>Balances, exposure, position performance, allocation, and concentration risk from the paper account.</p>
-<p class="${model.stale ? "stale" : "positive"}">Data status: ${model.stale ? "Waiting for current paper-trading data" : "Paper-trading data is current"}</p>
-<p>Updated: ${esc(model.sourceTs ?? "No timestamp available")}</p>
+<h1>Portfolio</h1>
+<p>Review paper-account balances, position performance, allocation, and concentration risk.</p>
+<p class="${model.stale ? "stale" : "positive"}"><strong>Data status:</strong> ${model.stale ? "Waiting for current paper-trading data" : "Paper-trading data is current"}</p>
+<p><strong>Last updated:</strong> ${esc(model.sourceTs ?? "No timestamp available")}</p>
 </section>
 
 <section class="card panel">
@@ -165,9 +161,8 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 <ul>${warningItems}</ul>
 </section>
 <section class="card panel">
-<h2>Safety lock</h2>
-<p>Read only. Paper only. Decision assist only.</p>
-<p>No live trading, auto trading, order placement, broker contact, or account mutation controls are available.</p>
+<h2>Trading limits</h2>
+<p>Read-only, paper-only decision assistance. No live trading, order placement, broker contact, or account mutation controls are available.</p>
 </section>
 </div>
 

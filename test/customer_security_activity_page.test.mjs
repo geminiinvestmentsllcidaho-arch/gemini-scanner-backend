@@ -65,3 +65,15 @@ test("renders customer security activity with shared global neon theme and fixed
   assert.match(html, /data-gs-page="customer-security-activity"/);
   assert.doesNotMatch(html, /\/admin\b/);
 });
+
+test("security activity remains secondary under shared Settings navigation", () => {
+  const html = renderCustomerSecurityActivityPageHtml(
+    buildCustomerSecurityActivityPage({ activity: [] }),
+  );
+
+  assert.match(html, /href="\/customer">Overview<\/a>/);
+  assert.match(html, /href="\/customer\/settings" aria-current="page">Settings<\/a>/);
+  assert.match(html, /href="\/customer\/settings">Back to Settings<\/a>/);
+  assert.match(html, /<span aria-current="page">Security activity<\/span>/);
+  assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);
+});

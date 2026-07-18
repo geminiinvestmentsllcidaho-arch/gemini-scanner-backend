@@ -46,12 +46,12 @@ test("renders customer portfolio page with friendly labels and safety locks", ()
   const html = renderCustomerPortfolioPageHtml(page);
 
   assert.equal(page.route, "/customer/portfolio");
-  assert.match(html, /Portfolio dashboard/);
+  assert.match(html, /<h1>Portfolio<\/h1>/);
   assert.match(html, /Paper-trading data is current/);
   assert.match(html, /AAA/);
   assert.match(html, /\$1,200/);
   assert.match(html, /One position represents at least 25%/);
-  assert.match(html, /No live trading, auto trading, order placement/);
+  assert.match(html, /No live trading, order placement/);
   assert.doesNotMatch(
     html,
     /current_readonly|stale_readonly|PORTFOLIO_CONCENTRATION_HIGH/,
@@ -99,4 +99,16 @@ test("escapes untrusted position symbols", () => {
 
   assert.doesNotMatch(html, /<script>alert/);
   assert.match(html, /&lt;script&gt;alert/);
+});
+
+test("customer portfolio uses the shared primary navigation", () => {
+  const html = renderCustomerPortfolioPageHtml(
+    buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] } }),
+  );
+
+  assert.match(html, /href="\/customer">Overview<\/a>/);
+  assert.match(html, /href="\/customer\/portfolio" aria-current="page">Portfolio<\/a>/);
+  assert.match(html, /href="\/customer\/watchlist">Watchlist<\/a>/);
+  assert.match(html, /href="\/customer\/settings">Settings<\/a>/);
+  assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);
 });

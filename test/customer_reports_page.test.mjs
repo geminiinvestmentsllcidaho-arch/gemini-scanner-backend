@@ -88,10 +88,10 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
   assert.match(html, /Equity curve placeholder/);
   assert.match(html, /Comparison details will appear after enough paper-trading history is available\./);
   assert.match(html, /AAA/);
-  assert.match(html, /Performance and scanner analytics from paper-trading activity/);
+  assert.match(html, /Review paper-trading performance, scanner outcomes, and AI-assisted evidence review/);
   assert.match(html, /Paper-trading performance • Mountain Time/);
   assert.match(html, /Data status: Paper-trading data is current/);
-  assert.match(html, /Report Improvement Review/);
+  assert.match(html, /AI-assisted review/);
   assert.match(html, /Testing required before changes:<\/strong> Yes/);
   assert.match(html, /Manual approval required:<\/strong> Yes/);
   assert.match(html, /Backtest a higher confidence floor before approval/);
@@ -264,4 +264,17 @@ test("renders historical decision-quality proposals and calibration review read 
   assert.match(html, /Scanner mutation locked/);
   assert.doesNotMatch(html, /Apply proposal/);
   assert.doesNotMatch(html, /Enable automatic learning/);
+});
+
+test("customer reports uses the shared primary navigation and accurate AI limits", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    report: { period: "lifetime", performance: {}, trades: {}, scanner: {}, activity: [] },
+  }));
+
+  assert.match(html, /href="\/customer">Overview<\/a>/);
+  assert.match(html, /href="\/customer\/reports" aria-current="page">Reports<\/a>/);
+  assert.match(html, /href="\/customer\/watchlist">Watchlist<\/a>/);
+  assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);
+  assert.match(html, /AI reviews scanner evidence/);
+  assert.match(html, /cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades/);
 });

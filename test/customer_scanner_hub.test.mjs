@@ -237,3 +237,17 @@ test("renders automatic premarket scheduler status evidence", () => {
   assert.match(html, /sleeping until the next valid premarket window/i);
   assert.match(html, /No order placement or scanner-logic mutation/);
 });
+
+test("customer overview and scanner routes use shared primary navigation with correct active item", () => {
+  const overview = renderCustomerScannerHubHtml(buildCustomerScannerHub());
+  const scanner = renderCustomerScannerHubHtml(
+    buildCustomerScannerHub({ route: "/customer/scanner" }),
+  );
+
+  assert.match(overview, /href="\/customer" aria-current="page">Overview<\/a>/);
+  assert.match(overview, /href="\/customer\/scanner">Scanner<\/a>/);
+  assert.match(scanner, /href="\/customer">Overview<\/a>/);
+  assert.match(scanner, /href="\/customer\/scanner" aria-current="page">Scanner<\/a>/);
+  assert.doesNotMatch(overview, />Home<\/a>|\/customer\/scanner\/under-five/);
+  assert.doesNotMatch(scanner, />Home<\/a>|\/customer\/scanner\/under-five/);
+});

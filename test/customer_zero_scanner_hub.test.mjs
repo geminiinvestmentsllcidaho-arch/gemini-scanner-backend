@@ -43,10 +43,13 @@ test("Customer Zero renders the same customer navigation without admin access", 
     })
   );
 
-  for (const label of ["Home", "Scanner", "Watchlist", "Settings"]) {
+  for (const label of ["Overview", "Scanner", "Watchlist", "Portfolio", "Reports", "Settings"]) {
     assert.equal(regularHtml.includes(`>${label}<`), true);
     assert.equal(customerZeroHtml.includes(`>${label}<`), true);
   }
+
+  assert.doesNotMatch(regularHtml, />Home<|\/customer\/scanner\/under-five/);
+  assert.doesNotMatch(customerZeroHtml, />Home<|\/customer\/scanner\/under-five/);
 
   assert.match(customerZeroHtml, /data-role="customer"/);
   assert.match(customerZeroHtml, /data-tenant="customer-zero"/);

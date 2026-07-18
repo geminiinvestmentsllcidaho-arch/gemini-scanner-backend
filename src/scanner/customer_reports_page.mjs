@@ -5,6 +5,10 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 import { customerLocale, customerTimezone, formatCustomerDateTime } from "./customer_time.mjs";
+import {
+  renderCustomerPrimaryNavigation,
+  renderCustomerPrimaryNavigationCss,
+} from "./customer_primary_navigation.mjs";
 
 export const VERSION = "customer_reports_page_v1";
 
@@ -161,11 +165,11 @@ export function renderCustomerReportsPageHtml(page = {}) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — Customer reports</title>
 ${renderGlobalThemeCss({ surface: "customer" })}
+${renderCustomerPrimaryNavigationCss()}
 <style>
 .wrap{max-width:1180px;margin:0 auto;padding:36px 18px 72px}
-.customer-nav,.periods{display:flex;flex-wrap:wrap;gap:10px}
-.customer-nav{margin-bottom:18px}
-.customer-nav a,.periods a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
+.periods{display:flex;flex-wrap:wrap;gap:10px}
+.periods a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
 .periods{margin:18px 0 24px}
 .periods a.active{box-shadow:0 0 18px rgba(57,255,32,.38);border-color:var(--gs-accent)}
 .hero,.panel{padding:20px;margin-bottom:18px}
@@ -192,19 +196,12 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap" data-role="customer" data-page="reports">
-<nav class="customer-nav" aria-label="Customer navigation">
-<a href="/customer">Home</a>
-<a href="/customer/scanner">Scanner</a>
-<a href="/customer/portfolio">Portfolio</a>
-<a href="/customer/reports" aria-current="page">Reports</a>
-<a href="/customer/watchlist">Watchlist</a>
-<a href="/customer/settings">Settings</a>
-</nav>
+${renderCustomerPrimaryNavigation({ active: "reports" })}
 
 <section class="card hero">
 <p class="muted">Paper-trading performance • ${esc(timeZoneLabel(timeZone))}</p>
 <h1>Reports</h1>
-<p>Performance and scanner analytics from paper-trading activity.</p>
+<p>Review paper-trading performance, scanner outcomes, and AI-assisted evidence review for the selected period.</p>
 <p class="status${report.stale ? " stale" : ""}">Data status: ${esc(reportStatusLabel(report))}</p>
 <nav class="periods" aria-label="Report period">${periodLinks}</nav>
 </section>
@@ -275,8 +272,8 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 </div>
 
 <section class="card panel">
-<h2>Report Improvement Review</h2>
-<p>This review checks your paper-trading results for areas that may need attention. It only provides suggestions and cannot change the scanner or place trades.</p>
+<h2>AI-assisted review</h2>
+<p>AI reviews scanner evidence and summarizes patterns, risks, and missing information. It cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades.</p>
 <p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
 ${aiProposals.length
   ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(({ data_quality: "Data freshness", signal_quality: "Signal quality", entry_logic: "Entry quality", exit_logic: "Exit timing", risk_logic: "Risk controls", ranking_logic: "Ranking quality", observation: "Review status" })[proposal?.category] ?? "Review item")} · ${esc(({ high: "Important", medium: "Review", low: "Informational" })[proposal?.severity] ?? "Informational")}</h3><p><strong>What we found:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Suggested next step:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")

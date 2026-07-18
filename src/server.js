@@ -5,6 +5,10 @@ import {
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from './scanner/global_theme.mjs';
+import {
+  renderCustomerPrimaryNavigation,
+  renderCustomerPrimaryNavigationCss,
+} from './scanner/customer_primary_navigation.mjs';
 import { buildPaperAttemptOperatorReviewPacketAppScreen, renderPaperAttemptOperatorReviewPacketAppScreenHtml } from "./scanner/paper_attempt_operator_review_packet_app_screen.mjs";
 import { buildPaperAttemptOperatorReviewPacketAuditDashboardAppScreen, renderPaperAttemptOperatorReviewPacketAuditDashboardAppScreenHtml } from "./scanner/paper_attempt_operator_review_packet_audit_dashboard_app_screen.mjs";
 import { buildPaperAttemptModuleCompleteSelectorAppScreen, renderPaperAttemptModuleCompleteSelectorAppScreenHtml } from "./scanner/paper_attempt_module_complete_selector_app_screen.mjs";
@@ -4393,6 +4397,7 @@ app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const premarketCache = await premarketSharedCachePromise;
   const premarketAutoStatus = premarketCache?.getDiagnostics?.() ?? null;
   const hub = mod.buildCustomerScannerHub({
+    route: "/customer/scanner",
     scannerFilters: scannerFilters.ok ? scannerFilters.filters : null,
     scannerSelections: scannerSelections.ok ? scannerSelections.selections : null,
     premarketAutoStatus,
@@ -4601,6 +4606,7 @@ app.get('/customer/settings', requireCustomerSession, async (req, res) => {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — Customer settings</title>
 ${renderGlobalThemeCss({ surface: 'customer' })}
+${renderCustomerPrimaryNavigationCss()}
 <style>
 .wrap{max-width:860px;margin:0 auto;padding:42px 20px 72px}
 .card{padding:20px}
@@ -4609,12 +4615,12 @@ ${renderGlobalThemeCss({ surface: 'customer' })}
 .row:last-child{border-bottom:0}
 .label{color:var(--gs-muted);font-weight:700}
 .value{overflow-wrap:anywhere}
-.settings-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-.settings-nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58);box-shadow:0 0 12px rgba(57,255,32,.15)}
 input,select{width:100%;max-width:520px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);padding:10px;font:inherit}
 input[type="checkbox"]{width:auto}
 button{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);font-weight:700;cursor:pointer}
 section[style]{border-top-color:var(--gs-line)!important}
+.settings-secondary-nav{display:flex;flex-wrap:wrap;gap:10px;margin:-4px 0 18px}
+.settings-secondary-nav a{color:var(--gs-muted);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:8px 11px;background:rgba(0,0,0,.48)}
 .settings-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 22px;padding:12px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.5)}
 .settings-toolbar button{padding:8px 11px;background:rgba(24,215,255,.08)}
 .settings-group{margin-top:14px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(2,9,12,.72);overflow:hidden}
@@ -4635,12 +4641,8 @@ section[style]{border-top-color:var(--gs-line)!important}
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'GeminiScanner' })}
 <main class="wrap" data-role="customer" data-page="settings">
-<nav class="settings-nav" aria-label="Customer navigation">
-<a href="/customer">Home</a>
-<a href="/customer/scanner">Scanner</a>
-<a href="/customer/portfolio">Portfolio</a>
-<a href="/customer/reports">Reports</a>
-<a href="/customer/watchlist">Watchlist</a>
+${renderCustomerPrimaryNavigation({ active: 'settings' })}
+<nav class="settings-secondary-nav" aria-label="Settings navigation">
 <a href="/customer/security-activity">Security activity</a>
 </nav>
 <section class="card">

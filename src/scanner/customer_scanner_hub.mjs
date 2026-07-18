@@ -5,6 +5,11 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 import { formatCustomerDateTime } from "./customer_time.mjs";
+import {
+  CUSTOMER_PRIMARY_NAVIGATION_ITEMS,
+  renderCustomerPrimaryNavigation,
+  renderCustomerPrimaryNavigationCss,
+} from "./customer_primary_navigation.mjs";
 export const VERSION = "customer_scanner_hub_v1";
 
 const MODES = Object.freeze([
@@ -67,11 +72,13 @@ export function buildCustomerScannerHub(options = {}) {
 
   return Object.freeze({
     version: VERSION,
-    route: "/customer",
+    route: options.route === "/customer/scanner" ? "/customer/scanner" : "/customer",
     role: "customer",
     tenant,
     title: "GeminiScanner",
-    subtitle: "Choose a scanner mode and asset universe.",
+    subtitle: options.route === "/customer/scanner"
+      ? "Choose scanner modes, price ranges, assets, and result states."
+      : "Review account status, paper performance, and scanner readiness.",
     defaultMode: "intraday",
     defaultAssetType: "stocks",
     modes: MODES,
@@ -85,14 +92,7 @@ export function buildCustomerScannerHub(options = {}) {
     filtersSaved: options.filtersSaved === true,
     runStarted: options.runStarted === true,
     runBlocked: options.runBlocked === true,
-    navigation: Object.freeze([
-      Object.freeze({ label: "Home", href: "/customer" }),
-      Object.freeze({ label: "Scanner", href: "/customer/scanner" }),
-      Object.freeze({ label: "Portfolio", href: "/customer/portfolio" }),
-      Object.freeze({ label: "Reports", href: "/customer/reports" }),
-      Object.freeze({ label: "Watchlist", href: "/customer/watchlist" }),
-      Object.freeze({ label: "Settings", href: "/customer/settings" }),
-    ]),
+    navigation: CUSTOMER_PRIMARY_NAVIGATION_ITEMS,
     readOnly: true,
     decisionAssistOnly: true,
     noExecutionControls: true,
@@ -102,10 +102,6 @@ export function buildCustomerScannerHub(options = {}) {
 }
 
 export function renderCustomerScannerHubHtml(hub = buildCustomerScannerHub(), account = null) {
-  const nav = hub.navigation
-    .map((item) => `<a href="${esc(item.href)}">${esc(item.label)}</a>`)
-    .join("");
-
   const availableModes = hub.modes.filter((mode) => mode.status === "available");
   const availableAssets = hub.assetTypes.filter((asset) => asset.status === "available");
   const availablePriceRanges = hub.priceRanges.filter((range) => range.status === "available");
@@ -264,10 +260,9 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(hub.title)}</title>
 ${renderGlobalThemeCss({ surface: "customer" })}
+${renderCustomerPrimaryNavigationCss()}
 <style>
 .wrap{max-width:980px;margin:0 auto;padding:42px 20px 72px}
-.customer-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
-.customer-nav a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58);box-shadow:0 0 12px rgba(57,255,32,.15)}
 .account-panel,.hero,.panel,.safety{padding:18px;margin-bottom:16px}
 .account-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .account-panel strong{display:block;margin-top:6px;overflow-wrap:anywhere}
@@ -370,7 +365,7 @@ ${performancePanel}
 ${portfolioPanel}
 ${accountPanel}
 ${premarketPanel}
-<nav class="customer-nav" aria-label="Customer navigation">${nav}</nav>
+${renderCustomerPrimaryNavigation({ active: hub.route === "/customer/scanner" ? "scanner" : "overview" })}
 <section class="card hero">
 <div class="eyebrow">Customer account</div>
 <h1>${esc(hub.title)}</h1>
