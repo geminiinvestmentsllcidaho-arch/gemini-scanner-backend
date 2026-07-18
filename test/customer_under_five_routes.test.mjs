@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -538,4 +539,16 @@ test("watchlist scanner has no price ceiling and renders top scan status", () =>
   assert.match(serverSource, /intervalMs = refreshSec \* 1000/);
   assert.match(serverSource, /Math\.floor\(Date\.now\(\) \/ intervalMs\) \* intervalMs/);
   assert.match(serverSource, /window\.location\.reload\(\)/);
+});
+
+
+test("customer scanner run route supports read-only premarket mode", async () => {
+  const server = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+  const start = server.indexOf("app.post('/customer/scanner/run', requireCustomerSession");
+  const end = server.indexOf("app.get('/customer/watchlist'", start);
+  const block = server.slice(start, end);
+  assert.match(block, /\['intraday', 'premarket', 'watchlist'\]/);
+  assert.match(block, /fetchAlpacaPremarketUniverseReadonly/);
+  assert.match(block, /scanner: 'alpaca_premarket_readonly'/);
+  assert.match(block, /Premarket Scanner/);
 });

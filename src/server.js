@@ -4370,20 +4370,42 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     .map((value) => Number(value))
     .filter((value) => [5, 10, 50, 100, 1000].includes(value));
   const maxPrice = allowedPriceRanges.length ? Math.max(...allowedPriceRanges) : 5;
-  const allowedModes = modes.filter((mode) => ['intraday', 'watchlist'].includes(mode));
+  const allowedModes = modes.filter((mode) => ['intraday', 'premarket', 'watchlist'].includes(mode));
   const stocksSelected = assets.includes('stocks');
 
   if (!stocksSelected || allowedModes.length === 0) {
     return res.redirect(303, '/customer/scanner?runBlocked=1');
   }
-  const watchlistOnly = allowedModes.includes('watchlist') && !allowedModes.includes('intraday');
+  const watchlistOnly = allowedModes.includes('watchlist') && !allowedModes.includes('intraday') && !allowedModes.includes('premarket');
+  const premarketOnly = allowedModes.includes('premarket') && !allowedModes.includes('intraday') && !allowedModes.includes('watchlist');
 
   const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
   const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
   const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
   const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
   let source;
-  if (watchlistOnly) {
+  if (premarketOnly) {
+    const premarketSourceMod = await import('./scanner/alpaca_premarket_universe_readonly.mjs');
+    source = await premarketSourceMod.fetchAlpacaPremarketUniverseReadonly({
+      minPrice: 0.5,
+      maxPrice,
+      minDailyVolume: 100000,
+      minGapPct: 2,
+      minDollarVolume: 250000,
+      maxSpreadPct: 2,
+    });
+    appendOpportunityFunnelAuditRecord({
+      scanId: `premarket-${Date.now()}`,
+      scanner: 'alpaca_premarket_readonly',
+      sourceVersion: source?.version,
+      sourceStatus: source?.status,
+      marketOpen: false,
+      assetCount: source?.assetCount,
+      snapshotCount: source?.snapshotCount,
+      candidateCount: source?.candidateCount,
+      candidates: source?.candidates,
+    });
+  } else if (watchlistOnly) {
     const watchlist = getCustomerWatchlist(req.customerAccount?.id);
     const watchlistSymbols = watchlist.ok ? watchlist.symbols : [];
     if (watchlistSymbols.length === 0) {
@@ -4418,9 +4440,11 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     role: 'customer',
     roleLabel: 'Customer',
     tenant: 'customer',
-    title: watchlistOnly
-      ? 'Watchlist Scanner'
-      : `$0–$${maxPrice.toLocaleString('en-US')} Intraday Scanner`,
+    title: premarketOnly
+      ? `$0–$${maxPrice.toLocaleString('en-US')} Premarket Scanner`
+      : watchlistOnly
+        ? 'Watchlist Scanner'
+        : `$0–$${maxPrice.toLocaleString('en-US')} Intraday Scanner`,
   });
   res.set('Cache-Control', 'no-store');
   return res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard, req.customerAccount));

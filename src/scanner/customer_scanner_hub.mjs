@@ -16,6 +16,13 @@ const MODES = Object.freeze([
     default: true,
   }),
   Object.freeze({
+    id: "premarket",
+    label: "Premarket",
+    status: "available",
+    href: "/customer/scanner",
+    default: false,
+  }),
+  Object.freeze({
     id: "swing",
     label: "Swing",
     status: "coming_soon",
