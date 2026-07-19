@@ -197,6 +197,25 @@ app.get('/assets/GeminiScanner-Logo.jpg', (_req, res) => {
   res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/GeminiScanner-Logo.jpg');
 });
 
+app.get('/assets/global-theme.js', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('application/javascript').send(`(() => {
+  const apply = (theme, density, reduced) => {
+    const root = document.documentElement;
+    if (theme === 'dark' || theme === 'light') root.dataset.gsTheme = theme;
+    else delete root.dataset.gsTheme;
+    if (density === 'compact') root.dataset.gsDensity = 'compact';
+    else delete root.dataset.gsDensity;
+    if (reduced === true || reduced === 'true') root.dataset.gsReducedMotion = 'true';
+    else delete root.dataset.gsReducedMotion;
+  };
+  try {
+    apply(localStorage.getItem('gs.theme'), localStorage.getItem('gs.density'), localStorage.getItem('gs.reducedMotion'));
+  } catch (_) {}
+  window.GeminiScannerTheme = { apply };
+})();`);
+});
+
 app.get('/assets/customer-scanner-countdown.js', (_req, res) => {
   res.type('application/javascript');
   res.send(`(() => {
@@ -4549,8 +4568,28 @@ app.get('/assets/customer-scanner-controls.js', (_req, res) => {
 });
 
 app.get('/assets/customer-settings.js', (_req, res) => {
-  res.set('Cache-Control', 'public, max-age=300');
+  res.set('Cache-Control', 'no-store');
   res.type('application/javascript').send(`(() => {
+  const body = document.body;
+  const applyTheme = (theme, density, reduced) => {
+    window.GeminiScannerTheme?.apply?.(theme, density, reduced);
+    try {
+      localStorage.setItem('gs.theme', theme || 'system');
+      localStorage.setItem('gs.density', density || 'comfortable');
+      localStorage.setItem('gs.reducedMotion', reduced ? 'true' : 'false');
+    } catch (_) {}
+  };
+  if (body?.dataset?.gsPage === 'customer-settings') {
+    applyTheme(body.dataset.gsTheme || 'system', body.dataset.gsDensity || 'comfortable', body.dataset.gsReducedMotion === 'true');
+    const appearanceForm = document.querySelector('form[action="/customer/settings/display"]');
+    const themeControl = appearanceForm?.querySelector('[name="theme"]');
+    const densityControl = appearanceForm?.querySelector('[name="density"]');
+    const reducedControl = appearanceForm?.querySelector('[name="reducedMotion"]');
+    const preview = () => applyTheme(themeControl?.value || 'system', densityControl?.value || 'comfortable', reducedControl?.checked === true);
+    themeControl?.addEventListener('change', preview);
+    densityControl?.addEventListener('change', preview);
+    reducedControl?.addEventListener('change', preview);
+  }
   const root = document.querySelector('main[data-page="settings"] .card');
   const toolbar = root?.querySelector('.settings-toolbar');
   if (!root || !toolbar) return;
@@ -4638,23 +4677,6 @@ section[style]{border-top-color:var(--gs-line)!important}
 </style>
 </head>
 <body data-gs-page="customer-settings" data-gs-theme="${esc(account?.displayPreferences?.theme || 'system')}" data-gs-density="${esc(account?.displayPreferences?.density || 'comfortable')}" data-gs-reduced-motion="${account?.displayPreferences?.reducedMotion ? 'true' : 'false'}">
-<script>
-(function(){
-  try {
-    const body = document.body;
-    const root = document.documentElement;
-    const theme = body.dataset.gsTheme;
-    const density = body.dataset.gsDensity;
-    const reduced = body.dataset.gsReducedMotion === 'true';
-    if (theme === 'dark' || theme === 'light') root.dataset.gsTheme = theme; else delete root.dataset.gsTheme;
-    if (density === 'compact') root.dataset.gsDensity = 'compact'; else delete root.dataset.gsDensity;
-    if (reduced) root.dataset.gsReducedMotion = 'true'; else delete root.dataset.gsReducedMotion;
-    localStorage.setItem('gs.theme', theme);
-    localStorage.setItem('gs.density', density);
-    localStorage.setItem('gs.reducedMotion', reduced ? 'true' : 'false');
-  } catch (_) {}
-})();
-</script>
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'GeminiScanner' })}
 <main class="wrap" data-role="customer" data-page="settings">
@@ -4846,6 +4868,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 <form method="post" action="/logout">
 <button type="submit">Log out</button>
 </form>
+<script src="/assets/global-theme.js"></script>
 <script src="/assets/customer-settings.js" defer></script>
 </section>
 </main>
@@ -5281,6 +5304,8 @@ app.post('/customer/settings/display', requireCustomerSession, requireCustomerSa
   }
 
   recordCustomerSecurityAudit(req, 'display_preferences_updated', 'success');
+  const refreshedToken = createCustomerSessionToken(result.account, { secret: CUSTOMER_SESSION_SECRET });
+  res.cookie(CUSTOMER_COOKIE_NAME, refreshedToken, buildCustomerSessionCookieOptions());
   return res.redirect(303, '/customer/settings');
 });
 
