@@ -364,8 +364,8 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 ${performancePanel}
 ${portfolioPanel}
 ${accountPanel}
-${premarketPanel}
 ${renderCustomerPrimaryNavigation({ active: hub.route === "/customer/scanner" ? "scanner" : "overview" })}
+${premarketPanel}
 <section class="card hero">
 <div class="eyebrow">Customer account</div>
 <h1>${esc(hub.title)}</h1>
