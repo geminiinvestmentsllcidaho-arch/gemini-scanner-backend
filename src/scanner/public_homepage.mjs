@@ -82,12 +82,12 @@ h1{font-size:clamp(42px,7vw,76px);line-height:.99;letter-spacing:-.045em;margin:
 .lead{font-size:clamp(18px,2vw,22px);line-height:1.62;color:var(--muted);max-width:760px;margin:0}
 .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 19px;border-radius:12px;text-decoration:none;font-weight:850;border:1px solid var(--line)}
 .btn-primary{background:var(--soft);color:#09111e;border-color:transparent}.btn-secondary{background:#0b1220}.btn:hover{transform:translateY(-1px)}
-.preview{background:linear-gradient(180deg,#111d2d,var(--panel));border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 24px 80px #0008}
+.preview{background:linear-gradient(180deg,#111d2d,var(--panel));border:0;border-radius:22px;padding:24px;box-shadow:0 24px 80px #0008}
 .preview-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.status{font-size:12px;font-weight:900;color:#9fe0b1;background:#11281a;border:1px solid #245b35;padding:7px 10px;border-radius:999px}
 .metric{display:flex;justify-content:space-between;padding:15px 0;border-top:1px solid #213047}.metric:first-of-type{border-top:0}.metric span{color:var(--muted)}.metric strong{font-size:20px}
-.section{padding:36px 0 58px}.section h2{font-size:clamp(29px,4vw,43px);letter-spacing:-.03em;margin:0 0 12px}.section-copy{color:var(--muted);max-width:700px;line-height:1.65;margin:0 0 26px}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:#0d1521;border:1px solid var(--line);border-radius:18px;padding:22px}.mark{color:var(--accent)}.card h3{margin:16px 0 8px;font-size:20px}.card p{margin:0;color:var(--muted);line-height:1.62}
-.next{background:#0d1521;border:1px solid var(--line);border-radius:20px;padding:28px}.next ul{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.9}
+.hero,.section{border:0;background:transparent;backdrop-filter:none}.section{padding:36px 0 58px}.section h2{font-size:clamp(29px,4vw,43px);letter-spacing:-.03em;margin:0 0 12px}.section-copy{color:var(--muted);max-width:700px;line-height:1.65;margin:0 0 26px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:#0d1521;border:0;border-radius:18px;padding:22px}.mark{color:var(--accent)}.card h3{margin:16px 0 8px;font-size:20px}.card p{margin:0;color:var(--muted);line-height:1.62}
+.next{background:#0d1521;border:0;border-radius:20px;padding:28px}.next ul{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.9}
 footer{border-top:1px solid #1b283a;margin-top:24px;padding:26px 0 38px;color:#7f8da3;font-size:14px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media(max-width:820px){.hero{grid-template-columns:1fr;padding-top:46px}.cards{grid-template-columns:1fr}.preview{max-width:560px}}
 </style>
@@ -112,6 +112,8 @@ ${renderGlobalHeader({ surface: "public", homeHref: "/", label: source.product }
 <div class="preview-top"><strong>Scanner overview</strong><span class="status">READ ONLY</span></div>
 <div class="metric"><span>Intraday scanner</span><strong>Live</strong></div>
 <div class="metric"><span>Under-$5 scanner</span><strong>Live</strong></div>
+<div class="metric"><span>Pre-market scanner</span><strong>Automatic</strong></div>
+<div class="metric"><span>After-hours scanner</span><strong>Coming soon</strong></div>
 <div class="metric"><span>AI-assisted analysis</span><strong>Active</strong></div>
 <div class="metric"><span>Decision support</span><strong>Explainable</strong></div>
 </aside>
