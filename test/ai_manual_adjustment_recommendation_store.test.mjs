@@ -84,6 +84,38 @@ test("persists private local history and skips consecutive duplicates", () => {
   assert.equal(history.thresholdMutationAllowed, false);
 });
 
+test("skips duplicate record ids even when they are not consecutive", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-manual-adjustment-global-dedupe-"));
+  const ledgerPath = path.join(dir, "recommendations.jsonl");
+  const firstRecord = buildAiManualAdjustmentRecommendationRecord({
+    sourceReview: { reviewId: "review-a" },
+    recommendations: [{
+      targetArea: "ranking_confidence",
+      suggestedDirection: "Test confidence floor A.",
+    }],
+  }, { now: "2026-07-20T20:01:00.000Z" });
+  const secondRecord = buildAiManualAdjustmentRecommendationRecord({
+    sourceReview: { reviewId: "review-b" },
+    recommendations: [{
+      targetArea: "wait_timing",
+      suggestedDirection: "Test wait timing B.",
+    }],
+  }, { now: "2026-07-20T20:02:00.000Z" });
+
+  appendAiManualAdjustmentRecommendationRecord(firstRecord, { ledgerPath });
+  appendAiManualAdjustmentRecommendationRecord(secondRecord, { ledgerPath });
+  const duplicate = appendAiManualAdjustmentRecommendationRecord(firstRecord, { ledgerPath });
+  const history = listAiManualAdjustmentRecommendationRecords({ ledgerPath });
+
+  assert.equal(duplicate.appended, false);
+  assert.equal(duplicate.duplicateSkipped, true);
+  assert.equal(history.recordCount, 2);
+  assert.deepEqual(
+    history.records.map((record) => record.recordId),
+    [secondRecord.recordId, firstRecord.recordId],
+  );
+});
+
 test("returns no-action lifecycle while monitoring remains active", () => {
   const record = buildAiManualAdjustmentRecommendationRecord({
     recommendations: [{}],

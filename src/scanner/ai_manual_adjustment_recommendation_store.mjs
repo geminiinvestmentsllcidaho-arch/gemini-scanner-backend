@@ -143,15 +143,16 @@ export function appendAiManualAdjustmentRecommendationRecord(record, options = {
   );
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true, mode: 0o700 });
 
-  const latest = fs.existsSync(ledgerPath)
+  const existingRecords = fs.existsSync(ledgerPath)
     ? fs.readFileSync(ledgerPath, "utf8")
       .split(/\r?\n/)
       .filter(Boolean)
       .map(safeJson)
       .filter(Boolean)
-      .at(-1)
-    : null;
-  const duplicateSkipped = latest?.recordId === record?.recordId;
+    : [];
+  const duplicateSkipped = existingRecords.some(
+    (existing) => existing?.recordId === record?.recordId,
+  );
 
   if (!duplicateSkipped) {
     fs.appendFileSync(ledgerPath, `${JSON.stringify(record)}\n`, {
