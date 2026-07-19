@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  classifyNextDayWatchSetup,
   classifyOvernightHoldAssessment,
   classifyPostMarketPositionRisk,
   postMarketSession,
@@ -132,4 +133,72 @@ test("overnight assessment fails closed on incomplete or stale evidence", () => 
   assert.equal(stale.state, "INSUFFICIENT_DATA");
   assert.equal(stale.orderPlacementAllowed, false);
   assert.equal(stale.accountMutationAllowed, false);
+});
+
+
+test("classifies next-day continuation, pullback, breakout-confirmation, and gap-risk watches", () => {
+  const now = new Date("2026-07-17T21:00:00.000Z");
+  const base = {
+    symbol: "NEXT",
+    closePrice: 20,
+    afterHoursPrice: 20.4,
+    sourceTimestamp: "2026-07-17T20:59:00.000Z",
+    dayChangePct: 3,
+    relativeVolume: 2,
+    spreadPct: 0.4,
+    dollarVolume: 5000000,
+    trendIntact: true,
+  };
+
+  assert.equal(classifyNextDayWatchSetup(base, { now }).state, "CONTINUATION_WATCH");
+  assert.equal(classifyNextDayWatchSetup({
+    ...base,
+    afterHoursPrice: 19.8,
+    pulledBackFromHigh: true,
+  }, { now }).state, "PULLBACK_WATCH");
+  assert.equal(classifyNextDayWatchSetup({
+    ...base,
+    nearBreakout: true,
+  }, { now }).state, "BREAKOUT_CONFIRMATION_REQUIRED");
+  assert.equal(classifyNextDayWatchSetup({
+    ...base,
+    afterHoursPrice: 21,
+  }, { now }).state, "GAP_RISK_WATCH");
+});
+
+test("next-day watchlist fails closed and never emits an enter recommendation", () => {
+  const now = new Date("2026-07-17T21:00:00.000Z");
+
+  const stale = classifyNextDayWatchSetup({
+    symbol: "OLD",
+    closePrice: 10,
+    afterHoursPrice: 10.1,
+    sourceTimestamp: "2026-07-17T20:00:00.000Z",
+    dayChangePct: 2,
+    relativeVolume: 2,
+    spreadPct: 0.5,
+    dollarVolume: 3000000,
+    trendIntact: true,
+  }, { now, maxFreshSec: 900 });
+
+  assert.equal(stale.state, "AVOID_WATCH_ONLY");
+  assert.equal(stale.enterRecommendationAllowed, false);
+  assert.equal(stale.orderPlacementAllowed, false);
+  assert.equal(stale.accountMutationAllowed, false);
+  assert.equal(stale.nextSessionConfirmationRequired, true);
+
+  const none = classifyNextDayWatchSetup({
+    symbol: "FLAT",
+    closePrice: 10,
+    afterHoursPrice: 10,
+    sourceTimestamp: "2026-07-17T20:59:00.000Z",
+    dayChangePct: -1,
+    relativeVolume: 1,
+    spreadPct: 0.5,
+    dollarVolume: 3000000,
+    trendIntact: false,
+  }, { now });
+
+  assert.equal(none.state, "NO_NEXT_DAY_SETUP");
+  assert.equal(none.regularSessionConfirmationAllowed, false);
 });

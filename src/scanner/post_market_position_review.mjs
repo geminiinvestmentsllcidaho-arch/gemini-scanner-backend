@@ -184,9 +184,116 @@ export function classifyOvernightHoldAssessment(position = {}, options = {}) {
   });
 }
 
+
+export function classifyNextDayWatchSetup(candidate = {}, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(options.now ?? Date.now());
+  const maxFreshSec = Math.max(60, Number(options.maxFreshSec) || 900);
+  const sourceTimestamp = candidate.sourceTimestamp ?? candidate.updatedAt ?? candidate.timestamp ?? null;
+  const sourceMs = Date.parse(sourceTimestamp ?? "");
+  const ageSec = Number.isFinite(sourceMs) ? Math.max(0, (now.getTime() - sourceMs) / 1000) : null;
+
+  const closePrice = finite(candidate.closePrice ?? candidate.currentPrice);
+  const afterHoursPrice = finite(candidate.afterHoursPrice);
+  const afterHoursChangePctRaw = finite(candidate.afterHoursChangePct);
+  const afterHoursChangePct = afterHoursChangePctRaw !== null
+    ? afterHoursChangePctRaw
+    : (closePrice !== null && closePrice > 0 && afterHoursPrice !== null
+      ? ((afterHoursPrice - closePrice) / closePrice) * 100
+      : null);
+  const dayChangePct = finite(candidate.dayChangePct);
+  const relativeVolume = finite(candidate.relativeVolume ?? candidate.rvol);
+  const spreadPct = finite(candidate.spreadPct);
+  const dollarVolume = finite(candidate.dollarVolume ?? candidate.liquidityDollarVolume);
+  const nearBreakout = candidate.nearBreakout === true;
+  const pulledBackFromHigh = candidate.pulledBackFromHigh === true;
+  const trendIntact = candidate.trendIntact === true;
+  const gapRisk = candidate.gapRisk === true || Math.abs(afterHoursChangePct ?? 0) >= 4;
+  const restricted = candidate.halted === true || candidate.restricted === true;
+
+  const flags = [];
+  if (!sourceTimestamp || ageSec === null) flags.push("SOURCE_TIMESTAMP_UNAVAILABLE");
+  else if (ageSec > maxFreshSec) flags.push("SOURCE_STALE");
+  if (closePrice === null || closePrice <= 0) flags.push("CLOSE_PRICE_UNAVAILABLE");
+  if (afterHoursChangePct === null) flags.push("AFTER_HOURS_CHANGE_UNAVAILABLE");
+  if (relativeVolume === null) flags.push("RELATIVE_VOLUME_UNAVAILABLE");
+  if (spreadPct === null) flags.push("SPREAD_UNAVAILABLE");
+  if (dollarVolume === null) flags.push("LIQUIDITY_UNAVAILABLE");
+  if (gapRisk) flags.push("GAP_RISK");
+  if (restricted) flags.push("HALT_OR_RESTRICTION_RISK");
+
+  let state = "NO_NEXT_DAY_SETUP";
+  if (flags.some((flag) => flag.endsWith("_UNAVAILABLE") || flag === "SOURCE_STALE")) {
+    state = "AVOID_WATCH_ONLY";
+  } else if (
+    restricted
+    || spreadPct >= 3
+    || dollarVolume < 250000
+    || afterHoursChangePct <= -6
+  ) {
+    state = "AVOID_WATCH_ONLY";
+  } else if (gapRisk) {
+    state = "GAP_RISK_WATCH";
+  } else if (
+    nearBreakout
+    && trendIntact
+    && dayChangePct > 0
+    && relativeVolume >= 1.5
+  ) {
+    state = "BREAKOUT_CONFIRMATION_REQUIRED";
+  } else if (
+    pulledBackFromHigh
+    && trendIntact
+    && dayChangePct > 0
+    && afterHoursChangePct > -3
+  ) {
+    state = "PULLBACK_WATCH";
+  } else if (
+    trendIntact
+    && dayChangePct > 0
+    && afterHoursChangePct >= 0
+    && relativeVolume >= 1.2
+  ) {
+    state = "CONTINUATION_WATCH";
+  }
+
+  return Object.freeze({
+    version: VERSION,
+    symbol: String(candidate.symbol ?? "").trim().toUpperCase() || null,
+    state,
+    watchOnly: true,
+    reviewOnly: true,
+    paperOnly: true,
+    enterRecommendationAllowed: false,
+    brokerContactAllowed: false,
+    orderPlacementAllowed: false,
+    accountMutationAllowed: false,
+    regularSessionConfirmationAllowed: false,
+    nextSessionConfirmationRequired: true,
+    sourceTimestamp,
+    ageSec,
+    maxFreshSec,
+    metrics: Object.freeze({
+      closePrice,
+      afterHoursPrice,
+      afterHoursChangePct,
+      dayChangePct,
+      relativeVolume,
+      spreadPct,
+      dollarVolume,
+      nearBreakout,
+      pulledBackFromHigh,
+      trendIntact,
+      gapRisk,
+      restricted,
+    }),
+    flags: Object.freeze(flags),
+  });
+}
+
 export default Object.freeze({
   VERSION,
   postMarketSession,
   classifyPostMarketPositionRisk,
   classifyOvernightHoldAssessment,
+  classifyNextDayWatchSetup,
 });
