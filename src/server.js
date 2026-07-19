@@ -3555,7 +3555,10 @@ app.get("/app", (req, res) => {
 const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
 
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
-  runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({ now }),
+  runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
+    now,
+    getPostMarketResult: () => postMarketRuntimeWorker.getStatus().lastResult,
+  }),
 });
 
 const postMarketRuntimeWorker = createPostMarketRuntimeWorker({

@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  buildBoundedPostMarketAiEvidence,
   flattenOpportunityFunnelScans,
   runCustomerReportBackgroundAiReview,
 } from "../src/scanner/customer_report_background_ai_review_runner.mjs";
@@ -176,4 +177,129 @@ test("store deduplicates identical completed review records", async () => {
   assert.equal(second.persisted, false);
   assert.equal(second.duplicateSkipped, true);
   assert.equal(listCustomerReportBackgroundAiReviewRecords({ ledgerPath }).recordCount, 1);
+});
+
+
+test("bounds post-market evidence before provider review", () => {
+  const evidence = buildBoundedPostMarketAiEvidence({
+    generatedAt: "2026-07-17T21:00:00.000Z",
+    status: "completed_readonly",
+    success: true,
+    fingerprint: "f".repeat(200),
+    sourceFreshness: { maxFreshSec: 900, stalePositionCount: 1, staleWatchCount: 2 },
+    qualityReview: {
+      sourceRecordCount: 30,
+      proposalReport: { proposalCount: 4 },
+      evaluationReport: {
+        evaluations: Array.from({ length: 30 }, (_, index) => ({
+          symbol: `P${index}`,
+          decision: "CONTINUATION_WATCH",
+          classification: "MISSED_OPPORTUNITY",
+          rankingConfidence: 0.7,
+          blockingFlags: Array.from({ length: 20 }, (_v, flagIndex) => `FLAG_${flagIndex}`),
+          sourceTimestamp: "2026-07-17T20:59:00.000Z",
+          originSourceStale: false,
+          originObservable: true,
+          secret: "must-not-pass",
+        })),
+      },
+    },
+  });
+
+  assert.equal(evidence.evaluations.length, 25);
+  assert.equal(evidence.evaluations[0].blockingFlags.length, 12);
+  assert.equal("secret" in evidence.evaluations[0], false);
+  assert.equal(evidence.fingerprint.length, 128);
+  assert.equal(evidence.sourceRecordCount, 30);
+  assert.equal(evidence.proposalCount, 4);
+  assert.equal(evidence.automaticLearningAllowed, false);
+  assert.equal(evidence.orderPlacementAllowed, false);
+});
+
+test("runner includes bounded post-market evidence and persists completed provider result", async () => {
+  let capturedInput = null;
+  let persistedRecord = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-17T21:05:00.000Z"),
+    listScans: () => [{
+      scanId: "scan-postmarket-context",
+      eventAt: "2026-07-17T20:45:00.000Z",
+      scanType: "intraday",
+      candidates: [{ symbol: "AAA", resultState: "WAIT" }],
+    }],
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    readPositionStore: () => ({ records: [] }),
+    getPostMarketResult: () => ({
+      generatedAt: "2026-07-17T21:00:00.000Z",
+      status: "completed_readonly",
+      success: true,
+      fingerprint: "post-fingerprint",
+      sourceFreshness: { maxFreshSec: 900, stalePositionCount: 0, staleWatchCount: 0 },
+      qualityReview: {
+        sourceRecordCount: 1,
+        proposalReport: { proposalCount: 2 },
+        evaluationReport: {
+          evaluations: [{
+            symbol: "AAA",
+            decision: "ELEVATED_OVERNIGHT_RISK",
+            classification: "WAIT_INCONCLUSIVE",
+            blockingFlags: ["AFTER_HOURS_WEAKNESS"],
+            originSourceStale: false,
+            originObservable: true,
+          }],
+        },
+      },
+    }),
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        provider: "openai",
+        model: "test-model",
+        responseId: "postmarket-response",
+        reviewText: "Post-market evidence reviewed without execution.",
+      };
+    },
+    persistRecord: (record) => {
+      persistedRecord = record;
+      return { appended: true, duplicateSkipped: false, ledgerPath: "memory" };
+    },
+  });
+
+  assert.equal(capturedInput.postMarketEvidence.status, "completed_readonly");
+  assert.equal(capturedInput.postMarketEvidence.evaluations[0].symbol, "AAA");
+  assert.equal(result.includedPostMarketEvidence, true);
+  assert.equal(result.postMarketSourceRecordCount, 1);
+  assert.equal(result.postMarketProposalCount, 2);
+  assert.equal(persistedRecord.includedPostMarketEvidence, true);
+  assert.equal(persistedRecord.postMarketFingerprint, "post-fingerprint");
+});
+
+test("runner does not persist failed provider calls so evidence remains retryable", async () => {
+  let persistCalls = 0;
+  const result = await runCustomerReportBackgroundAiReview({
+    listScans: () => [{
+      scanId: "retryable-scan",
+      eventAt: "2026-07-17T20:45:00.000Z",
+      candidates: [{ symbol: "AAA", resultState: "WAIT" }],
+    }],
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    readPositionStore: () => ({ records: [] }),
+    requestAiReview: async () => ({
+      status: "timeout",
+      provider: "openai",
+      reviewText: null,
+    }),
+    persistRecord: () => {
+      persistCalls += 1;
+      return { appended: true };
+    },
+  });
+
+  assert.equal(result.status, "provider_timeout");
+  assert.equal(result.persisted, false);
+  assert.equal(result.persistenceSkippedForProviderStatus, true);
+  assert.equal(persistCalls, 0);
 });

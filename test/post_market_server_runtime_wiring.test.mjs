@@ -39,3 +39,11 @@ test("server wiring does not add execution methods to the runtime worker", () =>
     /postMarketRuntimeWorker\.(placeOrder|submitOrder|cancelOrder|mutateAccount|enableLiveTrading)/,
   );
 });
+
+
+test("server supplies latest bounded post-market result to background AI review", () => {
+  assert.match(
+    source,
+    /getPostMarketResult: \(\) => postMarketRuntimeWorker\.getStatus\(\)\.lastResult/,
+  );
+});

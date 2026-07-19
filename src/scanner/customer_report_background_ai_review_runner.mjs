@@ -11,6 +11,58 @@ import {
 
 export const VERSION = "customer_report_background_ai_review_runner_v1";
 
+export function buildBoundedPostMarketAiEvidence(result = {}) {
+  const qualityReview = result?.qualityReview && typeof result.qualityReview === "object"
+    ? result.qualityReview
+    : {};
+  const rows = Array.isArray(qualityReview?.evaluationReport?.evaluations)
+    ? qualityReview.evaluationReport.evaluations
+    : [];
+  return Object.freeze({
+    generatedAt: result?.generatedAt ?? null,
+    status: result?.status ?? "unavailable",
+    success: result?.success === true,
+    duplicateSnapshot: result?.duplicateSnapshot === true,
+    fingerprint: typeof result?.fingerprint === "string"
+      ? result.fingerprint.slice(0, 128)
+      : null,
+    sourceFreshness: Object.freeze({
+      maxFreshSec: Number.isFinite(Number(result?.sourceFreshness?.maxFreshSec))
+        ? Number(result.sourceFreshness.maxFreshSec)
+        : null,
+      stalePositionCount: Number(result?.sourceFreshness?.stalePositionCount ?? 0),
+      staleWatchCount: Number(result?.sourceFreshness?.staleWatchCount ?? 0),
+    }),
+    sourceRecordCount: Number(qualityReview?.sourceRecordCount ?? 0),
+    proposalCount: Number(qualityReview?.proposalReport?.proposalCount ?? 0),
+    evaluations: Object.freeze(rows.slice(0, 25).map((row) => Object.freeze({
+      symbol: String(row?.symbol ?? "").trim().toUpperCase().slice(0, 24) || null,
+      decision: String(row?.decision ?? "").trim().slice(0, 64) || null,
+      classification: String(row?.classification ?? "").trim().slice(0, 64) || null,
+      rankingConfidence: Number.isFinite(Number(row?.rankingConfidence))
+        ? Number(row.rankingConfidence)
+        : null,
+      blockingFlags: Object.freeze(
+        (Array.isArray(row?.blockingFlags) ? row.blockingFlags : [])
+          .slice(0, 12)
+          .map((flag) => String(flag).slice(0, 64)),
+      ),
+      sourceTimestamp: row?.sourceTimestamp ?? null,
+      originSourceStale: row?.originSourceStale === true,
+      originObservable: row?.originObservable === true,
+    }))),
+    readOnly: true,
+    paperOnly: true,
+    historicalMeasurementOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  });
+}
+
 export function flattenOpportunityFunnelScans(scans = []) {
   return (Array.isArray(scans) ? scans : []).flatMap(scan => {
     const eventAt = scan?.eventAt ?? null;
@@ -36,6 +88,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const listScans = options.listScans ?? listOpportunityFunnelAuditRecords;
   const requestAiReview = options.requestAiReview ?? requestCustomerReportRealtimeAiReview;
   const persistRecord = options.persistRecord ?? appendCustomerReportBackgroundAiReviewRecord;
+  const getPostMarketResult = options.getPostMarketResult ?? (() => null);
 
   const scans = listScans({ maxRecords: options.maxScanRecords ?? 120 });
   if (!Array.isArray(scans) || scans.length === 0) {
@@ -68,8 +121,12 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     scannerEvents,
   });
 
+  const postMarketEvidence = buildBoundedPostMarketAiEvidence(getPostMarketResult() ?? {});
   const review = await requestAiReview({
-    input: report.aiReview?.input ?? {},
+    input: Object.freeze({
+      ...(report.aiReview?.input ?? {}),
+      postMarketEvidence,
+    }),
     timeoutMs: Number(options.timeoutMs ?? process.env.GS_REALTIME_AI_TIMEOUT_MS ?? 30000),
   });
 
@@ -89,9 +146,21 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       scanRecordCount: scans.length,
       sourceCounts,
       premarketScanRecordCount,
+      postMarketGeneratedAt: postMarketEvidence.generatedAt,
+      postMarketStatus: postMarketEvidence.status,
+      postMarketFingerprint: postMarketEvidence.fingerprint,
+      postMarketSourceRecordCount: postMarketEvidence.sourceRecordCount,
+      postMarketProposalCount: postMarketEvidence.proposalCount,
     },
   }, { now });
-  const write = persistRecord(record, { ledgerPath: options.ledgerPath });
+  const write = review?.status === "completed_readonly"
+    ? persistRecord(record, { ledgerPath: options.ledgerPath })
+    : Object.freeze({
+      appended: false,
+      duplicateSkipped: false,
+      ledgerPath: options.ledgerPath ?? null,
+      skippedUnsafeProviderStatus: true,
+    });
 
   return Object.freeze({
     version: VERSION,
@@ -109,6 +178,12 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     sourceCounts: Object.freeze({ ...sourceCounts }),
     premarketScanRecordCount,
     includedPremarketEvidence: premarketScanRecordCount > 0,
+    includedPostMarketEvidence: postMarketEvidence.status === "completed_readonly"
+      && postMarketEvidence.sourceRecordCount > 0,
+    postMarketStatus: postMarketEvidence.status,
+    postMarketSourceRecordCount: postMarketEvidence.sourceRecordCount,
+    postMarketProposalCount: postMarketEvidence.proposalCount,
+    persistenceSkippedForProviderStatus: write?.skippedUnsafeProviderStatus === true,
     readOnly: true,
     paperOnly: true,
     requiresBacktest: true,
@@ -124,6 +199,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
 
 export default {
   VERSION,
+  buildBoundedPostMarketAiEvidence,
   flattenOpportunityFunnelScans,
   runCustomerReportBackgroundAiReview,
 };
