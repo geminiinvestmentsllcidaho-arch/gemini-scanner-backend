@@ -61,7 +61,7 @@ test("server root route uses isolated public homepage renderer", () => {
 test("renders shared global black neon theme and fixed background logo", () => {
   const html = renderPublicHomepageHtml();
 
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v2"/);
   assert.match(html, /data-gs-surface="public"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /aria-hidden="true"/);

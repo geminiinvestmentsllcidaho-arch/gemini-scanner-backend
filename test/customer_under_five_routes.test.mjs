@@ -439,7 +439,7 @@ test("customer under-five dashboard renders shared neon theme and fixed backgrou
     { route: "/customer/scanner/under-five", tenant: "customer" },
   );
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v2"/);
   assert.match(html, /data-gs-surface="customer"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /class="gs-global-header"/);

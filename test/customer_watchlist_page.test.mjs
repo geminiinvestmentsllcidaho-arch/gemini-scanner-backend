@@ -38,7 +38,7 @@ test("renders customer watchlist with shared global neon theme and fixed backgro
     buildCustomerWatchlistPage({ symbols: ["AAPL"] }),
     { email: "customer@example.com" },
   );
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v1"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v2"/);
   assert.match(html, /data-gs-surface="customer"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /class="gs-global-header"/);

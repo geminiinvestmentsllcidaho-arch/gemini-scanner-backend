@@ -4637,7 +4637,24 @@ section[style]{border-top-color:var(--gs-line)!important}
 @media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}.settings-toolbar{position:sticky;top:8px;z-index:8}.settings-group>summary{padding:14px}}
 </style>
 </head>
-<body data-gs-page="customer-settings">
+<body data-gs-page="customer-settings" data-gs-theme="${esc(account?.displayPreferences?.theme || 'system')}" data-gs-density="${esc(account?.displayPreferences?.density || 'comfortable')}" data-gs-reduced-motion="${account?.displayPreferences?.reducedMotion ? 'true' : 'false'}">
+<script>
+(function(){
+  try {
+    const body = document.body;
+    const root = document.documentElement;
+    const theme = body.dataset.gsTheme;
+    const density = body.dataset.gsDensity;
+    const reduced = body.dataset.gsReducedMotion === 'true';
+    if (theme === 'dark' || theme === 'light') root.dataset.gsTheme = theme; else delete root.dataset.gsTheme;
+    if (density === 'compact') root.dataset.gsDensity = 'compact'; else delete root.dataset.gsDensity;
+    if (reduced) root.dataset.gsReducedMotion = 'true'; else delete root.dataset.gsReducedMotion;
+    localStorage.setItem('gs.theme', theme);
+    localStorage.setItem('gs.density', density);
+    localStorage.setItem('gs.reducedMotion', reduced ? 'true' : 'false');
+  } catch (_) {}
+})();
+</script>
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'GeminiScanner' })}
 <main class="wrap" data-role="customer" data-page="settings">
@@ -4740,7 +4757,7 @@ ${account?.authenticatorEnabled ? `
 <p><label><input name="accountSecurityEmails" type="checkbox" checked disabled> Account security emails</label><br>
 <span style="color:#9eb0c9">Required security notices cannot be disabled.</span></p>
 <p><label><input name="productUpdates" type="checkbox"${account?.notificationPreferences?.productUpdates ? ' checked' : ''}> Product updates</label></p>
-<fieldset style="margin:16px 0;padding:14px;border:1px solid rgba(24,215,255,.34);border-radius:12px">
+<fieldset style="margin:16px 0;padding:14px;border:0;border-radius:12px;background:rgba(2,9,12,.42)">
 <legend><b>Report delivery</b></legend>
 <p><label><input name="reportEmailEnabled" type="checkbox"${account?.notificationPreferences?.reportEmailEnabled ? ' checked' : ''}> Email reports to my account email</label></p>
 <p><label><input name="reportSmsEnabled" type="checkbox"${account?.notificationPreferences?.reportSmsEnabled ? ' checked' : ''}> Text me when reports are ready</label></p>
