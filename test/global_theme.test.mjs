@@ -42,3 +42,21 @@ test("shared customer header contains branding only", () => {
   assert.match(html, /GeminiScanner/);
   assert.doesNotMatch(html, /\/admin\b|broker|Place order|Buy now/i);
 });
+
+test("saved theme and density selections visibly override legacy page styles while preserving the background logo", () => {
+  const css = renderGlobalThemeCss({ surface: "customer" });
+  const layer = renderBackgroundLogoLayer();
+
+  assert.match(css, /html\[data-gs-theme="light"\] body/);
+  assert.match(css, /html\[data-gs-theme="light"\] \.card/);
+  assert.match(css, /html\[data-gs-theme="light"\] input/);
+  assert.match(css, /html\[data-gs-density="compact"\] main/);
+  assert.match(css, /html\[data-gs-density="compact"\] \.card/);
+  assert.match(css, /html\[data-gs-reduced-motion="true"\]/);
+
+  assert.match(css, /html\[data-gs-theme="light"\] \.gs-background-logo img/);
+  assert.match(css, /\.gs-background-logo\{position:fixed/);
+  assert.match(css, /pointer-events:none/);
+  assert.match(layer, /class="gs-background-logo"/);
+  assert.match(layer, /\/assets\/GeminiScanner-Logo\.jpg/);
+});
