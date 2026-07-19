@@ -40,7 +40,7 @@ export function postMarketSession(now = new Date()) {
 
 export function classifyPostMarketPositionRisk(position = {}, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now ?? Date.now());
-  const maxFreshSec = Math.max(60, Number(options.maxFreshSee) || 900);
+  const maxFreshSec = Math.max(60, Number(options.maxFreshSec) || 900);
   const sourceTimestamp = position.sourceTimestamp ?? position.updatedAt ?? position.timestamp ?? null;
   const sourceMs = Date.parse(sourceTimestamp ?? "");
   const ageSec = Number.isFinite(sourceMs) ? Math.max(0, (now.getTime() - sourceMs) / 1000) : null;
@@ -109,8 +109,84 @@ export function classifyPostMarketPositionRisk(position = {}, options = {}) {
   });
 }
 
+
+export function classifyOvernightHoldAssessment(position = {}, options = {}) {
+  const risk = classifyPostMarketPositionRisk(position, options);
+  const metrics = risk.metrics;
+  const flags = [...risk.flags];
+
+  const relativeVolume = finite(position.relativeVolume ?? position.rvol);
+  const liquidityDollarVolume = finite(position.dollarVolume ?? position.liquidityDollarVolume);
+  const catalystKnown = position.catalystKnown === true;
+  const earningsWithinOneDay = position.earningsWithinOneDay === true;
+  const haltedOrRestricted = position.halted === true || position.restricted === true;
+
+  if (relativeVolume === null) flags.push("RELATIVE_VOLUME_UNAVAILABLE");
+  if (liquidityDollarVolume === null) flags.push("LIQUIDITY_UNAVAILABLE");
+  if (earningsWithinOneDay) flags.push("EARNINGS_EVENT_RISK");
+  if (haltedOrRestricted) flags.push("HALT_OR_RESTRICTION_RISK");
+
+  let state = "SUITABLE_FOR_OVERNIGHT_REVIEW";
+  if (
+    risk.state === "DATA_STALE"
+    || risk.state === "REVIEW_UNAVAILABLE"
+    || flags.includes("RELATIVE_VOLUME_UNAVAILABLE")
+    || flags.includes("LIQUIDITY_UNAVAILABLE")
+  ) {
+    state = "INSUFFICIENT_DATA";
+  } else if (
+    risk.state === "EXIT_REVIEW_REQUIRED"
+    || metrics.afterHoursChangePct <= -5
+    || metrics.spreadPct >= 3
+    || earningsWithinOneDay
+    || haltedOrRestricted
+    || relativeVolume >= 8
+    || liquidityDollarVolume < 250000
+  ) {
+    state = "DO_NOT_CARRY_WITHOUT_REVIEW";
+  } else if (
+    risk.state === "REDUCE_RISK_REVIEW"
+    || risk.state === "HOLD_WITH_CAUTION"
+    || metrics.afterHoursChangePct < 0
+    || metrics.spreadPct >= 1
+    || metrics.allocationPct >= 25
+    || relativeVolume >= 4
+    || liquidityDollarVolume < 1000000
+    || !catalystKnown
+  ) {
+    state = "ELEVATED_OVERNIGHT_RISK";
+  }
+
+  return Object.freeze({
+    version: VERSION,
+    symbol: risk.symbol,
+    state,
+    sourceRiskState: risk.state,
+    reviewOnly: true,
+    paperOnly: true,
+    brokerContactAllowed: false,
+    orderPlacementAllowed: false,
+    accountMutationAllowed: false,
+    regularSessionConfirmationAllowed: false,
+    nextSessionConfirmationRequired: true,
+    sourceTimestamp: risk.sourceTimestamp,
+    ageSec: risk.ageSec,
+    maxFreshSec: risk.maxFreshSec,
+    metrics: Object.freeze({
+      ...metrics,
+      relativeVolume,
+      liquidityDollarVolume,
+      catalystKnown,
+      earningsWithinOneDay,
+      haltedOrRestricted,
+    }),
+    flags: Object.freeze(flags),
+  });
+}
+
 export default Object.freeze({
   VERSION,
   postMarketSession,
   classifyPostMarketPositionRisk,
+  classifyOvernightHoldAssessment,
 });

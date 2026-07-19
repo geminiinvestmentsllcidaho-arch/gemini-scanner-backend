@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  classifyOvernightHoldAssessment,
   classifyPostMarketPositionRisk,
   postMarketSession,
 } from "../src/scanner/post_market_position_review.mjs";
@@ -72,4 +73,63 @@ test("normalizes Alpaca decimal unrealized percentage without permitting executi
   assert.equal(result.reviewOnly, true);
   assert.equal(result.brokerContactAllowed, false);
   assert.equal(result.orderPlacementAllowed, false);
+});
+
+
+test("classifies overnight suitability, elevated risk, and do-not-carry states", () => {
+  const now = new Date("2026-07-17T21:00:00.000Z");
+  const base = {
+    symbol: "NITE",
+    averageEntryPrice: 100,
+    currentPrice: 103,
+    sourceTimestamp: "2026-07-17T20:59:00.000Z",
+    allocationPct: 10,
+    spreadPct: 0.4,
+    afterHoursChangePct: 0.8,
+    relativeVolume: 2,
+    dollarVolume: 5000000,
+    catalystKnown: true,
+  };
+
+  const suitable = classifyOvernightHoldAssessment(base, { now });
+  assert.equal(suitable.state, "SUITABLE_FOR_OVERNIGHT_REVIEW");
+  assert.equal(suitable.nextSessionConfirmationRequired, true);
+
+  const elevated = classifyOvernightHoldAssessment({
+    ...base,
+    catalystKnown: false,
+    relativeVolume: 5,
+  }, { now });
+  assert.equal(elevated.state, "ELEVATED_OVERNIGHT_RISK");
+
+  const doNotCarry = classifyOvernightHoldAssessment({
+    ...base,
+    afterHoursChangePct: -6,
+  }, { now });
+  assert.equal(doNotCarry.state, "DO_NOT_CARRY_WITHOUT_REVIEW");
+});
+
+test("overnight assessment fails closed on incomplete or stale evidence", () => {
+  const now = new Date("2026-07-17T21:00:00.000Z");
+
+  const incomplete = classifyOvernightHoldAssessment({
+    symbol: "MISS",
+    averageEntryPrice: 100,
+    currentPrice: 101,
+    sourceTimestamp: "2026-07-17T20:59:00.000Z",
+  }, { now });
+  assert.equal(incomplete.state, "INSUFFICIENT_DATA");
+
+  const stale = classifyOvernightHoldAssessment({
+    symbol: "OLD",
+    averageEntryPrice: 100,
+    currentPrice: 101,
+    sourceTimestamp: "2026-07-17T20:00:00.000Z",
+    relativeVolume: 2,
+    dollarVolume: 5000000,
+    catalystKnown: true,
+  }, { now, maxFreshSec: 900 });
+  assert.equal(stale.state, "INSUFFICIENT_DATA");
+  assert.equal(stale.orderPlacementAllowed, false);
+  assert.equal(stale.accountMutationAllowed, false);
 });
