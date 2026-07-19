@@ -29,8 +29,8 @@ export function renderCustomerPrimaryNavigation({ active = "" } = {}) {
 export function renderCustomerPrimaryNavigationCss() {
   return `<style data-gs-customer-primary-navigation="${CUSTOMER_PRIMARY_NAVIGATION_VERSION}">
 .customer-primary-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
-.customer-primary-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-border);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
-.customer-primary-nav a[aria-current="page"]{color:var(--gs-text);border-color:var(--gs-accent);box-shadow:0 0 16px rgba(24,215,255,.24)}
+.customer-primary-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;color:var(--gs-accent);text-decoration:none;border:0;border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
+.customer-primary-nav a[aria-current="page"]{color:var(--gs-text);background:rgba(24,215,255,.12);box-shadow:none}
 @media(max-width:640px){.customer-primary-nav{gap:8px}.customer-primary-nav a{flex:1 1 calc(50% - 8px);padding:10px 8px}}
 </style>`;
 }
