@@ -303,3 +303,48 @@ test("runner does not persist failed provider calls so evidence remains retryabl
   assert.equal(result.persistenceSkippedForProviderStatus, true);
   assert.equal(persistCalls, 0);
 });
+
+test("runner persists a manual-adjustment recommendation while all mutation locks remain closed", async () => {
+  let persistedManualRecord = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-20T20:05:00.000Z"),
+    minimumOpenSessionsBeforeAdjustment: 3,
+    listScans: () => [{
+      scanId: "open-session-1",
+      eventAt: "2026-07-20T19:55:00.000Z",
+      scanType: "intraday",
+      marketOpen: true,
+      candidates: [{ symbol: "AAA", resultState: "WAIT" }],
+    }],
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    readPositionStore: () => ({ records: [] }),
+    requestAiReview: async () => ({
+      status: "completed_readonly",
+      provider: "openai",
+      model: "test-model",
+      responseId: "manual-adjustment-response",
+      reviewText: "Test a narrower WAIT window after three open sessions.",
+      requiresBacktest: true,
+      requiresOperatorApproval: true,
+    }),
+    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "reviews-memory" }),
+    persistManualAdjustmentRecommendation: (record) => {
+      persistedManualRecord = record;
+      return { appended: true, duplicateSkipped: false, ledgerPath: "manual-memory" };
+    },
+  });
+
+  assert.equal(result.status, "completed_readonly");
+  assert.equal(result.manualAdjustmentRecommendationCount, 1);
+  assert.equal(result.manualAdjustmentPersisted, true);
+  assert.equal(result.monitoringContinues, true);
+  assert.equal(result.minimumOpenSessionsBeforeAdjustment, 3);
+  assert.equal(persistedManualRecord.requiresBacktest, true);
+  assert.equal(persistedManualRecord.requiresOperatorApproval, true);
+  assert.equal(persistedManualRecord.automaticLearningAllowed, false);
+  assert.equal(persistedManualRecord.scannerLogicMutationAllowed, false);
+  assert.equal(persistedManualRecord.thresholdMutationAllowed, false);
+  assert.equal(persistedManualRecord.orderPlacementAllowed, false);
+  assert.equal(persistedManualRecord.accountMutationAllowed, false);
+});

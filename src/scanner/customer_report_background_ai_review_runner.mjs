@@ -8,6 +8,10 @@ import {
   appendCustomerReportBackgroundAiReviewRecord,
   buildCustomerReportBackgroundAiReviewRecord,
 } from "./customer_report_background_ai_review_store.mjs";
+import {
+  appendAiManualAdjustmentRecommendationRecord,
+  buildAiManualAdjustmentRecommendationRecord,
+} from "./ai_manual_adjustment_recommendation_store.mjs";
 
 export const VERSION = "customer_report_background_ai_review_runner_v1";
 
@@ -88,6 +92,9 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const listScans = options.listScans ?? listOpportunityFunnelAuditRecords;
   const requestAiReview = options.requestAiReview ?? requestCustomerReportRealtimeAiReview;
   const persistRecord = options.persistRecord ?? appendCustomerReportBackgroundAiReviewRecord;
+  const persistManualAdjustmentRecommendation =
+    options.persistManualAdjustmentRecommendation
+    ?? appendAiManualAdjustmentRecommendationRecord;
   const getPostMarketResult = options.getPostMarketResult ?? (() => null);
 
   const scans = listScans({ maxRecords: options.maxScanRecords ?? 120 });
@@ -162,6 +169,51 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       skippedUnsafeProviderStatus: true,
     });
 
+  const manualAdjustmentRecord = buildAiManualAdjustmentRecommendationRecord({
+    sourceReview: {
+      reviewId: record.reviewId,
+      generatedAt: record.generatedAt,
+      responseId: review?.responseId ?? null,
+      providerStatus: review?.status ?? null,
+    },
+    sourceCalibration: {
+      generatedAt: postMarketEvidence.generatedAt,
+      calibrationReviewQueueCount: postMarketEvidence.proposalCount,
+    },
+    recommendations:
+      review?.status === "completed_readonly"
+      && typeof review?.reviewText === "string"
+      && review.reviewText.trim()
+        ? [{
+            title: "AI review for manual scanner-logic adjustment",
+            targetArea: "manual_scanner_calibration",
+            suggestedDirection: review.reviewText,
+            evidenceSummary:
+              `Source scans: ${scans.length}; scanner events: ${scannerEvents.length}; post-market proposals: ${postMarketEvidence.proposalCount}.`,
+            sampleCount: scans.length,
+            observableSourceCount: scans.filter((scan) => scan?.marketOpen === true).length,
+            staleSourceCount:
+              postMarketEvidence.sourceFreshness.stalePositionCount
+              + postMarketEvidence.sourceFreshness.staleWatchCount,
+            riskLevel: "review",
+          }]
+        : [],
+  }, {
+    now,
+    minimumOpenSessionsBeforeAdjustment:
+      Number(options.minimumOpenSessionsBeforeAdjustment ?? 3),
+  });
+
+  const manualAdjustmentWrite = review?.status === "completed_readonly"
+    ? persistManualAdjustmentRecommendation(manualAdjustmentRecord, {
+        ledgerPath: options.manualAdjustmentLedgerPath,
+      })
+    : Object.freeze({
+        appended: false,
+        duplicateSkipped: false,
+        ledgerPath: options.manualAdjustmentLedgerPath ?? null,
+      });
+
   return Object.freeze({
     version: VERSION,
     status: review?.status === "completed_readonly"
@@ -184,6 +236,13 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     postMarketSourceRecordCount: postMarketEvidence.sourceRecordCount,
     postMarketProposalCount: postMarketEvidence.proposalCount,
     persistenceSkippedForProviderStatus: write?.skippedUnsafeProviderStatus === true,
+    manualAdjustmentRecordId: manualAdjustmentRecord.recordId,
+    manualAdjustmentRecommendationCount: manualAdjustmentRecord.recommendationCount,
+    minimumOpenSessionsBeforeAdjustment: manualAdjustmentRecord.minimumOpenSessionsBeforeAdjustment,
+    manualAdjustmentPersisted: manualAdjustmentWrite?.appended === true,
+    manualAdjustmentDuplicateSkipped: manualAdjustmentWrite?.duplicateSkipped === true,
+    manualAdjustmentLedgerPath: manualAdjustmentWrite?.ledgerPath ?? null,
+    monitoringContinues: true,
     readOnly: true,
     paperOnly: true,
     requiresBacktest: true,
