@@ -17,11 +17,25 @@ test("builds public GeminiScanner homepage without internal operations metadata"
   assert.equal(page.decisionAssistOnly, true);
 });
 
+test("public homepage prominently explains AI-backed decision support", () => {
+  const page = buildPublicHomepage();
+  const html = renderPublicHomepageHtml(page);
+
+  assert.match(page.eyebrow, /AI-backed/i);
+  assert.match(page.headline, /AI-backed stock decisions/i);
+  assert.match(page.description, /AI-assisted analysis/i);
+  assert.match(html, /AI-assisted opportunity review/);
+  assert.match(html, /patterns, risks, missing information/);
+  assert.match(html, /without changing scanner logic or placing trades/);
+  assert.match(html, /AI-assisted analysis/);
+  assert.match(html, /every final decision in your hands/);
+});
+
 test("renders public homepage with product information and no admin or diagnostic links", () => {
   const html = renderPublicHomepageHtml();
 
   assert.match(html, /GeminiScanner/);
-  assert.match(html, /Scanner capabilities/);
+  assert.match(html, /AI-backed analysis with human control/);
   assert.match(html, /Coming next/);
   assert.match(html, /href="\/customer"/);
   assert.doesNotMatch(html, /\/admin\b|\/diagnostics\b|\/app\b|paper trading|broker|security|deployment|internal owner/i);

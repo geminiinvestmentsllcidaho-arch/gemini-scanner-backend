@@ -5,7 +5,7 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 
-export const VERSION = "public_homepage_v2";
+export const VERSION = "public_homepage_v3";
 
 function esc(value) {
   return String(value ?? "")
@@ -21,22 +21,22 @@ export function buildPublicHomepage() {
     version: VERSION,
     route: "/",
     product: "GeminiScanner",
-    eyebrow: "Market intelligence for disciplined traders",
-    headline: "Find stronger stock setups. Review them with clarity.",
+    eyebrow: "AI-backed market intelligence for disciplined traders",
+    headline: "AI-backed stock decisions, built for clarity and discipline.",
     description:
-      "GeminiScanner turns live market data into focused scanner views, ranked opportunities, watchlists, and read-only decision support.",
+      "GeminiScanner combines live market data, deterministic scanner logic, and AI-assisted analysis to rank opportunities, explain the evidence, surface risks, and help you make more informed trading decisions.",
     capabilities: Object.freeze([
       Object.freeze({
         title: "Focused scanners",
         text: "Review intraday and under-$5 opportunities without sorting through market noise.",
       }),
       Object.freeze({
-        title: "Clear decision support",
-        text: "See ranked setups, confidence context, and readable explanations.",
+        title: "AI-assisted opportunity review",
+        text: "AI reviews scanner evidence to summarize patterns, risks, missing information, and potential improvements—without changing scanner logic or placing trades.",
       }),
       Object.freeze({
-        title: "Built-in discipline",
-        text: "Read-only workflows keep analysis separate from order execution.",
+        title: "Explainable, controlled decisions",
+        text: "Combine ranked setups, confidence context, readable explanations, and safety-gated workflows that keep analysis separate from execution.",
       }),
     ]),
     futurePlans: Object.freeze([
@@ -112,12 +112,13 @@ ${renderGlobalHeader({ surface: "public", homeHref: "/", label: source.product }
 <div class="preview-top"><strong>Scanner overview</strong><span class="status">READ ONLY</span></div>
 <div class="metric"><span>Intraday scanner</span><strong>Live</strong></div>
 <div class="metric"><span>Under-$5 scanner</span><strong>Live</strong></div>
-<div class="metric"><span>Decision support</span><strong>Active</strong></div>
+<div class="metric"><span>AI-assisted analysis</span><strong>Active</strong></div>
+<div class="metric"><span>Decision support</span><strong>Explainable</strong></div>
 </aside>
 </section>
 <section class="section">
-<h2>Scanner capabilities</h2>
-<p class="section-copy">Built to reduce noise—not add to it.</p>
+<h2>AI-backed analysis with human control</h2>
+<p class="section-copy">Built to reduce noise, explain opportunity quality, and keep every final decision in your hands.</p>
 <div class="cards">${capabilities}</div>
 </section>
 <section class="section">
