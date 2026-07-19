@@ -67,6 +67,7 @@ import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_r
 import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords } from './scanner/opportunity_funnel_audit_store.mjs';
 import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
 import { runCustomerReportBackgroundAiReview } from './scanner/customer_report_background_ai_review_runner.mjs';
+import { createPostMarketRuntimeWorker } from './scanner/post_market_runtime_worker.mjs';
 import { listCustomerReportBackgroundAiReviewRecords } from './scanner/customer_report_background_ai_review_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
@@ -3521,6 +3522,11 @@ app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAut
   })));
 });
 
+app.get("/diagnostics/post-market-runtime", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(postMarketRuntimeWorker.getStatus());
+});
+
 app.get("/diagnostics/customer-report-background-ai-review", (_req, res) => {
   res.set("Cache-Control", "no-store");
   res.json({
@@ -3552,6 +3558,13 @@ const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiR
   runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({ now }),
 });
 
+const postMarketRuntimeWorker = createPostMarketRuntimeWorker({
+  getMarketClock: async () => {
+    const source = await getUnderFiveSharedSource();
+    return source?.marketClock ?? {};
+  },
+});
+
 app.listen(PORT, HOST, async () => {
   const underFiveCache = await underFiveSharedCachePromise;
   if (underFiveCache) {
@@ -3560,6 +3573,13 @@ app.listen(PORT, HOST, async () => {
     });
   }
   console.log(`[server] listening on http://${HOST}:${PORT}`);
+  const postMarketRuntimeStatus = postMarketRuntimeWorker.start();
+  console.log('[postmarket-runtime] worker status', {
+    enabled: postMarketRuntimeStatus.enabled,
+    running: postMarketRuntimeStatus.running,
+    timerScheduled: postMarketRuntimeStatus.timerScheduled,
+    lastStatus: postMarketRuntimeStatus.lastStatus,
+  });
   const backgroundAiReviewStatus = customerReportBackgroundAiReviewWorker.start();
   console.log('[background-ai-review] worker status', {
     enabled: backgroundAiReviewStatus.enabled,
