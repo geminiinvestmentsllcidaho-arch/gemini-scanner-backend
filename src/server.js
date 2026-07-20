@@ -68,6 +68,7 @@ import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords }
 import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
 import { runCustomerReportBackgroundAiReview } from './scanner/customer_report_background_ai_review_runner.mjs';
 import { createPostMarketRuntimeWorker } from './scanner/post_market_runtime_worker.mjs';
+import { runStrategyObservationPersistence } from './scanner/strategy_observation_persistence_runner.mjs';
 import { listCustomerReportBackgroundAiReviewRecords } from './scanner/customer_report_background_ai_review_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
@@ -3566,6 +3567,10 @@ const postMarketRuntimeWorker = createPostMarketRuntimeWorker({
     const source = await getUnderFiveSharedSource();
     return source?.marketClock ?? {};
   },
+  afterCycle: ({ now } = {}) => runStrategyObservationPersistence({
+    now,
+    persist: true,
+  }),
 });
 
 app.listen(PORT, HOST, async () => {

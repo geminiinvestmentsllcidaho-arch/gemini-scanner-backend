@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import fs from "node:fs";
 import test from "node:test";
 
@@ -45,5 +46,23 @@ test("server supplies latest bounded post-market result to background AI review"
   assert.match(
     source,
     /getPostMarketResult: \(\) => postMarketRuntimeWorker\.getStatus\(\)\.lastResult/,
+  );
+});
+
+
+test("server persists time-based strategy observations after completed post-market cycles", () => {
+  const source = readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+
+  assert.match(
+    source,
+    /import \{ runStrategyObservationPersistence \} from '\.\/scanner\/strategy_observation_persistence_runner\.mjs';/,
+  );
+  assert.match(
+    source,
+    /afterCycle: \(\{ now \} = \{\}\) => runStrategyObservationPersistence\(\{\s*now,\s*persist: true,\s*\}\),/,
+  );
+  assert.doesNotMatch(
+    source,
+    /runStrategyObservationPersistence\(\{[\s\S]*?(automaticLearningAllowed|scannerLogicMutationAllowed|thresholdMutationAllowed|brokerContactAllowed|orderPlacementAllowed|accountMutationAllowed): true/,
   );
 });

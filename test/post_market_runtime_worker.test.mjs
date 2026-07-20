@@ -171,3 +171,77 @@ test("can be explicitly disabled without scheduling", async () => {
   assert.equal((await worker.tick()).lastStatus, "disabled");
   assert.equal(scheduled, 0);
 });
+
+
+test("runs read-only strategy observation persistence hook after a completed cycle", async () => {
+  let hookCalls = 0;
+  const worker = createPostMarketRuntimeWorker({
+    now: () => new Date("2026-07-17T21:00:00.000Z"),
+    getMarketClock: async () => ({}),
+    buildPlan: () => immediatePlan(),
+    runCycle: async () => ({
+      status: "completed_readonly",
+      fingerprint: "persist-me",
+      duplicateSnapshot: false,
+    }),
+    afterCycle: async ({ result }) => {
+      hookCalls += 1;
+      assert.equal(result.fingerprint, "persist-me");
+      return Object.freeze({
+        version: "strategy_observation_persistence_runner_v1",
+        appendedCount: 2,
+        readOnly: true,
+        paperOnly: true,
+        automaticLearningAllowed: false,
+        scannerLogicMutationAllowed: false,
+        thresholdMutationAllowed: false,
+        brokerContactAllowed: false,
+        orderPlacementAllowed: false,
+        accountMutationAllowed: false,
+      });
+    },
+    setTimeoutImpl: () => ({ unref() {} }),
+    clearTimeoutImpl: () => {},
+  });
+
+  const result = await worker.tick();
+
+  assert.equal(hookCalls, 1);
+  assert.equal(result.strategyObservationPersistence.appendedCount, 2);
+  assert.equal(worker.getStatus().lastResult.strategyObservationPersistence.readOnly, true);
+});
+
+test("after-cycle persistence failure does not stop the post-market runtime", async () => {
+  const worker = createPostMarketRuntimeWorker({
+    now: () => new Date("2026-07-17T21:00:00.000Z"),
+    getMarketClock: async () => ({}),
+    buildPlan: () => immediatePlan(),
+    runCycle: async () => ({
+      status: "completed_readonly",
+      fingerprint: "safe",
+      duplicateSnapshot: false,
+    }),
+    afterCycle: async () => {
+      throw new Error("local persistence unavailable");
+    },
+    setTimeoutImpl: () => ({ unref() {} }),
+    clearTimeoutImpl: () => {},
+    logger: { error() {} },
+  });
+
+  const result = await worker.tick();
+  const persistence = result.strategyObservationPersistence;
+
+  assert.equal(worker.getStatus().lastStatus, "completed_readonly");
+  assert.equal(persistence.status, "after_cycle_hook_failed");
+  for (const key of [
+    "automaticLearningAllowed",
+    "scannerLogicMutationAllowed",
+    "thresholdMutationAllowed",
+    "brokerContactAllowed",
+    "orderPlacementAllowed",
+    "accountMutationAllowed",
+  ]) {
+    assert.equal(persistence[key], false);
+  }
+});

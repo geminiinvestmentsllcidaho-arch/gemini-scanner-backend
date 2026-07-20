@@ -12,6 +12,7 @@ function safeDelay(nextCycleAt, nowMs) {
 export function createPostMarketRuntimeWorker({
   env = process.env,
   runCycle = runPostMarketReadonlyWorkerCycle,
+  afterCycle = async () => null,
   buildPlan = buildPostMarketSchedulePlan,
   getMarketClock = async () => ({}),
   now = () => new Date(),
@@ -92,11 +93,45 @@ export function createPostMarketRuntimeWorker({
         lastCompletedAt = now().toISOString();
         lastResult = result ?? null;
         if (result?.fingerprint) previousFingerprint = result.fingerprint;
+
+        let afterCycleResult = null;
+        try {
+          afterCycleResult = await afterCycle({
+            now: started,
+            result,
+            marketClock,
+            schedulePlan: plan,
+          });
+        } catch (error) {
+          logger?.error?.(
+            "[postmarket-runtime] after-cycle hook failed",
+            error?.message ?? String(error),
+          );
+          afterCycleResult = Object.freeze({
+            status: "after_cycle_hook_failed",
+            errorCode: String(
+              error?.code ?? error?.name ?? "POSTMARKET_AFTER_CYCLE_HOOK_FAILED",
+            ).slice(0, 120),
+            readOnly: true,
+            paperOnly: true,
+            automaticLearningAllowed: false,
+            scannerLogicMutationAllowed: false,
+            thresholdMutationAllowed: false,
+            brokerContactAllowed: false,
+            orderPlacementAllowed: false,
+            accountMutationAllowed: false,
+          });
+        }
+
+        lastResult = Object.freeze({
+          ...(result ?? {}),
+          strategyObservationPersistence: afterCycleResult,
+        });
         lastStatus = result?.duplicateSnapshot
           ? "duplicate_snapshot_suppressed"
           : result?.status ?? "completed_readonly";
         schedule(plan.nextCycleAt);
-        return result;
+        return lastResult;
       })
       .catch((error) => {
         lastCompletedAt = now().toISOString();
