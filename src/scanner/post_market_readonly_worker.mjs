@@ -11,6 +11,27 @@ function finite(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+const DEFAULT_EVIDENCE_SYMBOLS = Object.freeze(["AAPL", "MSFT", "NVDA", "SPY"]);
+const MAX_EVIDENCE_SYMBOLS = 50;
+
+function normalizeEvidenceSymbols(...sources) {
+  const seen = new Set();
+  const symbols = [];
+  for (const source of sources) {
+    const values = Array.isArray(source)
+      ? source
+      : String(source ?? "").split(",");
+    for (const value of values) {
+      const symbol = String(value ?? "").trim().toUpperCase();
+      if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol) || seen.has(symbol)) continue;
+      seen.add(symbol);
+      symbols.push(symbol);
+      if (symbols.length >= MAX_EVIDENCE_SYMBOLS) return symbols;
+    }
+  }
+  return symbols.length ? symbols : [...DEFAULT_EVIDENCE_SYMBOLS];
+}
+
 function candidateInput(candidate = {}, generatedAt) {
   return {
     ...candidate,
@@ -91,10 +112,22 @@ export async function runPostMarketReadonlyWorkerCycle(options = {}) {
   let paperAccount;
   let marketEvidence;
   try {
-    [paperAccount, marketEvidence] = await Promise.all([
-      fetchPaperAccount(options.paperAccountOptions ?? {}),
-      fetchMarketEvidence({ ...(options.marketEvidenceOptions ?? {}), nowMs: now.getTime(), maxSourceAgeSec: maxFreshSec }),
-    ]);
+    paperAccount = await fetchPaperAccount(options.paperAccountOptions ?? {});
+    const positionSymbols = (Array.isArray(paperAccount?.positions) ? paperAccount.positions : [])
+      .map((position) => position?.symbol);
+    const configuredSymbols =
+      options.marketEvidenceOptions?.symbols
+      ?? options.evidenceSymbols
+      ?? options.env?.ALPACA_SYMBOLS
+      ?? process.env.ALPACA_SYMBOLS;
+    const symbols = normalizeEvidenceSymbols(positionSymbols, configuredSymbols);
+    marketEvidence = await fetchMarketEvidence({
+      ...(options.marketEvidenceOptions ?? {}),
+      symbols,
+      maxAssets: symbols.length,
+      nowMs: now.getTime(),
+      maxSourceAgeSec: maxFreshSec,
+    });
   } catch (error) {
     return failureResult(generatedAt, "source_fetch_failed_closed", String(error?.code ?? error?.message ?? "SOURCE_FETCH_FAILED").slice(0, 160), { paperAccount: "exception", marketEvidence: "exception" });
   }

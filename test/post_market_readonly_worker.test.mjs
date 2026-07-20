@@ -53,3 +53,51 @@ test("keeps all execution and mutation locks closed", async () => {
   assert.equal(result.paperOnly, true);
   assert.equal(result.humanReviewRequired, true);
 });
+
+
+test("bounds market evidence to paper positions plus configured watchlist symbols", async () => {
+  let evidenceOptions = null;
+  const result = await runPostMarketReadonlyWorkerCycle({
+    now,
+    env: { ALPACA_SYMBOLS: "NEXT, MSFT, next, BAD SYMBOL" },
+    fetchPaperAccount: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      account: { portfolioValue: 10000 },
+      positions: [
+        { symbol: "AAA", marketValue: 950 },
+        { symbol: "NVDA", marketValue: 500 },
+      ],
+    }),
+    fetchMarketEvidence: async (options) => {
+      evidenceOptions = options;
+      return evidence();
+    },
+  });
+
+  assert.equal(result.status, "completed_readonly");
+  assert.deepEqual(evidenceOptions.symbols, ["AAA", "NVDA", "NEXT", "MSFT"]);
+  assert.equal(evidenceOptions.maxAssets, 4);
+  assert.equal(evidenceOptions.symbols.length <= 50, true);
+});
+
+test("uses a small default evidence universe when positions and watchlist are empty", async () => {
+  let evidenceOptions = null;
+  await runPostMarketReadonlyWorkerCycle({
+    now,
+    env: {},
+    fetchPaperAccount: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      account: { portfolioValue: 10000 },
+      positions: [],
+    }),
+    fetchMarketEvidence: async (options) => {
+      evidenceOptions = options;
+      return evidence();
+    },
+  });
+
+  assert.deepEqual(evidenceOptions.symbols, ["AAPL", "MSFT", "NVDA", "SPY"]);
+  assert.equal(evidenceOptions.maxAssets, 4);
+});
