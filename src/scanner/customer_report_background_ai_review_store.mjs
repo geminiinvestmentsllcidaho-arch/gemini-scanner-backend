@@ -37,6 +37,10 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     postMarketFingerprint: source.postMarketFingerprint ?? null,
     postMarketSourceRecordCount: Number(source.postMarketSourceRecordCount ?? 0),
     postMarketProposalCount: Number(source.postMarketProposalCount ?? 0),
+    strategyObservationSourceRecordCount: Number(source.strategyObservationSourceRecordCount ?? 0),
+    strategyObservationUniqueCount: Number(source.strategyObservationUniqueCount ?? 0),
+    strategyObservationObservableCount: Number(source.strategyObservationObservableCount ?? 0),
+    strategyObservationStaleSourceCount: Number(source.strategyObservationStaleSourceCount ?? 0),
     scannerEvents: Number(scanner.signalsGenerated ?? 0),
     enter: Number(scanner.enter ?? 0),
     wait: Number(scanner.wait ?? 0),
@@ -62,6 +66,12 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     postMarketFingerprint: source.postMarketFingerprint ?? null,
     postMarketSourceRecordCount: Number(source.postMarketSourceRecordCount ?? 0),
     postMarketProposalCount: Number(source.postMarketProposalCount ?? 0),
+    strategyObservationSourceRecordCount: Number(source.strategyObservationSourceRecordCount ?? 0),
+    strategyObservationUniqueCount: Number(source.strategyObservationUniqueCount ?? 0),
+    strategyObservationObservableCount: Number(source.strategyObservationObservableCount ?? 0),
+    strategyObservationStaleSourceCount: Number(source.strategyObservationStaleSourceCount ?? 0),
+    includedStrategyObservationEvidence:
+      Number(source.strategyObservationUniqueCount ?? 0) > 0,
     includedPostMarketEvidence: source.postMarketStatus === "completed_readonly"
       && Number(source.postMarketSourceRecordCount ?? 0) > 0,
     scannerEventCount: Number(scanner.signalsGenerated ?? 0),

@@ -3,6 +3,8 @@ import { fetchAlpacaPaperAccountReadonly } from "./alpaca_paper_account_readonly
 import { buildCustomerZeroPaperAccountBridge } from "./customer_zero_paper_account_bridge.mjs";
 import { readPaperTradePositionStateStoreDashboard } from "./paper_trade_position_state_store.mjs";
 import { listOpportunityFunnelAuditRecords } from "./opportunity_funnel_audit_store.mjs";
+import { listStrategyObservationRecords } from "./strategy_observation_store.mjs";
+import { buildBoundedStrategyObservationAiEvidence } from "./strategy_observation_ai_evidence.mjs";
 import { requestCustomerReportRealtimeAiReview } from "./customer_report_realtime_ai_client.mjs";
 import {
   appendCustomerReportBackgroundAiReviewRecord,
@@ -96,6 +98,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     options.persistManualAdjustmentRecommendation
     ?? appendAiManualAdjustmentRecommendationRecord;
   const getPostMarketResult = options.getPostMarketResult ?? (() => null);
+  const listStrategyObservations = options.listStrategyObservations ?? listStrategyObservationRecords;
 
   const scans = listScans({ maxRecords: options.maxScanRecords ?? 120 });
   if (!Array.isArray(scans) || scans.length === 0) {
@@ -129,10 +132,17 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   });
 
   const postMarketEvidence = buildBoundedPostMarketAiEvidence(getPostMarketResult() ?? {});
+  const strategyObservationEvidence = buildBoundedStrategyObservationAiEvidence(
+    listStrategyObservations({
+      maxRecords: Number(options.maxStrategyObservationRecords ?? 1000),
+      observationPath: options.strategyObservationPath,
+    }),
+  );
   const review = await requestAiReview({
     input: Object.freeze({
       ...(report.aiReview?.input ?? {}),
       postMarketEvidence,
+      strategyObservationEvidence,
     }),
     timeoutMs: Number(options.timeoutMs ?? process.env.GS_REALTIME_AI_TIMEOUT_MS ?? 30000),
   });
@@ -158,6 +168,10 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       postMarketFingerprint: postMarketEvidence.fingerprint,
       postMarketSourceRecordCount: postMarketEvidence.sourceRecordCount,
       postMarketProposalCount: postMarketEvidence.proposalCount,
+      strategyObservationSourceRecordCount: strategyObservationEvidence.sourceRecordCount,
+      strategyObservationUniqueCount: strategyObservationEvidence.uniqueObservationCount,
+      strategyObservationObservableCount: strategyObservationEvidence.observableCount,
+      strategyObservationStaleSourceCount: strategyObservationEvidence.staleSourceCount,
     },
   }, { now });
   const write = review?.status === "completed_readonly"
@@ -235,6 +249,12 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     postMarketStatus: postMarketEvidence.status,
     postMarketSourceRecordCount: postMarketEvidence.sourceRecordCount,
     postMarketProposalCount: postMarketEvidence.proposalCount,
+    includedStrategyObservationEvidence: strategyObservationEvidence.uniqueObservationCount > 0,
+    strategyObservationSourceRecordCount: strategyObservationEvidence.sourceRecordCount,
+    strategyObservationUniqueCount: strategyObservationEvidence.uniqueObservationCount,
+    strategyObservationObservableCount: strategyObservationEvidence.observableCount,
+    strategyObservationStaleSourceCount: strategyObservationEvidence.staleSourceCount,
+    strategyObservationMeasuredReturnCount: strategyObservationEvidence.measuredReturnCount,
     persistenceSkippedForProviderStatus: write?.skippedUnsafeProviderStatus === true,
     manualAdjustmentRecordId: manualAdjustmentRecord.recordId,
     manualAdjustmentRecommendationCount: manualAdjustmentRecord.recommendationCount,
@@ -259,6 +279,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
 export default {
   VERSION,
   buildBoundedPostMarketAiEvidence,
+  buildBoundedStrategyObservationAiEvidence,
   flattenOpportunityFunnelScans,
   runCustomerReportBackgroundAiReview,
 };

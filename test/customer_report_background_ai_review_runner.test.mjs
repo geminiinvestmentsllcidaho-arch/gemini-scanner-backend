@@ -348,3 +348,63 @@ test("runner persists a manual-adjustment recommendation while all mutation lock
   assert.equal(persistedManualRecord.orderPlacementAllowed, false);
   assert.equal(persistedManualRecord.accountMutationAllowed, false);
 });
+
+test("runner includes bounded strategy observation evidence and persists source metadata", async () => {
+  let capturedInput = null;
+  let persistedRecord = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-20T21:05:00.000Z"),
+    listScans: () => [{
+      scanId: "scan-strategy-evidence",
+      eventAt: "2026-07-20T20:45:00.000Z",
+      scanType: "intraday",
+      candidates: [{ symbol: "AAA", resultState: "WAIT" }],
+    }],
+    listStrategyObservations: () => [{
+      key: "scan-strategy-evidence:AAA",
+      originScanId: "scan-strategy-evidence",
+      observedAt: "2026-07-20T21:00:00.000Z",
+      symbol: "AAA",
+      scanType: "intraday",
+      strategyType: "intraday",
+      decision: "WAIT",
+      latestReturnPct: 4.25,
+      originObservable: true,
+      originSourceStale: false,
+      horizonObservations: { intraday: 2 },
+      horizonReturnsPct: { intraday: 4.25 },
+    }],
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    readPositionStore: () => ({ records: [] }),
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        provider: "openai",
+        model: "test-model",
+        responseId: "strategy-evidence-response",
+        reviewText: "Review historical strategy evidence manually.",
+      };
+    },
+    persistRecord: (record) => {
+      persistedRecord = record;
+      return { appended: true, duplicateSkipped: false, ledgerPath: "memory" };
+    },
+  });
+
+  assert.equal(capturedInput.strategyObservationEvidence.uniqueObservationCount, 1);
+  assert.equal(capturedInput.strategyObservationEvidence.observations[0].symbol, "AAA");
+  assert.equal(capturedInput.strategyObservationEvidence.observations[0].latestReturnPct, 4.25);
+  assert.equal(result.includedStrategyObservationEvidence, true);
+  assert.equal(result.strategyObservationSourceRecordCount, 1);
+  assert.equal(result.strategyObservationUniqueCount, 1);
+  assert.equal(result.strategyObservationObservableCount, 1);
+  assert.equal(result.strategyObservationStaleSourceCount, 0);
+  assert.equal(persistedRecord.includedStrategyObservationEvidence, true);
+  assert.equal(persistedRecord.strategyObservationUniqueCount, 1);
+  assert.equal(result.automaticLearningAllowed, false);
+  assert.equal(result.scannerLogicMutationAllowed, false);
+  assert.equal(result.thresholdMutationAllowed, false);
+  assert.equal(result.orderPlacementAllowed, false);
+});
