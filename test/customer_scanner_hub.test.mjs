@@ -251,3 +251,40 @@ test("customer overview and scanner routes use shared primary navigation with co
   assert.doesNotMatch(overview, />Home<\/a>|\/customer\/scanner\/under-five/);
   assert.doesNotMatch(scanner, />Home<\/a>|\/customer\/scanner\/under-five/);
 });
+
+test("renders read-only premarket multiscan candidate consolidation", () => {
+  const hub = buildCustomerScannerHub({
+    route: "/customer/scanner",
+    premarketAutoStatus: {
+      running: true,
+      schedulerState: "scanning",
+      scanCount: 3,
+      multiscanHistoryCount: 3,
+      session: { active: true },
+      multiscanConsolidation: {
+        sourceScanCount: 3,
+        candidateCount: 1,
+        candidates: [{
+          symbol: "ABCD",
+          consolidationStatus: "confirmed_watch_candidate",
+          observationCount: 3,
+          windowMinutes: 10,
+          latestScore: 77,
+          scoreTrend: "improving",
+          spreadTrend: "tightening",
+          briefExplanation: "Repeatedly met watch criteria.",
+        }],
+        readOnly: true,
+        buyRecommendation: false,
+        thresholdMutationAllowed: false,
+      },
+    },
+  });
+
+  const html = renderCustomerScannerHubHtml(hub);
+  assert.match(html, /Multi-scan candidate confirmation/);
+  assert.match(html, /ABCD/);
+  assert.match(html, /CONFIRMED WATCH CANDIDATE/);
+  assert.match(html, /Repeatedly met watch criteria/);
+  assert.match(html, /No buy recommendation/);
+});

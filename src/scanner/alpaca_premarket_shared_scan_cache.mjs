@@ -1,4 +1,5 @@
 import { fetchAlpacaPremarketUniverseReadonly, premarketSession } from "./alpaca_premarket_universe_readonly.mjs";
+import { consolidatePremarketScansReadonly } from "./premarket_multiscan_consolidation_readonly.mjs";
 
 export const VERSION = "alpaca_premarket_shared_scan_cache_v1";
 
@@ -84,6 +85,8 @@ export function createAlpacaPremarketSharedScanCache({
   let aiEvidencePublicationCount = 0;
   let lastAiEvidencePublishedAt = null;
   let lastAiEvidencePublicationError = null;
+  const scanHistory = [];
+  const maxHistoryScans = Math.max(10, Number(scanOptions.maxHistoryScans ?? 240));
 
   const diagnostics = () => {
     const nowMs = now();
@@ -102,6 +105,9 @@ export function createAlpacaPremarketSharedScanCache({
         : session.active
           ? "scanning"
           : "sleeping";
+    const multiscanConsolidation = consolidatePremarketScansReadonly(scanHistory, {
+      generatedAt: new Date(nowMs).toISOString(),
+    });
 
     return ({
     version: VERSION,
@@ -120,6 +126,8 @@ export function createAlpacaPremarketSharedScanCache({
     lastAutomaticScanSkipped: latestSharedCache?.skipped === true,
     lastAutomaticScanSkipReason: latestSharedCache?.skipReason ?? null,
     lastCandidateCount: latestCandidateCount,
+    multiscanHistoryCount: scanHistory.length,
+    multiscanConsolidation,
     aiEvidencePublicationCount,
     lastAiEvidencePublishedAt,
     lastAiEvidencePublicationError,
@@ -180,6 +188,11 @@ export function createAlpacaPremarketSharedScanCache({
             readOnly: true,
           },
         };
+
+        scanHistory.push(latest);
+        if (scanHistory.length > maxHistoryScans) {
+          scanHistory.splice(0, scanHistory.length - maxHistoryScans);
+        }
 
         if (typeof onScanComplete === "function") {
           try {
@@ -246,6 +259,8 @@ export function createAlpacaPremarketSharedScanCache({
     stop,
     refreshNow,
     getLatest: () => latest,
+    getScanHistory: () => Object.freeze([...scanHistory]),
+    getMultiscanConsolidation: () => consolidatePremarketScansReadonly(scanHistory),
     getDiagnostics: diagnostics,
   };
 }

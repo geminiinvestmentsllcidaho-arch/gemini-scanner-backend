@@ -219,6 +219,36 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 
   const premarket = hub.premarketAutoStatus;
   const premarketState = premarket?.schedulerState ?? "unavailable";
+  const premarketMultiscan = premarket?.multiscanConsolidation ?? null;
+  const premarketMultiscanCandidates = Array.isArray(premarketMultiscan?.candidates)
+    ? premarketMultiscan.candidates.slice(0, 8)
+    : [];
+  const premarketMultiscanRows = premarketMultiscanCandidates.map((candidate) => `<tr>
+<td>${esc(candidate.symbol ?? "—")}</td>
+<td>${esc(String(candidate.consolidationStatus ?? "unknown").replaceAll("_", " ").toUpperCase())}</td>
+<td>${esc(candidate.observationCount ?? 0)}</td>
+<td>${esc(candidate.windowMinutes ?? 0)} min</td>
+<td>${esc(candidate.latestScore ?? "—")}</td>
+<td>${esc(candidate.scoreTrend ?? "unknown")}</td>
+<td>${esc(candidate.spreadTrend ?? "unknown")}</td>
+<td>${esc(candidate.briefExplanation ?? "No explanation available.")}</td>
+</tr>`).join("");
+  const premarketMultiscanPanel = premarketMultiscan
+    ? `<div class="premarket-multiscan">
+<h3>Multi-scan candidate confirmation</h3>
+<div class="premarket-auto-grid">
+<div><span>Stored scans</span><b>${esc(premarket.multiscanHistoryCount ?? premarketMultiscan.sourceScanCount ?? 0)}</b></div>
+<div><span>Tracked symbols</span><b>${esc(premarketMultiscan.candidateCount ?? 0)}</b></div>
+<div><span>Confirmed</span><b>${esc(premarketMultiscanCandidates.filter((item) => item.consolidationStatus === "confirmed_watch_candidate").length)}</b></div>
+<div><span>Improving</span><b>${esc(premarketMultiscanCandidates.filter((item) => item.consolidationStatus === "improving_watch_candidate").length)}</b></div>
+</div>
+<div class="premarket-multiscan-table-wrap"><table class="premarket-multiscan-table">
+<thead><tr><th>Symbol</th><th>Status</th><th>Scans</th><th>Window</th><th>Latest score</th><th>Score trend</th><th>Spread trend</th><th>Why</th></tr></thead>
+<tbody>${premarketMultiscanRows || '<tr><td colspan="8">No repeated premarket candidates have been consolidated yet.</td></tr>'}</tbody>
+</table></div>
+<p class="premarket-auto-safety">Confirmation requires repeated observations across a meaningful time window. Read only · No buy recommendation · No threshold changes.</p>
+</div>`
+    : "";
   const premarketPanel = premarket
     ? `<section class="card premarket-auto-panel premarket-${esc(premarketState)}">
 <div class="premarket-auto-head">
@@ -237,6 +267,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
   ? "The scanner is automatically hunting for premarket opportunities now."
   : "The scheduler is sleeping until the next valid premarket window."}</p>
 <p class="premarket-auto-safety">Read only · Paper only · Decision assist · No order placement or scanner-logic mutation.</p>
+${premarketMultiscanPanel}
 </section>`
     : `<section class="card premarket-auto-panel premarket-unavailable"><div class="eyebrow">Automatic premarket scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
 
@@ -330,6 +361,12 @@ p{color:var(--gs-muted)}
 .premarket-auto-grid span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gs-muted)}
 .premarket-auto-grid b{margin-top:5px;font-size:.95rem;overflow-wrap:anywhere}
 .premarket-auto-safety{font-size:.84rem}
+.premarket-multiscan{margin-top:18px;padding-top:16px;border-top:1px solid var(--gs-line)}
+.premarket-multiscan h3{margin:0 0 12px;color:var(--gs-accent)}
+.premarket-multiscan-table-wrap{overflow-x:auto}
+.premarket-multiscan-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.premarket-multiscan-table th,.premarket-multiscan-table td{padding:9px;border:1px solid var(--gs-line);text-align:left;vertical-align:top}
+.premarket-multiscan-table th{color:var(--gs-accent);background:rgba(0,0,0,.82)}
 .postmarket-auto-panel{padding:18px;margin-bottom:16px;border-left:7px solid #737983}
 .postmarket-auto-panel.postmarket-running,.postmarket-auto-panel.postmarket-completed_readonly{border-left-color:#39ff20}
 .postmarket-auto-panel.postmarket-scheduled,.postmarket-auto-panel.postmarket-market_open_sleep,.postmarket-auto-panel.postmarket-weekend_sleep{border-left-color:#ffd43b}

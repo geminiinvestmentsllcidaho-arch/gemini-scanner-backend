@@ -156,3 +156,43 @@ test("successful premarket evidence publication is exposed in diagnostics", asyn
   assert.equal(diagnostics.lastAiEvidencePublicationError, null);
   assert.equal(diagnostics.scannerLogicMutationAllowed, false);
 });
+
+test("shared premarket cache exposes read-only multiscan consolidation from repeated scans", async () => {
+  let nowMs = Date.parse("2026-07-20T12:30:00.000Z");
+  let score = 71;
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => nowMs,
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {},
+    fetchScan: async () => ({
+      version: "test",
+      status: "ok",
+      generatedAt: new Date(nowMs).toISOString(),
+      candidateCount: 1,
+      candidates: [{
+        symbol: "ABCD",
+        decision: "WATCH",
+        premarketPotentialScore: score,
+        spreadPct: 1,
+        dollarVolume: 300000 + ((score - 71) * 100000),
+        changePct: 4,
+      }],
+      marketClock: { next_open: "2026-07-20T13:30:00-04:00" },
+    }),
+  });
+
+  await cache.refreshNow();
+  nowMs += 5 * 60 * 1000;
+  score = 74;
+  await cache.refreshNow();
+  nowMs += 5 * 60 * 1000;
+  score = 77;
+  await cache.refreshNow();
+
+  const consolidation = cache.getMultiscanConsolidation();
+  assert.equal(cache.getScanHistory().length, 3);
+  assert.equal(consolidation.candidates[0].symbol, "ABCD");
+  assert.equal(consolidation.candidates[0].consolidationStatus, "confirmed_watch_candidate");
+  assert.equal(consolidation.orderPlacementAllowed, false);
+  assert.equal(consolidation.thresholdMutationAllowed, false);
+});
