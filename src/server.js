@@ -3567,10 +3567,34 @@ const postMarketRuntimeWorker = createPostMarketRuntimeWorker({
     const source = await getUnderFiveSharedSource();
     return source?.marketClock ?? {};
   },
-  afterCycle: ({ now } = {}) => runStrategyObservationPersistence({
-    now,
-    persist: true,
-  }),
+  afterCycle: async ({ now } = {}) => {
+    const strategyObservationPersistence = runStrategyObservationPersistence({
+      now,
+      persist: true,
+    });
+
+    const appendedCount = Number(strategyObservationPersistence?.appendedCount ?? 0);
+    const backgroundAiReview = appendedCount > 0
+      ? await customerReportBackgroundAiReviewWorker.runNow()
+      : Object.freeze({
+          status: "no_strategy_observation_changes",
+          triggered: false,
+          readOnly: true,
+          paperOnly: true,
+          automaticLearningAllowed: false,
+          scannerLogicMutationAllowed: false,
+          thresholdMutationAllowed: false,
+          orderPlacementAllowed: false,
+          brokerContactAllowed: false,
+          accountMutationAllowed: false,
+        });
+
+    return Object.freeze({
+      ...strategyObservationPersistence,
+      backgroundAiReviewTriggered: appendedCount > 0,
+      backgroundAiReview,
+    });
+  },
 });
 
 app.listen(PORT, HOST, async () => {

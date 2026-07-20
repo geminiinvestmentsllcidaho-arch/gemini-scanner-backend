@@ -59,8 +59,22 @@ test("server persists time-based strategy observations after completed post-mark
   );
   assert.match(
     source,
-    /afterCycle: \(\{ now \} = \{\}\) => runStrategyObservationPersistence\(\{\s*now,\s*persist: true,\s*\}\),/,
+    /afterCycle: async \(\{ now \} = \{\}\) => \{/,
   );
+  assert.match(
+    source,
+    /const strategyObservationPersistence = runStrategyObservationPersistence\(\{\s*now,\s*persist: true,\s*\}\);/,
+  );
+  assert.match(
+    source,
+    /const appendedCount = Number\(strategyObservationPersistence\?\.appendedCount \?\? 0\);/,
+  );
+  assert.match(
+    source,
+    /const backgroundAiReview = appendedCount > 0\s*\? await customerReportBackgroundAiReviewWorker\.runNow\(\)\s*:\s*Object\.freeze\(\{/,
+  );
+  assert.match(source, /status: "no_strategy_observation_changes"/);
+  assert.match(source, /backgroundAiReviewTriggered: appendedCount > 0/);
   assert.doesNotMatch(
     source,
     /runStrategyObservationPersistence\(\{[\s\S]*?(automaticLearningAllowed|scannerLogicMutationAllowed|thresholdMutationAllowed|brokerContactAllowed|orderPlacementAllowed|accountMutationAllowed): true/,
