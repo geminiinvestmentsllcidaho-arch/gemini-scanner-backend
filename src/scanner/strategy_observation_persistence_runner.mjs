@@ -6,9 +6,64 @@ import {
 } from "./time_based_strategy_observation_builder.mjs";
 import {
   appendStrategyObservationReport,
+  buildStrategyObservationRecord,
+  listStrategyObservationRecords,
 } from "./strategy_observation_store.mjs";
 
 export const VERSION = "strategy_observation_persistence_runner_v1";
+
+
+const MATERIAL_FIELDS = Object.freeze([
+  "key",
+  "originScanId",
+  "originEventAt",
+  "symbol",
+  "scanner",
+  "scanType",
+  "strategyType",
+  "decision",
+  "resultState",
+  "entryPrice",
+  "latestPrice",
+  "observations",
+  "latestEventAt",
+  "latestReturnPct",
+  "maxFavorablePct",
+  "maxAdversePct",
+  "horizonObservations",
+  "horizonReturnsPct",
+  "horizonMaxFavorablePct",
+  "horizonMaxAdversePct",
+  "originObservable",
+  "originSourceStale",
+  "rankingConfidence",
+  "readonlyPotentialScore",
+]);
+
+function stable(value) {
+  if (Array.isArray(value)) return value.map(stable);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, stable(value[key])]),
+    );
+  }
+  return value ?? null;
+}
+
+function materialFingerprint(row = {}) {
+  return JSON.stringify(Object.fromEntries(
+    MATERIAL_FIELDS.map((key) => [key, stable(row[key])]),
+  ));
+}
+
+function latestByKey(records = []) {
+  const latest = new Map();
+  for (const record of records) {
+    const key = String(record?.key ?? "").trim();
+    if (key && !latest.has(key)) latest.set(key, record);
+  }
+  return latest;
+}
 
 function integer(value, fallback, min = 1, max = 5000) {
   const number = Number(value);
@@ -33,6 +88,20 @@ export function runStrategyObservationPersistence(options = {}) {
     swingMaxSessions: options.swingMaxSessions,
   });
 
+  const existingRecords = listStrategyObservationRecords({
+    observationPath: options.observationPath,
+    maxRecords: integer(options.maxObservationRecords, 5000, 1, 5000),
+  });
+  const existingLatest = latestByKey(existingRecords);
+  const changedOutcomes = report.outcomes.filter((outcome) => {
+    const candidate = buildStrategyObservationRecord(outcome, {
+      now: options.now ?? report.generatedAt,
+    });
+    const previous = existingLatest.get(candidate.key);
+    return !previous || materialFingerprint(candidate) !== materialFingerprint(previous);
+  });
+  const skippedUnchangedCount = report.outcomeCount - changedOutcomes.length;
+
   const persistence = options.persist === false
     ? Object.freeze({
         ok: true,
@@ -48,7 +117,10 @@ export function runStrategyObservationPersistence(options = {}) {
         liveTradingAllowed: false,
         accountMutationAllowed: false,
       })
-    : appendStrategyObservationReport(report, {
+    : appendStrategyObservationReport({
+        ...report,
+        outcomes: changedOutcomes,
+      }, {
         observationPath: options.observationPath,
         now: options.now ?? report.generatedAt,
       });
@@ -59,6 +131,8 @@ export function runStrategyObservationPersistence(options = {}) {
     auditRecordCount: auditRecords.length,
     outcomeCount: report.outcomeCount,
     observableOutcomeCount: report.observableOutcomeCount,
+    changedOutcomeCount: changedOutcomes.length,
+    skippedUnchangedCount,
     appendedCount: persistence.appendedCount,
     report,
     persistence,

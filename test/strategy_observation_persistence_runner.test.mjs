@@ -64,6 +64,60 @@ test("builds and persists time-based strategy observations from newest-first aud
   assert.equal(origin.orderPlacementAllowed, false);
 });
 
+
+test("suppresses identical reruns and appends only materially changed outcomes", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-change-aware-"));
+  const observationPath = path.join(dir, "strategy.jsonl");
+  const firstHistory = [
+    auditRecord("2026-07-20T14:05:00.000Z", "scan-2", 10.5),
+    auditRecord("2026-07-20T13:30:00.000Z", "scan-1", 10),
+  ];
+
+  const first = runStrategyObservationPersistence({
+    auditRecords: firstHistory,
+    observationPath,
+    now: new Date("2026-07-20T15:00:00.000Z"),
+    intradayMinutes: 30,
+  });
+  assert.equal(first.changedOutcomeCount, 2);
+  assert.equal(first.skippedUnchangedCount, 0);
+  assert.equal(first.appendedCount, 2);
+
+  const identical = runStrategyObservationPersistence({
+    auditRecords: firstHistory,
+    observationPath,
+    now: new Date("2026-07-20T15:15:00.000Z"),
+    intradayMinutes: 30,
+  });
+  assert.equal(identical.outcomeCount, 2);
+  assert.equal(identical.changedOutcomeCount, 0);
+  assert.equal(identical.skippedUnchangedCount, 2);
+  assert.equal(identical.appendedCount, 0);
+  assert.equal(listStrategyObservationRecords({ observationPath, maxRecords: 20 }).length, 2);
+
+  const updated = runStrategyObservationPersistence({
+    auditRecords: [
+      auditRecord("2026-07-20T14:35:00.000Z", "scan-3", 10.8),
+      ...firstHistory,
+    ],
+    observationPath,
+    now: new Date("2026-07-20T15:30:00.000Z"),
+    intradayMinutes: 30,
+  });
+
+  assert.equal(updated.outcomeCount, 3);
+  assert.equal(updated.changedOutcomeCount, 3);
+  assert.equal(updated.skippedUnchangedCount, 0);
+  assert.equal(updated.appendedCount, 3);
+
+  const stored = listStrategyObservationRecords({ observationPath, maxRecords: 20 });
+  assert.equal(stored.length, 5);
+  const scan1Snapshots = stored.filter((row) => row.originScanId === "scan-1");
+  assert.equal(scan1Snapshots.length, 2);
+  assert.equal(scan1Snapshots[0].horizonObservations.intraday, 2);
+  assert.equal(scan1Snapshots[0].latestReturnPct, 8);
+});
+
 test("supports preview-only persistence without writing", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-preview-"));
   const observationPath = path.join(dir, "strategy.jsonl");
@@ -79,6 +133,8 @@ test("supports preview-only persistence without writing", () => {
   });
 
   assert.equal(result.outcomeCount, 2);
+  assert.equal(result.changedOutcomeCount, 2);
+  assert.equal(result.skippedUnchangedCount, 0);
   assert.equal(result.appendedCount, 0);
   assert.equal(result.persistence.previewOnly, true);
   assert.equal(fs.existsSync(observationPath), false);
