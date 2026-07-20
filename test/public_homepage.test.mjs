@@ -29,9 +29,10 @@ test("public homepage prominently explains AI-backed decision support", () => {
   assert.match(html, /without changing scanner logic or placing trades/);
   assert.match(html, /AI-assisted analysis/);
   assert.match(html, /Pre-market scanner/);
-  assert.match(html, /After-hours scanner/);
+  assert.match(html, /Post-market scanner/);
   assert.match(html, /Automatic/);
-  assert.match(html, /Coming soon/);
+  assert.match(html, /Post-market scanner/);
+  assert.match(html, /Automatic/);
   assert.match(html, /\.hero,\.section\{border:0/);
   assert.match(html, /\.card\{background:#0d1521;border:0/);
   assert.match(html, /every final decision in your hands/);

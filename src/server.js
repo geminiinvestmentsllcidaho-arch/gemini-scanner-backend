@@ -4467,11 +4467,13 @@ app.get('/customer/scanner', requireCustomerSession, async (req, res) => {
   const scannerSelections = getCustomerScannerSelections(req.customerAccount?.id);
   const premarketCache = await premarketSharedCachePromise;
   const premarketAutoStatus = premarketCache?.getDiagnostics?.() ?? null;
+  const postMarketAutoStatus = postMarketRuntimeWorker.getStatus();
   const hub = mod.buildCustomerScannerHub({
     route: "/customer/scanner",
     scannerFilters: scannerFilters.ok ? scannerFilters.filters : null,
     scannerSelections: scannerSelections.ok ? scannerSelections.selections : null,
     premarketAutoStatus,
+    postMarketAutoStatus,
     filtersSaved: req.query?.filtersSaved === '1',
     runStarted: req.query?.runStarted === '1',
     runBlocked: req.query?.runBlocked === '1',

@@ -5,7 +5,7 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 
-export const VERSION = "public_homepage_v3";
+export const VERSION = "public_homepage_v4";
 
 function esc(value) {
   return String(value ?? "")
@@ -28,7 +28,7 @@ export function buildPublicHomepage() {
     capabilities: Object.freeze([
       Object.freeze({
         title: "Focused scanners",
-        text: "Review intraday and under-$5 opportunities without sorting through market noise.",
+        text: "Review intraday and under-$5 opportunities, plus automatic pre-market and post-market analysis, without sorting through market noise.",
       }),
       Object.freeze({
         title: "AI-assisted opportunity review",
@@ -113,7 +113,7 @@ ${renderGlobalHeader({ surface: "public", homeHref: "/", label: source.product }
 <div class="metric"><span>Intraday scanner</span><strong>Live</strong></div>
 <div class="metric"><span>Under-$5 scanner</span><strong>Live</strong></div>
 <div class="metric"><span>Pre-market scanner</span><strong>Automatic</strong></div>
-<div class="metric"><span>After-hours scanner</span><strong>Coming soon</strong></div>
+<div class="metric"><span>Post-market scanner</span><strong>Automatic</strong></div>
 <div class="metric"><span>AI-assisted analysis</span><strong>Active</strong></div>
 <div class="metric"><span>Decision support</span><strong>Explainable</strong></div>
 </aside>

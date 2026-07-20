@@ -89,6 +89,7 @@ export function buildCustomerScannerHub(options = {}) {
     scannerFilters: options.scannerFilters ?? null,
     scannerSelections: options.scannerSelections ?? null,
     premarketAutoStatus: options.premarketAutoStatus ?? null,
+    postMarketAutoStatus: options.postMarketAutoStatus ?? null,
     filtersSaved: options.filtersSaved === true,
     runStarted: options.runStarted === true,
     runBlocked: options.runBlocked === true,
@@ -239,6 +240,32 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 </section>`
     : `<section class="card premarket-auto-panel premarket-unavailable"><div class="eyebrow">Automatic premarket scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
 
+  const postMarket = hub.postMarketAutoStatus;
+  const postMarketState = postMarket?.schedulerState ?? postMarket?.lastStatus ?? "unavailable";
+  const postMarketLastResult = postMarket?.lastResult ?? null;
+  const postMarketPanel = postMarket
+    ? `<section class="card postmarket-auto-panel postmarket-${esc(postMarketState)}">
+<div class="postmarket-auto-head">
+<div><div class="eyebrow">Automatic post-market scanner</div><h2>${postMarket.running ? "Scheduler engaged" : "Scheduler stopped"}</h2></div>
+<strong>${esc(String(postMarketState).replaceAll("_", " ").toUpperCase())}</strong>
+</div>
+<div class="postmarket-auto-grid">
+<div><span>Schedule</span><b>${postMarket.timerScheduled ? "Automatic timer active" : "Timer unavailable"}</b></div>
+<div><span>Next activation</span><b>${esc(formatCustomerDateTime(postMarket.nextWakeAt ?? postMarket.lastPlan?.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
+<div><span>Completed cycles</span><b>${esc(postMarket.runCount ?? 0)}</b></div>
+<div><span>Skipped cycles</span><b>${esc(postMarket.skippedCount ?? 0)}</b></div>
+<div><span>Last cycle</span><b>${esc(formatCustomerDateTime(postMarket.lastCompletedAt, account, { fallback: "Not run yet" }))}</b></div>
+<div><span>Last result</span><b>${esc(postMarketLastResult?.status ?? postMarket.lastStatus ?? "Waiting")}</b></div>
+</div>
+<p>${postMarket.inFlight
+  ? "The automatic post-market review cycle is running now."
+  : postMarketLastResult
+    ? "The latest completed post-market review is available for read-only analysis."
+    : "The scheduler is waiting for the next valid post-market review window."}</p>
+<p class="postmarket-auto-safety">Read only · Paper only · Decision assist · AI review may be triggered by new observations · No order placement or scanner-logic mutation.</p>
+</section>`
+    : `<section class="card postmarket-auto-panel postmarket-unavailable"><div class="eyebrow">Automatic post-market scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
+
   const accountEmail = esc(account?.email ?? "");
   const accountPanel = accountEmail
     ? `<section class="card account-panel">
@@ -303,6 +330,18 @@ p{color:var(--gs-muted)}
 .premarket-auto-grid span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gs-muted)}
 .premarket-auto-grid b{margin-top:5px;font-size:.95rem;overflow-wrap:anywhere}
 .premarket-auto-safety{font-size:.84rem}
+.postmarket-auto-panel{padding:18px;margin-bottom:16px;border-left:7px solid #737983}
+.postmarket-auto-panel.postmarket-running,.postmarket-auto-panel.postmarket-completed_readonly{border-left-color:#39ff20}
+.postmarket-auto-panel.postmarket-scheduled,.postmarket-auto-panel.postmarket-market_open_sleep,.postmarket-auto-panel.postmarket-weekend_sleep{border-left-color:#ffd43b}
+.postmarket-auto-panel.postmarket-error,.postmarket-auto-panel.postmarket-stopped{border-left-color:#ff3547}
+.postmarket-auto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.postmarket-auto-head strong{font-size:.78rem;letter-spacing:.06em;color:var(--gs-accent)}
+.postmarket-auto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.postmarket-auto-grid div{padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.66)}
+.postmarket-auto-grid span,.postmarket-auto-grid b{display:block}
+.postmarket-auto-grid span{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gs-muted)}
+.postmarket-auto-grid b{margin-top:5px;font-size:.95rem;overflow-wrap:anywhere}
+.postmarket-auto-safety{font-size:.84rem}
 .portfolio-table{width:100%;border-collapse:collapse;min-width:760px}
 .portfolio-table th,.portfolio-table td{padding:10px;border-bottom:1px solid rgba(120,145,160,.25);text-align:right}
 .portfolio-table th:first-child,.portfolio-table td:first-child{text-align:left}
@@ -366,6 +405,7 @@ ${portfolioPanel}
 ${accountPanel}
 ${renderCustomerPrimaryNavigation({ active: hub.route === "/customer/scanner" ? "scanner" : "overview" })}
 ${premarketPanel}
+${postMarketPanel}
 <section class="card hero">
 <div class="eyebrow">Customer account</div>
 <h1>${esc(hub.title)}</h1>
