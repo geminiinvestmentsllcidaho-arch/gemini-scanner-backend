@@ -68,6 +68,7 @@ import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords, 
 import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
 import { runCustomerReportBackgroundAiReview } from './scanner/customer_report_background_ai_review_runner.mjs';
 import { createPostMarketRuntimeWorker } from './scanner/post_market_runtime_worker.mjs';
+import { fetchAlpacaMarketClockReadonly } from './scanner/alpaca_market_clock_readonly.mjs';
 import { runStrategyObservationPersistence } from './scanner/strategy_observation_persistence_runner.mjs';
 import { listCustomerReportBackgroundAiReviewRecords } from './scanner/customer_report_background_ai_review_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
@@ -3590,7 +3591,7 @@ const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiR
 
 const postMarketRuntimeWorker = createPostMarketRuntimeWorker({
   getMarketClock: async () => {
-    const source = await getUnderFiveSharedSource();
+    const source = await fetchAlpacaMarketClockReadonly();
     return source?.marketClock ?? {};
   },
   afterCycle: async ({ now } = {}) => {

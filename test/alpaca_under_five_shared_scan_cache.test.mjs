@@ -71,8 +71,9 @@ test("deduplicates concurrent refreshes with one in-flight request", async () =>
   assert.equal(cache.getDiagnostics().scanCount, 1);
 });
 
-test("starts with one scan and schedules the next closed-market boundary", async () => {
+test("starts without a full scan and schedules the next closed-market boundary", async () => {
   const scheduled = [];
+  let scanCalls = 0;
   const cache = createAlpacaUnderFiveSharedScanCache({
     now: () => 301_250,
     setTimeoutImpl(fn, delayMs) {
@@ -80,18 +81,27 @@ test("starts with one scan and schedules the next closed-market boundary", async
       return scheduled.length;
     },
     clearTimeoutImpl() {},
-    fetchScan: async () => ({
+    fetchMarketClock: async () => ({
       ok: true,
       status: "connected_readonly",
       marketClock: { isOpen: false },
-      candidates: [],
     }),
+    fetchScan: async () => {
+      scanCalls += 1;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { isOpen: false },
+        candidates: [],
+      };
+    },
   });
 
   await cache.start();
 
   assert.equal(cache.getDiagnostics().running, true);
-  assert.equal(cache.getDiagnostics().scanCount, 1);
+  assert.equal(cache.getDiagnostics().scanCount, 0);
+  assert.equal(scanCalls, 0);
   assert.equal(scheduled.length, 1);
   assert.equal(scheduled[0].delayMs, 298_750);
 
@@ -109,13 +119,18 @@ test("scheduler keeps running after a refresh failure", async () => {
       return scheduled.length;
     },
     clearTimeoutImpl() {},
+    fetchMarketClock: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      marketClock: { isOpen: true },
+    }),
     fetchScan: async () => {
       calls += 1;
       if (calls === 2) throw new Error("temporary scan failure");
       return {
         ok: true,
         status: "connected_readonly",
-        marketClock: { isOpen: false },
+        marketClock: { isOpen: true },
         candidates: [],
       };
     },
@@ -142,6 +157,11 @@ test("initial start failure still schedules a retry", async () => {
       return scheduled.length;
     },
     clearTimeoutImpl() {},
+    fetchMarketClock: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      marketClock: { isOpen: true },
+    }),
     fetchScan: async () => {
       throw new Error("initial scan failure");
     },
@@ -198,4 +218,73 @@ test("audit hook failures do not fail or stop completed scans", async () => {
   assert.equal(result.ok, true);
   assert.equal(cache.getDiagnostics().scanCount, 1);
   assert.equal(cache.getDiagnostics().lastError, null);
+});
+
+test("defers the full universe scan at startup while the market is closed", async () => {
+  const scheduled = [];
+  let scanCalls = 0;
+  let clockCalls = 0;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 301_250,
+    setTimeoutImpl(fn, delayMs) {
+      scheduled.push({ fn, delayMs });
+      return scheduled.length;
+    },
+    clearTimeoutImpl() {},
+    async fetchMarketClock() {
+      clockCalls += 1;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: {
+          isOpen: false,
+          nextOpen: "2026-07-21T09:30:00-04:00",
+        },
+      };
+    },
+    async fetchScan() {
+      scanCalls += 1;
+      throw new Error("full scan must not run during closed-market startup");
+    },
+  });
+
+  await cache.start();
+
+  const latest = cache.getLatest();
+  assert.equal(clockCalls, 1);
+  assert.equal(scanCalls, 0);
+  assert.equal(latest.startupDeferred, true);
+  assert.equal(latest.marketClock.isOpen, false);
+  assert.equal(cache.getDiagnostics().scanCount, 0);
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].delayMs, 298_750);
+  cache.stop();
+});
+
+test("runs the full universe scan at startup when the market is open", async () => {
+  let scanCalls = 0;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 15_000,
+    setTimeoutImpl() {
+      return 1;
+    },
+    clearTimeoutImpl() {},
+    async fetchMarketClock() {
+      return { ok: true, marketClock: { isOpen: true } };
+    },
+    async fetchScan() {
+      scanCalls += 1;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { isOpen: true },
+        candidates: [],
+      };
+    },
+  });
+
+  await cache.start();
+  assert.equal(scanCalls, 1);
+  assert.equal(cache.getDiagnostics().scanCount, 1);
+  cache.stop();
 });

@@ -1,4 +1,5 @@
 import { fetchAlpacaUnderFiveUniverseReadonly } from "./alpaca_under_five_universe_readonly.mjs";
+import { fetchAlpacaMarketClockReadonly } from "./alpaca_market_clock_readonly.mjs";
 
 export const VERSION = "alpaca_under_five_shared_scan_cache_v1";
 
@@ -14,6 +15,7 @@ export function msUntilNextBoundary(nowMs = Date.now(), intervalSec = 30) {
 
 export function createAlpacaUnderFiveSharedScanCache({
   fetchScan = fetchAlpacaUnderFiveUniverseReadonly,
+  fetchMarketClock = fetchAlpacaMarketClockReadonly,
   now = () => Date.now(),
   setTimeoutImpl = globalThis.setTimeout,
   clearTimeoutImpl = globalThis.clearTimeout,
@@ -104,7 +106,30 @@ export function createAlpacaUnderFiveSharedScanCache({
     if (running) return diagnostics();
     running = true;
     try {
-      await refreshNow();
+      const clockSource = await fetchMarketClock();
+      const marketClock = clockSource?.marketClock ?? {};
+      if (marketClock?.isOpen === true) {
+        await refreshNow();
+      } else {
+        latest = {
+          ok: clockSource?.ok !== false,
+          version: VERSION,
+          status: clockSource?.status ?? "closed_market_wait",
+          marketClock,
+          assetCount: 0,
+          snapshotCount: 0,
+          candidateCount: 0,
+          candidates: [],
+          startupDeferred: true,
+          sharedCache: {
+            version: VERSION,
+            generatedAt: new Date(now()).toISOString(),
+            scanCount,
+            sharedAcrossRequests: true,
+            readOnly: true,
+          },
+        };
+      }
     } finally {
       if (running) scheduleNext();
     }
