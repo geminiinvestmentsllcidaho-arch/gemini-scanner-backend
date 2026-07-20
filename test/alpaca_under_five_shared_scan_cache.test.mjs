@@ -3,13 +3,16 @@ import test from "node:test";
 
 import {
   createAlpacaUnderFiveSharedScanCache,
+  intervalSecForMarket,
   msUntilNextBoundary,
 } from "../src/scanner/alpaca_under_five_shared_scan_cache.mjs";
 
-test("calculates exact shared scan boundaries", () => {
+test("calculates exact shared scan boundaries and market cadence", () => {
+  assert.equal(intervalSecForMarket(true), 15);
+  assert.equal(intervalSecForMarket(false), 300);
   assert.equal(msUntilNextBoundary(12_000, 15), 3_000);
-  assert.equal(msUntilNextBoundary(30_000, 30), 30_000);
-  assert.equal(msUntilNextBoundary(31_250, 30), 28_750);
+  assert.equal(msUntilNextBoundary(300_000, 300), 300_000);
+  assert.equal(msUntilNextBoundary(301_250, 300), 298_750);
 });
 
 test("shares one cached scan result across repeated readers", async () => {
@@ -68,10 +71,10 @@ test("deduplicates concurrent refreshes with one in-flight request", async () =>
   assert.equal(cache.getDiagnostics().scanCount, 1);
 });
 
-test("starts with one scan and schedules the next aligned boundary", async () => {
+test("starts with one scan and schedules the next closed-market boundary", async () => {
   const scheduled = [];
   const cache = createAlpacaUnderFiveSharedScanCache({
-    now: () => 31_250,
+    now: () => 301_250,
     setTimeoutImpl(fn, delayMs) {
       scheduled.push({ fn, delayMs });
       return scheduled.length;
@@ -90,7 +93,7 @@ test("starts with one scan and schedules the next aligned boundary", async () =>
   assert.equal(cache.getDiagnostics().running, true);
   assert.equal(cache.getDiagnostics().scanCount, 1);
   assert.equal(scheduled.length, 1);
-  assert.equal(scheduled[0].delayMs, 28_750);
+  assert.equal(scheduled[0].delayMs, 298_750);
 
   cache.stop();
   assert.equal(cache.getDiagnostics().running, false);
@@ -100,7 +103,7 @@ test("scheduler keeps running after a refresh failure", async () => {
   const scheduled = [];
   let calls = 0;
   const cache = createAlpacaUnderFiveSharedScanCache({
-    now: () => 31_250,
+    now: () => 301_250,
     setTimeoutImpl(fn, delayMs) {
       scheduled.push({ fn, delayMs });
       return scheduled.length;
@@ -133,7 +136,7 @@ test("scheduler keeps running after a refresh failure", async () => {
 test("initial start failure still schedules a retry", async () => {
   const scheduled = [];
   const cache = createAlpacaUnderFiveSharedScanCache({
-    now: () => 31_250,
+    now: () => 301_250,
     setTimeoutImpl(fn, delayMs) {
       scheduled.push({ fn, delayMs });
       return scheduled.length;
@@ -149,7 +152,7 @@ test("initial start failure still schedules a retry", async () => {
   assert.equal(cache.getDiagnostics().running, true);
   assert.equal(cache.getDiagnostics().lastError, "initial scan failure");
   assert.equal(scheduled.length, 1);
-  assert.equal(scheduled[0].delayMs, 28_750);
+  assert.equal(scheduled[0].delayMs, 298_750);
 
   cache.stop();
 });

@@ -2,8 +2,8 @@ import { fetchAlpacaUnderFiveUniverseReadonly } from "./alpaca_under_five_univer
 
 export const VERSION = "alpaca_under_five_shared_scan_cache_v1";
 
-function intervalSecForMarket(isOpen) {
-  return isOpen === true ? 15 : 30;
+export function intervalSecForMarket(isOpen) {
+  return isOpen === true ? 15 : 300;
 }
 
 export function msUntilNextBoundary(nowMs = Date.now(), intervalSec = 30) {
