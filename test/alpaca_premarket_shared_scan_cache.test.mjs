@@ -196,3 +196,69 @@ test("shared premarket cache exposes read-only multiscan consolidation from repe
   assert.equal(consolidation.orderPlacementAllowed, false);
   assert.equal(consolidation.thresholdMutationAllowed, false);
 });
+
+
+test("hydrates persisted premarket scans across restart and preserves read-only consolidation", () => {
+  const initialScanHistory = [
+    {
+      scanId: "premarket-1",
+      generatedAt: "2026-07-20T12:20:00.000Z",
+      candidates: [{ symbol: "ABCD", decision: "WATCH", readonlyPotentialScore: 70, spreadPct: 1, dollarVolume: 300000, changePct: 4 }],
+    },
+    {
+      scanId: "premarket-2",
+      generatedAt: "2026-07-20T12:25:00.000Z",
+      candidates: [{ symbol: "ABCD", decision: "WATCH", readonlyPotentialScore: 73, spreadPct: 0.9, dollarVolume: 500000, changePct: 4.5 }],
+    },
+    {
+      scanId: "premarket-3",
+      generatedAt: "2026-07-20T12:30:00.000Z",
+      candidates: [{ symbol: "ABCD", decision: "WATCH", readonlyPotentialScore: 76, spreadPct: 0.8, dollarVolume: 700000, changePct: 5 }],
+    },
+  ];
+
+  const firstCache = createAlpacaPremarketSharedScanCache({
+    initialScanHistory,
+    now: () => Date.parse("2026-07-20T14:00:00.000Z"),
+  });
+  const restartedCache = createAlpacaPremarketSharedScanCache({
+    initialScanHistory: firstCache.getScanHistory(),
+    now: () => Date.parse("2026-07-20T14:05:00.000Z"),
+  });
+
+  const diagnostics = restartedCache.getDiagnostics();
+  assert.equal(diagnostics.multiscanHistoryCount, 3);
+  assert.equal(diagnostics.multiscanConsolidation.sourceScanCount, 3);
+  assert.equal(diagnostics.multiscanConsolidation.candidates[0].symbol, "ABCD");
+  assert.equal(diagnostics.multiscanConsolidation.candidates[0].consolidationStatus, "confirmed_watch_candidate");
+  assert.equal(diagnostics.orderPlacementAllowed, false);
+  assert.equal(diagnostics.accountMutationAllowed, false);
+  assert.equal(diagnostics.scannerLogicMutationAllowed, false);
+  assert.equal(diagnostics.thresholdMutationAllowed, false);
+});
+
+test("hydration safely excludes malformed entries, deduplicates, orders, and bounds history", () => {
+  const cache = createAlpacaPremarketSharedScanCache({
+    initialScanHistory: [
+      null,
+      {},
+      { scanId: "duplicate", generatedAt: "2026-07-20T12:10:00.000Z", candidates: [] },
+      { scanId: "newest", generatedAt: "2026-07-20T12:30:00.000Z", candidates: [] },
+      { scanId: "duplicate", generatedAt: "2026-07-20T12:20:00.000Z", candidates: [] },
+      { scanId: "oldest", generatedAt: "2026-07-20T12:00:00.000Z", candidates: [] },
+      { scanId: "invalid-date", generatedAt: "not-a-date", candidates: [] },
+    ],
+    scanOptions: { maxHistoryScans: 10 },
+  });
+
+  assert.deepEqual(cache.getScanHistory().map((scan) => scan.scanId), ["oldest", "duplicate", "newest"]);
+  assert.equal(cache.getDiagnostics().multiscanHistoryCount, 3);
+  assert.equal(cache.getDiagnostics().orderPlacementAllowed, false);
+});
+
+test("empty or non-array hydration is safe", () => {
+  const cache = createAlpacaPremarketSharedScanCache({ initialScanHistory: "not-an-array" });
+  assert.deepEqual(cache.getScanHistory(), []);
+  assert.equal(cache.getMultiscanConsolidation().candidateCount, 0);
+  assert.equal(cache.getDiagnostics().thresholdMutationAllowed, false);
+});

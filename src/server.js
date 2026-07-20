@@ -296,7 +296,29 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
 
 const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_scan_cache.mjs')
   .then(async (mod) => {
+    const persistedPremarketHistory = listOpportunityFunnelAuditRecords({ maxRecords: 1000 })
+      .filter((record) =>
+        record?.scanner === 'alpaca_premarket_shared_readonly'
+        || record?.scanType === 'premarket'
+      )
+      .map((record) => ({
+        scanId: record?.scanId ?? null,
+        version: record?.sourceVersion ?? 'opportunity_funnel_audit_store_v1',
+        status: record?.sourceStatus ?? 'unknown',
+        generatedAt: record?.eventAt ?? null,
+        candidateCount: Number(record?.candidateCount ?? 0),
+        candidates: Array.isArray(record?.candidates) ? record.candidates : [],
+        sharedCache: {
+          version: mod.VERSION,
+          generatedAt: record?.eventAt ?? null,
+          scanId: record?.scanId ?? null,
+          hydrated: true,
+          skipped: false,
+          readOnly: true,
+        },
+      }));
     const cache = mod.createAlpacaPremarketSharedScanCache({
+      initialScanHistory: persistedPremarketHistory,
       scanOptions: {
         minPrice: 0.5,
         maxPrice: 1000,

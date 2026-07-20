@@ -74,6 +74,7 @@ export function createAlpacaPremarketSharedScanCache({
   clearTimeoutImpl = globalThis.clearTimeout,
   scanOptions = {},
   onScanComplete = null,
+  initialScanHistory = [],
 } = {}) {
   let latest = null;
   let timer = null;
@@ -85,8 +86,29 @@ export function createAlpacaPremarketSharedScanCache({
   let aiEvidencePublicationCount = 0;
   let lastAiEvidencePublishedAt = null;
   let lastAiEvidencePublicationError = null;
-  const scanHistory = [];
   const maxHistoryScans = Math.max(10, Number(scanOptions.maxHistoryScans ?? 240));
+  const normalizeHistoryTimestamp = (scan) => {
+    const value = scan?.sharedCache?.generatedAt ?? scan?.generatedAt ?? null;
+    const timestampMs = value ? new Date(value).getTime() : NaN;
+    return Number.isFinite(timestampMs) ? timestampMs : null;
+  };
+  const historyKey = (scan) => String(
+    scan?.scanId
+    ?? scan?.sharedCache?.scanId
+    ?? scan?.generatedAt
+    ?? scan?.sharedCache?.generatedAt
+    ?? ""
+  );
+  const scanHistory = (Array.isArray(initialScanHistory) ? initialScanHistory : [])
+    .filter((scan) => scan && typeof scan === "object" && Array.isArray(scan.candidates))
+    .map((scan) => ({ ...scan }))
+    .filter((scan) => normalizeHistoryTimestamp(scan) !== null)
+    .sort((a, b) => normalizeHistoryTimestamp(a) - normalizeHistoryTimestamp(b))
+    .filter((scan, index, items) => {
+      const key = historyKey(scan);
+      return !key || items.findIndex((item) => historyKey(item) === key) === index;
+    })
+    .slice(-maxHistoryScans);
 
   const diagnostics = () => {
     const nowMs = now();
