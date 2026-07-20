@@ -152,10 +152,70 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
   }
 }
 
+
+export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
+  const auditPath =
+    clean(options.auditPath, 4096) || DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH;
+  if (!fs.existsSync(auditPath)) return Object.freeze([]);
+
+  const maxRecords = Math.max(1, Math.min(1000, Number(options.maxRecords) || 100));
+  const chunkSize = Math.max(
+    4096,
+    Math.min(1024 * 1024, Number(options.chunkSize) || 64 * 1024),
+  );
+  const scanner = clean(options.scanner, 64);
+  const scanType = clean(options.scanType, 32);
+  const fd = fs.openSync(auditPath, "r");
+
+  try {
+    const stat = fs.fstatSync(fd);
+    let position = stat.size;
+    let carry = "";
+    const records = [];
+
+    const considerLine = (line) => {
+      if (!line || records.length >= maxRecords) return;
+      let record;
+      try {
+        record = JSON.parse(line);
+      } catch {
+        return;
+      }
+      if (scanner && clean(record?.scanner, 64) !== scanner) return;
+      if (scanType && clean(record?.scanType, 32) !== scanType) return;
+      records.push(Object.freeze(record));
+    };
+
+    while (position > 0 && records.length < maxRecords) {
+      const bytesToRead = Math.min(chunkSize, position);
+      position -= bytesToRead;
+      const buffer = Buffer.allocUnsafe(bytesToRead);
+      const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, position);
+      const block = buffer.subarray(0, bytesRead).toString("utf8") + carry;
+      const lines = block.split(/\r?\n/);
+      carry = lines.shift() ?? "";
+
+      for (
+        let index = lines.length - 1;
+        index >= 0 && records.length < maxRecords;
+        index -= 1
+      ) {
+        considerLine(lines[index]);
+      }
+    }
+
+    if (position === 0 && records.length < maxRecords) considerLine(carry);
+    return Object.freeze(records);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 export default {
   VERSION,
   DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH,
   buildOpportunityFunnelAuditRecord,
   appendOpportunityFunnelAuditRecord,
   listOpportunityFunnelAuditRecords,
+  listOpportunityFunnelAuditRecordsFiltered,
 };

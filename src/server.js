@@ -64,7 +64,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
-import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords } from './scanner/opportunity_funnel_audit_store.mjs';
+import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords, listOpportunityFunnelAuditRecordsFiltered } from './scanner/opportunity_funnel_audit_store.mjs';
 import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
 import { runCustomerReportBackgroundAiReview } from './scanner/customer_report_background_ai_review_runner.mjs';
 import { createPostMarketRuntimeWorker } from './scanner/post_market_runtime_worker.mjs';
@@ -296,7 +296,11 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
 
 const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_scan_cache.mjs')
   .then(async (mod) => {
-    const persistedPremarketHistory = listOpportunityFunnelAuditRecords({ maxRecords: 1000 })
+    const persistedPremarketHistory = listOpportunityFunnelAuditRecordsFiltered({
+      maxRecords: 100,
+      scanner: 'alpaca_premarket_shared_readonly',
+      scanType: 'premarket',
+    })
       .filter((record) =>
         record?.scanner === 'alpaca_premarket_shared_readonly'
         || record?.scanType === 'premarket'
