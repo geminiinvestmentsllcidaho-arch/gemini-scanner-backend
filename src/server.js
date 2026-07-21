@@ -3344,6 +3344,30 @@ app.get("/app/retention-cleanup", (req, res) => {
   res.type("html").send(renderRetentionCleanupAppScreenHtml(screen));
 });
 
+app.get("/diagnostics/opportunity-audit-archive-retention-preview", (req, res) => {
+  const screen = buildRetentionCleanupAppScreen({
+    source: "opportunity_audit",
+    limit: req.query.limit,
+    retentionDays: req.query.retentionDays,
+    maxArchives: req.query.maxArchives,
+    maxTotalBytes: req.query.maxTotalBytes,
+    autoRefreshEnabled: false,
+  });
+  res.json(screen);
+});
+
+app.get("/app/opportunity-audit-archive-retention", (req, res) => {
+  const screen = buildRetentionCleanupAppScreen({
+    source: "opportunity_audit",
+    limit: req.query.limit,
+    retentionDays: req.query.retentionDays,
+    maxArchives: req.query.maxArchives,
+    maxTotalBytes: req.query.maxTotalBytes,
+    autoRefreshEnabled: false,
+  });
+  res.type("html").send(renderRetentionCleanupAppScreenHtml(screen));
+});
+
 app.get("/diagnostics/market-closed-scanner-snapshot-store-retention-cleanup", (req, res) => {
   res.json(buildMarketClosedSnapshotStoreRetentionCleanupDiagnostics({ limit: req.query?.limit, retentionDays: req.query?.retentionDays }));
 });

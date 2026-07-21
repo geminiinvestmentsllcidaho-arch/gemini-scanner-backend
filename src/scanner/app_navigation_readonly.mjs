@@ -164,6 +164,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "opportunity_audit_archive_retention",
+    title: "Opportunity Audit Archive Retention",
+    subtitle: "Read-only archive policy preview.",
+    description: "Preview-only opportunity funnel audit archive retention diagnostics with no deletion controls.",
+    category: "scanner_snapshots",
+    href: "/app/opportunity-audit-archive-retention",
+    diagnosticHref: "/diagnostics/opportunity-audit-archive-retention-preview",
+    routeHref: "/app/opportunity-audit-archive-retention",
+    displayState: "OPPORTUNITY_AUDIT_ARCHIVE_RETENTION_PREVIEW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_readiness_gate",
     title: "Paper Trading Readiness Gate",
     subtitle: "Read-only readiness diagnostics.",

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   buildRetentionCleanupAppScreen,
@@ -95,4 +96,33 @@ test("renders retention cleanup html without mutation controls", () => {
   assert.doesNotMatch(html, /<form/i);
   assert.doesNotMatch(html, /<button/i);
   assert.doesNotMatch(html, /method=/i);
+});
+
+test("builds opportunity audit archive retention preview through the shared read-only app screen", () => {
+  const screen = buildRetentionCleanupAppScreen({
+    source: "opportunity_audit",
+    archiveDir: "/tmp/gemini-scanner-missing-opportunity-retention-test",
+    now: new Date("2026-07-21T12:00:00.000Z"),
+    autoRefreshEnabled: false,
+  });
+
+  assert.equal(screen.ok, true);
+  assert.equal(screen.title, "Opportunity Audit Archive Retention Preview");
+  assert.equal(screen.sourceVersion, "opportunity_funnel_audit_archive_retention_preview_v1");
+  assert.equal(screen.candidateCount, 0);
+  assert.equal(screen.readOnly, true);
+  assert.equal(screen.previewOnly, true);
+  assert.equal(screen.fileDeletionAllowed, false);
+  assert.equal(screen.brokerContactAllowed, false);
+  assert.equal(screen.accountMutationAllowed, false);
+});
+
+test("server and navigation expose opportunity audit archive retention as read-only routes", () => {
+  const server = readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const navigation = readFileSync(new URL("../src/scanner/app_navigation_readonly.mjs", import.meta.url), "utf8");
+
+  assert.match(server, /\/diagnostics\/opportunity-audit-archive-retention-preview/);
+  assert.match(server, /\/app\/opportunity-audit-archive-retention/);
+  assert.match(navigation, /opportunity_audit_archive_retention/);
+  assert.match(navigation, /OPPORTUNITY_AUDIT_ARCHIVE_RETENTION_PREVIEW_READONLY/);
 });

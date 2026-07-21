@@ -1,4 +1,5 @@
 import { buildMarketClosedSnapshotStoreRetentionCleanupPanel } from "./market_closed_snapshot_store_retention_cleanup_diagnostics.mjs";
+import { inspectOpportunityFunnelAuditArchiveRetention } from "./opportunity_funnel_audit_store.mjs";
 
 export const VERSION = "retention_cleanup_app_screen_v1";
 
@@ -15,6 +16,23 @@ const esc = (value) => String(value ?? "")
 function sourcePanel(options = {}) {
   if (options.panel && typeof options.panel === "object") return options.panel;
   try {
+    if (options.source === "opportunity_audit") {
+      const retention = inspectOpportunityFunnelAuditArchiveRetention({
+        archiveDir: options.archiveDir,
+        retentionDays: options.retentionDays,
+        maxArchives: options.maxArchives,
+        maxTotalBytes: options.maxTotalBytes,
+        now: options.now,
+      });
+      return {
+        ...retention,
+        version: "opportunity_funnel_audit_archive_retention_preview_v1",
+        displayState: String(retention.status ?? "unknown").toUpperCase(),
+        title: "Opportunity Audit Archive Retention Preview",
+        subtitle: "Read-only opportunity funnel audit archive retention preview.",
+        files: retention.candidates,
+      };
+    }
     return buildMarketClosedSnapshotStoreRetentionCleanupPanel({
       limit: options.limit,
       retentionDays: options.retentionDays,
@@ -44,15 +62,18 @@ function normalizeFile(file = {}, index = 0) {
   const name = file.name ?? file.filename ?? file.file ?? file.path ?? file.relativePath ?? `file_${index + 1}`;
   const ageDays = file.ageDays ?? file.fileAgeDays ?? file.daysOld ?? file.age ?? null;
   const eligible = file.eligible ?? file.cleanupEligible ?? file.wouldDelete ?? file.previewOnly ?? false;
-  const ts = file.ts ?? file.createdAt ?? file.updatedAt ?? file.mtime ?? file.fileMtime ?? file.sourceTs ?? "unknown";
+  const ts = file.ts ?? file.createdAt ?? file.updatedAt ?? file.mtime ?? file.modifiedAt ?? file.fileMtime ?? file.sourceTs ?? "unknown";
+  const reasons = arr(file.reasons).map((reason) => clean(reason)).filter(Boolean);
   return {
     index: index + 1,
     name: clean(name, `file_${index + 1}`),
     ageDays: ageDays === null ? null : num(ageDays, 0),
-    status: clean(file.status ?? file.displayState ?? (eligible ? "preview_cleanup_candidate" : "retained"), "retained"),
+    status: clean(file.status ?? file.displayState ?? (reasons.length ? reasons.join(", ") : eligible ? "preview_cleanup_candidate" : "retained"), "retained"),
     ts: clean(ts),
+    sizeBytes: num(file.sizeBytes ?? file.bytes, 0),
+    reasons,
     previewOnly: true,
-    eligibleForCleanup: Boolean(eligible),
+    eligibleForCleanup: Boolean(eligible || reasons.length),
   };
 }
 
@@ -69,8 +90,8 @@ export function buildRetentionCleanupAppScreen(options = {}) {
     ok: panel.ok !== false,
     version: VERSION,
     panelType: "mobile_app_screen",
-    title: "Retention Cleanup Preview",
-    subtitle: "read-only local snapshot retention cleanup preview.",
+    title: clean(panel.title, "Retention Cleanup Preview"),
+    subtitle: clean(panel.subtitle, "read-only local snapshot retention cleanup preview."),
     displayState: "RETENTION_CLEANUP_APP_SCREEN_READY_READONLY",
     sourceVersion: panel.version ?? null,
     sourceDisplayState: panel.displayState ?? null,
