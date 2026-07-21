@@ -67,3 +67,24 @@ test("server wires completed shared scans into the local read-only opportunity f
   assert.match(server, /scanner: 'alpaca_under_five_shared'/);
   assert.match(server, /candidates: snapshot\?\.candidates/);
 });
+
+test("server exposes read-only shared under-five cache diagnostics", () => {
+  const start = server.indexOf("app.get('/diagnostics/alpaca-under-five-shared-cache'");
+  const end = server.indexOf("\napp.get('/diagnostics/alpaca-api-watch'", start);
+  const block = server.slice(start, end);
+
+  assert.notEqual(start, -1);
+  assert.match(block, /await underFiveSharedCachePromise/);
+  assert.match(block, /cache\?\.getDiagnostics\?\.\(\) \?\? null/);
+  assert.match(block, /res\.set\('Cache-Control', 'no-store'\)/);
+  assert.match(block, /readOnly: true/);
+  assert.match(block, /paperOnly: true/);
+  assert.match(block, /decisionAssistOnly: true/);
+  assert.match(block, /automaticLearningAllowed: false/);
+  assert.match(block, /scannerLogicMutationAllowed: false/);
+  assert.match(block, /thresholdMutationAllowed: false/);
+  assert.match(block, /orderPlacementAllowed: false/);
+  assert.match(block, /brokerContactAllowed: false/);
+  assert.match(block, /accountMutationAllowed: false/);
+  assert.doesNotMatch(block, /refreshNow|start\(|stop\(|fetchAlpacaUnderFiveUniverseReadonly/);
+});

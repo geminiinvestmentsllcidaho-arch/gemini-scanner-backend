@@ -1818,6 +1818,25 @@ app.get('/diagnostics/paper-trading-module-final-status-readonly-panel', async (
 app.get('/health', health);
 app.get('/readiness', readiness);
 app.get('/diagnostics', getDiagnostics);
+app.get('/diagnostics/alpaca-under-five-shared-cache', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const cache = await underFiveSharedCachePromise;
+  const diagnostics = cache?.getDiagnostics?.() ?? null;
+  res.json({
+    ok: diagnostics !== null,
+    diagnostics,
+    readOnly: true,
+    paperOnly: true,
+    decisionAssistOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  });
+});
+
 app.get('/diagnostics/alpaca-api-watch', (req, res) => {
   const reportFile = "runs/alpaca_api_watch_report.json";
   try {
