@@ -13,6 +13,32 @@ import {
   listCustomerReportBackgroundAiReviewRecords,
 } from "../src/scanner/customer_report_background_ai_review_store.mjs";
 
+
+test("runner rejects before provider or persistence work when strict scan reading fails", async () => {
+  let providerCalled = false;
+  let persisted = false;
+
+  await assert.rejects(
+    () => runCustomerReportBackgroundAiReview({
+      listScans: () => {
+        throw new SyntaxError("malformed opportunity audit record");
+      },
+      requestAiReview: async () => {
+        providerCalled = true;
+        return { status: "completed_readonly" };
+      },
+      persistRecord: () => {
+        persisted = true;
+        return { appended: true };
+      },
+    }),
+    SyntaxError,
+  );
+
+  assert.equal(providerCalled, false);
+  assert.equal(persisted, false);
+});
+
 test("flattens scan candidates into report events", () => {
   const events = flattenOpportunityFunnelScans([{
     scanId: "scan-1",

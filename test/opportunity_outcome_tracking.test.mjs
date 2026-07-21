@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
   VERSION,
   buildOpportunityOutcomeTrackingReport,
+  readOpportunityOutcomeTrackingReport,
 } from "../src/scanner/opportunity_outcome_tracking.mjs";
 
 function record(scanId, eventAt, candidates, marketOpen = true) {
@@ -14,6 +18,23 @@ function record(scanId, eventAt, candidates, marketOpen = true) {
     candidates,
   };
 }
+
+
+test("read helper fails closed when the opportunity audit contains a malformed complete record", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-outcome-strict-reader-"));
+  const auditPath = path.join(dir, "opportunity.jsonl");
+  const valid = JSON.stringify(record(
+    "scan-valid",
+    "2026-07-20T14:00:00.000Z",
+    [{ symbol: "ABC", price: 10, decision: "ENTER" }],
+  ));
+  fs.writeFileSync(auditPath, `${valid}\n{malformed-json}\n`, { mode: 0o600 });
+
+  assert.throws(
+    () => readOpportunityOutcomeTrackingReport({ auditPath, maxRecords: 20 }),
+    SyntaxError,
+  );
+});
 
 test("tracks later prices without mutating scanner decisions", () => {
   const report = buildOpportunityOutcomeTrackingReport([

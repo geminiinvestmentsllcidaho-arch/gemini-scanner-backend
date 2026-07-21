@@ -34,6 +34,29 @@ function auditRecord(eventAt, scanId, price, extras = {}) {
   });
 }
 
+
+test("fails closed without persisting when the opportunity audit contains a malformed complete record", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-strict-reader-"));
+  const auditPath = path.join(dir, "opportunity.jsonl");
+  const observationPath = path.join(dir, "strategy.jsonl");
+  const valid = JSON.stringify(auditRecord(
+    "2026-07-20T14:00:00.000Z",
+    "scan-valid",
+    10,
+  ));
+  fs.writeFileSync(auditPath, `${valid}\n{malformed-json}\n`, { mode: 0o600 });
+
+  assert.throws(
+    () => runStrategyObservationPersistence({
+      auditPath,
+      observationPath,
+      now: new Date("2026-07-20T15:00:00.000Z"),
+    }),
+    SyntaxError,
+  );
+  assert.equal(fs.existsSync(observationPath), false);
+});
+
 test("builds and persists time-based strategy observations from newest-first audit history", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-persist-"));
   const observationPath = path.join(dir, "strategy.jsonl");
