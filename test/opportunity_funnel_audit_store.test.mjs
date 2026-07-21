@@ -155,3 +155,64 @@ test("filtered reader finds older matching records beyond newer unrelated record
     f.cleanup();
   }
 });
+
+
+test("bounds persisted candidate payload independently from aggregate decision counts", () => {
+  const candidates = Array.from({ length: 80 }, (_, index) => ({
+    symbol: `T${index}`,
+    decision: index % 2 === 0 ? "WAIT" : "DO_NOT_ENTER",
+  }));
+  const record = buildOpportunityFunnelAuditRecord(
+    { scanId: "bounded-candidates", candidates },
+    { now: new Date("2026-07-20T12:00:00.000Z"), maxCandidates: 50 },
+  );
+
+  assert.equal(record.candidateCount, 80);
+  assert.equal(record.candidates.length, 50);
+  assert.deepEqual(record.decisionCounts, { WAIT: 40, DO_NOT_ENTER: 40 });
+});
+
+test("filtered reader stops at the configured byte boundary", () => {
+  const f = fixture();
+  try {
+    appendOpportunityFunnelAuditRecord({
+      scanId: "older-premarket",
+      scanner: "alpaca_premarket_shared_readonly",
+      scanType: "premarket",
+      candidates: [{ symbol: "OLD", decision: "WAIT" }],
+    }, {
+      auditPath: f.auditPath,
+      now: new Date("2026-07-20T12:00:00.000Z"),
+    });
+
+    for (let index = 0; index < 80; index += 1) {
+      appendOpportunityFunnelAuditRecord({
+        scanId: `newer-under-five-${index}`,
+        scanner: "alpaca_under_five_shared",
+        scanType: "under_five",
+        candidates: Array.from({ length: 20 }, (_, item) => ({
+          symbol: `U${item}`,
+          decision: "WAIT",
+          blockingFlags: ["bounded-reader-fixture"],
+        })),
+      }, {
+        auditPath: f.auditPath,
+        now: new Date(2026, 6, 20, 13, 0, 0, index),
+      });
+    }
+
+    const records = listOpportunityFunnelAuditRecordsFiltered({
+      auditPath: f.auditPath,
+      maxRecords: 1,
+      scanner: "alpaca_premarket_shared_readonly",
+      scanType: "premarket",
+      chunkSize: 4096,
+      maxBytesRead: 4096,
+    });
+
+    assert.deepEqual(records, []);
+    assert.equal(Object.isFrozen(records), true);
+  } finally {
+    f.cleanup();
+  }
+});

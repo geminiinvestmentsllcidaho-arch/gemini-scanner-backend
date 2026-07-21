@@ -4,6 +4,8 @@ import path from "node:path";
 export const VERSION = "opportunity_funnel_audit_store_v1";
 export const DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH =
   path.resolve("runs/opportunity_funnel_audit.jsonl");
+export const DEFAULT_MAX_BYTES_READ = 32 * 1024 * 1024;
+export const MAX_AUDIT_CANDIDATES = 500;
 
 function clean(value, maxLength = 256) {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -34,6 +36,15 @@ export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
   }
 
   const candidates = Array.isArray(input.candidates) ? input.candidates : [];
+  const maxCandidates = Math.max(
+    0,
+    Math.min(
+      MAX_AUDIT_CANDIDATES,
+      Number.isFinite(Number(options.maxCandidates))
+        ? Math.trunc(Number(options.maxCandidates))
+        : MAX_AUDIT_CANDIDATES,
+    ),
+  );
   const decisionCounts = candidates.reduce((counts, candidate) => {
     const decision = clean(candidate?.decision, 32).toUpperCase() || "UNKNOWN";
     counts[decision] = (counts[decision] ?? 0) + 1;
@@ -57,7 +68,7 @@ export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
     snapshotCount: finite(input.snapshotCount) ?? 0,
     candidateCount: finite(input.candidateCount) ?? candidates.length,
     decisionCounts: Object.freeze({ ...decisionCounts }),
-    candidates: Object.freeze(candidates.slice(0, 500).map((candidate) => Object.freeze({
+    candidates: Object.freeze(candidates.slice(0, maxCandidates).map((candidate) => Object.freeze({
       symbol: clean(candidate?.symbol, 20).toUpperCase(),
       price: finite(candidate?.price),
       changePct: finite(candidate?.changePct),
@@ -120,6 +131,13 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
     4096,
     Math.min(1024 * 1024, Number(options.chunkSize) || 64 * 1024),
   );
+  const maxBytesRead = Math.max(
+    chunkSize,
+    Math.min(
+      256 * 1024 * 1024,
+      Number(options.maxBytesRead) || DEFAULT_MAX_BYTES_READ,
+    ),
+  );
   const fd = fs.openSync(auditPath, "r");
 
   try {
@@ -127,12 +145,22 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
     let position = stat.size;
     let text = "";
     let newlineCount = 0;
+    let bytesReadTotal = 0;
 
-    while (position > 0 && newlineCount <= maxRecords) {
-      const bytesToRead = Math.min(chunkSize, position);
+    while (
+      position > 0
+      && newlineCount <= maxRecords
+      && bytesReadTotal < maxBytesRead
+    ) {
+      const bytesToRead = Math.min(
+        chunkSize,
+        position,
+        maxBytesRead - bytesReadTotal,
+      );
       position -= bytesToRead;
       const buffer = Buffer.allocUnsafe(bytesToRead);
       const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, position);
+      bytesReadTotal += bytesRead;
       const chunk = buffer.subarray(0, bytesRead).toString("utf8");
       text = chunk + text;
       newlineCount += (chunk.match(/\n/g) ?? []).length;
@@ -163,6 +191,13 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
     4096,
     Math.min(1024 * 1024, Number(options.chunkSize) || 64 * 1024),
   );
+  const maxBytesRead = Math.max(
+    chunkSize,
+    Math.min(
+      256 * 1024 * 1024,
+      Number(options.maxBytesRead) || DEFAULT_MAX_BYTES_READ,
+    ),
+  );
   const scanner = clean(options.scanner, 64);
   const scanType = clean(options.scanType, 32);
   const fd = fs.openSync(auditPath, "r");
@@ -171,6 +206,7 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
     const stat = fs.fstatSync(fd);
     let position = stat.size;
     let carry = "";
+    let bytesReadTotal = 0;
     const records = [];
 
     const considerLine = (line) => {
@@ -186,11 +222,20 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
       records.push(Object.freeze(record));
     };
 
-    while (position > 0 && records.length < maxRecords) {
-      const bytesToRead = Math.min(chunkSize, position);
+    while (
+      position > 0
+      && records.length < maxRecords
+      && bytesReadTotal < maxBytesRead
+    ) {
+      const bytesToRead = Math.min(
+        chunkSize,
+        position,
+        maxBytesRead - bytesReadTotal,
+      );
       position -= bytesToRead;
       const buffer = Buffer.allocUnsafe(bytesToRead);
       const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead, position);
+      bytesReadTotal += bytesRead;
       const block = buffer.subarray(0, bytesRead).toString("utf8") + carry;
       const lines = block.split(/\r?\n/);
       carry = lines.shift() ?? "";
@@ -214,6 +259,8 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
 export default {
   VERSION,
   DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH,
+  DEFAULT_MAX_BYTES_READ,
+  MAX_AUDIT_CANDIDATES,
   buildOpportunityFunnelAuditRecord,
   appendOpportunityFunnelAuditRecord,
   listOpportunityFunnelAuditRecords,

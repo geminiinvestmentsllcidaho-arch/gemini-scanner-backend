@@ -287,6 +287,8 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
         snapshotCount: snapshot?.snapshotCount,
         candidateCount: snapshot?.candidateCount,
         candidates: snapshot?.candidates,
+      }, {
+        maxCandidates: 50,
       });
     },
   }))
