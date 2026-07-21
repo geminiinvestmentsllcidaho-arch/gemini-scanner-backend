@@ -13,6 +13,37 @@ const esc = (value) => String(value ?? "")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#39;");
 
+function formatBytes(value) {
+  const bytes = Math.max(0, num(value, 0));
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  const units = ["KiB", "MiB", "GiB", "TiB"];
+  let scaled = bytes;
+  let unit = "B";
+  for (const candidate of units) {
+    scaled /= 1024;
+    unit = candidate;
+    if (scaled < 1024) break;
+  }
+  const digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  return `${scaled.toFixed(digits)} ${unit}`;
+}
+
+function calculateAgeDays(ts, now) {
+  const modifiedMs = Date.parse(String(ts ?? ""));
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now ?? ""));
+  if (!Number.isFinite(modifiedMs) || !Number.isFinite(nowMs)) return null;
+  return Math.max(0, Math.floor((nowMs - modifiedMs) / 86400000));
+}
+
+function friendlyStatus(value) {
+  const status = clean(value, "unknown");
+  const labels = {
+    retained_within_policy: "Retained within policy",
+    preview_cleanup_candidate: "Cleanup candidate (preview only)",
+  };
+  return labels[status] ?? status.replaceAll("_", " ");
+}
+
 function sourcePanel(options = {}) {
   if (options.panel && typeof options.panel === "object") return options.panel;
   try {
@@ -74,11 +105,13 @@ function fileListFrom(panel = {}) {
     .concat(arr(panel.items));
 }
 
-function normalizeFile(file = {}, index = 0) {
+function normalizeFile(file = {}, index = 0, now = new Date()) {
   const name = file.name ?? file.filename ?? file.file ?? file.path ?? file.relativePath ?? `file_${index + 1}`;
-  const ageDays = file.ageDays ?? file.fileAgeDays ?? file.daysOld ?? file.age ?? null;
+  const sourceTs = file.ts ?? file.createdAt ?? file.updatedAt ?? file.mtime ?? file.modifiedAt ?? file.fileMtime ?? file.sourceTs ?? "unknown";
+  const suppliedAgeDays = file.ageDays ?? file.fileAgeDays ?? file.daysOld ?? file.age ?? null;
+  const ageDays = suppliedAgeDays === null ? calculateAgeDays(sourceTs, now) : suppliedAgeDays;
   const eligible = file.eligible ?? file.cleanupEligible ?? file.wouldDelete ?? file.previewOnly ?? false;
-  const ts = file.ts ?? file.createdAt ?? file.updatedAt ?? file.mtime ?? file.modifiedAt ?? file.fileMtime ?? file.sourceTs ?? "unknown";
+  const ts = sourceTs;
   const reasons = arr(file.reasons).map((reason) => clean(reason)).filter(Boolean);
   return {
     index: index + 1,
@@ -87,6 +120,7 @@ function normalizeFile(file = {}, index = 0) {
     status: clean(file.status ?? file.displayState ?? (reasons.length ? reasons.join(", ") : eligible ? "preview_cleanup_candidate" : "retained"), "retained"),
     ts: clean(ts),
     sizeBytes: num(file.sizeBytes ?? file.bytes, 0),
+    sizeDisplay: formatBytes(file.sizeBytes ?? file.bytes),
     reasons,
     previewOnly: true,
     eligibleForCleanup: Boolean(eligible || reasons.length),
@@ -96,7 +130,7 @@ function normalizeFile(file = {}, index = 0) {
 export function buildRetentionCleanupAppScreen(options = {}) {
   const panel = sourcePanel(options);
   const now = options.now instanceof Date ? options.now.toISOString() : new Date().toISOString();
-  const allFiles = fileListFrom(panel).map(normalizeFile);
+  const allFiles = fileListFrom(panel).map((file, index) => normalizeFile(file, index, options.now ?? new Date()));
   const visibleLimit = Math.max(1, num(options.limit, 10));
   const visibleFiles = allFiles.slice(0, visibleLimit);
   const candidateCount = num(panel.candidateCount ?? panel.cleanupCandidateCount ?? panel.fileCount ?? allFiles.length, allFiles.length);
@@ -125,12 +159,12 @@ export function buildRetentionCleanupAppScreen(options = {}) {
     files: visibleFiles,
     summaryCards: [
       { label: "Archives", value: String(archiveCount) },
-      { label: "Archive Bytes", value: String(totalBytes) },
+      { label: "Archive Storage", value: formatBytes(totalBytes), rawValue: totalBytes },
       { label: "Candidates", value: String(candidateCount) },
       { label: "Visible", value: String(visibleFiles.length) },
       { label: "Retention Days", value: String(retentionDays) },
       { label: "Max Archives", value: String(maxArchives || "not set") },
-      { label: "Max Bytes", value: String(maxTotalBytes || "not set") },
+      { label: "Storage Limit", value: maxTotalBytes ? formatBytes(maxTotalBytes) : "not set", rawValue: maxTotalBytes },
     ],
     generatedAt: now,
     lastUpdatedAt: now,
@@ -167,13 +201,17 @@ function cardHtml(card = {}) {
 }
 
 function fileHtml(file = {}) {
-  return `<article class="file"><b>${esc(file.name)}</b><p>${esc(file.status)}</p><p>ageDays=${esc(file.ageDays ?? "unknown")} sizeBytes=${esc(file.sizeBytes)}</p><small>${esc(file.ts)}</small></article>`;
+  const age = file.ageDays === null ? "Age unavailable" : `${file.ageDays} day${file.ageDays === 1 ? "" : "s"} old`;
+  const reasons = arr(file.reasons).length
+    ? `<p><strong>Reason:</strong> ${esc(arr(file.reasons).map(friendlyStatus).join(", "))}</p>`
+    : "";
+  return `<article class="file"><b>${esc(file.name)}</b><p>${esc(friendlyStatus(file.status))}</p><p>${esc(age)} - ${esc(file.sizeDisplay ?? formatBytes(file.sizeBytes))}</p>${reasons}<small>Modified: ${esc(file.ts)}</small></article>`;
 }
 
 export function renderRetentionCleanupAppScreenHtml(screen = {}) {
   const cards = arr(screen.summaryCards).map(cardHtml).join("") || `<article class="card"><b>No cleanup candidates</b><p>No local snapshot files are eligible for cleanup.</p></article>`;
   const files = arr(screen.files).map(fileHtml).join("") || `<article class="file"><b>No files</b><p>No retention cleanup candidates are available.</p></article>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(screen.title ?? "Retention Cleanup Preview")}</title><style>body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.card,.file,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.card{display:flex;justify-content:space-between;gap:12px}.file b{font-size:18px}.pill{display:inline-block;border-radius:999px;padding:7px 10px;background:#eee;margin:0 6px 6px 0}</style></head><body><main class="wrap"><section class="hero"><h1>${esc(screen.title ?? "Retention Cleanup Preview")}</h1><p>${esc(screen.subtitle)}</p><p>${esc(screen.displayState)}</p><p>Last updated: ${esc(screen.lastUpdatedAt)}</p></section>${cards}<section>${files}</section><section class="safety"><span class="pill">read-only</span><span class="pill">Preview only</span><span class="pill">No file deletion</span><span class="pill">No broker contact</span><p>fileDeleted=${esc(screen.fileDeleted)} brokerContactAttempted=${esc(screen.brokerContactAttempted)} accountMutationAttempted=${esc(screen.accountMutationAttempted)}</p></section><p><a href="/app">Back to GeminiScanner App</a></p>${refreshScript(screen)}<section class="safety"><h2>Related Broker Readiness Routes</h2><p><a href="/app/paper-app-broker-readiness-index">Paper App Broker Readiness Index</a></p><p><a href="/app/paper-broker-adapter-approval-lock">Paper Broker Adapter Approval Lock</a></p><p><a href="/app/paper-operator-start-here">Paper Operator Start Here</a> · <a href="/app/paper-broker-adapter-approval-record-tool">Paper Broker Adapter Approval Record Tool</a></p><p><a href="/app/paper-app-readiness-status">Paper App Readiness Status</a></p><p><a href="/app/paper-app-route-health-status">Paper App Route Health Status</a></p><p><a href="/app/paper-app-safety-lock-status">Paper App Safety Lock Status</a></p><p><a href="/app/paper-trading-module-final-status">Paper Trading Module Final Status</a></p></section></main></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(screen.title ?? "Retention Cleanup Preview")}</title><style>body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.card,.file,.safety{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.card{display:flex;justify-content:space-between;gap:12px}.file b{font-size:18px}.pill{display:inline-block;border-radius:999px;padding:7px 10px;background:#eee;margin:0 6px 6px 0}</style></head><body><main class="wrap"><section class="hero"><h1>${esc(screen.title ?? "Retention Cleanup Preview")}</h1><p>${esc(screen.subtitle)}</p><p>${esc(friendlyStatus(screen.sourceDisplayState ?? screen.displayState))}</p><p>Last updated: ${esc(screen.lastUpdatedAt)}</p></section>${cards}<section>${files}</section><section class="safety"><span class="pill">read-only</span><span class="pill">Preview only</span><span class="pill">No file deletion</span><span class="pill">No broker contact</span><p>fileDeleted=${esc(screen.fileDeleted)} brokerContactAttempted=${esc(screen.brokerContactAttempted)} accountMutationAttempted=${esc(screen.accountMutationAttempted)}</p></section><p><a href="/app">Back to GeminiScanner App</a></p>${refreshScript(screen)}<section class="safety"><h2>Related Broker Readiness Routes</h2><p><a href="/app/paper-app-broker-readiness-index">Paper App Broker Readiness Index</a></p><p><a href="/app/paper-broker-adapter-approval-lock">Paper Broker Adapter Approval Lock</a></p><p><a href="/app/paper-operator-start-here">Paper Operator Start Here</a> · <a href="/app/paper-broker-adapter-approval-record-tool">Paper Broker Adapter Approval Record Tool</a></p><p><a href="/app/paper-app-readiness-status">Paper App Readiness Status</a></p><p><a href="/app/paper-app-route-health-status">Paper App Route Health Status</a></p><p><a href="/app/paper-app-safety-lock-status">Paper App Safety Lock Status</a></p><p><a href="/app/paper-trading-module-final-status">Paper Trading Module Final Status</a></p></section></main></body></html>`;
 }
 
 export default buildRetentionCleanupAppScreen;

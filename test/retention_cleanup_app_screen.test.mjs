@@ -50,6 +50,9 @@ test("builds read-only retention cleanup app screen from supplied panel", () => 
   assert.equal(screen.files[0].previewOnly, true);
   assert.equal(screen.files[1].status, "retained");
   assert.equal(screen.summaryCards.length, 7);
+  assert.equal(screen.summaryCards[1].label, "Archive Storage");
+  assert.equal(screen.summaryCards[5].label, "Max Archives");
+  assert.equal(screen.summaryCards[6].label, "Storage Limit");
   assert.equal(screen.readOnly, true);
   assert.equal(screen.monitorOnly, true);
   assert.equal(screen.diagnosticsOnly, true);
@@ -141,12 +144,15 @@ test("opportunity audit retention screen shows retained archives even when no cl
     assert.equal(screen.files[0].eligibleForCleanup, false);
     assert.equal(screen.files[0].previewOnly, true);
     assert.ok(screen.totalBytes > 0);
+    assert.equal(screen.files[0].ageDays, 0);
+    assert.match(screen.files[0].sizeDisplay, /B$/);
     assert.equal(screen.fileDeletionAllowed, false);
 
     const html = renderRetentionCleanupAppScreenHtml(screen);
     assert.match(html, /opportunity_funnel_audit-20260721T120000Z\.jsonl/);
-    assert.match(html, /retained_within_policy/);
-    assert.match(html, /Archive Bytes/);
+    assert.match(html, /Retained within policy/);
+    assert.match(html, /Archive Storage/);
+    assert.match(html, /0 days old/);
     assert.doesNotMatch(html, /<button/i);
     assert.doesNotMatch(html, /<form/i);
   } finally {
