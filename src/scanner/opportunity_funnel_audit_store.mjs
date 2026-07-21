@@ -8,6 +8,9 @@ export const DEFAULT_MAX_BYTES_READ = 32 * 1024 * 1024;
 export const DEFAULT_MAX_AUDIT_FILE_BYTES = 64 * 1024 * 1024;
 export const DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_DIR =
   path.resolve("runs/archive");
+export const DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_RETENTION_DAYS = 30;
+export const DEFAULT_MAX_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVES = 30;
+export const DEFAULT_MAX_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_BYTES = 4 * 1024 * 1024 * 1024;
 export const MAX_AUDIT_CANDIDATES = 500;
 
 function clean(value, maxLength = 256) {
@@ -147,6 +150,124 @@ export function rotateOpportunityFunnelAuditIfNeeded(options = {}) {
   fs.renameSync(auditPath, archivePath);
   fs.chmodSync(archivePath, 0o600);
   return Object.freeze({ ok: true, rotated: true, reason: "size_threshold_reached", auditPath, archivePath, fileBytes: stat.size, maxFileBytes });
+}
+
+export function inspectOpportunityFunnelAuditArchiveRetention(options = {}) {
+  const archiveDir =
+    clean(options.archiveDir, 4096) || DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_DIR;
+  const now = options.now instanceof Date
+    ? options.now
+    : new Date(options.now ?? Date.now());
+  if (!Number.isFinite(now.getTime())) throw new TypeError("now must be a valid Date");
+
+  const retentionDays = Math.max(
+    1,
+    Math.min(
+      3650,
+      Number(options.retentionDays)
+        || DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_RETENTION_DAYS,
+    ),
+  );
+  const maxArchives = Math.max(
+    1,
+    Math.min(
+      10000,
+      Number(options.maxArchives)
+        || DEFAULT_MAX_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVES,
+    ),
+  );
+  const maxTotalBytes = Math.max(
+    1,
+    Math.min(
+      1024 * 1024 * 1024 * 1024,
+      Number(options.maxTotalBytes)
+        || DEFAULT_MAX_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_BYTES,
+    ),
+  );
+  const cutoffMs = now.getTime() - retentionDays * 86400000;
+
+  if (!fs.existsSync(archiveDir)) {
+    return Object.freeze({
+      ok: true,
+      status: "archive_directory_missing",
+      archiveDir,
+      retentionDays,
+      maxArchives,
+      maxTotalBytes,
+      archiveCount: 0,
+      totalBytes: 0,
+      candidateCount: 0,
+      candidates: Object.freeze([]),
+      cleanupDeletionAllowed: false,
+      cleanupExecutionAllowed: false,
+      readOnly: true,
+      localStoreOnly: true,
+    });
+  }
+
+  const files = fs.readdirSync(archiveDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /^opportunity_funnel_audit-.*\.jsonl$/i.test(entry.name))
+    .map((entry) => {
+      const fullPath = path.join(archiveDir, entry.name);
+      const stat = fs.statSync(fullPath);
+      return {
+        name: entry.name,
+        path: fullPath,
+        bytes: stat.size,
+        modifiedAt: stat.mtime.toISOString(),
+        modifiedAtMs: stat.mtimeMs,
+      };
+    })
+    .sort((a, b) => b.modifiedAtMs - a.modifiedAtMs);
+
+  const totalBytes = files.reduce((sum, file) => sum + file.bytes, 0);
+  let retainedBytes = totalBytes;
+  const byteLimitCandidateNames = new Set();
+  for (
+    let index = files.length - 1;
+    index >= 0 && retainedBytes > maxTotalBytes;
+    index -= 1
+  ) {
+    byteLimitCandidateNames.add(files[index].name);
+    retainedBytes -= files[index].bytes;
+  }
+
+  const candidates = [];
+  files.forEach((file, index) => {
+    const reasons = [];
+    if (file.modifiedAtMs < cutoffMs) reasons.push("older_than_retention_days");
+    if (index >= maxArchives) reasons.push("archive_count_limit_exceeded");
+    if (byteLimitCandidateNames.has(file.name)) {
+      reasons.push("archive_byte_limit_exceeded");
+    }
+    if (reasons.length) {
+      candidates.push(Object.freeze({
+        ...file,
+        reasons: Object.freeze(reasons),
+        previewOnly: true,
+        wouldDelete: false,
+      }));
+    }
+  });
+
+  return Object.freeze({
+    ok: true,
+    status: candidates.length
+      ? "retention_cleanup_candidates_detected_read_only"
+      : "within_retention_policy",
+    archiveDir,
+    retentionDays,
+    maxArchives,
+    maxTotalBytes,
+    archiveCount: files.length,
+    totalBytes,
+    candidateCount: candidates.length,
+    candidates: Object.freeze(candidates),
+    cleanupDeletionAllowed: false,
+    cleanupExecutionAllowed: false,
+    readOnly: true,
+    localStoreOnly: true,
+  });
 }
 
 export function appendOpportunityFunnelAuditRecord(input = {}, options = {}) {
@@ -345,9 +466,13 @@ export default {
   DEFAULT_MAX_BYTES_READ,
   DEFAULT_MAX_AUDIT_FILE_BYTES,
   DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_DIR,
+  DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_RETENTION_DAYS,
+  DEFAULT_MAX_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVES,
+  DEFAULT_MAX_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_BYTES,
   MAX_AUDIT_CANDIDATES,
   buildOpportunityFunnelAuditRecord,
   rotateOpportunityFunnelAuditIfNeeded,
+  inspectOpportunityFunnelAuditArchiveRetention,
   appendOpportunityFunnelAuditRecord,
   listOpportunityFunnelAuditRecords,
   listOpportunityFunnelAuditRecordsFiltered,

@@ -8,6 +8,7 @@ import {
   appendOpportunityFunnelAuditRecord,
   buildOpportunityFunnelAuditRecord,
   rotateOpportunityFunnelAuditIfNeeded,
+  inspectOpportunityFunnelAuditArchiveRetention,
   listOpportunityFunnelAuditRecords,
   listOpportunityFunnelAuditRecordsFiltered,
 } from "../src/scanner/opportunity_funnel_audit_store.mjs";
@@ -417,6 +418,108 @@ test("filtered reader stops at the configured byte boundary", () => {
 
     assert.deepEqual(records, []);
     assert.equal(Object.isFrozen(records), true);
+  } finally {
+    f.cleanup();
+  }
+});
+
+
+test("archive retention preview is immutable and mutation-disabled when the archive directory is missing", () => {
+  const f = fixture();
+  try {
+    const result = inspectOpportunityFunnelAuditArchiveRetention({
+      archiveDir: path.join(f.dir, "missing-archive"),
+      now: new Date("2026-07-21T12:00:00.000Z"),
+    });
+
+    assert.equal(result.status, "archive_directory_missing");
+    assert.equal(result.archiveCount, 0);
+    assert.equal(result.candidateCount, 0);
+    assert.deepEqual(result.candidates, []);
+    assert.equal(Object.isFrozen(result), true);
+    assert.equal(Object.isFrozen(result.candidates), true);
+    assert.equal(result.cleanupDeletionAllowed, false);
+    assert.equal(result.cleanupExecutionAllowed, false);
+    assert.equal(result.readOnly, true);
+    assert.equal(result.localStoreOnly, true);
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("archive retention preview selects oldest archives for count and byte pressure", () => {
+  const f = fixture();
+  const archiveDir = path.join(f.dir, "archive");
+  fs.mkdirSync(archiveDir, { recursive: true, mode: 0o700 });
+
+  try {
+    const fixtures = [
+      ["opportunity_funnel_audit-newest.jsonl", "2026-07-21T11:00:00.000Z"],
+      ["opportunity_funnel_audit-middle.jsonl", "2026-07-21T10:00:00.000Z"],
+      ["opportunity_funnel_audit-oldest.jsonl", "2026-07-21T09:00:00.000Z"],
+    ];
+    for (const [name, timestamp] of fixtures) {
+      const filePath = path.join(archiveDir, name);
+      fs.writeFileSync(filePath, "1234567890", { mode: 0o600 });
+      const date = new Date(timestamp);
+      fs.utimesSync(filePath, date, date);
+    }
+
+    const result = inspectOpportunityFunnelAuditArchiveRetention({
+      archiveDir,
+      now: new Date("2026-07-21T12:00:00.000Z"),
+      retentionDays: 30,
+      maxArchives: 2,
+      maxTotalBytes: 20,
+    });
+
+    assert.equal(result.status, "retention_cleanup_candidates_detected_read_only");
+    assert.equal(result.archiveCount, 3);
+    assert.equal(result.totalBytes, 30);
+    assert.equal(result.candidateCount, 1);
+    assert.equal(result.candidates[0].name, "opportunity_funnel_audit-oldest.jsonl");
+    assert.deepEqual(result.candidates[0].reasons, [
+      "archive_count_limit_exceeded",
+      "archive_byte_limit_exceeded",
+    ]);
+    assert.equal(result.candidates[0].previewOnly, true);
+    assert.equal(result.candidates[0].wouldDelete, false);
+    assert.equal(result.cleanupDeletionAllowed, false);
+    assert.equal(result.cleanupExecutionAllowed, false);
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("archive retention preview reports age pressure without deleting files", () => {
+  const f = fixture();
+  const archiveDir = path.join(f.dir, "archive");
+  fs.mkdirSync(archiveDir, { recursive: true, mode: 0o700 });
+
+  try {
+    const filePath = path.join(
+      archiveDir,
+      "opportunity_funnel_audit-20260601T120000000Z.jsonl",
+    );
+    fs.writeFileSync(filePath, "{}\n", { mode: 0o600 });
+    const oldDate = new Date("2026-06-01T12:00:00.000Z");
+    fs.utimesSync(filePath, oldDate, oldDate);
+
+    const result = inspectOpportunityFunnelAuditArchiveRetention({
+      archiveDir,
+      now: new Date("2026-07-21T12:00:00.000Z"),
+      retentionDays: 30,
+      maxArchives: 30,
+      maxTotalBytes: 1024,
+    });
+
+    assert.equal(result.candidateCount, 1);
+    assert.deepEqual(result.candidates[0].reasons, [
+      "older_than_retention_days",
+    ]);
+    assert.equal(fs.existsSync(filePath), true);
+    assert.equal(result.cleanupDeletionAllowed, false);
+    assert.equal(result.cleanupExecutionAllowed, false);
   } finally {
     f.cleanup();
   }
