@@ -284,12 +284,7 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
 
     const considerLine = (line) => {
       if (!line || records.length >= maxRecords) return;
-      let record;
-      try {
-        record = JSON.parse(line);
-      } catch {
-        return;
-      }
+      const record = JSON.parse(line);
       if (scanner && clean(record?.scanner, 64) !== scanner) return;
       if (scanType && clean(record?.scanType, 32) !== scanType) return;
       records.push(Object.freeze(record));
@@ -322,7 +317,22 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
       }
     }
 
-    if (position === 0 && records.length < maxRecords) considerLine(carry);
+    if (records.length < maxRecords && carry) {
+      let startsAtLineBoundary = position === 0;
+      if (position > 0) {
+        const previousByte = Buffer.allocUnsafe(1);
+        const previousBytesRead = fs.readSync(
+          fd,
+          previousByte,
+          0,
+          1,
+          position - 1,
+        );
+        startsAtLineBoundary =
+          previousBytesRead === 1 && previousByte[0] === 0x0a;
+      }
+      if (startsAtLineBoundary) considerLine(carry);
+    }
     return Object.freeze(records);
   } finally {
     fs.closeSync(fd);
