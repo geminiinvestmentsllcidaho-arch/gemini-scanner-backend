@@ -24,13 +24,29 @@ function sourcePanel(options = {}) {
         maxTotalBytes: options.maxTotalBytes,
         now: options.now,
       });
+      const candidateByName = new Map(
+        arr(retention.candidates).map((candidate) => [candidate.name, candidate]),
+      );
+      const files = arr(retention.archives).map((archive) => {
+        const candidate = candidateByName.get(archive.name);
+        return {
+          ...archive,
+          reasons: candidate?.reasons ?? [],
+          previewOnly: true,
+          wouldDelete: false,
+          status: candidate
+            ? "preview_cleanup_candidate"
+            : "retained_within_policy",
+        };
+      });
       return {
         ...retention,
+        candidates: [],
         version: "opportunity_funnel_audit_archive_retention_preview_v1",
         displayState: String(retention.status ?? "unknown").toUpperCase(),
         title: "Opportunity Audit Archive Retention Preview",
         subtitle: "Read-only opportunity funnel audit archive retention preview.",
-        files: retention.candidates,
+        files,
       };
     }
     return buildMarketClosedSnapshotStoreRetentionCleanupPanel({
@@ -85,6 +101,10 @@ export function buildRetentionCleanupAppScreen(options = {}) {
   const visibleFiles = allFiles.slice(0, visibleLimit);
   const candidateCount = num(panel.candidateCount ?? panel.cleanupCandidateCount ?? panel.fileCount ?? allFiles.length, allFiles.length);
   const retentionDays = num(panel.retentionDays ?? panel.inputs?.retentionDays ?? options.retentionDays, 30);
+  const archiveCount = num(panel.archiveCount, allFiles.length);
+  const totalBytes = num(panel.totalBytes, allFiles.reduce((sum, file) => sum + file.sizeBytes, 0));
+  const maxArchives = num(panel.maxArchives, 0);
+  const maxTotalBytes = num(panel.maxTotalBytes, 0);
 
   return {
     ok: panel.ok !== false,
@@ -96,13 +116,21 @@ export function buildRetentionCleanupAppScreen(options = {}) {
     sourceVersion: panel.version ?? null,
     sourceDisplayState: panel.displayState ?? null,
     retentionDays,
+    archiveCount,
+    totalBytes,
+    maxArchives,
+    maxTotalBytes,
     candidateCount,
     visibleCount: visibleFiles.length,
     files: visibleFiles,
     summaryCards: [
+      { label: "Archives", value: String(archiveCount) },
+      { label: "Archive Bytes", value: String(totalBytes) },
       { label: "Candidates", value: String(candidateCount) },
       { label: "Visible", value: String(visibleFiles.length) },
       { label: "Retention Days", value: String(retentionDays) },
+      { label: "Max Archives", value: String(maxArchives || "not set") },
+      { label: "Max Bytes", value: String(maxTotalBytes || "not set") },
     ],
     generatedAt: now,
     lastUpdatedAt: now,
@@ -139,7 +167,7 @@ function cardHtml(card = {}) {
 }
 
 function fileHtml(file = {}) {
-  return `<article class="file"><b>${esc(file.name)}</b><p>${esc(file.status)}</p><p>ageDays=${esc(file.ageDays ?? "unknown")}</p><small>${esc(file.ts)}</small></article>`;
+  return `<article class="file"><b>${esc(file.name)}</b><p>${esc(file.status)}</p><p>ageDays=${esc(file.ageDays ?? "unknown")} sizeBytes=${esc(file.sizeBytes)}</p><small>${esc(file.ts)}</small></article>`;
 }
 
 export function renderRetentionCleanupAppScreenHtml(screen = {}) {

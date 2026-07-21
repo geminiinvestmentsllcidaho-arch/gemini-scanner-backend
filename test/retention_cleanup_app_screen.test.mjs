@@ -49,7 +49,7 @@ test("builds read-only retention cleanup app screen from supplied panel", () => 
   assert.equal(screen.files[0].eligibleForCleanup, true);
   assert.equal(screen.files[0].previewOnly, true);
   assert.equal(screen.files[1].status, "retained");
-  assert.equal(screen.summaryCards.length, 3);
+  assert.equal(screen.summaryCards.length, 7);
   assert.equal(screen.readOnly, true);
   assert.equal(screen.monitorOnly, true);
   assert.equal(screen.diagnosticsOnly, true);
@@ -115,6 +115,43 @@ test("builds opportunity audit archive retention preview through the shared read
   assert.equal(screen.fileDeletionAllowed, false);
   assert.equal(screen.brokerContactAllowed, false);
   assert.equal(screen.accountMutationAllowed, false);
+});
+
+test("opportunity audit retention screen shows retained archives even when no cleanup candidate exists", async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const archiveDir = mkdtempSync(join(tmpdir(), "gemini-opportunity-retention-visible-"));
+  try {
+    const archiveName = "opportunity_funnel_audit-20260721T120000Z.jsonl";
+    writeFileSync(join(archiveDir, archiveName), "{\"ok\":true}\n");
+
+    const screen = buildRetentionCleanupAppScreen({
+      source: "opportunity_audit",
+      archiveDir,
+      now: new Date("2026-07-21T12:05:00.000Z"),
+      autoRefreshEnabled: false,
+    });
+
+    assert.equal(screen.archiveCount, 1);
+    assert.equal(screen.candidateCount, 0);
+    assert.equal(screen.visibleCount, 1);
+    assert.equal(screen.files[0].name, archiveName);
+    assert.equal(screen.files[0].status, "retained_within_policy");
+    assert.equal(screen.files[0].eligibleForCleanup, false);
+    assert.equal(screen.files[0].previewOnly, true);
+    assert.ok(screen.totalBytes > 0);
+    assert.equal(screen.fileDeletionAllowed, false);
+
+    const html = renderRetentionCleanupAppScreenHtml(screen);
+    assert.match(html, /opportunity_funnel_audit-20260721T120000Z\.jsonl/);
+    assert.match(html, /retained_within_policy/);
+    assert.match(html, /Archive Bytes/);
+    assert.doesNotMatch(html, /<button/i);
+    assert.doesNotMatch(html, /<form/i);
+  } finally {
+    rmSync(archiveDir, { recursive: true, force: true });
+  }
 });
 
 test("server and navigation expose opportunity audit archive retention as read-only routes", () => {
