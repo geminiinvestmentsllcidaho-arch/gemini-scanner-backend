@@ -36,6 +36,7 @@ export function createAlpacaUnderFiveSharedScanCache({
     lastError,
     latest,
     hasSnapshot: latest !== null,
+    lastClockCheckedAt: latest?.sharedCache?.clockCheckedAt ?? null,
     readOnly: true,
     sharedAcrossRequests: true,
     orderPlacementAllowed: false,
@@ -85,6 +86,42 @@ export function createAlpacaUnderFiveSharedScanCache({
     return inFlight;
   };
 
+  const updateClosedMarketSnapshot = (clockSource = {}) => {
+    const marketClock = clockSource?.marketClock ?? {};
+    latest = {
+      ok: clockSource?.ok !== false,
+      version: VERSION,
+      status: clockSource?.status ?? "closed_market_wait",
+      marketClock,
+      assetCount: 0,
+      snapshotCount: 0,
+      candidateCount: 0,
+      candidates: [],
+      startupDeferred: scanCount === 0,
+      sharedCache: {
+        version: VERSION,
+        generatedAt: new Date(now()).toISOString(),
+        clockCheckedAt: new Date(now()).toISOString(),
+        scanCount,
+        sharedAcrossRequests: true,
+        readOnly: true,
+      },
+    };
+    lastError = null;
+    return latest;
+  };
+
+  const runScheduledTick = async () => {
+    const clockSource = await fetchMarketClock();
+    const marketClock = clockSource?.marketClock ?? {};
+
+    if (marketClock?.isOpen === true) {
+      return refreshNow();
+    }
+
+    return updateClosedMarketSnapshot(clockSource);
+  };
+
   const scheduleNext = () => {
     if (!running) return;
 
@@ -93,8 +130,9 @@ export function createAlpacaUnderFiveSharedScanCache({
 
     timer = setTimeoutImpl(async () => {
       try {
-        await refreshNow();
-      } catch {
+        await runScheduledTick();
+      } catch (error) {
+        lastError = error?.message ?? String(error);
         // Keep the shared scheduler alive; diagnostics retain the last error.
       } finally {
         if (running) scheduleNext();
@@ -111,24 +149,7 @@ export function createAlpacaUnderFiveSharedScanCache({
       if (marketClock?.isOpen === true) {
         await refreshNow();
       } else {
-        latest = {
-          ok: clockSource?.ok !== false,
-          version: VERSION,
-          status: clockSource?.status ?? "closed_market_wait",
-          marketClock,
-          assetCount: 0,
-          snapshotCount: 0,
-          candidateCount: 0,
-          candidates: [],
-          startupDeferred: true,
-          sharedCache: {
-            version: VERSION,
-            generatedAt: new Date(now()).toISOString(),
-            scanCount,
-            sharedAcrossRequests: true,
-            readOnly: true,
-          },
-        };
+        updateClosedMarketSnapshot(clockSource);
       }
     } finally {
       if (running) scheduleNext();

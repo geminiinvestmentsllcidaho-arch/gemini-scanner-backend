@@ -288,3 +288,116 @@ test("runs the full universe scan at startup when the market is open", async () 
   assert.equal(cache.getDiagnostics().scanCount, 1);
   cache.stop();
 });
+
+
+test("scheduled closed-market ticks use only the lightweight clock and never run the full scan", async () => {
+  const scheduled = [];
+  let clockCalls = 0;
+  let scanCalls = 0;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 301_250,
+    setTimeoutImpl(fn, delayMs) {
+      scheduled.push({ fn, delayMs });
+      return scheduled.length;
+    },
+    clearTimeoutImpl() {},
+    async fetchMarketClock() {
+      clockCalls += 1;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { isOpen: false, nextOpen: "2026-07-21T09:30:00-04:00" },
+      };
+    },
+    async fetchScan() {
+      scanCalls += 1;
+      throw new Error("full scan must not run while market is closed");
+    },
+  });
+
+  await cache.start();
+  await scheduled[0].fn();
+  await scheduled[1].fn();
+
+  assert.equal(clockCalls, 3);
+  assert.equal(scanCalls, 0);
+  assert.equal(cache.getDiagnostics().scanCount, 0);
+  assert.equal(cache.getLatest().marketClock.isOpen, false);
+  assert.equal(scheduled.length, 3);
+  cache.stop();
+});
+
+test("scheduled tick transitions from closed clock checks to one full scan when market opens", async () => {
+  const scheduled = [];
+  let clockCalls = 0;
+  let scanCalls = 0;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 301_250,
+    setTimeoutImpl(fn, delayMs) {
+      scheduled.push({ fn, delayMs });
+      return scheduled.length;
+    },
+    clearTimeoutImpl() {},
+    async fetchMarketClock() {
+      clockCalls += 1;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { isOpen: clockCalls >= 2 },
+      };
+    },
+    async fetchScan() {
+      scanCalls += 1;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { isOpen: true },
+        candidates: [{ symbol: "OPEN" }],
+      };
+    },
+  });
+
+  await cache.start();
+  assert.equal(scanCalls, 0);
+
+  await scheduled[0].fn();
+
+  assert.equal(clockCalls, 2);
+  assert.equal(scanCalls, 1);
+  assert.equal(cache.getDiagnostics().scanCount, 1);
+  assert.equal(cache.getLatest().marketClock.isOpen, true);
+  assert.equal(cache.getLatest().candidates[0].symbol, "OPEN");
+  cache.stop();
+});
+
+test("scheduled clock failure records diagnostics and keeps the scheduler alive without scanning", async () => {
+  const scheduled = [];
+  let clockCalls = 0;
+  let scanCalls = 0;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 301_250,
+    setTimeoutImpl(fn, delayMs) {
+      scheduled.push({ fn, delayMs });
+      return scheduled.length;
+    },
+    clearTimeoutImpl() {},
+    async fetchMarketClock() {
+      clockCalls += 1;
+      if (clockCalls >= 2) throw new Error("clock unavailable");
+      return { ok: true, marketClock: { isOpen: false } };
+    },
+    async fetchScan() {
+      scanCalls += 1;
+      return { ok: true, marketClock: { isOpen: true }, candidates: [] };
+    },
+  });
+
+  await cache.start();
+  await scheduled[0].fn();
+
+  assert.equal(scanCalls, 0);
+  assert.equal(cache.getDiagnostics().lastError, "clock unavailable");
+  assert.equal(cache.getDiagnostics().running, true);
+  assert.equal(scheduled.length, 2);
+  cache.stop();
+});
