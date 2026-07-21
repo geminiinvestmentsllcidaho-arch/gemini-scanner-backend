@@ -5,6 +5,9 @@ export const VERSION = "opportunity_funnel_audit_store_v1";
 export const DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH =
   path.resolve("runs/opportunity_funnel_audit.jsonl");
 export const DEFAULT_MAX_BYTES_READ = 32 * 1024 * 1024;
+export const DEFAULT_MAX_AUDIT_FILE_BYTES = 64 * 1024 * 1024;
+export const DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_DIR =
+  path.resolve("runs/archive");
 export const MAX_AUDIT_CANDIDATES = 500;
 
 function clean(value, maxLength = 256) {
@@ -101,10 +104,61 @@ export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
   return Object.freeze(record);
 }
 
+function archiveTimestamp(value) {
+  const date = value instanceof Date ? value : new Date(value ?? Date.now());
+  if (!Number.isFinite(date.getTime())) throw new TypeError("now must be a valid Date");
+  return date.toISOString().replace(/[-:.]/g, "");
+}
+
+export function rotateOpportunityFunnelAuditIfNeeded(options = {}) {
+  const auditPath =
+    clean(options.auditPath, 4096) || DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH;
+  const archiveDir =
+    clean(options.archiveDir, 4096) || DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_DIR;
+  const maxFileBytes = Math.max(
+    1,
+    Math.min(
+      4 * 1024 * 1024 * 1024,
+      Number(options.maxFileBytes) || DEFAULT_MAX_AUDIT_FILE_BYTES,
+    ),
+  );
+
+  if (!fs.existsSync(auditPath)) {
+    return Object.freeze({ ok: true, rotated: false, reason: "audit_file_missing", auditPath, archivePath: null, maxFileBytes });
+  }
+
+  const stat = fs.statSync(auditPath);
+  if (stat.size < maxFileBytes) {
+    return Object.freeze({ ok: true, rotated: false, reason: "below_size_threshold", auditPath, archivePath: null, fileBytes: stat.size, maxFileBytes });
+  }
+
+  fs.mkdirSync(archiveDir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(archiveDir, 0o700);
+  const extension = path.extname(auditPath) || ".jsonl";
+  const baseName = path.basename(auditPath, extension);
+  const stamp = archiveTimestamp(options.now);
+  let archivePath = path.join(archiveDir, `${baseName}-${stamp}${extension}`);
+  let suffix = 1;
+  while (fs.existsSync(archivePath)) {
+    archivePath = path.join(archiveDir, `${baseName}-${stamp}-${suffix}${extension}`);
+    suffix += 1;
+  }
+
+  fs.renameSync(auditPath, archivePath);
+  fs.chmodSync(archivePath, 0o600);
+  return Object.freeze({ ok: true, rotated: true, reason: "size_threshold_reached", auditPath, archivePath, fileBytes: stat.size, maxFileBytes });
+}
+
 export function appendOpportunityFunnelAuditRecord(input = {}, options = {}) {
   const auditPath =
     clean(options.auditPath, 4096) || DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH;
   const record = buildOpportunityFunnelAuditRecord(input, options);
+  const rotation = rotateOpportunityFunnelAuditIfNeeded({
+    auditPath,
+    archiveDir: options.archiveDir,
+    maxFileBytes: options.maxFileBytes,
+    now: options.now,
+  });
 
   fs.mkdirSync(path.dirname(auditPath), { recursive: true, mode: 0o700 });
   fs.appendFileSync(auditPath, `${JSON.stringify(record)}\n`, {
@@ -118,6 +172,7 @@ export function appendOpportunityFunnelAuditRecord(input = {}, options = {}) {
     appended: true,
     record,
     auditPath,
+    rotation,
   });
 }
 
@@ -270,8 +325,11 @@ export default {
   VERSION,
   DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH,
   DEFAULT_MAX_BYTES_READ,
+  DEFAULT_MAX_AUDIT_FILE_BYTES,
+  DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_ARCHIVE_DIR,
   MAX_AUDIT_CANDIDATES,
   buildOpportunityFunnelAuditRecord,
+  rotateOpportunityFunnelAuditIfNeeded,
   appendOpportunityFunnelAuditRecord,
   listOpportunityFunnelAuditRecords,
   listOpportunityFunnelAuditRecordsFiltered,

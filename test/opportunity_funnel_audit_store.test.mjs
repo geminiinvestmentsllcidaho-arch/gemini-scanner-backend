@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   appendOpportunityFunnelAuditRecord,
   buildOpportunityFunnelAuditRecord,
+  rotateOpportunityFunnelAuditIfNeeded,
   listOpportunityFunnelAuditRecords,
   listOpportunityFunnelAuditRecordsFiltered,
 } from "../src/scanner/opportunity_funnel_audit_store.mjs";
@@ -170,6 +171,53 @@ test("bounds persisted candidate payload independently from aggregate decision c
   assert.equal(record.candidateCount, 80);
   assert.equal(record.candidates.length, 50);
   assert.deepEqual(record.decisionCounts, { WAIT: 40, DO_NOT_ENTER: 40 });
+});
+
+test("rotates an oversized active audit file before appending the next record", () => {
+  const f = fixture();
+  const archiveDir = path.join(f.dir, "archive");
+  try {
+    appendOpportunityFunnelAuditRecord(
+      { scanId: "before-rotation", candidates: [{ symbol: "OLD", decision: "WAIT" }] },
+      { auditPath: f.auditPath, archiveDir, maxFileBytes: 1024 * 1024, now: new Date("2026-07-20T12:00:00.000Z") },
+    );
+    const result = appendOpportunityFunnelAuditRecord(
+      { scanId: "after-rotation", candidates: [{ symbol: "NEW", decision: "WAIT" }] },
+      { auditPath: f.auditPath, archiveDir, maxFileBytes: 1, now: new Date("2026-07-20T12:01:00.000Z") },
+    );
+    assert.equal(result.rotation.rotated, true);
+    assert.equal(result.rotation.reason, "size_threshold_reached");
+    const archiveFiles = fs.readdirSync(archiveDir);
+    assert.equal(archiveFiles.length, 1);
+    assert.match(archiveFiles[0], /^audit-20260720T120100000Z\.jsonl$/);
+    const archived = listOpportunityFunnelAuditRecords({ auditPath: path.join(archiveDir, archiveFiles[0]) });
+    const active = listOpportunityFunnelAuditRecords({ auditPath: f.auditPath });
+    assert.deepEqual(archived.map((record) => record.scanId), ["before-rotation"]);
+    assert.deepEqual(active.map((record) => record.scanId), ["after-rotation"]);
+    assert.equal(fs.statSync(archiveDir).mode & 0o777, 0o700);
+    assert.equal(fs.statSync(path.join(archiveDir, archiveFiles[0])).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(f.auditPath).mode & 0o777, 0o600);
+  } finally { f.cleanup(); }
+});
+
+test("rotation helper leaves files below the configured threshold unchanged", () => {
+  const f = fixture();
+  try {
+    appendOpportunityFunnelAuditRecord(
+      { scanId: "small-file", candidates: [] },
+      { auditPath: f.auditPath, now: new Date("2026-07-20T12:00:00.000Z") },
+    );
+    const result = rotateOpportunityFunnelAuditIfNeeded({
+      auditPath: f.auditPath,
+      archiveDir: path.join(f.dir, "archive"),
+      maxFileBytes: 1024 * 1024,
+      now: new Date("2026-07-20T12:01:00.000Z"),
+    });
+    assert.equal(result.rotated, false);
+    assert.equal(result.reason, "below_size_threshold");
+    assert.equal(fs.existsSync(f.auditPath), true);
+    assert.equal(fs.existsSync(path.join(f.dir, "archive")), false);
+  } finally { f.cleanup(); }
 });
 
 test("unfiltered reader discards a leading partial JSON line at the byte boundary", () => {
