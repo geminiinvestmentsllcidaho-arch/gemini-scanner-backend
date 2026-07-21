@@ -1,0 +1,72 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const source = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
+
+test("premarket hydration contains strict opportunity audit failures inside cache initialization", () => {
+  const start = source.indexOf(
+    "const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_scan_cache.mjs')",
+  );
+  const end = source.indexOf(
+    "async function getUnderFiveSharedSource",
+    start,
+  );
+
+  assert.ok(start >= 0);
+  assert.ok(end > start);
+
+  const block = source.slice(start, end);
+  const strictReadIndex = block.indexOf("listOpportunityFunnelAuditRecordsFiltered({");
+  const cacheCreateIndex = block.indexOf("createAlpacaPremarketSharedScanCache({");
+  const catchIndex = block.indexOf(".catch((error) => {");
+
+  assert.ok(strictReadIndex >= 0);
+  assert.ok(cacheCreateIndex > strictReadIndex);
+  assert.ok(catchIndex > cacheCreateIndex);
+  assert.match(block, /\[premarket-shared-cache\] init failed/);
+  assert.match(block, /return null;/);
+  assert.doesNotMatch(block, /catch\s*\([^)]*\)\s*\{\s*return \[\];/);
+});
+
+test("customer reports contains strict opportunity audit failures before realtime AI provider work", () => {
+  const start = source.indexOf(
+    "app.get('/customer/reports', requireCustomerSession, async (req, res) => {",
+  );
+  const end = source.indexOf(
+    "app.get('/customer/scanner', requireCustomerSession",
+    start,
+  );
+
+  assert.ok(start >= 0);
+  assert.ok(end > start);
+
+  const block = source.slice(start, end);
+  const strictReadIndex = block.indexOf(
+    "listOpportunityFunnelAuditRecords({ maxRecords: 120 })",
+  );
+  const providerIndex = block.indexOf(
+    "requestCustomerReportRealtimeAiReview({",
+  );
+  const catchIndex = block.lastIndexOf("} catch (_error) {");
+
+  assert.ok(strictReadIndex >= 0);
+  assert.ok(providerIndex > strictReadIndex);
+  assert.ok(catchIndex > providerIndex);
+  assert.match(block, /return res\.status\(500\)\.type\('html'\)\.send\(/);
+  assert.match(block, /<h1>Reports unavailable<\/h1>/);
+  assert.match(block, /Read-only\. No order placement, broker contact, or account mutation\./);
+});
+
+test("server strict-reader containment adds no execution or account mutation capability", () => {
+  assert.match(source, /orderPlacementAllowed:\s*false/);
+  assert.match(source, /brokerContactAllowed:\s*false/);
+  assert.match(source, /accountMutationAllowed:\s*false/);
+  assert.doesNotMatch(
+    source.slice(
+      source.indexOf("const premarketSharedCachePromise"),
+      source.indexOf("async function getUnderFiveSharedSource"),
+    ),
+    /submitOrder|placeOrder|cancelOrder|accountMutationAllowed:\s*true/,
+  );
+});
