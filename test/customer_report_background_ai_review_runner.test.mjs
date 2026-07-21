@@ -102,6 +102,51 @@ test("runner includes premarket evidence with source-specific metadata", async (
   assert.equal(result.scannerLogicMutationAllowed, false);
 });
 
+
+test("runner preserves dedicated premarket evidence when recent scans are under-five only", async () => {
+  let capturedInput = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-21T20:00:00.000Z"),
+    listScans: () => [{
+      scanId: "under-five-latest",
+      eventAt: "2026-07-21T19:59:00.000Z",
+      scanner: "alpaca_under_five_shared",
+      scanType: "under_five",
+      marketOpen: true,
+      candidates: [{ symbol: "DAY", decision: "ENTER", readonlyPotentialScore: 82 }],
+    }],
+    listPremarketScans: () => [{
+      scanId: "premarket-preserved",
+      eventAt: "2026-07-21T12:30:00.000Z",
+      scanner: "alpaca_premarket_shared_readonly",
+      scanType: "premarket",
+      marketOpen: false,
+      candidates: [{ symbol: "PRE", decision: "WATCH", readonlyPotentialScore: 74 }],
+    }],
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    readPositionStore: () => ({ records: [] }),
+    listStrategyObservations: () => [],
+    requestAiReview: async ({ input, timeoutMs }) => {
+      capturedInput = input;
+      assert.equal(timeoutMs, 90000);
+      return {
+        status: "completed_readonly",
+        provider: "openai",
+        responseId: "balanced-review",
+        reviewText: "Balanced evidence reviewed.",
+      };
+    },
+    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "memory" }),
+  });
+
+  assert.equal(capturedInput.scanner.signalsGenerated, 2);
+  assert.equal(result.scanRecordCount, 2);
+  assert.equal(result.premarketScanRecordCount, 1);
+  assert.equal(result.includedPremarketEvidence, true);
+  assert.deepEqual(result.sourceCounts, { under_five: 1, premarket: 1 });
+});
+
 test("runner fails closed when scan evidence is unavailable", async () => {
   const result = await runCustomerReportBackgroundAiReview({
     listScans: () => [],

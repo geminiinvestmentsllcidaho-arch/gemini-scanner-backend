@@ -2,7 +2,10 @@ import { buildCustomerReportModel } from "./customer_report_model.mjs";
 import { fetchAlpacaPaperAccountReadonly } from "./alpaca_paper_account_readonly_fetch.mjs";
 import { buildCustomerZeroPaperAccountBridge } from "./customer_zero_paper_account_bridge.mjs";
 import { readPaperTradePositionStateStoreDashboard } from "./paper_trade_position_state_store.mjs";
-import { listOpportunityFunnelAuditRecords } from "./opportunity_funnel_audit_store.mjs";
+import {
+  listOpportunityFunnelAuditRecords,
+  listOpportunityFunnelAuditRecordsFiltered,
+} from "./opportunity_funnel_audit_store.mjs";
 import { listStrategyObservationRecords } from "./strategy_observation_store.mjs";
 import { buildBoundedStrategyObservationAiEvidence } from "./strategy_observation_ai_evidence.mjs";
 import { requestCustomerReportRealtimeAiReview } from "./customer_report_realtime_ai_client.mjs";
@@ -92,6 +95,8 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const buildPaperAccount = options.buildPaperAccount ?? buildCustomerZeroPaperAccountBridge;
   const readPositionStore = options.readPositionStore ?? readPaperTradePositionStateStoreDashboard;
   const listScans = options.listScans ?? listOpportunityFunnelAuditRecords;
+  const listPremarketScans =
+    options.listPremarketScans ?? listOpportunityFunnelAuditRecordsFiltered;
   const requestAiReview = options.requestAiReview ?? requestCustomerReportRealtimeAiReview;
   const persistRecord = options.persistRecord ?? appendCustomerReportBackgroundAiReviewRecord;
   const persistManualAdjustmentRecommendation =
@@ -100,7 +105,27 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const getPostMarketResult = options.getPostMarketResult ?? (() => null);
   const listStrategyObservations = options.listStrategyObservations ?? listStrategyObservationRecords;
 
-  const scans = listScans({ maxRecords: options.maxScanRecords ?? 120 });
+  const recentScans = listScans({
+    maxRecords: options.maxRecentScanRecords ?? options.maxScanRecords ?? 100,
+  });
+  const dedicatedPremarketScans = listPremarketScans({
+    maxRecords: options.maxPremarketScanRecords ?? 20,
+    scanType: "premarket",
+  });
+  const scansById = new Map();
+  for (const scan of [
+    ...(Array.isArray(recentScans) ? recentScans : []),
+    ...(Array.isArray(dedicatedPremarketScans) ? dedicatedPremarketScans : []),
+  ]) {
+    const key = String(
+      scan?.scanId
+      ?? `${scan?.scanType ?? "unknown"}:${scan?.eventAt ?? ""}:${scan?.scanner ?? ""}`,
+    );
+    if (!scansById.has(key)) scansById.set(key, scan);
+  }
+  const scans = [...scansById.values()]
+    .sort((a, b) => String(b?.eventAt ?? "").localeCompare(String(a?.eventAt ?? "")))
+    .slice(0, Number(options.maxCombinedScanRecords ?? 120));
   if (!Array.isArray(scans) || scans.length === 0) {
     return Object.freeze({
       version: VERSION,
@@ -134,7 +159,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const postMarketEvidence = buildBoundedPostMarketAiEvidence(getPostMarketResult() ?? {});
   const strategyObservationEvidence = buildBoundedStrategyObservationAiEvidence(
     listStrategyObservations({
-      maxRecords: Number(options.maxStrategyObservationRecords ?? 1000),
+      maxRecords: Number(options.maxStrategyObservationRecords ?? 300),
       observationPath: options.strategyObservationPath,
     }),
   );
@@ -144,7 +169,12 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       postMarketEvidence,
       strategyObservationEvidence,
     }),
-    timeoutMs: Number(options.timeoutMs ?? process.env.GS_REALTIME_AI_TIMEOUT_MS ?? 30000),
+    timeoutMs: Number(
+      options.timeoutMs
+      ?? process.env.GS_BACKGROUND_AI_REVIEW_TIMEOUT_MS
+      ?? process.env.GS_REALTIME_AI_TIMEOUT_MS
+      ?? 90000
+    ),
   });
 
   const latestScan = scans[0] ?? {};
