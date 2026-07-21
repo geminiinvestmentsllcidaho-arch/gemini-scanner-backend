@@ -187,7 +187,7 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
     Math.min(1024 * 1024, Number(options.chunkSize) || 64 * 1024),
   );
   const maxBytesRead = Math.max(
-    chunkSize,
+    1,
     Math.min(
       256 * 1024 * 1024,
       Number(options.maxBytesRead) || DEFAULT_MAX_BYTES_READ,
@@ -221,21 +221,29 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
       newlineCount += (chunk.match(/\n/g) ?? []).length;
     }
 
+    let startsAtLineBoundary = position === 0;
+    if (position > 0) {
+      const previousByte = Buffer.allocUnsafe(1);
+      const previousBytesRead = fs.readSync(
+        fd,
+        previousByte,
+        0,
+        1,
+        position - 1,
+      );
+      startsAtLineBoundary =
+        previousBytesRead === 1 && previousByte[0] === 0x0a;
+    }
+
     const lines = text
       .split(/\r?\n/)
       .filter(Boolean);
 
-    if (position > 0) lines.shift();
+    if (!startsAtLineBoundary) lines.shift();
 
     const records = lines
       .slice(-maxRecords)
-      .flatMap((line) => {
-        try {
-          return [JSON.parse(line)];
-        } catch {
-          return [];
-        }
-      })
+      .map((line) => JSON.parse(line))
       .reverse()
       .map((record) => Object.freeze(record));
 
@@ -257,7 +265,7 @@ export function listOpportunityFunnelAuditRecordsFiltered(options = {}) {
     Math.min(1024 * 1024, Number(options.chunkSize) || 64 * 1024),
   );
   const maxBytesRead = Math.max(
-    chunkSize,
+    1,
     Math.min(
       256 * 1024 * 1024,
       Number(options.maxBytesRead) || DEFAULT_MAX_BYTES_READ,

@@ -257,6 +257,61 @@ test("unfiltered reader discards a leading partial JSON line at the byte boundar
   }
 });
 
+test("unfiltered reader preserves a complete line when the byte boundary starts after a newline", () => {
+  const f = fixture();
+  try {
+    const older = `${JSON.stringify({
+      version: "opportunity_funnel_audit_store_v1",
+      scanId: "older",
+      generatedAt: "2026-07-20T12:00:00.000Z",
+      candidates: [],
+    })}\n`;
+    const newer = `${JSON.stringify({
+      version: "opportunity_funnel_audit_store_v1",
+      scanId: "newer",
+      generatedAt: "2026-07-20T12:01:00.000Z",
+      candidates: [],
+    })}\n`;
+    fs.writeFileSync(f.auditPath, older + newer, { mode: 0o600 });
+
+    const records = listOpportunityFunnelAuditRecords({
+      auditPath: f.auditPath,
+      maxRecords: 10,
+      chunkSize: 4096,
+      maxBytesRead: Buffer.byteLength(newer),
+    });
+
+    assert.deepEqual(records.map((record) => record.scanId), ["newer"]);
+  } finally {
+    f.cleanup();
+  }
+});
+
+test("unfiltered reader surfaces malformed complete JSONL records", () => {
+  const f = fixture();
+  try {
+    const valid = `${JSON.stringify({
+      version: "opportunity_funnel_audit_store_v1",
+      scanId: "valid",
+      generatedAt: "2026-07-20T12:00:00.000Z",
+      candidates: [],
+    })}\n`;
+    fs.writeFileSync(f.auditPath, `${valid}{malformed-json}\n`, { mode: 0o600 });
+
+    assert.throws(
+      () => listOpportunityFunnelAuditRecords({
+        auditPath: f.auditPath,
+        maxRecords: 10,
+        chunkSize: 4096,
+        maxBytesRead: 4096,
+      }),
+      SyntaxError,
+    );
+  } finally {
+    f.cleanup();
+  }
+});
+
 test("filtered reader stops at the configured byte boundary", () => {
   const f = fixture();
   try {
