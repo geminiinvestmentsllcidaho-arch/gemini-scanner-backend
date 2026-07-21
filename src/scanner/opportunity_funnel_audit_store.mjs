@@ -166,11 +166,21 @@ export function listOpportunityFunnelAuditRecords(options = {}) {
       newlineCount += (chunk.match(/\n/g) ?? []).length;
     }
 
-    const records = text
+    const lines = text
       .split(/\r?\n/)
-      .filter(Boolean)
+      .filter(Boolean);
+
+    if (position > 0) lines.shift();
+
+    const records = lines
       .slice(-maxRecords)
-      .map((line) => JSON.parse(line))
+      .flatMap((line) => {
+        try {
+          return [JSON.parse(line)];
+        } catch {
+          return [];
+        }
+      })
       .reverse()
       .map((record) => Object.freeze(record));
 

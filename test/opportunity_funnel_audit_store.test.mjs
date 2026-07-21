@@ -172,6 +172,43 @@ test("bounds persisted candidate payload independently from aggregate decision c
   assert.deepEqual(record.decisionCounts, { WAIT: 40, DO_NOT_ENTER: 40 });
 });
 
+test("unfiltered reader discards a leading partial JSON line at the byte boundary", () => {
+  const f = fixture();
+  try {
+    for (let index = 0; index < 12; index += 1) {
+      appendOpportunityFunnelAuditRecord({
+        scanId: `bounded-${index}`,
+        scanner: "alpaca_under_five_shared",
+        scanType: "under_five",
+        candidates: Array.from({ length: 1 }, (_, item) => ({
+          symbol: `B${item}`,
+          decision: "WAIT",
+          blockingFlags: ["partial-line-boundary-fixture"],
+        })),
+      }, {
+        auditPath: f.auditPath,
+        now: new Date(2026, 6, 20, 13, 0, 0, index),
+      });
+    }
+
+    const records = listOpportunityFunnelAuditRecords({
+      auditPath: f.auditPath,
+      maxRecords: 3,
+      chunkSize: 4096,
+      maxBytesRead: 4096,
+    });
+
+    assert.deepEqual(records.map((record) => record.scanId), [
+      "bounded-11",
+      "bounded-10",
+      "bounded-9",
+    ]);
+    assert.equal(Object.isFrozen(records), true);
+  } finally {
+    f.cleanup();
+  }
+});
+
 test("filtered reader stops at the configured byte boundary", () => {
   const f = fixture();
   try {
