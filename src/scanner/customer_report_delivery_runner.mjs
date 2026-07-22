@@ -15,7 +15,7 @@ function summaryFromReport(report = {}) {
   return [
     `Status: ${clean(report.status) || "unavailable"}.`,
     `Paper records: ${Number(report.paperRecordCount) || 0}.`,
-    `Trades: ${Number(trades.totalTrades) || 0}.`,
+    `Symbols with realized P/L: ${Number(trades.tradesWithRealizedPnl ?? trades.totalTrades) || 0}.`,
     `Net paper P/L: ${performance.netProfitLoss ?? "not available"}.`,
     `Scanner signals: ${Number(scanner.totalSignals) || 0}.`,
   ].join(" ");

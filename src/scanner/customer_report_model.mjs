@@ -77,16 +77,17 @@ function positionRows(startRecord, endRecord) {
 }
 
 function tradeSummary(rows) {
-  const closed = rows.filter((row) => row.realizedPnl !== 0);
-  const winners = closed.filter((row) => row.realizedPnl > 0);
-  const losers = closed.filter((row) => row.realizedPnl < 0);
+  const realizedOutcomeRows = rows.filter((row) => row.realizedPnl !== 0);
+  const winners = realizedOutcomeRows.filter((row) => row.realizedPnl > 0);
+  const losers = realizedOutcomeRows.filter((row) => row.realizedPnl < 0);
   const sum = (items) => items.reduce((total, row) => total + row.realizedPnl, 0);
 
   return Object.freeze({
-    totalTrades: closed.length,
+    totalTrades: realizedOutcomeRows.length,
+    tradesWithRealizedPnl: realizedOutcomeRows.length,
     winningTrades: winners.length,
     losingTrades: losers.length,
-    winRatePct: closed.length ? round2((winners.length / closed.length) * 100) : 0,
+    winRatePct: realizedOutcomeRows.length ? round2((winners.length / realizedOutcomeRows.length) * 100) : 0,
     averageGain: winners.length ? round2(sum(winners) / winners.length) : 0,
     averageLoss: losers.length ? round2(sum(losers) / losers.length) : 0,
     largestWinner: winners.length
@@ -223,8 +224,12 @@ export function buildCustomerReportModel(options = {}) {
     performance,
     trades: Object.freeze({
       ...trades,
-      metricDefinition: "realized_position_outcomes",
+      metricDefinition: "symbols_with_nonzero_realized_pnl_delta",
+      metricLimitations: "Snapshot-derived symbol outcomes; not fills, orders, closed positions, or completed round trips.",
       fillEventsObserved: activity.reduce((sum, row) => sum + (finite(row?.fillCount) ?? 0), 0),
+      positionsOpened: null,
+      closedTrades: null,
+      completedRoundTrips: null,
       averageDollarsPerTrade: trades.totalTrades && performance.totalCapitalUsed !== null
         ? round2(performance.totalCapitalUsed / trades.totalTrades)
         : null,

@@ -90,7 +90,8 @@ test("includes bounded report evidence for missing-information review", () => {
   assert.equal(input.completeness.equityAvailablePointCount, 60);
   assert.equal(input.completeness.averageHoldTimeAvailable, false);
   assert.equal(input.dataSemantics.lastFillPrice.includes("not a current market quote"), true);
-  assert.equal(input.dataSemantics.totalTrades.includes("not fill count"), true);
+  assert.equal(input.dataSemantics.totalTrades.includes("Legacy alias"), true);
+  assert.equal(input.dataSemantics.tradesWithRealizedPnl.includes("non-zero realized P/L delta"), true);
   assert.equal(input.dataSemantics.equityCurve.includes("null means unavailable"), true);
   assert.equal(input.scanner.doNotEnter, 1);
 });

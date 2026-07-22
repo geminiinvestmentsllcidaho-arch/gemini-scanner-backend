@@ -156,7 +156,7 @@ test("calculates report performance trade and activity metrics from cumulative p
   assert.equal(report.performance.totalCapitalUsed, 400);
   assert.equal(report.performance.maxDrawdown, 0);
   assert.equal(report.trades.totalTrades, 2);
-  assert.equal(report.trades.metricDefinition, "realized_position_outcomes");
+  assert.equal(report.trades.metricDefinition, "symbols_with_nonzero_realized_pnl_delta");
   assert.equal(report.trades.fillEventsObserved, 0);
   assert.equal(report.trades.winningTrades, 1);
   assert.equal(report.trades.losingTrades, 1);
@@ -207,7 +207,7 @@ test("uses paper account equity and P/L for a non-fabricated fallback baseline",
   assert.equal(report.performance.totalPl, 5.81);
   assert.equal(report.performance.totalReturnPct, 0.01);
   assert.equal(report.trades.totalTrades, 0);
-  assert.equal(report.trades.metricDefinition, "realized_position_outcomes");
+  assert.equal(report.trades.metricDefinition, "symbols_with_nonzero_realized_pnl_delta");
   assert.equal(report.trades.fillEventsObserved, 2);
   assert.deepEqual(report.equityCurve.map((point) => point.equity), [null, null]);
 });
@@ -242,4 +242,51 @@ test("summarizes fresh live opportunity scan candidates by event timestamp", () 
   assert.equal(report.aiReview.input.scanner.signalsGenerated, 2);
   assert.equal(report.readOnly, true);
   assert.equal(report.orderPlacementAllowed, false);
+});
+
+
+test("reports explicit snapshot-derived realized outcome semantics", () => {
+  const cases = [
+    ["open multi-fill", { qty: 0, realizedPnl: 0, fillCount: 0 }, { qty: 20, realizedPnl: 0, fillCount: 2 }, 0],
+    ["profitable close", { qty: 10, realizedPnl: 0, fillCount: 1 }, { qty: 0, realizedPnl: 25, fillCount: 2 }, 1],
+    ["losing close", { qty: 10, realizedPnl: 0, fillCount: 1 }, { qty: 0, realizedPnl: -15, fillCount: 2 }, 1],
+    ["break-even close", { qty: 10, realizedPnl: 0, fillCount: 1 }, { qty: 0, realizedPnl: 0, fillCount: 2 }, 0],
+    ["partial close remains open", { qty: 20, realizedPnl: 0, fillCount: 2 }, { qty: 10, realizedPnl: 10, fillCount: 3 }, 1],
+  ];
+
+  for (const [name, before, after, expected] of cases) {
+    const report = buildCustomerReportModel({
+      period: "daily",
+      now,
+      timeZone: "America/Denver",
+      maxAgeSec: 86400,
+      paperLedgerHistory: [
+        { createdAt: "2026-07-14T05:59:59.000Z", totalRealizedPnl: before.realizedPnl, positions: [{ symbol: "TEST", ...before }] },
+        { createdAt: "2026-07-15T03:59:00.000Z", totalRealizedPnl: after.realizedPnl, positions: [{ symbol: "TEST", ...after }] },
+      ],
+    });
+    assert.equal(report.trades.tradesWithRealizedPnl, expected, name);
+    assert.equal(report.trades.totalTrades, expected, name);
+    assert.equal(report.trades.fillEventsObserved, after.fillCount, name);
+    assert.equal(report.trades.positionsOpened, null, name);
+    assert.equal(report.trades.closedTrades, null, name);
+    assert.equal(report.trades.completedRoundTrips, null, name);
+  }
+});
+
+test("multiple round trips in one symbol are not fabricated from snapshots", () => {
+  const report = buildCustomerReportModel({
+    period: "daily",
+    now,
+    timeZone: "America/Denver",
+    maxAgeSec: 86400,
+    paperLedgerHistory: [
+      { createdAt: "2026-07-14T05:59:59.000Z", totalRealizedPnl: 0, positions: [{ symbol: "AAA", qty: 0, realizedPnl: 0, fillCount: 0 }] },
+      { createdAt: "2026-07-15T03:59:00.000Z", totalRealizedPnl: 12, positions: [{ symbol: "AAA", qty: 0, realizedPnl: 12, fillCount: 4 }] },
+    ],
+  });
+
+  assert.equal(report.trades.tradesWithRealizedPnl, 1);
+  assert.equal(report.trades.fillEventsObserved, 4);
+  assert.equal(report.trades.completedRoundTrips, null);
 });

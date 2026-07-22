@@ -89,7 +89,8 @@ export function buildCustomerReportAiReviewInput(report = {}) {
     dataSemantics: Object.freeze({
       lastFillPrice: "Execution price of the latest recorded fill; it is not a current market quote.",
       unrealizedPl: "Current paper-account mark-to-market P/L; it may differ from lastFillPrice without inconsistency.",
-      totalTrades: "Count of activity rows with a non-zero realized P/L delta during the report period; it is not fill count.",
+      totalTrades: "Legacy alias for tradesWithRealizedPnl. Count of symbol activity rows with a non-zero realized P/L delta during the report period; not fills, closed positions, or completed round trips.",
+      tradesWithRealizedPnl: "Count of symbol activity rows with a non-zero realized P/L delta during the report period.",
       fillCount: "Cumulative recorded executions for the symbol, including partial fills.",
       equityCurve: "Built only from ledger endingEquity values; null means unavailable and must never be interpreted as zero.",
       scannerEvents: "Scanner-event evidence is independent from fill-ledger evidence and may be absent for legacy or external fills.",
@@ -141,7 +142,7 @@ export function buildDeterministicLogicProposals(report = {}) {
       id: "raise_entry_quality_review",
       category: "entry_logic",
       severity: "high",
-      observation: `Win rate is ${t.winRatePct}% across ${t.totalTrades} closed trades.`,
+      observation: `Win rate is ${t.winRatePct}% across ${t.totalTrades} symbols with non-zero realized P/L changes.`,
       proposal: "Backtest a higher minimum composite confidence and quality threshold using historical paper results.",
       suggestedPatch: null,
     });

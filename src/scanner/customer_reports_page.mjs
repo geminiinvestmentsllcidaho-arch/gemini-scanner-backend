@@ -224,7 +224,7 @@ ${metric("Capital used", money(performance.totalCapitalUsed, locale))}
 <section class="card panel">
 <h2>Trade statistics</h2>
 <div class="grid">
-${metric("Total trades", number(trades.totalTrades, locale))}
+${metric("Symbols with realized P/L", number(trades.tradesWithRealizedPnl ?? trades.totalTrades, locale))}
 ${metric("Winning trades", number(trades.winningTrades, locale))}
 ${metric("Losing trades", number(trades.losingTrades, locale))}
 ${metric("Win rate", number(trades.winRatePct, locale, "%"))}
