@@ -51,6 +51,27 @@ function number(value, locale = "en-US", suffix = "") {
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(parsed)}${suffix}`;
 }
 
+function duration(value) {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  const milliseconds = finite(value);
+  if (milliseconds === null || milliseconds < 0) return "No data yet";
+
+  let seconds = Math.round(milliseconds / 1000);
+  const days = Math.floor(seconds / 86400);
+  seconds %= 86400;
+  const hours = Math.floor(seconds / 3600);
+  seconds %= 3600;
+  const minutes = Math.floor(seconds / 60);
+  seconds %= 60;
+
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (seconds || parts.length === 0) parts.push(`${seconds}s`);
+  return parts.slice(0, 2).join(" ");
+}
+
 function metric(label, value, className = "") {
   return `<article class="metric ${esc(className)}"><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`;
 }
@@ -224,13 +245,17 @@ ${metric("Capital used", money(performance.totalCapitalUsed, locale))}
 <section class="card panel">
 <h2>Trade statistics</h2>
 <div class="grid">
-${metric("Symbols with realized P/L", number(trades.tradesWithRealizedPnl ?? trades.totalTrades, locale))}
+${metric(trades.lifecycleSourceAvailable ? "Completed trades" : "Symbols with realized P/L", number(trades.totalTrades, locale))}
 ${metric("Winning trades", number(trades.winningTrades, locale))}
 ${metric("Losing trades", number(trades.losingTrades, locale))}
+${metric("Break-even trades", number(trades.breakevenTrades, locale))}
 ${metric("Win rate", number(trades.winRatePct, locale, "%"))}
+${metric("Positions opened", number(trades.positionsOpened, locale))}
+${metric("Partial closes", number(trades.partialCloseCount, locale))}
+${metric("Fill events", number(trades.fillEventsObserved, locale))}
 ${metric("Average gain", money(trades.averageGain, locale))}
 ${metric("Average loss", money(trades.averageLoss, locale))}
-${metric("Average hold time", trades.averageHoldTime ?? "No data yet")}
+${metric("Average hold time", duration(trades.averageHoldTimeMs ?? trades.averageHoldTime))}
 ${metric("Average dollars / trade", money(trades.averageDollarsPerTrade, locale))}
 </div>
 </section>

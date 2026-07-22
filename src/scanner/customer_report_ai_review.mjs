@@ -27,9 +27,17 @@ export function buildCustomerReportAiReviewInput(report = {}) {
     }),
     trades: Object.freeze({
       totalTrades: finite(report?.trades?.totalTrades) ?? 0,
+      completedRoundTrips: finite(report?.trades?.completedRoundTrips),
+      positionsOpened: finite(report?.trades?.positionsOpened),
+      fillEventsObserved: finite(report?.trades?.fillEventsObserved),
+      partialCloseCount: finite(report?.trades?.partialCloseCount),
+      breakevenTrades: finite(report?.trades?.breakevenTrades),
       winRatePct: finite(report?.trades?.winRatePct),
       averageGain: finite(report?.trades?.averageGain),
       averageLoss: finite(report?.trades?.averageLoss),
+      averageHoldTimeMs: finite(report?.trades?.averageHoldTimeMs),
+      averageRealizedPnlPerTrade: finite(report?.trades?.averageRealizedPnlPerTrade),
+      lifecycleSourceAvailable: report?.trades?.lifecycleSourceAvailable === true,
     }),
     scanner: Object.freeze({
       signalsGenerated: finite(report?.scanner?.signalsGenerated) ?? 0,
@@ -89,8 +97,12 @@ export function buildCustomerReportAiReviewInput(report = {}) {
     dataSemantics: Object.freeze({
       lastFillPrice: "Execution price of the latest recorded fill; it is not a current market quote.",
       unrealizedPl: "Current paper-account mark-to-market P/L; it may differ from lastFillPrice without inconsistency.",
-      totalTrades: "Legacy alias for tradesWithRealizedPnl. Count of symbol activity rows with a non-zero realized P/L delta during the report period; not fills, closed positions, or completed round trips.",
-      tradesWithRealizedPnl: "Count of symbol activity rows with a non-zero realized P/L delta during the report period.",
+      totalTrades: report?.trades?.lifecycleSourceAvailable === true
+        ? "Count of completed long round trips reconstructed deterministically from the local simulated fill ledger and attributed by close timestamp."
+        : "Legacy alias for tradesWithRealizedPnl. Compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period; not fills, closed positions, or completed round trips.",
+      tradesWithRealizedPnl: "Snapshot-derived compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period.",
+      completedRoundTrips: "Long-only completed position lifecycles reconstructed from ordered local simulated fills. Open positions and partial exits are not counted as completed trades.",
+      winRatePct: "Winning completed trades divided by winning plus losing completed trades. Break-even trades are reported separately and excluded from the denominator.",
       fillCount: "Cumulative recorded executions for the symbol, including partial fills.",
       equityCurve: "Built only from ledger endingEquity values; null means unavailable and must never be interpreted as zero.",
       scannerEvents: "Scanner-event evidence is independent from fill-ledger evidence and may be absent for legacy or external fills.",
@@ -142,7 +154,9 @@ export function buildDeterministicLogicProposals(report = {}) {
       id: "raise_entry_quality_review",
       category: "entry_logic",
       severity: "high",
-      observation: `Win rate is ${t.winRatePct}% across ${t.totalTrades} symbols with non-zero realized P/L changes.`,
+      observation: t.lifecycleSourceAvailable
+        ? `Win rate is ${t.winRatePct}% across ${t.totalTrades} completed fill-ledger round trips.`
+        : `Win rate is ${t.winRatePct}% across ${t.totalTrades} symbols with non-zero realized P/L changes.`,
       proposal: "Backtest a higher minimum composite confidence and quality threshold using historical paper results.",
       suggestedPatch: null,
     });

@@ -278,3 +278,24 @@ test("customer reports uses the shared primary navigation and accurate AI limits
   assert.match(html, /AI reviews scanner evidence/);
   assert.match(html, /cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades/);
 });
+
+
+test("renders numeric lifecycle hold duration in a human-readable form", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    report: {
+      period: "lifetime",
+      performance: {},
+      trades: {
+        lifecycleSourceAvailable: true,
+        totalTrades: 1,
+        averageHoldTimeMs: 90061000,
+      },
+      scanner: {},
+      activity: [],
+    },
+  }));
+
+  assert.match(html, /Average hold time/);
+  assert.match(html, /1d 1h/);
+  assert.doesNotMatch(html, /90061000/);
+});

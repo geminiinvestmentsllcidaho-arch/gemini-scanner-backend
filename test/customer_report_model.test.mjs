@@ -290,3 +290,57 @@ test("multiple round trips in one symbol are not fabricated from snapshots", () 
   assert.equal(report.trades.fillEventsObserved, 4);
   assert.equal(report.trades.completedRoundTrips, null);
 });
+
+
+test("uses fill-ledger lifecycle reconstruction for true completed trade metrics", () => {
+  const report = buildCustomerReportModel({
+    period: "month",
+    now: new Date("2026-07-21T20:00:00.000Z"),
+    timeZone: "UTC",
+    paperLedgerHistory: [
+      { createdAt: "2026-07-01T00:00:00.000Z", totalRealizedPnl: 0, positions: [] },
+      { createdAt: "2026-07-21T19:00:00.000Z", totalRealizedPnl: 5, positions: [] },
+    ],
+    fillLedgerHistory: [
+      { fillId: "a1", createdAt: "2026-07-02T14:00:00.000Z", symbol: "AAA", side: "buy", qty: 10, fillPrice: 10 },
+      { fillId: "a2", createdAt: "2026-07-02T15:00:00.000Z", symbol: "AAA", side: "sell", qty: 10, fillPrice: 11 },
+      { fillId: "b1", createdAt: "2026-07-03T14:00:00.000Z", symbol: "BBB", side: "buy", qty: 5, fillPrice: 20 },
+      { fillId: "b2", createdAt: "2026-07-03T15:00:00.000Z", symbol: "BBB", side: "sell", qty: 5, fillPrice: 19 },
+      { fillId: "c1", createdAt: "2026-07-04T14:00:00.000Z", symbol: "CCC", side: "buy", qty: 2, fillPrice: 30 },
+      { fillId: "c2", createdAt: "2026-07-04T15:00:00.000Z", symbol: "CCC", side: "sell", qty: 2, fillPrice: 30 },
+    ],
+  });
+
+  assert.equal(report.trades.lifecycleSourceAvailable, true);
+  assert.equal(report.trades.metricDefinition, "completed_long_round_trips_reconstructed_from_fill_ledger");
+  assert.equal(report.trades.totalTrades, 3);
+  assert.equal(report.trades.completedRoundTrips, 3);
+  assert.equal(report.trades.closedTrades, 3);
+  assert.equal(report.trades.winningTrades, 1);
+  assert.equal(report.trades.losingTrades, 1);
+  assert.equal(report.trades.breakevenTrades, 1);
+  assert.equal(report.trades.winRatePct, 50);
+  assert.equal(report.trades.fillEventsObserved, 6);
+  assert.equal(report.trades.positionsOpened, 3);
+  assert.equal(report.trades.averageHoldTimeMs, 3600000);
+  assert.equal(report.trades.averageHoldTime, 3600000);
+  assert.equal(report.trades.averageDollarsPerTrade, 86.67);
+  assert.equal(report.trades.completedTrades.length, 3);
+});
+
+test("preserves snapshot-derived compatibility metrics when fill ledger is not supplied", () => {
+  const report = buildCustomerReportModel({
+    period: "month",
+    now: new Date("2026-07-21T20:00:00.000Z"),
+    timeZone: "UTC",
+    paperLedgerHistory: [
+      { createdAt: "2026-07-01T00:00:00.000Z", totalRealizedPnl: 0, positions: [{ symbol: "AAA", qty: 10, realizedPnl: 0, fillCount: 1 }] },
+      { createdAt: "2026-07-21T19:00:00.000Z", totalRealizedPnl: 5, positions: [{ symbol: "AAA", qty: 0, realizedPnl: 5, fillCount: 2 }] },
+    ],
+  });
+
+  assert.equal(report.trades.lifecycleSourceAvailable, false);
+  assert.equal(report.trades.metricDefinition, "symbols_with_nonzero_realized_pnl_delta");
+  assert.equal(report.trades.tradesWithRealizedPnl, 1);
+  assert.equal(report.trades.completedRoundTrips, null);
+});

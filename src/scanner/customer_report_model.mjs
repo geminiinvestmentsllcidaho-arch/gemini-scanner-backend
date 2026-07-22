@@ -5,6 +5,7 @@ import {
 } from "./customer_report_periods.mjs";
 import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
 import { buildDeterministicLogicProposals } from "./customer_report_ai_review.mjs";
+import { reconstructCustomerReportTradeLifecycle } from "./customer_report_trade_lifecycle.mjs";
 
 export const VERSION = "customer_report_model_v1";
 
@@ -199,7 +200,27 @@ export function buildCustomerReportModel(options = {}) {
   const baseline = latestBeforeRange(options.paperLedgerHistory, range);
   const latest = paperRecords.at(-1) ?? null;
   const activity = latest ? positionRows(baseline, latest) : [];
-  const trades = tradeSummary(activity);
+  const snapshotTrades = tradeSummary(activity);
+  const lifecycleTrades = Array.isArray(options.fillLedgerHistory)
+    ? reconstructCustomerReportTradeLifecycle({
+        fillRecords: options.fillLedgerHistory,
+        range,
+      })
+    : null;
+  const trades = lifecycleTrades
+    ? Object.freeze({
+        totalTrades: lifecycleTrades.completedRoundTrips,
+        tradesWithRealizedPnl: snapshotTrades.tradesWithRealizedPnl,
+        winningTrades: lifecycleTrades.winningTrades,
+        losingTrades: lifecycleTrades.losingTrades,
+        breakevenTrades: lifecycleTrades.breakevenTrades,
+        winRatePct: lifecycleTrades.winRatePct,
+        averageGain: lifecycleTrades.averageGain,
+        averageLoss: lifecycleTrades.averageLoss,
+        largestWinner: snapshotTrades.largestWinner,
+        largestLoser: snapshotTrades.largestLoser,
+      })
+    : snapshotTrades;
   const performance = performanceSummary(paperRecords, baseline, options);
   const sourceTs = timestamp(latest);
   const sourceAgeSec = sourceTs
@@ -224,16 +245,28 @@ export function buildCustomerReportModel(options = {}) {
     performance,
     trades: Object.freeze({
       ...trades,
-      metricDefinition: "symbols_with_nonzero_realized_pnl_delta",
-      metricLimitations: "Snapshot-derived symbol outcomes; not fills, orders, closed positions, or completed round trips.",
-      fillEventsObserved: activity.reduce((sum, row) => sum + (finite(row?.fillCount) ?? 0), 0),
-      positionsOpened: null,
-      closedTrades: null,
-      completedRoundTrips: null,
-      averageDollarsPerTrade: trades.totalTrades && performance.totalCapitalUsed !== null
-        ? round2(performance.totalCapitalUsed / trades.totalTrades)
-        : null,
-      averageHoldTime: null,
+      metricDefinition: lifecycleTrades?.metricDefinition
+        ?? "symbols_with_nonzero_realized_pnl_delta",
+      metricLimitations: lifecycleTrades?.metricLimitations
+        ?? "Snapshot-derived symbol outcomes; not fills, orders, closed positions, or completed round trips.",
+      fillEventsObserved: lifecycleTrades?.fillEventsObserved
+        ?? activity.reduce((sum, row) => sum + (finite(row?.fillCount) ?? 0), 0),
+      positionsOpened: lifecycleTrades?.positionsOpened ?? null,
+      closedTrades: lifecycleTrades?.closedTrades ?? null,
+      completedRoundTrips: lifecycleTrades?.completedRoundTrips ?? null,
+      partialCloseCount: lifecycleTrades?.partialCloseCount ?? null,
+      ignoredRecordCount: lifecycleTrades?.ignoredRecordCount ?? null,
+      oversellQuantityIgnored: lifecycleTrades?.oversellQuantityIgnored ?? null,
+      averageRealizedPnlPerTrade: lifecycleTrades?.averageRealizedPnlPerTrade ?? null,
+      averageDollarsPerTrade: lifecycleTrades?.averageDollarsPerTrade
+        ?? (trades.totalTrades && performance.totalCapitalUsed !== null
+          ? round2(performance.totalCapitalUsed / trades.totalTrades)
+          : null),
+      averageHoldTimeMs: lifecycleTrades?.averageHoldTimeMs ?? null,
+      averageHoldTime: lifecycleTrades?.averageHoldTimeMs ?? null,
+      completedTrades: lifecycleTrades?.completedTrades ?? Object.freeze([]),
+      openPositions: lifecycleTrades?.openPositions ?? Object.freeze([]),
+      lifecycleSourceAvailable: lifecycleTrades !== null,
     }),
     largestWinners: Object.freeze(
       activity.filter((row) => row.realizedPnl > 0)

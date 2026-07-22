@@ -4413,6 +4413,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+    const fillStore = await import('./scanner/paper_trade_fill_simulation_store.mjs');
     const timeMod = await import('./scanner/customer_time.mjs');
     const realtimeAiMod = await import('./scanner/customer_report_realtime_ai_client.mjs');
     const qualityProposalMod = await import('./scanner/decision_quality_proposal_generation.mjs');
@@ -4426,6 +4427,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const paperLedgerHistory = Array.isArray(paperPositionLedger.records)
       ? paperPositionLedger.records
       : [];
+    const fillLedgerHistory = fillStore.readPaperTradeFillSimulationRecords();
     const liveScanRecords = listOpportunityFunnelAuditRecords({ maxRecords: 120 });
     const scannerEvents = liveScanRecords.flatMap((scan) => {
       const eventAt = scan?.eventAt ?? null;
@@ -4449,6 +4451,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       weekStartsOn: 1,
       paperAccount,
       paperLedgerHistory,
+      fillLedgerHistory,
       scannerEvents,
     });
     const decisionQualityProposals = qualityProposalMod.readDecisionQualityProposalReport({
