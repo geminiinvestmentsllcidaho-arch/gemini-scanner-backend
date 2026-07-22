@@ -157,3 +157,33 @@ test("available fill reader surfaces malformed complete JSONL records", () => {
     SyntaxError,
   );
 });
+
+
+test("does not append a second fill for the same source ticket", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paper-fill-dedupe-"));
+  const ledgerPath = path.join(dir, "fills.jsonl");
+  const preview = readyFillPreview("SOFI");
+
+  const first = storePaperTradeFillSimulation({
+    ledgerPath,
+    fillPreview: preview,
+    now: new Date("2026-07-22T14:00:00.000Z"),
+  });
+  const second = storePaperTradeFillSimulation({
+    ledgerPath,
+    fillPreview: preview,
+    now: new Date("2026-07-22T14:01:00.000Z"),
+  });
+
+  assert.equal(first.status, "stored");
+  assert.equal(first.fillStored, true);
+  assert.equal(first.wroteRecord, true);
+  assert.equal(second.status, "duplicate");
+  assert.equal(second.fillStored, false);
+  assert.equal(second.wroteRecord, false);
+  assert.equal(second.duplicate, true);
+  assert.equal(second.duplicateReason, "source_ticket_already_filled");
+  assert.equal(second.recordCount, 1);
+  assert.equal(second.record.fillId, first.record.fillId);
+  assert.equal(readPaperTradeFillSimulationRecords(ledgerPath).length, 1);
+});

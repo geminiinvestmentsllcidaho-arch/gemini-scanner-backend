@@ -103,6 +103,43 @@ export function storePaperTradeFillSimulation(options = {}) {
 
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
 
+  const existingRecords = readPaperTradeFillSimulationRecords(ledgerPath);
+  const sourceTicketId = fillPreview?.simulatedFill?.sourceTicketId || null;
+  const duplicateRecord = sourceTicketId
+    ? existingRecords.find((record) => record?.sourceTicketId === sourceTicketId)
+    : null;
+
+  if (duplicateRecord) {
+    return {
+      ok: true,
+      version: PAPER_TRADE_FILL_SIMULATION_STORE_VERSION,
+      monitorOnly: true,
+      previewOnly: true,
+      paperOnly: true,
+      status: 'duplicate',
+      fillReady: true,
+      fillStored: false,
+      wroteRecord: false,
+      duplicate: true,
+      duplicateReason: 'source_ticket_already_filled',
+      reasonCount: 1,
+      reasons: ['source_ticket_already_filled'],
+      ledgerPath,
+      recordCount: existingRecords.length,
+      fillPreview,
+      record: duplicateRecord,
+      safety: {
+        orderPlacement: false,
+        liveTrading: false,
+        autoTrading: false,
+        brokerExecution: false,
+        accountMutation: false,
+        brokerContact: false,
+        localJsonlOnly: true
+      }
+    };
+  }
+
   const record = createFillRecord(fillPreview, now);
   fs.appendFileSync(ledgerPath, `${JSON.stringify(record)}\n`);
 
