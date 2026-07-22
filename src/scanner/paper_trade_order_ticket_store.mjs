@@ -94,6 +94,43 @@ export function storePaperTradeOrderTicket(options = {}) {
     };
   }
 
+  const existingRecords = readPaperTradeOrderTicketRecords(ledgerPath);
+  const sourceIntentId = ticketPreview?.orderTicket?.sourceIntentId || null;
+  const duplicateRecord = sourceIntentId
+    ? existingRecords.find((record) => record?.sourceIntentId === sourceIntentId)
+    : null;
+
+  if (duplicateRecord) {
+    return {
+      ok: true,
+      version: PAPER_TRADE_ORDER_TICKET_STORE_VERSION,
+      monitorOnly: true,
+      previewOnly: true,
+      paperOnly: true,
+      status: 'duplicate',
+      ticketReady: true,
+      ticketStored: false,
+      wroteRecord: false,
+      duplicate: true,
+      duplicateReason: 'source_intent_already_ticketed',
+      reasonCount: 1,
+      reasons: ['source_intent_already_ticketed'],
+      ledgerPath,
+      recordCount: existingRecords.length,
+      ticketPreview,
+      record: duplicateRecord,
+      safety: {
+        orderPlacement: false,
+        liveTrading: false,
+        autoTrading: false,
+        brokerExecution: false,
+        accountMutation: false,
+        brokerContact: false,
+        localJsonlOnly: true
+      }
+    };
+  }
+
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
 
   const record = createTicketRecord(ticketPreview, now);

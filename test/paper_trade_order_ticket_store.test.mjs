@@ -122,3 +122,38 @@ test('paper order ticket store dashboard exposes latest local ticket safely', ()
   assert.equal(dashboard.latestRecord.orderPlacement, false);
   assert.equal(dashboard.latestRecord.accountMutation, false);
 });
+
+test('does not append a second ticket for the same source intent', () => {
+  const ledgerPath = tmpLedger();
+
+  const first = storePaperTradeOrderTicket({
+    ledgerPath,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    ticketPreview: readyTicketPreview()
+  });
+
+  const second = storePaperTradeOrderTicket({
+    ledgerPath,
+    now: new Date('2026-06-26T12:01:00.000Z'),
+    ticketPreview: readyTicketPreview()
+  });
+
+  assert.equal(first.status, 'stored');
+  assert.equal(first.ticketStored, true);
+  assert.equal(first.wroteRecord, true);
+  assert.equal(first.recordCount, 1);
+
+  assert.equal(second.status, 'duplicate');
+  assert.equal(second.ticketReady, true);
+  assert.equal(second.ticketStored, false);
+  assert.equal(second.wroteRecord, false);
+  assert.equal(second.duplicate, true);
+  assert.equal(second.duplicateReason, 'source_intent_already_ticketed');
+  assert.deepEqual(second.reasons, ['source_intent_already_ticketed']);
+  assert.equal(second.recordCount, 1);
+  assert.equal(second.record.ticketId, first.record.ticketId);
+  assert.equal(readPaperTradeOrderTicketRecords(ledgerPath).length, 1);
+  assert.equal(second.safety.brokerContact, false);
+  assert.equal(second.safety.orderPlacement, false);
+  assert.equal(second.safety.accountMutation, false);
+});
