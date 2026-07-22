@@ -6,6 +6,7 @@ import {
 import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
 import { buildDeterministicLogicProposals } from "./customer_report_ai_review.mjs";
 import { reconstructCustomerReportTradeLifecycle } from "./customer_report_trade_lifecycle.mjs";
+import { auditPaperTradeFillSourceIntentReplays } from "./paper_trade_fill_source_intent_replay_audit.mjs";
 
 export const VERSION = "customer_report_model_v1";
 
@@ -207,6 +208,11 @@ export function buildCustomerReportModel(options = {}) {
         range,
       })
     : null;
+  const sourceIntentReplayAudit = Array.isArray(options.fillLedgerHistory)
+    ? auditPaperTradeFillSourceIntentReplays({
+        fillRecords: options.fillLedgerHistory,
+      })
+    : null;
   const trades = lifecycleTrades
     ? Object.freeze({
         totalTrades: lifecycleTrades.completedRoundTrips,
@@ -267,6 +273,8 @@ export function buildCustomerReportModel(options = {}) {
       completedTrades: lifecycleTrades?.completedTrades ?? Object.freeze([]),
       openPositions: lifecycleTrades?.openPositions ?? Object.freeze([]),
       lifecycleSourceAvailable: lifecycleTrades !== null,
+      sourceIntentReplayAuditAvailable: sourceIntentReplayAudit !== null,
+      sourceIntentReplayAudit,
     }),
     largestWinners: Object.freeze(
       activity.filter((row) => row.realizedPnl > 0)

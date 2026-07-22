@@ -328,6 +328,52 @@ test("uses fill-ledger lifecycle reconstruction for true completed trade metrics
   assert.equal(report.trades.completedTrades.length, 3);
 });
 
+
+test("exposes flag-only source-intent replay observability with fill-ledger lifecycle evidence", () => {
+  const report = buildCustomerReportModel({
+    period: "month",
+    now: new Date("2026-07-21T20:00:00.000Z"),
+    timeZone: "UTC",
+    paperLedgerHistory: [
+      { createdAt: "2026-07-21T19:00:00.000Z", totalRealizedPnl: 0, positions: [] },
+    ],
+    fillLedgerHistory: [
+      {
+        fillId: "fill-1",
+        sourceTicketId: "ticket-1",
+        sourceIntentId: "intent-1",
+        createdAt: "2026-07-01T15:00:00.000Z",
+        symbol: "SOFI",
+        side: "buy",
+        qty: 99,
+        fillPrice: 10.1,
+      },
+      {
+        fillId: "fill-2",
+        sourceTicketId: "ticket-2",
+        sourceIntentId: "intent-1",
+        createdAt: "2026-07-01T15:03:00.000Z",
+        symbol: "SOFI",
+        side: "buy",
+        qty: 99,
+        fillPrice: 10.1,
+      },
+    ],
+  });
+
+  assert.equal(report.trades.sourceIntentReplayAuditAvailable, true);
+  assert.equal(report.trades.sourceIntentReplayAudit.hasPossibleReplay, true);
+  assert.equal(report.trades.sourceIntentReplayAudit.possibleReplayCount, 1);
+  assert.deepEqual(
+    report.trades.sourceIntentReplayAudit.affectedTicketIds,
+    ["ticket-1", "ticket-2"],
+  );
+  assert.equal(report.trades.sourceIntentReplayAudit.recordsMutated, false);
+  assert.equal(report.trades.sourceIntentReplayAudit.positionsAdjusted, false);
+  assert.equal(report.trades.sourceIntentReplayAudit.orderPlacement, false);
+  assert.equal(report.trades.openPositions[0].qty, 198);
+});
+
 test("preserves snapshot-derived compatibility metrics when fill ledger is not supplied", () => {
   const report = buildCustomerReportModel({
     period: "month",
@@ -340,6 +386,8 @@ test("preserves snapshot-derived compatibility metrics when fill ledger is not s
   });
 
   assert.equal(report.trades.lifecycleSourceAvailable, false);
+  assert.equal(report.trades.sourceIntentReplayAuditAvailable, false);
+  assert.equal(report.trades.sourceIntentReplayAudit, null);
   assert.equal(report.trades.metricDefinition, "symbols_with_nonzero_realized_pnl_delta");
   assert.equal(report.trades.tradesWithRealizedPnl, 1);
   assert.equal(report.trades.completedRoundTrips, null);
