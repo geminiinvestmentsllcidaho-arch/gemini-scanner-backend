@@ -4427,7 +4427,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const paperLedgerHistory = Array.isArray(paperPositionLedger.records)
       ? paperPositionLedger.records
       : [];
-    const fillLedgerHistory = fillStore.readPaperTradeFillSimulationRecords();
+    const fillLedgerHistory = fillStore.readPaperTradeFillSimulationRecordsIfAvailable();
     const liveScanRecords = listOpportunityFunnelAuditRecords({ maxRecords: 120 });
     const scannerEvents = liveScanRecords.flatMap((scan) => {
       const eventAt = scan?.eventAt ?? null;

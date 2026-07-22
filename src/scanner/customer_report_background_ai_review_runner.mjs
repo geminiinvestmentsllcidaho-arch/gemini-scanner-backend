@@ -2,7 +2,7 @@ import { buildCustomerReportModel } from "./customer_report_model.mjs";
 import { fetchAlpacaPaperAccountReadonly } from "./alpaca_paper_account_readonly_fetch.mjs";
 import { buildCustomerZeroPaperAccountBridge } from "./customer_zero_paper_account_bridge.mjs";
 import { readPaperTradePositionStateStoreDashboard } from "./paper_trade_position_state_store.mjs";
-import { readPaperTradeFillSimulationRecords } from "./paper_trade_fill_simulation_store.mjs";
+import { readPaperTradeFillSimulationRecordsIfAvailable } from "./paper_trade_fill_simulation_store.mjs";
 import {
   listOpportunityFunnelAuditRecords,
   listOpportunityFunnelAuditRecordsFiltered,
@@ -95,7 +95,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const fetchPaperAccount = options.fetchPaperAccount ?? fetchAlpacaPaperAccountReadonly;
   const buildPaperAccount = options.buildPaperAccount ?? buildCustomerZeroPaperAccountBridge;
   const readPositionStore = options.readPositionStore ?? readPaperTradePositionStateStoreDashboard;
-  const readFillRecords = options.readFillRecords ?? readPaperTradeFillSimulationRecords;
+  const readFillRecords = options.readFillRecords ?? readPaperTradeFillSimulationRecordsIfAvailable;
   const listScans = options.listScans ?? listOpportunityFunnelAuditRecords;
   const listPremarketScans =
     options.listPremarketScans ?? listOpportunityFunnelAuditRecordsFiltered;

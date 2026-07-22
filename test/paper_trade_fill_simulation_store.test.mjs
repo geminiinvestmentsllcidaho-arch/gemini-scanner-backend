@@ -7,6 +7,7 @@ import path from 'node:path';
 import {
   PAPER_TRADE_FILL_SIMULATION_STORE_VERSION,
   readPaperTradeFillSimulationRecords,
+  readPaperTradeFillSimulationRecordsIfAvailable,
   readPaperTradeFillSimulationStoreDashboard,
   storePaperTradeFillSimulation
 } from '../src/scanner/paper_trade_fill_simulation_store.mjs';
@@ -127,4 +128,32 @@ test('paper fill simulation store dashboard exposes latest local fill safely', (
   assert.equal(dashboard.latestRecord.brokerContact, false);
   assert.equal(dashboard.latestRecord.orderPlacement, false);
   assert.equal(dashboard.latestRecord.accountMutation, false);
+});
+
+
+test("available fill reader distinguishes a missing ledger from an empty existing ledger", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paper-fill-availability-"));
+  const ledgerPath = path.join(dir, "fills.jsonl");
+
+  assert.equal(
+    readPaperTradeFillSimulationRecordsIfAvailable(ledgerPath),
+    null,
+  );
+
+  fs.writeFileSync(ledgerPath, "");
+  assert.deepEqual(
+    readPaperTradeFillSimulationRecordsIfAvailable(ledgerPath),
+    [],
+  );
+});
+
+test("available fill reader surfaces malformed complete JSONL records", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paper-fill-malformed-"));
+  const ledgerPath = path.join(dir, "fills.jsonl");
+  fs.writeFileSync(ledgerPath, '{"fillId":"ok"}\nnot-json\n');
+
+  assert.throws(
+    () => readPaperTradeFillSimulationRecordsIfAvailable(ledgerPath),
+    SyntaxError,
+  );
 });

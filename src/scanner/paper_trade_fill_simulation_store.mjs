@@ -23,6 +23,13 @@ export function readPaperTradeFillSimulationRecords(
     .map((line) => JSON.parse(line));
 }
 
+export function readPaperTradeFillSimulationRecordsIfAvailable(
+  ledgerPath = DEFAULT_PAPER_TRADE_FILL_SIMULATION_LEDGER_PATH
+) {
+  if (!fs.existsSync(ledgerPath)) return null;
+  return readPaperTradeFillSimulationRecords(ledgerPath);
+}
+
 function createFillRecord(fillPreview, now) {
   const fill = fillPreview.simulatedFill;
   const ts = now.toISOString();

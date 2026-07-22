@@ -479,3 +479,40 @@ test("runner includes bounded strategy observation evidence and persists source 
   assert.equal(result.thresholdMutationAllowed, false);
   assert.equal(result.orderPlacementAllowed, false);
 });
+
+
+test("runner treats an unavailable fill ledger as unavailable lifecycle evidence", async () => {
+  let capturedInput = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-20T15:00:00.000Z"),
+    listScans: () => [{
+      scanId: "scan-fill-unavailable",
+      scanType: "under_five",
+      eventAt: "2026-07-20T14:59:00.000Z",
+      candidates: [{ symbol: "AAA", decision: "WAIT" }],
+    }],
+    listPremarketScans: () => [],
+    fetchPaperAccount: async () => ({}),
+    buildPaperAccount: () => ({}),
+    readPositionStore: () => ({ records: [] }),
+    readFillRecords: () => null,
+    listStrategyObservations: () => [],
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        reviewText: "No lifecycle source.",
+        requiresBacktest: true,
+        requiresOperatorApproval: true,
+        automaticLogicMutationAllowed: false,
+        orderPlacementAllowed: false,
+      };
+    },
+    persistRecord: () => ({ persisted: true }),
+    persistManualAdjustmentRecommendation: () => ({ persisted: false }),
+  });
+
+  assert.equal(result.status, "completed_readonly");
+  assert.equal(capturedInput.trades.lifecycleSourceAvailable, false);
+  assert.equal(capturedInput.trades.completedRoundTrips, null);
+});
