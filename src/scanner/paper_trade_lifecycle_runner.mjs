@@ -151,27 +151,52 @@ export function runPaperTradeLifecycle(options = {}) {
     ledgerPath: paths.fillLedgerPath
   });
 
+  const fillStageSatisfied =
+    fillStore.fillStored === true || fillStore.duplicate === true;
+
   const positionStore =
-    fillStore.fillStored === true
+    fillStageSatisfied
       ? storePaperTradePositionState({
           storeLedgerPath: paths.positionLedgerPath,
           now,
           positionPreview
         })
       : blockedStage('position_state_store', 'blocked', [
-          'fill_simulation_not_stored'
+          'fill_simulation_not_available'
         ]);
 
+  const intentStageSatisfied =
+    intentRun.intentCreated === true || intentRun.creation?.duplicate === true;
+  const ticketStageSatisfied =
+    ticketStore.ticketStored === true || ticketStore.duplicate === true;
+  const positionStageSatisfied =
+    positionStore.snapshotStored === true || positionStore.unchanged === true;
+
   const lifecycleComplete =
-    intentRun.intentCreated === true &&
-    ticketStore.ticketStored === true &&
-    fillStore.fillStored === true &&
-    positionStore.snapshotStored === true;
+    intentStageSatisfied &&
+    ticketStageSatisfied &&
+    fillStageSatisfied &&
+    positionStageSatisfied;
+
+  const lifecycleRecovered =
+    lifecycleComplete &&
+    (
+      intentRun.creation?.duplicate === true ||
+      ticketStore.duplicate === true ||
+      fillStore.duplicate === true
+    ) &&
+    (
+      ticketStore.wroteRecord === true ||
+      fillStore.wroteRecord === true ||
+      positionStore.wroteRecord === true
+    );
 
   const lifecycleReplayNoop =
+    lifecycleComplete &&
     intentRun.creation?.duplicate === true &&
     ticketStore.duplicate === true &&
     fillStore.duplicate === true &&
+    positionStore.unchanged === true &&
     positionStore.wroteRecord === false;
 
   return {
@@ -181,13 +206,16 @@ export function runPaperTradeLifecycle(options = {}) {
     previewOnly: true,
     paperOnly: true,
     mode: 'local_lifecycle_run',
-    status: lifecycleComplete
-      ? 'complete_local_simulation'
-      : lifecycleReplayNoop
-        ? 'idempotent_replay_noop'
-        : 'blocked_or_partial',
+    status: lifecycleReplayNoop
+      ? 'idempotent_replay_noop'
+      : lifecycleRecovered
+        ? 'recovered_partial_local_simulation'
+        : lifecycleComplete
+          ? 'complete_local_simulation'
+          : 'blocked_or_partial',
     paths,
     lifecycleComplete,
+    lifecycleRecovered,
     lifecycleReplayNoop,
     intentCreated: intentRun.intentCreated === true,
     ticketStored: ticketStore.ticketStored === true,

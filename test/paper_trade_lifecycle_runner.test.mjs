@@ -156,7 +156,7 @@ test('paper lifecycle runner treats an exact source intent replay as an idempote
 
   assert.equal(first.status, 'complete_local_simulation');
   assert.equal(second.status, 'idempotent_replay_noop');
-  assert.equal(second.lifecycleComplete, false);
+  assert.equal(second.lifecycleComplete, true);
   assert.equal(second.lifecycleReplayNoop, true);
   assert.equal(second.intentCreated, false);
   assert.equal(second.ticketStored, false);
@@ -166,7 +166,10 @@ test('paper lifecycle runner treats an exact source intent replay as an idempote
   assert.equal(second.stages.intentCreation.creation.duplicateReason, 'intent_already_created');
   assert.equal(second.stages.orderTicketStore.duplicateReason, 'source_intent_already_ticketed');
   assert.equal(second.stages.fillSimulationStore.duplicateReason, 'source_ticket_already_filled');
-  assert.deepEqual(second.stages.positionStateStore.reasons, ['fill_simulation_not_stored']);
+  assert.equal(second.stages.positionStateStore.status, 'unchanged');
+  assert.equal(second.stages.positionStateStore.unchanged, true);
+  assert.equal(second.stages.positionStateStore.snapshotStored, false);
+  assert.equal(second.stages.positionStateStore.wroteRecord, false);
 
   assert.equal(fs.readFileSync(p.intentLedgerPath, 'utf8').trim().split('\n').length, 1);
   assert.equal(fs.readFileSync(p.ticketLedgerPath, 'utf8').trim().split('\n').length, 1);
@@ -175,4 +178,122 @@ test('paper lifecycle runner treats an exact source intent replay as an idempote
   assert.equal(second.safety.brokerContact, false);
   assert.equal(second.safety.orderPlacement, false);
   assert.equal(second.safety.accountMutation, false);
+});
+
+
+test('paper lifecycle runner resumes safely after intent-only partial failure', () => {
+  const p = paths();
+  const options = {
+    ...p,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  };
+
+  const first = runPaperTradeLifecycle(options);
+  fs.rmSync(p.ticketLedgerPath);
+  fs.rmSync(p.fillLedgerPath);
+  fs.rmSync(p.positionLedgerPath);
+
+  const resumed = runPaperTradeLifecycle(options);
+
+  assert.equal(first.status, 'complete_local_simulation');
+  assert.equal(resumed.status, 'recovered_partial_local_simulation');
+  assert.equal(resumed.lifecycleComplete, true);
+  assert.equal(resumed.lifecycleRecovered, true);
+  assert.equal(resumed.lifecycleReplayNoop, false);
+  assert.equal(resumed.stages.intentCreation.creation.duplicate, true);
+  assert.equal(resumed.ticketStored, true);
+  assert.equal(resumed.fillStored, true);
+  assert.equal(resumed.positionStored, true);
+  assert.equal(resumed.wroteAnyRecord, true);
+  assert.equal(fs.readFileSync(p.intentLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.ticketLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.fillLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.positionLedgerPath, 'utf8').trim().split('\\n').length, 1);
+});
+
+test('paper lifecycle runner resumes safely after ticket-stage partial failure', () => {
+  const p = paths();
+  const options = {
+    ...p,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  };
+
+  runPaperTradeLifecycle(options);
+  fs.rmSync(p.fillLedgerPath);
+  fs.rmSync(p.positionLedgerPath);
+
+  const resumed = runPaperTradeLifecycle(options);
+
+  assert.equal(resumed.status, 'recovered_partial_local_simulation');
+  assert.equal(resumed.lifecycleComplete, true);
+  assert.equal(resumed.lifecycleRecovered, true);
+  assert.equal(resumed.stages.intentCreation.creation.duplicate, true);
+  assert.equal(resumed.stages.orderTicketStore.duplicate, true);
+  assert.equal(resumed.fillStored, true);
+  assert.equal(resumed.positionStored, true);
+  assert.equal(resumed.wroteAnyRecord, true);
+  assert.equal(fs.readFileSync(p.intentLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.ticketLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.fillLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.positionLedgerPath, 'utf8').trim().split('\\n').length, 1);
+});
+
+test('paper lifecycle runner rebuilds a missing position snapshot from an existing fill', () => {
+  const p = paths();
+  const options = {
+    ...p,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  };
+
+  runPaperTradeLifecycle(options);
+  fs.rmSync(p.positionLedgerPath);
+
+  const resumed = runPaperTradeLifecycle(options);
+
+  assert.equal(resumed.status, 'recovered_partial_local_simulation');
+  assert.equal(resumed.lifecycleComplete, true);
+  assert.equal(resumed.lifecycleRecovered, true);
+  assert.equal(resumed.stages.intentCreation.creation.duplicate, true);
+  assert.equal(resumed.stages.orderTicketStore.duplicate, true);
+  assert.equal(resumed.stages.fillSimulationStore.duplicate, true);
+  assert.equal(resumed.positionStored, true);
+  assert.equal(resumed.stages.positionStateStore.snapshotStored, true);
+  assert.equal(resumed.wroteAnyRecord, true);
+  assert.equal(fs.readFileSync(p.intentLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.ticketLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.fillLedgerPath, 'utf8').trim().split('\\n').length, 1);
+  assert.equal(fs.readFileSync(p.positionLedgerPath, 'utf8').trim().split('\\n').length, 1);
 });
