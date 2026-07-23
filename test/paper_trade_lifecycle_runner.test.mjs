@@ -131,3 +131,48 @@ test('paper lifecycle runner panel exposes preview-only dashboard card', () => {
   assert.equal(panel.safety.orderPlacement, false);
   assert.equal(panel.safety.accountMutation, false);
 });
+
+
+test('paper lifecycle runner treats an exact source intent replay as an idempotent no-op', () => {
+  const p = paths();
+  const options = {
+    ...p,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  };
+
+  const first = runPaperTradeLifecycle(options);
+  const second = runPaperTradeLifecycle(options);
+
+  assert.equal(first.status, 'complete_local_simulation');
+  assert.equal(second.status, 'idempotent_replay_noop');
+  assert.equal(second.lifecycleComplete, false);
+  assert.equal(second.lifecycleReplayNoop, true);
+  assert.equal(second.intentCreated, false);
+  assert.equal(second.ticketStored, false);
+  assert.equal(second.fillStored, false);
+  assert.equal(second.positionStored, false);
+  assert.equal(second.wroteAnyRecord, false);
+  assert.equal(second.stages.intentCreation.creation.duplicateReason, 'intent_already_created');
+  assert.equal(second.stages.orderTicketStore.duplicateReason, 'source_intent_already_ticketed');
+  assert.equal(second.stages.fillSimulationStore.duplicateReason, 'source_ticket_already_filled');
+  assert.deepEqual(second.stages.positionStateStore.reasons, ['fill_simulation_not_stored']);
+
+  assert.equal(fs.readFileSync(p.intentLedgerPath, 'utf8').trim().split('\n').length, 1);
+  assert.equal(fs.readFileSync(p.ticketLedgerPath, 'utf8').trim().split('\n').length, 1);
+  assert.equal(fs.readFileSync(p.fillLedgerPath, 'utf8').trim().split('\n').length, 1);
+  assert.equal(fs.readFileSync(p.positionLedgerPath, 'utf8').trim().split('\n').length, 1);
+  assert.equal(second.safety.brokerContact, false);
+  assert.equal(second.safety.orderPlacement, false);
+  assert.equal(second.safety.accountMutation, false);
+});

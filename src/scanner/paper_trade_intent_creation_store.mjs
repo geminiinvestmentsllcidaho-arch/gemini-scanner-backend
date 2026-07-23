@@ -180,6 +180,28 @@ export function createPaperTradeIntent(input = {}, options = {}) {
     };
   }
 
+  const existingRecords = readPaperTradeIntentCreationRecords(ledgerPath);
+  const duplicateRecord = existingRecords.find(
+    (record) => record?.intentId === evaluated.intent?.intentId
+  );
+
+  if (duplicateRecord) {
+    return {
+      ...evaluated,
+      status: 'duplicate',
+      blocked: false,
+      ledgerPath,
+      intentCreated: false,
+      wroteRecord: false,
+      duplicate: true,
+      duplicateReason: 'intent_already_created',
+      reasonCount: 1,
+      reasons: ['intent_already_created'],
+      recordCount: existingRecords.length,
+      record: duplicateRecord
+    };
+  }
+
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
 
   const record = {
@@ -194,7 +216,8 @@ export function createPaperTradeIntent(input = {}, options = {}) {
     ledgerPath,
     intentCreated: true,
     wroteRecord: true,
-    recordCount: readPaperTradeIntentCreationRecords(ledgerPath).length,
+    duplicate: false,
+    recordCount: existingRecords.length + 1,
     record
   };
 }

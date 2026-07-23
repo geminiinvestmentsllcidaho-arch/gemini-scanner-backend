@@ -127,3 +127,38 @@ function createPaperIntent(symbol, ledgerPath) {
     }
   );
 }
+
+
+test('does not append the same deterministic paper intent twice', () => {
+  const ledgerPath = tmpLedger();
+  const input = {
+    readinessGateStatus: 'passed',
+    candidateSymbol: 'AAPL',
+    action: 'buy',
+    entryPrice: 123.45
+  };
+  const options = {
+    ledgerPath,
+    now: new Date('2026-06-26T12:00:00.000Z'),
+    source: 'unit_test'
+  };
+
+  const first = createPaperTradeIntent(input, options);
+  const second = createPaperTradeIntent(input, options);
+  const records = readPaperTradeIntentCreationRecords(ledgerPath);
+
+  assert.equal(first.intentCreated, true);
+  assert.equal(first.wroteRecord, true);
+  assert.equal(second.status, 'duplicate');
+  assert.equal(second.intentWouldBeCreated, true);
+  assert.equal(second.intentCreated, false);
+  assert.equal(second.wroteRecord, false);
+  assert.equal(second.duplicate, true);
+  assert.equal(second.duplicateReason, 'intent_already_created');
+  assert.deepEqual(second.reasons, ['intent_already_created']);
+  assert.equal(second.record.intentId, first.record.intentId);
+  assert.equal(records.length, 1);
+  assert.equal(second.safety.brokerContact, false);
+  assert.equal(second.safety.orderPlacement, false);
+  assert.equal(second.safety.accountMutation, false);
+});

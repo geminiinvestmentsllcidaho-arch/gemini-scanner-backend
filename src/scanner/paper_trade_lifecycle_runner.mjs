@@ -168,6 +168,12 @@ export function runPaperTradeLifecycle(options = {}) {
     fillStore.fillStored === true &&
     positionStore.snapshotStored === true;
 
+  const lifecycleReplayNoop =
+    intentRun.creation?.duplicate === true &&
+    ticketStore.duplicate === true &&
+    fillStore.duplicate === true &&
+    positionStore.wroteRecord === false;
+
   return {
     ok: true,
     version: PAPER_TRADE_LIFECYCLE_RUNNER_VERSION,
@@ -175,9 +181,14 @@ export function runPaperTradeLifecycle(options = {}) {
     previewOnly: true,
     paperOnly: true,
     mode: 'local_lifecycle_run',
-    status: lifecycleComplete ? 'complete_local_simulation' : 'blocked_or_partial',
+    status: lifecycleComplete
+      ? 'complete_local_simulation'
+      : lifecycleReplayNoop
+        ? 'idempotent_replay_noop'
+        : 'blocked_or_partial',
     paths,
     lifecycleComplete,
+    lifecycleReplayNoop,
     intentCreated: intentRun.intentCreated === true,
     ticketStored: ticketStore.ticketStored === true,
     fillStored: fillStore.fillStored === true,
