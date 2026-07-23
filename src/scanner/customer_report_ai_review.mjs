@@ -38,6 +38,41 @@ export function buildCustomerReportAiReviewInput(report = {}) {
       averageHoldTimeMs: finite(report?.trades?.averageHoldTimeMs),
       averageRealizedPnlPerTrade: finite(report?.trades?.averageRealizedPnlPerTrade),
       lifecycleSourceAvailable: report?.trades?.lifecycleSourceAvailable === true,
+      sourceIntentReplayAuditAvailable:
+        report?.trades?.sourceIntentReplayAuditAvailable === true,
+      sourceIntentReplayAudit: Object.freeze({
+        hasPossibleReplay:
+          report?.trades?.sourceIntentReplayAudit?.hasPossibleReplay === true,
+        possibleReplayCount:
+          finite(report?.trades?.sourceIntentReplayAudit?.possibleReplayCount) ?? 0,
+        affectedIntentIds: Object.freeze(
+          (Array.isArray(report?.trades?.sourceIntentReplayAudit?.affectedIntentIds)
+            ? report.trades.sourceIntentReplayAudit.affectedIntentIds
+            : [])
+            .slice(0, 25)
+            .map((value) => String(value).slice(0, 128)),
+        ),
+        affectedTicketIds: Object.freeze(
+          (Array.isArray(report?.trades?.sourceIntentReplayAudit?.affectedTicketIds)
+            ? report.trades.sourceIntentReplayAudit.affectedTicketIds
+            : [])
+            .slice(0, 50)
+            .map((value) => String(value).slice(0, 128)),
+        ),
+        reasonCodes: Object.freeze(
+          (Array.isArray(report?.trades?.sourceIntentReplayAudit?.reasonCodes)
+            ? report.trades.sourceIntentReplayAudit.reasonCodes
+            : [])
+            .slice(0, 12)
+            .map((value) => String(value).slice(0, 64)),
+        ),
+        recordsMutated:
+          report?.trades?.sourceIntentReplayAudit?.recordsMutated === true,
+        positionsAdjusted:
+          report?.trades?.sourceIntentReplayAudit?.positionsAdjusted === true,
+        orderPlacement:
+          report?.trades?.sourceIntentReplayAudit?.orderPlacement === true,
+      }),
     }),
     scanner: Object.freeze({
       signalsGenerated: finite(report?.scanner?.signalsGenerated) ?? 0,
