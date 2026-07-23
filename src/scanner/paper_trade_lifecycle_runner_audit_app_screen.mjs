@@ -56,6 +56,12 @@ function normalizePanel(panel = {}) {
     summary: {
       latestStatus: text(summary.latestStatus, "empty"),
       lifecycleComplete: bool(summary.lifecycleComplete),
+      lifecycleRecovered: bool(summary.lifecycleRecovered),
+      lifecycleReplayNoop: bool(summary.lifecycleReplayNoop),
+      resumedFromIntent: bool(summary.resumedFromIntent),
+      resumedFromTicket: bool(summary.resumedFromTicket),
+      resumedFromFill: bool(summary.resumedFromFill),
+      positionAlreadyStored: bool(summary.positionAlreadyStored),
       intentCreated: bool(summary.intentCreated),
       ticketStored: bool(summary.ticketStored),
       fillStored: bool(summary.fillStored),
@@ -72,6 +78,8 @@ function normalizePanel(panel = {}) {
     metrics: {
       recordCount: num(metrics.recordCount, num(panel.recordCount, 0)),
       latestLifecycleComplete: bool(metrics.latestLifecycleComplete),
+      latestLifecycleRecovered: bool(metrics.latestLifecycleRecovered),
+      latestLifecycleReplayNoop: bool(metrics.latestLifecycleReplayNoop),
       latestWroteAnyRecord: bool(metrics.latestWroteAnyRecord),
       openPositionCount: num(metrics.openPositionCount, 0),
       totalCostBasis: num(metrics.totalCostBasis, 0),
@@ -156,6 +164,12 @@ export function renderPaperTradeLifecycleRunnerAuditAppScreenHtml(
       <ul>
         <li>Latest status: <strong>${esc(summary.latestStatus)}</strong></li>
         <li>Lifecycle complete: <strong>${esc(summary.lifecycleComplete)}</strong></li>
+        <li>Recovered partial lifecycle: <strong>${esc(summary.lifecycleRecovered)}</strong></li>
+        <li>Idempotent replay no-op: <strong>${esc(summary.lifecycleReplayNoop)}</strong></li>
+        <li>Resumed from intent: <strong>${esc(summary.resumedFromIntent)}</strong></li>
+        <li>Resumed from ticket: <strong>${esc(summary.resumedFromTicket)}</strong></li>
+        <li>Resumed from fill: <strong>${esc(summary.resumedFromFill)}</strong></li>
+        <li>Position already stored: <strong>${esc(summary.positionAlreadyStored)}</strong></li>
         <li>Intent created: <strong>${esc(summary.intentCreated)}</strong></li>
         <li>Ticket stored: <strong>${esc(summary.ticketStored)}</strong></li>
         <li>Fill stored: <strong>${esc(summary.fillStored)}</strong></li>
@@ -170,6 +184,8 @@ export function renderPaperTradeLifecycleRunnerAuditAppScreenHtml(
       <ul>
         <li>Record count: <strong>${esc(metrics.recordCount)}</strong></li>
         <li>Latest lifecycle complete: <strong>${esc(metrics.latestLifecycleComplete)}</strong></li>
+        <li>Latest lifecycle recovered: <strong>${esc(metrics.latestLifecycleRecovered)}</strong></li>
+        <li>Latest lifecycle replay no-op: <strong>${esc(metrics.latestLifecycleReplayNoop)}</strong></li>
         <li>Latest wrote any record: <strong>${esc(metrics.latestWroteAnyRecord)}</strong></li>
         <li>Open position count: <strong>${esc(metrics.openPositionCount)}</strong></li>
       </ul>

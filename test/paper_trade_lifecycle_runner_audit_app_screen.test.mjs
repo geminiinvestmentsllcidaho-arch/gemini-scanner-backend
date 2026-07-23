@@ -26,6 +26,12 @@ function suppliedPanel(overrides = {}) {
     summary: {
       latestStatus: "blocked_or_partial",
       lifecycleComplete: false,
+      lifecycleRecovered: true,
+      lifecycleReplayNoop: false,
+      resumedFromIntent: true,
+      resumedFromTicket: true,
+      resumedFromFill: false,
+      positionAlreadyStored: false,
       intentCreated: false,
       ticketStored: false,
       fillStored: false,
@@ -42,6 +48,8 @@ function suppliedPanel(overrides = {}) {
     metrics: {
       recordCount: 1,
       latestLifecycleComplete: false,
+      latestLifecycleRecovered: true,
+      latestLifecycleReplayNoop: false,
       latestWroteAnyRecord: false,
       openPositionCount: 0,
       totalCostBasis: 0,
@@ -83,6 +91,10 @@ test("paper trade lifecycle runner audit app screen normalizes supplied panel sa
   assert.equal(screen.noExecutionControls, true);
   assert.equal(screen.panel.status, "blocked_or_partial");
   assert.equal(screen.summary.latestStatus, "blocked_or_partial");
+  assert.equal(screen.summary.lifecycleRecovered, true);
+  assert.equal(screen.summary.lifecycleReplayNoop, false);
+  assert.equal(screen.summary.resumedFromIntent, true);
+  assert.equal(screen.summary.resumedFromTicket, true);
   assert.equal(screen.summary.wroteAnyRecord, false);
   assert.equal(screen.metrics.recordCount, 1);
   assert.equal(screen.safety.brokerContact, false);
@@ -113,6 +125,9 @@ test("paper trade lifecycle runner audit app html renders without mutation contr
   const html = renderPaperTradeLifecycleRunnerAuditAppScreenHtml(screen);
 
   assert.match(html, /Paper Trade Lifecycle Runner Audit/);
+  assert.match(html, /Recovered partial lifecycle: <strong>true<\/strong>/);
+  assert.match(html, /Idempotent replay no-op: <strong>false<\/strong>/);
+  assert.match(html, /Resumed from intent: <strong>true<\/strong>/);
   assert.match(html, /Wrote any record: <strong>false<\/strong>/);
   assert.match(html, /Broker contact allowed: <strong>false<\/strong>/);
   assert.match(html, /Order placement allowed: <strong>false<\/strong>/);

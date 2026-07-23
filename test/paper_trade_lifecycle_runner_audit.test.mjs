@@ -137,3 +137,68 @@ test('paper lifecycle runner audit dashboard and panel expose latest record safe
   assert.equal(panel.safety.brokerContact, false);
   assert.equal(panel.safety.accountMutation, false);
 });
+
+test('paper lifecycle runner audit exposes recovered partial lifecycle observability', () => {
+  const p = paths();
+  const runOptions = {
+    ...p,
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  };
+  auditPaperTradeLifecycleRun({ ...runOptions, now: new Date('2026-06-26T12:00:00.000Z') });
+  fs.rmSync(p.fillLedgerPath, { force: true });
+  fs.rmSync(p.positionLedgerPath, { force: true });
+  const resumed = auditPaperTradeLifecycleRun({ ...runOptions, now: new Date('2026-06-26T12:00:00.000Z') });
+  assert.equal(resumed.auditRecord.status, 'recovered_partial_local_simulation');
+  assert.equal(resumed.auditRecord.lifecycleRecovered, true);
+  assert.equal(resumed.auditRecord.lifecycleReplayNoop, false);
+  assert.equal(resumed.auditRecord.recovery.resumedFromIntent, true);
+  assert.equal(resumed.auditRecord.recovery.resumedFromTicket, true);
+  assert.equal(resumed.auditRecord.wroteAnyRecord, true);
+  const panel = readPaperTradeLifecycleRunnerAuditPanel({ auditLedgerPath: p.auditLedgerPath });
+  assert.equal(panel.status, 'recovered_partial_local_simulation');
+  assert.equal(panel.severity, 'warning');
+  assert.equal(panel.summary.lifecycleRecovered, true);
+  assert.equal(panel.metrics.latestLifecycleRecovered, true);
+});
+
+test('paper lifecycle runner audit exposes idempotent replay no-op observability', () => {
+  const p = paths();
+  const runOptions = {
+    ...p,
+    fillPrice: 101,
+    paperEquity: 10000,
+    riskPct: 0.005,
+    stopPct: 0.02,
+    maxNotionalPct: 0.1,
+    plan: {
+      readinessGateStatus: 'passed',
+      candidateSymbol: 'AAPL',
+      action: 'buy',
+      entryPrice: 100
+    }
+  };
+  auditPaperTradeLifecycleRun({ ...runOptions, now: new Date('2026-06-26T12:00:00.000Z') });
+  const replay = auditPaperTradeLifecycleRun({ ...runOptions, now: new Date('2026-06-26T12:00:00.000Z') });
+  assert.equal(replay.auditRecord.status, 'idempotent_replay_noop');
+  assert.equal(replay.auditRecord.lifecycleRecovered, false);
+  assert.equal(replay.auditRecord.lifecycleReplayNoop, true);
+  assert.equal(replay.auditRecord.recovery.resumedFromIntent, true);
+  assert.equal(replay.auditRecord.recovery.resumedFromTicket, true);
+  assert.equal(replay.auditRecord.recovery.resumedFromFill, true);
+  assert.equal(replay.auditRecord.wroteAnyRecord, false);
+  const panel = readPaperTradeLifecycleRunnerAuditPanel({ auditLedgerPath: p.auditLedgerPath });
+  assert.equal(panel.status, 'idempotent_replay_noop');
+  assert.equal(panel.severity, 'info');
+  assert.equal(panel.summary.lifecycleReplayNoop, true);
+  assert.equal(panel.metrics.latestLifecycleReplayNoop, true);
+});

@@ -44,6 +44,8 @@ export function auditPaperTradeLifecycleRun(options = {}) {
     mode: run.mode,
     status: run.status,
     lifecycleComplete: run.lifecycleComplete,
+    lifecycleRecovered: run.lifecycleRecovered === true,
+    lifecycleReplayNoop: run.lifecycleReplayNoop === true,
     intentCreated: run.intentCreated,
     ticketStored: run.ticketStored,
     fillStored: run.fillStored,
@@ -64,6 +66,21 @@ export function auditPaperTradeLifecycleRun(options = {}) {
       orderTicketStore: run.stages.orderTicketStore?.wroteRecord === true,
       fillSimulationStore: run.stages.fillSimulationStore?.wroteRecord === true,
       positionStateStore: run.stages.positionStateStore?.wroteRecord === true
+    },
+    recovery: {
+      recovered: run.lifecycleRecovered === true,
+      replayNoop: run.lifecycleReplayNoop === true,
+      resumedFromIntent:
+        run.stages.intentCreation?.creation?.duplicateReason ===
+        'intent_already_created',
+      resumedFromTicket:
+        run.stages.orderTicketStore?.duplicateReason ===
+        'source_intent_already_ticketed',
+      resumedFromFill:
+        run.stages.fillSimulationStore?.duplicateReason ===
+        'source_ticket_already_filled',
+      positionAlreadyStored:
+        run.stages.positionStateStore?.reason === 'position_state_already_stored'
     },
     latestIds: {
       intentId:
