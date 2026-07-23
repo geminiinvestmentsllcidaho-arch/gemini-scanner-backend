@@ -105,9 +105,19 @@ export function storePaperTradeFillSimulation(options = {}) {
 
   const existingRecords = readPaperTradeFillSimulationRecords(ledgerPath);
   const sourceTicketId = fillPreview?.simulatedFill?.sourceTicketId || null;
-  const duplicateRecord = sourceTicketId
+  const sourceIntentId = fillPreview?.simulatedFill?.sourceIntentId || null;
+  const duplicateTicketRecord = sourceTicketId
     ? existingRecords.find((record) => record?.sourceTicketId === sourceTicketId)
     : null;
+  const duplicateIntentRecord = sourceIntentId
+    ? existingRecords.find((record) => record?.sourceIntentId === sourceIntentId)
+    : null;
+  const duplicateRecord = duplicateTicketRecord || duplicateIntentRecord;
+  const duplicateReason = duplicateTicketRecord
+    ? 'source_ticket_already_filled'
+    : duplicateIntentRecord
+      ? 'source_intent_already_filled'
+      : null;
 
   if (duplicateRecord) {
     return {
@@ -121,9 +131,9 @@ export function storePaperTradeFillSimulation(options = {}) {
       fillStored: false,
       wroteRecord: false,
       duplicate: true,
-      duplicateReason: 'source_ticket_already_filled',
+      duplicateReason,
       reasonCount: 1,
-      reasons: ['source_ticket_already_filled'],
+      reasons: [duplicateReason],
       ledgerPath,
       recordCount: existingRecords.length,
       fillPreview,

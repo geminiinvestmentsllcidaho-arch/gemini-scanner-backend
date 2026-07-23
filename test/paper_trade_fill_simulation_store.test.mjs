@@ -187,3 +187,43 @@ test("does not append a second fill for the same source ticket", () => {
   assert.equal(second.record.fillId, first.record.fillId);
   assert.equal(readPaperTradeFillSimulationRecords(ledgerPath).length, 1);
 });
+
+test("does not append a second fill for the same source intent through a different ticket", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "paper-fill-intent-dedupe-"));
+  const ledgerPath = path.join(dir, "fills.jsonl");
+  const firstPreview = readyFillPreview("SOFI");
+  const secondPreview = {
+    ...firstPreview,
+    simulatedFill: {
+      ...firstPreview.simulatedFill,
+      sourceTicketId: "paper_ticket_sofi_replayed",
+    },
+  };
+
+  const first = storePaperTradeFillSimulation({
+    ledgerPath,
+    fillPreview: firstPreview,
+    now: new Date("2026-07-22T14:00:00.000Z"),
+  });
+  const second = storePaperTradeFillSimulation({
+    ledgerPath,
+    fillPreview: secondPreview,
+    now: new Date("2026-07-22T14:01:00.000Z"),
+  });
+
+  assert.equal(first.status, "stored");
+  assert.equal(first.fillStored, true);
+  assert.equal(first.wroteRecord, true);
+  assert.equal(second.status, "duplicate");
+  assert.equal(second.fillStored, false);
+  assert.equal(second.wroteRecord, false);
+  assert.equal(second.duplicate, true);
+  assert.equal(second.duplicateReason, "source_intent_already_filled");
+  assert.deepEqual(second.reasons, ["source_intent_already_filled"]);
+  assert.equal(second.recordCount, 1);
+  assert.equal(second.record.fillId, first.record.fillId);
+  assert.equal(readPaperTradeFillSimulationRecords(ledgerPath).length, 1);
+  assert.equal(second.safety.brokerContact, false);
+  assert.equal(second.safety.orderPlacement, false);
+  assert.equal(second.safety.accountMutation, false);
+});
