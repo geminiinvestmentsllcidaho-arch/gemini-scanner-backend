@@ -297,6 +297,22 @@ ${premarketMultiscanPanel}
 </section>`
     : `<section class="card postmarket-auto-panel postmarket-unavailable"><div class="eyebrow">Automatic post-market scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
 
+  const isScannerRoute = hub.route === "/customer/scanner";
+  const overviewQuickActions = !isScannerRoute
+    ? `<section class="card overview-actions">
+<div class="overview-actions-head">
+<div><div class="eyebrow">Start here</div><h2>What would you like to review?</h2></div>
+<p>Use the focused customer pages below. Scanner controls stay on the Scanner page.</p>
+</div>
+<div class="overview-action-grid">
+<a href="/customer/scanner"><strong>Run Scanner</strong><span>Choose modes, price ranges, assets, and result filters.</span></a>
+<a href="/customer/watchlist"><strong>Manage Watchlist</strong><span>Add or update symbols for the Watchlist scanner.</span></a>
+<a href="/customer/portfolio"><strong>Review Portfolio</strong><span>See paper balances, positions, performance, and risk.</span></a>
+<a href="/customer/reports"><strong>Open Reports</strong><span>Review paper results, scanner accuracy, and AI-assisted analysis.</span></a>
+</div>
+</section>`
+    : "";
+
   const accountEmail = esc(account?.email ?? "");
   const accountPanel = accountEmail
     ? `<section class="card account-panel">
@@ -338,6 +354,14 @@ p{color:var(--gs-muted)}
 .selected{outline:2px solid var(--gs-accent)}
 .disabled{opacity:.5}
 .safety{font-size:.9rem}
+.overview-actions{padding:18px;margin-bottom:16px}
+.overview-actions-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.overview-actions-head p{max-width:520px;margin:.35rem 0 0}
+.overview-action-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px}
+.overview-action-grid a{display:flex;min-height:112px;flex-direction:column;justify-content:center;gap:8px;padding:16px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.62);color:var(--gs-text);text-decoration:none}
+.overview-action-grid a:hover,.overview-action-grid a:focus-visible{border-color:var(--gs-accent);background:rgba(24,215,255,.08)}
+.overview-action-grid strong{color:var(--gs-accent);font-size:1.02rem}
+.overview-action-grid span{color:var(--gs-muted);line-height:1.4}
 .portfolio-panel{padding:18px;margin-bottom:16px;border-left:7px solid #737983}
 .portfolio-panel.portfolio-positive{border-left-color:#39ff20}
 .portfolio-panel.portfolio-negative{border-left-color:#ff3547}
@@ -440,7 +464,8 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 ${performancePanel}
 ${portfolioPanel}
 ${accountPanel}
-${renderCustomerPrimaryNavigation({ active: hub.route === "/customer/scanner" ? "scanner" : "overview" })}
+${renderCustomerPrimaryNavigation({ active: isScannerRoute ? "scanner" : "overview" })}
+${overviewQuickActions}
 ${premarketPanel}
 ${postMarketPanel}
 <section class="card hero">
@@ -448,11 +473,11 @@ ${postMarketPanel}
 <h1>${esc(hub.title)}</h1>
 <p>${esc(hub.subtitle)}</p>
 </section>
-<section class="card panel scanner-controls">
+${isScannerRoute ? `<section class="card panel scanner-controls">
 <h2>Scanner controls</h2>
 <p>Select all scanner modes, asset types, and result filters that apply.</p>
 ${scannerControls}
-</section>
+</section>` : ""}
 <section class="card safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
 </main>
 ${renderGlobalFooter()}

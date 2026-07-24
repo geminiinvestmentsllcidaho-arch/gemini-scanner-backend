@@ -117,6 +117,7 @@ test("renders customer scanner hub with shared global neon theme and fixed backg
 test("renders persistent scanner filters inside the Scanner tab", () => {
   const html = renderCustomerScannerHubHtml(
     buildCustomerScannerHub({
+      route: "/customer/scanner",
       scannerFilters: { states: ["ENTER", "WAIT"] },
       filtersSaved: true,
     }),
@@ -134,7 +135,9 @@ test("renders persistent scanner filters inside the Scanner tab", () => {
 });
 
 test("renders reset all settings control", () => {
-  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub());
+  const html = renderCustomerScannerHubHtml(
+    buildCustomerScannerHub({ route: "/customer/scanner" }),
+  );
   assert.match(html, /Reset all settings/);
   assert.match(html, /formaction="\/customer\/scanner\/reset"/);
   assert.match(html, /formmethod="post"/);
@@ -143,6 +146,7 @@ test("renders reset all settings control", () => {
 test("renders dropdown multi-select controls with select-all and run button", () => {
   const html = renderCustomerScannerHubHtml(
     buildCustomerScannerHub({
+      route: "/customer/scanner",
       scannerFilters: { states: ["ENTER", "WAIT"] },
     }),
     { email: "customer@example.com" },
@@ -161,7 +165,7 @@ test("renders dropdown multi-select controls with select-all and run button", ()
 
 
 test("renders selectable customer stock price range controls", () => {
-  const hub = buildCustomerScannerHub();
+  const hub = buildCustomerScannerHub({ route: "/customer/scanner" });
   const html = renderCustomerScannerHubHtml(hub);
   assert.deepEqual(hub.priceRanges.map((range) => range.id), ["5", "10", "50", "100", "1000"]);
   assert.match(html, /data-multiselect="priceRanges"/);
@@ -175,6 +179,7 @@ test("renders selectable customer stock price range controls", () => {
 
 test("scanner selections persist in rendered controls", () => {
   const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    route: "/customer/scanner",
     scannerSelections: {
       modes: ["watchlist"],
       assets: ["stocks"],
@@ -203,6 +208,7 @@ test("customer hub excludes automatic premarket from manual scanner modes", () =
   assert.equal(hub.modes.some((mode) => mode.id === "premarket"), false);
 
   const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    route: "/customer/scanner",
     scannerSelections: {
       modes: ["premarket", "intraday"],
       assets: ["stocks"],
@@ -287,4 +293,24 @@ test("renders read-only premarket multiscan candidate consolidation", () => {
   assert.match(html, /CONFIRMED WATCH CANDIDATE/);
   assert.match(html, /Repeatedly met watch criteria/);
   assert.match(html, /No buy recommendation/);
+});
+
+test("customer overview prioritizes focused quick actions and omits scanner controls", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({ route: "/customer" }));
+
+  assert.match(html, /What would you like to review\?/);
+  assert.match(html, /href="\/customer\/scanner"><strong>Run Scanner<\/strong>/);
+  assert.match(html, /href="\/customer\/watchlist"><strong>Manage Watchlist<\/strong>/);
+  assert.match(html, /href="\/customer\/portfolio"><strong>Review Portfolio<\/strong>/);
+  assert.match(html, /href="\/customer\/reports"><strong>Open Reports<\/strong>/);
+  assert.doesNotMatch(html, /<h2>Scanner controls<\/h2>/);
+  assert.doesNotMatch(html, /action="\/customer\/scanner\/run"/);
+});
+
+test("customer scanner route keeps scanner controls and omits overview quick actions", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({ route: "/customer/scanner" }));
+
+  assert.match(html, /<h2>Scanner controls<\/h2>/);
+  assert.match(html, /action="\/customer\/scanner\/run"/);
+  assert.doesNotMatch(html, /What would you like to review\?/);
 });
