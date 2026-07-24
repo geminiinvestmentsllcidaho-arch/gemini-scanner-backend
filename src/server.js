@@ -661,6 +661,7 @@ ${notice}
 </section>
 </main>
 ${renderGlobalFooter()}
+<script src="/assets/password-visibility.js" defer></script>
 </body>
 </html>`;
 }
@@ -838,6 +839,7 @@ ${notice}
 </section>
 </main>
 ${renderGlobalFooter()}
+<script src="/assets/password-visibility.js" defer></script>
 </body>
 </html>`;
 }
@@ -4696,6 +4698,31 @@ app.get('/assets/customer-scanner-controls.js', (_req, res) => {
 })();`);
 });
 
+app.get('/assets/password-visibility.js', (_req, res) => {
+  res.type('application/javascript').send(`(() => {
+    const enhance = (input, index) => {
+      if (!(input instanceof HTMLInputElement) || input.type !== 'password') return;
+      if (input.dataset.passwordVisibilityEnhanced === 'true') return;
+      input.dataset.passwordVisibilityEnhanced = 'true';
+      if (!input.id) input.id = \`password-field-\${index + 1}\`;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'password-visibility-toggle';
+      button.setAttribute('aria-controls', input.id);
+      button.setAttribute('aria-pressed', 'false');
+      button.textContent = 'Show password';
+      button.addEventListener('click', () => {
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        button.setAttribute('aria-pressed', String(!showing));
+        button.textContent = showing ? 'Show password' : 'Hide password';
+      });
+      input.insertAdjacentElement('afterend', button);
+    };
+    document.querySelectorAll('input[type="password"]').forEach(enhance);
+  })();`);
+});
+
 app.get('/assets/customer-settings.js', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.type('application/javascript').send(`(() => {
@@ -4998,6 +5025,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 <button type="submit">Log out</button>
 </form>
 <script src="/assets/global-theme.js"></script>
+<script src="/assets/password-visibility.js" defer></script>
 <script src="/assets/customer-settings.js" defer></script>
 </section>
 </main>

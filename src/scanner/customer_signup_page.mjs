@@ -84,6 +84,7 @@ ${fields}
 </section>
 </main>
 ${renderGlobalFooter()}
+<script src="/assets/password-visibility.js" defer></script>
 </body>
 </html>`;
 }
