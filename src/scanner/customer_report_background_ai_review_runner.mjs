@@ -97,8 +97,14 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const readPositionStore = options.readPositionStore ?? readPaperTradePositionStateStoreDashboard;
   const readFillRecords = options.readFillRecords ?? readPaperTradeFillSimulationRecordsIfAvailable;
   const listScans = options.listScans ?? listOpportunityFunnelAuditRecords;
-  const listPremarketScans =
-    options.listPremarketScans ?? listOpportunityFunnelAuditRecordsFiltered;
+  const listPremarketScans = Object.prototype.hasOwnProperty.call(
+    options,
+    "listPremarketScans",
+  )
+    ? options.listPremarketScans
+    : Object.prototype.hasOwnProperty.call(options, "listScans")
+      ? () => []
+      : listOpportunityFunnelAuditRecordsFiltered;
   const requestAiReview = options.requestAiReview ?? requestCustomerReportRealtimeAiReview;
   const persistRecord = options.persistRecord ?? appendCustomerReportBackgroundAiReviewRecord;
   const persistManualAdjustmentRecommendation =

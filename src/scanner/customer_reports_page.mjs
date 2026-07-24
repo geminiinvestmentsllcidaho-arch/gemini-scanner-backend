@@ -138,6 +138,15 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const periodLinks = PERIODS.map(([value, label]) =>
     `<a href="/customer/reports?period=${value}"${value === activePeriod ? ' aria-current="page" class="active"' : ""}>${label}</a>`
   ).join("");
+  const reportSectionLinks = [
+    ["performance-summary", "Performance"],
+    ["trade-statistics", "Trades"],
+    ["scanner-accuracy", "Scanner"],
+    ["winners-losers", "Winners & Losers"],
+    ["ai-review", "AI Review"],
+    ["calibration", "Calibration"],
+    ["detailed-activity", "Activity"],
+  ].map(([id, label]) => `<a href="#${esc(id)}">${esc(label)}</a>`).join("");
 
   const activityRows = activities.length
     ? activities.map((row) => `<tr>
@@ -193,7 +202,10 @@ ${renderCustomerPrimaryNavigationCss()}
 .periods a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
 .periods{margin:18px 0 24px}
 .periods a.active{box-shadow:0 0 18px rgba(57,255,32,.38);border-color:var(--gs-accent)}
-.hero,.panel{padding:20px;margin-bottom:18px}
+.report-section-nav{display:flex;flex-wrap:wrap;gap:9px;padding:14px;margin-bottom:18px}
+.report-section-nav a{display:inline-flex;align-items:center;min-height:38px;color:var(--gs-text);text-decoration:none;border:1px solid var(--gs-line);border-radius:999px;padding:8px 12px;background:rgba(0,0,0,.5)}
+.report-section-nav a:hover,.report-section-nav a:focus-visible{color:var(--gs-accent);border-color:var(--gs-accent)}
+.hero,.panel{padding:20px;margin-bottom:18px;scroll-margin-top:18px}
 .hero p,.muted{color:var(--gs-muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .metric{padding:16px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.48)}
@@ -227,7 +239,9 @@ ${renderCustomerPrimaryNavigation({ active: "reports" })}
 <nav class="periods" aria-label="Report period">${periodLinks}</nav>
 </section>
 
-<section class="card panel">
+<nav class="card report-section-nav" aria-label="Report sections">${reportSectionLinks}</nav>
+
+<section class="card panel" id="performance-summary">
 <h2>Performance summary</h2>
 <div class="grid">
 ${metric("Starting balance", money(performance.startingBalance ?? performance.startingEquity, locale))}
@@ -242,7 +256,7 @@ ${metric("Capital used", money(performance.totalCapitalUsed, locale))}
 </section>
 
 <div class="two">
-<section class="card panel">
+<section class="card panel" id="trade-statistics">
 <h2>Trade statistics</h2>
 <div class="grid">
 ${metric(trades.lifecycleSourceAvailable ? "Completed trades" : "Symbols with realized P/L", number(trades.totalTrades, locale))}
@@ -260,7 +274,7 @@ ${metric("Average dollars / trade", money(trades.averageDollarsPerTrade, locale)
 </div>
 </section>
 
-<section class="card panel">
+<section class="card panel" id="scanner-accuracy">
 <h2>Scanner accuracy</h2>
 <div class="grid">
 ${metric("Signals", number(scanner.signalsGenerated, locale))}
@@ -280,7 +294,7 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 </section>
 </div>
 
-<div class="two">
+<div class="two" id="winners-losers">
 <section class="card panel">
 <h2>Largest winners</h2>
 <ol>${rankingRows(winners, "No winning paper trades in this period.")}</ol>
@@ -296,7 +310,7 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 <section class="card panel"><h2>Period comparison</h2><div class="placeholder">Comparison details will appear after enough paper-trading history is available.</div></section>
 </div>
 
-<section class="card panel">
+<section class="card panel" id="ai-review">
 <h2>AI-assisted review</h2>
 <p>AI reviews scanner evidence and summarizes patterns, risks, and missing information. It cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades.</p>
 <p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
@@ -323,7 +337,7 @@ ${proposalCards}
 </div>
 </section>
 
-<section class="card panel">
+<section class="card panel" id="calibration">
 <h2>Proposal Evidence Calibration</h2>
 <p>This view groups historical proposals and identifies where high-confidence scanner decisions still produced review concerns.</p>
 <div class="grid">
@@ -381,7 +395,7 @@ ${realtimeAiText
 <p><strong>Backtesting required:</strong> ${esc(realtimeAiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(realtimeAiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
 </section>
 
-<section class="card panel">
+<section class="card panel" id="detailed-activity">
 <h2>Detailed activity</h2>
 <div class="table-wrap">
 <table>

@@ -299,3 +299,25 @@ test("renders numeric lifecycle hold duration in a human-readable form", () => {
   assert.match(html, /1d 1h/);
   assert.doesNotMatch(html, /90061000/);
 });
+
+test("customer reports exposes focused in-page section navigation", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    report: { period: "lifetime", performance: {}, trades: {}, scanner: {}, activity: [] },
+  }));
+
+  assert.match(html, /aria-label="Report sections"/);
+  assert.match(html, /href="#performance-summary">Performance<\/a>/);
+  assert.match(html, /href="#trade-statistics">Trades<\/a>/);
+  assert.match(html, /href="#scanner-accuracy">Scanner<\/a>/);
+  assert.match(html, /href="#winners-losers">Winners &amp; Losers<\/a>/);
+  assert.match(html, /href="#ai-review">AI Review<\/a>/);
+  assert.match(html, /href="#calibration">Calibration<\/a>/);
+  assert.match(html, /href="#detailed-activity">Activity<\/a>/);
+  assert.match(html, /id="performance-summary"/);
+  assert.match(html, /id="trade-statistics"/);
+  assert.match(html, /id="scanner-accuracy"/);
+  assert.match(html, /id="winners-losers"/);
+  assert.match(html, /id="ai-review"/);
+  assert.match(html, /id="calibration"/);
+  assert.match(html, /id="detailed-activity"/);
+});
