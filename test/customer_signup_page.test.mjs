@@ -32,5 +32,5 @@ test("renders shared black neon signup theme without changing signup safety gate
 
 test("signup page loads the password visibility control", () => {
   const html = renderCustomerSignupPageHtml(buildCustomerSignupPage());
-  assert.match(html, /<script src="\/assets\/password-visibility\.js" defer><\/script>/);
+  assert.match(html, /<script src="\/customer\/assets\/password-visibility\.js" defer><\/script>/);
 });

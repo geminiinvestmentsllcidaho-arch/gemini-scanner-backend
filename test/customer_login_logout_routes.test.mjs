@@ -989,10 +989,10 @@ test("customer watchlist-only scanner fetches saved symbols without a price ceil
 });
 
 test('customer password fields expose an accessible show and hide password control', () => {
-  assert.match(source, /app\.get\('\/assets\/password-visibility\.js'/);
+  assert.match(source, /app\.get\(\['\/assets\/password-visibility\.js', '\/customer\/assets\/password-visibility\.js'\]/);
   assert.match(source, /document\.querySelectorAll\('input\[type="password"\]'\)/);
   assert.match(source, /button\.textContent = 'Show password'/);
   assert.match(source, /button\.textContent = showing \? 'Show password' : 'Hide password'/);
   assert.match(source, /button\.setAttribute\('aria-controls', input\.id\)/);
-  assert.match(source, /<script src="\/assets\/password-visibility\.js" defer><\/script>/);
+  assert.match(source, /<script src="\/customer\/assets\/password-visibility\.js" defer><\/script>/);
 });

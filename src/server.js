@@ -661,7 +661,7 @@ ${notice}
 </section>
 </main>
 ${renderGlobalFooter()}
-<script src="/assets/password-visibility.js" defer></script>
+<script src="/customer/assets/password-visibility.js" defer></script>
 </body>
 </html>`;
 }
@@ -839,7 +839,7 @@ ${notice}
 </section>
 </main>
 ${renderGlobalFooter()}
-<script src="/assets/password-visibility.js" defer></script>
+<script src="/customer/assets/password-visibility.js" defer></script>
 </body>
 </html>`;
 }
@@ -4698,7 +4698,7 @@ app.get('/assets/customer-scanner-controls.js', (_req, res) => {
 })();`);
 });
 
-app.get('/assets/password-visibility.js', (_req, res) => {
+app.get(['/assets/password-visibility.js', '/customer/assets/password-visibility.js'], (_req, res) => {
   res.type('application/javascript').send(`(() => {
     const enhance = (input, index) => {
       if (!(input instanceof HTMLInputElement) || input.type !== 'password') return;
@@ -5025,7 +5025,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 <button type="submit">Log out</button>
 </form>
 <script src="/assets/global-theme.js"></script>
-<script src="/assets/password-visibility.js" defer></script>
+<script src="/customer/assets/password-visibility.js" defer></script>
 <script src="/assets/customer-settings.js" defer></script>
 </section>
 </main>
