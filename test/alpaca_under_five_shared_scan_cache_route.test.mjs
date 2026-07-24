@@ -88,3 +88,16 @@ test("server exposes read-only shared under-five cache diagnostics", () => {
   assert.match(block, /accountMutationAllowed: false/);
   assert.doesNotMatch(block, /refreshNow|start\(|stop\(|fetchAlpacaUnderFiveUniverseReadonly/);
 });
+
+test("server exposes bounded read-only customer scanner freshness diagnostics", () => {
+  const start = server.indexOf("app.get('/diagnostics/customer-scanner-freshness'");
+  const end = server.indexOf("\napp.get('/diagnostics/alpaca-api-watch'", start);
+  const block = server.slice(start, end);
+  assert.notEqual(start, -1);
+  assert.match(server, /buildCustomerScannerFreshnessDiagnostic/);
+  assert.match(block, /cache\?\.getDiagnostics\?\.\(\) \?\? null/);
+  assert.match(block, /readScannerRankings\(\)/);
+  assert.match(block, /getStreamTelemetry\(\)/);
+  assert.match(block, /Cache-Control', 'no-store'/);
+  assert.doesNotMatch(block, /refreshNow|fetchAlpacaUnderFiveUniverseReadonly/);
+});

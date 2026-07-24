@@ -64,6 +64,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
+import { buildCustomerScannerFreshnessDiagnostic } from './scanner/customer_scanner_freshness_diagnostic.mjs';
 import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords, listOpportunityFunnelAuditRecordsFiltered } from './scanner/opportunity_funnel_audit_store.mjs';
 import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
 import { runCustomerReportBackgroundAiReview } from './scanner/customer_report_background_ai_review_runner.mjs';
@@ -1837,6 +1838,21 @@ app.get('/diagnostics/alpaca-under-five-shared-cache', async (_req, res) => {
     brokerContactAllowed: false,
     accountMutationAllowed: false,
   });
+});
+
+app.get('/diagnostics/customer-scanner-freshness', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const cache = await underFiveSharedCachePromise;
+    const cacheDiagnostics = cache?.getDiagnostics?.() ?? null;
+    res.json(buildCustomerScannerFreshnessDiagnostic({
+      cacheDiagnostics,
+      rankingRoot: readScannerRankings(),
+      streamTelemetry: getStreamTelemetry(),
+    }));
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'CUSTOMER_SCANNER_FRESHNESS_DIAGNOSTIC_FAILED', message: err?.message ?? String(err), readOnly: true, orderPlacementAllowed: false, brokerContactAllowed: false, accountMutationAllowed: false });
+  }
 });
 
 app.get('/diagnostics/alpaca-api-watch', (req, res) => {
