@@ -144,7 +144,10 @@ export function renderCustomerReportsPageHtml(page = {}) {
     ["scanner-accuracy", "Scanner"],
     ["winners-losers", "Winners & Losers"],
     ["ai-review", "AI Review"],
+    ["decision-quality", "Proposals"],
     ["calibration", "Calibration"],
+    ["calibration-history", "History"],
+    ["realtime-ai-review", "Real-Time AI"],
     ["detailed-activity", "Activity"],
   ].map(([id, label]) => `<a href="#${esc(id)}">${esc(label)}</a>`).join("");
 
@@ -319,7 +322,7 @@ ${aiProposals.length
   : "<p>No improvement suggestions are available for this report yet.</p>"}
 </section>
 
-<section class="card panel">
+<section class="card panel" id="decision-quality">
 <h2>Historical Decision-Quality Proposals</h2>
 <p>These are bounded review proposals generated from measured scanner outcomes. They do not change scanner logic, thresholds, accounts, or orders.</p>
 <div class="grid">
@@ -357,7 +360,7 @@ ${calibrationCards}
 </div>
 </section>
 
-<section class="card panel">
+<section class="card panel" id="calibration-history">
 <h2>Calibration History</h2>
 <p>This local read-only history tracks changes in proposal evidence over time. Duplicate snapshots are skipped automatically.</p>
 <div class="grid">
@@ -377,7 +380,7 @@ ${calibrationHistoryRows.length
 </div>
 </section>
 
-<section class="card panel">
+<section class="card panel" id="realtime-ai-review">
 <h2>Real-Time AI Review</h2>
 <p>This optional review uses the current paper report only. It cannot change scanner logic, contact a broker, place orders, or modify an account.</p>
 <p><strong>Status:</strong> ${esc(({
