@@ -369,7 +369,11 @@ function readUnderFiveLiveRankings(source = {}) {
 async function getUnderFiveSharedSource({ refresh = false } = {}) {
   const cache = await underFiveSharedCachePromise;
   if (!cache) throw new Error('under_five_shared_cache_unavailable');
-  const source = refresh ? await cache.refreshNow() : (cache.getLatest() ?? await cache.refreshNow());
+  cache.noteDemand?.();
+  const current = cache.getLatest();
+  const source = refresh || !current || current?.idleNoDemand === true
+    ? await cache.refreshNow()
+    : current;
   return bridgeCustomerZeroFreshRankings(source, readUnderFiveLiveRankings(source));
 }
 

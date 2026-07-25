@@ -52,7 +52,8 @@ test("shared under-five source bridges scanner rankings before customer routes r
   const block = server.slice(start, end);
 
   assert.match(server, /import \{ bridgeCustomerZeroFreshRankings \} from '\.\/scanner\/customer_zero_fresh_ranking_bridge\.mjs';/);
-  assert.match(block, /const source = refresh \? await cache\.refreshNow\(\) : \(cache\.getLatest\(\) \?\? await cache\.refreshNow\(\)\);/);
+  assert.match(block, /cache\.noteDemand\?\.\(\);/);
+  assert.match(block, /current\?\.idleNoDemand === true/);
   assert.match(block, /return bridgeCustomerZeroFreshRankings\(source, readUnderFiveLiveRankings\(source\)\);/);
 });
 

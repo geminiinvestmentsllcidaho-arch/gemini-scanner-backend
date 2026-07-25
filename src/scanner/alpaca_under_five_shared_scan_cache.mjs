@@ -1,7 +1,8 @@
 import { fetchAlpacaUnderFiveUniverseReadonly } from "./alpaca_under_five_universe_readonly.mjs";
 import { fetchAlpacaMarketClockReadonly } from "./alpaca_market_clock_readonly.mjs";
 
-export const VERSION = "alpaca_under_five_shared_scan_cache_v1";
+export const VERSION = "alpaca_under_five_shared_scan_cache_v2";
+export const DEFAULT_DEMAND_WINDOW_SEC = 120;
 
 export function intervalSecForMarket(isOpen) {
   return isOpen === true ? 15 : 300;
@@ -13,22 +14,6 @@ export function msUntilNextBoundary(nowMs = Date.now(), intervalSec = 30) {
   return remainder === 0 ? intervalMs : intervalMs - remainder;
 }
 
-export function resolveNextWakeDelayMs({
-  nowMs = Date.now(),
-  marketClock = {},
-} = {}) {
-  if (marketClock?.isOpen === true) {
-    return msUntilNextBoundary(nowMs, intervalSecForMarket(true));
-  }
-
-  const nextOpenMs = Date.parse(marketClock?.nextOpen ?? "");
-  if (Number.isFinite(nextOpenMs) && nextOpenMs > Number(nowMs)) {
-    return nextOpenMs - Number(nowMs);
-  }
-
-  return msUntilNextBoundary(nowMs, intervalSecForMarket(false));
-}
-
 export function createAlpacaUnderFiveSharedScanCache({
   fetchScan = fetchAlpacaUnderFiveUniverseReadonly,
   fetchMarketClock = fetchAlpacaMarketClockReadonly,
@@ -37,6 +22,7 @@ export function createAlpacaUnderFiveSharedScanCache({
   clearTimeoutImpl = globalThis.clearTimeout,
   scanOptions = {},
   onScanComplete = null,
+  demandWindowSec = DEFAULT_DEMAND_WINDOW_SEC,
 } = {}) {
   let latest = null;
   let timer = null;
@@ -45,6 +31,13 @@ export function createAlpacaUnderFiveSharedScanCache({
   let scanCount = 0;
   let lastError = null;
   let nextWakeAt = null;
+  let demandUntilMs = null;
+  let lastDemandAt = null;
+  let idleReason = "not_started";
+
+  const normalizedDemandWindowSec = Math.max(15, Number(demandWindowSec) || DEFAULT_DEMAND_WINDOW_SEC);
+  const demandActive = () =>
+    Number.isFinite(demandUntilMs) && demandUntilMs > Number(now());
 
   const diagnostics = () => ({
     version: VERSION,
@@ -57,11 +50,41 @@ export function createAlpacaUnderFiveSharedScanCache({
     nextWakeAt,
     timerScheduled: timer !== null,
     inFlight: inFlight !== null,
+    demandAware: true,
+    demandActive: demandActive(),
+    demandWindowSec: normalizedDemandWindowSec,
+    demandUntil: Number.isFinite(demandUntilMs) ? new Date(demandUntilMs).toISOString() : null,
+    lastDemandAt,
+    idleReason,
     readOnly: true,
     sharedAcrossRequests: true,
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
   });
+
+  const clearTimer = () => {
+    if (timer !== null) {
+      clearTimeoutImpl(timer);
+      timer = null;
+    }
+    nextWakeAt = null;
+  };
+
+  const markIdle = (reason = "no_active_demand") => {
+    idleReason = reason;
+    clearTimer();
+    if (latest) {
+      latest = {
+        ...latest,
+        idleNoDemand: true,
+        sharedCache: {
+          ...(latest.sharedCache ?? {}),
+          idleNoDemand: true,
+          demandAware: true,
+        },
+      };
+    }
+  };
 
   const refreshNow = async () => {
     if (inFlight) return inFlight;
@@ -75,14 +98,18 @@ export function createAlpacaUnderFiveSharedScanCache({
 
         scanCount += 1;
         lastError = null;
+        idleReason = demandActive() ? null : "manual_refresh_without_active_demand";
         latest = {
           ...source,
+          idleNoDemand: !demandActive(),
           sharedCache: {
             version: VERSION,
             generatedAt: new Date(now()).toISOString(),
             scanCount,
             sharedAcrossRequests: true,
             readOnly: true,
+            demandAware: true,
+            idleNoDemand: !demandActive(),
           },
         };
 
@@ -90,7 +117,6 @@ export function createAlpacaUnderFiveSharedScanCache({
           try {
             await onScanComplete(latest);
           } catch {
-            // Audit/reporting failures must never stop the shared scanner.
           }
         }
 
@@ -106,8 +132,20 @@ export function createAlpacaUnderFiveSharedScanCache({
     return inFlight;
   };
 
-  const updateClosedMarketSnapshot = (clockSource = {}) => {
+  const runDemandTick = async () => {
+    if (!demandActive()) {
+      markIdle("demand_window_expired");
+      return latest;
+    }
+
+    const clockSource = await fetchMarketClock();
     const marketClock = clockSource?.marketClock ?? {};
+
+    if (marketClock?.isOpen === true) {
+      return refreshNow();
+    }
+
+    lastError = null;
     latest = {
       ok: clockSource?.ok !== false,
       version: VERSION,
@@ -117,7 +155,7 @@ export function createAlpacaUnderFiveSharedScanCache({
       snapshotCount: 0,
       candidateCount: 0,
       candidates: [],
-      startupDeferred: scanCount === 0,
+      idleNoDemand: false,
       sharedCache: {
         version: VERSION,
         generatedAt: new Date(now()).toISOString(),
@@ -125,77 +163,82 @@ export function createAlpacaUnderFiveSharedScanCache({
         scanCount,
         sharedAcrossRequests: true,
         readOnly: true,
+        demandAware: true,
+        idleNoDemand: false,
       },
     };
-    lastError = null;
     return latest;
   };
 
-  const runScheduledTick = async () => {
-    const clockSource = await fetchMarketClock();
-    const marketClock = clockSource?.marketClock ?? {};
-
-    if (marketClock?.isOpen === true) {
-      return refreshNow();
+  const scheduleNext = () => {
+    clearTimer();
+    if (!running) return;
+    if (!demandActive()) {
+      markIdle("no_active_demand");
+      return;
     }
 
-    return updateClosedMarketSnapshot(clockSource);
-  };
-
-  const scheduleNext = () => {
-    if (!running) return;
-
-    const nowMs = now();
-    const delayMs = resolveNextWakeDelayMs({
-      nowMs,
-      marketClock: latest?.marketClock ?? {},
-    });
+    const nowMs = Number(now());
+    const marketOpen = latest?.marketClock?.isOpen === true;
+    const cadenceMs = msUntilNextBoundary(nowMs, intervalSecForMarket(marketOpen));
+    const remainingDemandMs = Math.max(1, demandUntilMs - nowMs);
+    const delayMs = Math.min(cadenceMs, remainingDemandMs);
     nextWakeAt = new Date(nowMs + delayMs).toISOString();
 
     timer = setTimeoutImpl(async () => {
       timer = null;
       nextWakeAt = null;
       try {
-        await runScheduledTick();
+        await runDemandTick();
       } catch (error) {
         lastError = error?.message ?? String(error);
-        // Keep the shared scheduler alive; diagnostics retain the last error.
       } finally {
-        if (running) scheduleNext();
+        if (running && demandActive()) scheduleNext();
+        else if (running) markIdle("demand_window_expired");
       }
     }, delayMs);
+  };
+
+  const noteDemand = () => {
+    const nowMs = Number(now());
+    lastDemandAt = new Date(nowMs).toISOString();
+    demandUntilMs = nowMs + normalizedDemandWindowSec * 1000;
+    idleReason = null;
+    if (latest?.idleNoDemand === true) {
+      latest = {
+        ...latest,
+        idleNoDemand: false,
+        sharedCache: {
+          ...(latest.sharedCache ?? {}),
+          idleNoDemand: false,
+          demandAware: true,
+        },
+      };
+    }
+    if (running) scheduleNext();
+    return diagnostics();
   };
 
   const start = async () => {
     if (running) return diagnostics();
     running = true;
-    try {
-      const clockSource = await fetchMarketClock();
-      const marketClock = clockSource?.marketClock ?? {};
-      if (marketClock?.isOpen === true) {
-        await refreshNow();
-      } else {
-        updateClosedMarketSnapshot(clockSource);
-      }
-    } finally {
-      if (running) scheduleNext();
-    }
+    idleReason = "waiting_for_demand";
+    clearTimer();
     return diagnostics();
   };
 
   const stop = () => {
     running = false;
-    if (timer !== null) {
-      clearTimeoutImpl(timer);
-      timer = null;
-    }
-    nextWakeAt = null;
+    demandUntilMs = null;
+    idleReason = "stopped";
+    clearTimer();
     return diagnostics();
   };
 
   return {
     start,
     stop,
+    noteDemand,
     refreshNow,
     getLatest: () => latest,
     getDiagnostics: diagnostics,
