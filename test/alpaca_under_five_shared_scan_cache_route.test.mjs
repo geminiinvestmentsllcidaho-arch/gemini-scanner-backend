@@ -53,7 +53,7 @@ test("shared under-five source bridges scanner rankings before customer routes r
 
   assert.match(server, /import \{ bridgeCustomerZeroFreshRankings \} from '\.\/scanner\/customer_zero_fresh_ranking_bridge\.mjs';/);
   assert.match(block, /const source = refresh \? await cache\.refreshNow\(\) : \(cache\.getLatest\(\) \?\? await cache\.refreshNow\(\)\);/);
-  assert.match(block, /return bridgeCustomerZeroFreshRankings\(source, readScannerRankings\(\)\);/);
+  assert.match(block, /return bridgeCustomerZeroFreshRankings\(source, readUnderFiveLiveRankings\(source\)\);/);
 });
 
 
@@ -96,7 +96,7 @@ test("server exposes bounded read-only customer scanner freshness diagnostics", 
   assert.notEqual(start, -1);
   assert.match(server, /buildCustomerScannerFreshnessDiagnostic/);
   assert.match(block, /cache\?\.getDiagnostics\?\.\(\) \?\? null/);
-  assert.match(block, /readScannerRankings\(\)/);
+  assert.match(block, /readUnderFiveLiveRankings\(latestSource\)/);
   assert.match(block, /getStreamTelemetry\(\)/);
   assert.match(block, /Cache-Control', 'no-store'/);
   assert.doesNotMatch(block, /refreshNow|fetchAlpacaUnderFiveUniverseReadonly/);

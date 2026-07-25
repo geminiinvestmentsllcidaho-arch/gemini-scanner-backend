@@ -22,7 +22,10 @@ const riskyPatterns = [
   { code: "OAUTH_TOKEN_ROUTE", re: /oauth\/token|access_token|refresh_token/i },
   { code: "CLIENT_SECRET_USAGE", re: /client_secret|OAUTH_CLIENT_SECRET|ALPACA_CLIENT_SECRET/i },
   { code: "USER_BROKERAGE_CONNECT", re: /alpaca connect|connect marketplace|brokerage account connect/i },
-  { code: "TOKEN_STORAGE", re: /save.*token|store.*token|token.*database|refresh.*token/i },
+  {
+    code: "TOKEN_STORAGE",
+    re: /(?:save|store)[^\r\n]{0,120}(?:access[_ -]?token|refresh[_ -]?token|oauth[_ -]?token)|(?:access[_ -]?token|refresh[_ -]?token|oauth[_ -]?token)[^\r\n]{0,120}(?:database|datastore|storage|persist)/i,
+  },
 ];
 
 const allowedFiles = new Set([
@@ -36,7 +39,14 @@ for (const file of files) {
   if (allowedFiles.has(normalized)) continue;
   const text = fs.readFileSync(file, "utf8");
   for (const pattern of riskyPatterns) {
-    if (pattern.re.test(text)) hits.push({ file: normalized, code: pattern.code });
+    const match = text.match(pattern.re);
+    if (match) {
+      hits.push({
+        file: normalized,
+        code: pattern.code,
+        match: String(match[0]).slice(0, 240),
+      });
+    }
   }
 }
 

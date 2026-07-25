@@ -358,11 +358,19 @@ const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_sc
     return null;
   });
 
+function readUnderFiveLiveRankings(source = {}) {
+  const rows = Array.isArray(source?.candidates) ? source.candidates : [];
+  return readScannerRankings({
+    rows,
+    nowMs: Date.now(),
+  });
+}
+
 async function getUnderFiveSharedSource({ refresh = false } = {}) {
   const cache = await underFiveSharedCachePromise;
   if (!cache) throw new Error('under_five_shared_cache_unavailable');
   const source = refresh ? await cache.refreshNow() : (cache.getLatest() ?? await cache.refreshNow());
-  return bridgeCustomerZeroFreshRankings(source, readScannerRankings());
+  return bridgeCustomerZeroFreshRankings(source, readUnderFiveLiveRankings(source));
 }
 
 async function getPremarketSharedSource({ refresh = false, maxPrice = 1000 } = {}) {
@@ -1845,9 +1853,10 @@ app.get('/diagnostics/customer-scanner-freshness', async (_req, res) => {
   try {
     const cache = await underFiveSharedCachePromise;
     const cacheDiagnostics = cache?.getDiagnostics?.() ?? null;
+    const latestSource = cache?.getLatest?.() ?? null;
     res.json(buildCustomerScannerFreshnessDiagnostic({
       cacheDiagnostics,
-      rankingRoot: readScannerRankings(),
+      rankingRoot: readUnderFiveLiveRankings(latestSource),
       streamTelemetry: getStreamTelemetry(),
     }));
   } catch (err) {
