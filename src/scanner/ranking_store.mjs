@@ -6733,15 +6733,57 @@ export function readScannerRankings(opts = {}) {
   const health = computeScannerHealth(latestRows, freshness, opts);
   const consensus = computeConsensusIntelligence(latestRows, opts);
   const adaptive = computeAdaptiveIntelligence(latestRows, health, consensus, opts);
-  const temporal = computeTemporalIntelligence(
-    latestRows,
-    latestFile,
-    adaptive,
-    opts
-  );
+  const liveIntelligenceDefaults = {
+    temporalDirection: "stable",
+    scannerTrend: "stable",
+    consensusDelta: 0,
+    riskDelta: 0,
+    temporalIssues: [],
+    regimePersistenceScore: 1,
+    consensusStability: 1,
+    trendPersistence: 1,
+    regimeFlipRisk: 0,
+    volatilityExpansionRisk: 0,
+    persistenceIssues: [],
+    momentumDecayRisk: 0,
+    consensusMomentum: 0,
+    regimeTransitionProbability: 0,
+    signalExhaustionRisk: 0,
+    predictiveRiskBias: "low",
+    predictiveIssues: [],
+  };
 
-  const persistence = computePersistenceIntelligence(latestFile, opts);
-  const predictive = computePredictiveIntelligence(latestFile, opts);
+  const temporal = latestFile
+    ? computeTemporalIntelligence(latestRows, latestFile, adaptive, opts)
+    : {
+        temporalDirection: liveIntelligenceDefaults.temporalDirection,
+        scannerTrend: liveIntelligenceDefaults.scannerTrend,
+        consensusDelta: liveIntelligenceDefaults.consensusDelta,
+        riskDelta: liveIntelligenceDefaults.riskDelta,
+        temporalIssues: liveIntelligenceDefaults.temporalIssues,
+      };
+
+  const persistence = latestFile
+    ? computePersistenceIntelligence(latestFile, opts)
+    : {
+        regimePersistenceScore: liveIntelligenceDefaults.regimePersistenceScore,
+        consensusStability: liveIntelligenceDefaults.consensusStability,
+        trendPersistence: liveIntelligenceDefaults.trendPersistence,
+        regimeFlipRisk: liveIntelligenceDefaults.regimeFlipRisk,
+        volatilityExpansionRisk: liveIntelligenceDefaults.volatilityExpansionRisk,
+        persistenceIssues: liveIntelligenceDefaults.persistenceIssues,
+      };
+
+  const predictive = latestFile
+    ? computePredictiveIntelligence(latestFile, opts)
+    : {
+        momentumDecayRisk: liveIntelligenceDefaults.momentumDecayRisk,
+        consensusMomentum: liveIntelligenceDefaults.consensusMomentum,
+        regimeTransitionProbability: liveIntelligenceDefaults.regimeTransitionProbability,
+        signalExhaustionRisk: liveIntelligenceDefaults.signalExhaustionRisk,
+        predictiveRiskBias: liveIntelligenceDefaults.predictiveRiskBias,
+        predictiveIssues: liveIntelligenceDefaults.predictiveIssues,
+      };
 
   const combinedIssues = [
     ...health.issues,

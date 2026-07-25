@@ -6,6 +6,33 @@ import test from "node:test";
 
 import { readScannerRankings } from "../../src/scanner/ranking_store.mjs";
 
+test("readScannerRankings supports live rows without a dryrun path", () => {
+  const nowMs = Date.parse("2026-07-24T19:00:00.000Z");
+  const result = readScannerRankings({
+    nowMs,
+    rows: [{
+      symbol: "LIVE",
+      ts: "2026-07-24T18:59:50.000Z",
+      sourceTs: "2026-07-24T18:59:50.000Z",
+      sourceStale: false,
+      readonlyPotentialScore: 75,
+      compositeConfidence: 0.8,
+      action: "watch",
+    }],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.source, null);
+  assert.equal(result.count, 1);
+  assert.equal(result.rankings[0].symbol, "LIVE");
+  assert.equal(result.temporalDirection, "stable");
+  assert.deepEqual(result.temporalIssues, []);
+  assert.equal(result.regimePersistenceScore, 1);
+  assert.deepEqual(result.persistenceIssues, []);
+  assert.equal(result.predictiveRiskBias, "low");
+  assert.deepEqual(result.predictiveIssues, []);
+});
+
 test("readScannerRankings reads latest dryrun file and ranks latest row per symbol", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-"));
 
