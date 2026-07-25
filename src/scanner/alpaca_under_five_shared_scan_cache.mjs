@@ -13,6 +13,22 @@ export function msUntilNextBoundary(nowMs = Date.now(), intervalSec = 30) {
   return remainder === 0 ? intervalMs : intervalMs - remainder;
 }
 
+export function resolveNextWakeDelayMs({
+  nowMs = Date.now(),
+  marketClock = {},
+} = {}) {
+  if (marketClock?.isOpen === true) {
+    return msUntilNextBoundary(nowMs, intervalSecForMarket(true));
+  }
+
+  const nextOpenMs = Date.parse(marketClock?.nextOpen ?? "");
+  if (Number.isFinite(nextOpenMs) && nextOpenMs > Number(nowMs)) {
+    return nextOpenMs - Number(nowMs);
+  }
+
+  return msUntilNextBoundary(nowMs, intervalSecForMarket(false));
+}
+
 export function createAlpacaUnderFiveSharedScanCache({
   fetchScan = fetchAlpacaUnderFiveUniverseReadonly,
   fetchMarketClock = fetchAlpacaMarketClockReadonly,
@@ -28,6 +44,7 @@ export function createAlpacaUnderFiveSharedScanCache({
   let inFlight = null;
   let scanCount = 0;
   let lastError = null;
+  let nextWakeAt = null;
 
   const diagnostics = () => ({
     version: VERSION,
@@ -37,6 +54,9 @@ export function createAlpacaUnderFiveSharedScanCache({
     latest,
     hasSnapshot: latest !== null,
     lastClockCheckedAt: latest?.sharedCache?.clockCheckedAt ?? null,
+    nextWakeAt,
+    timerScheduled: timer !== null,
+    inFlight: inFlight !== null,
     readOnly: true,
     sharedAcrossRequests: true,
     orderPlacementAllowed: false,
@@ -125,10 +145,16 @@ export function createAlpacaUnderFiveSharedScanCache({
   const scheduleNext = () => {
     if (!running) return;
 
-    const intervalSec = intervalSecForMarket(latest?.marketClock?.isOpen === true);
-    const delayMs = msUntilNextBoundary(now(), intervalSec);
+    const nowMs = now();
+    const delayMs = resolveNextWakeDelayMs({
+      nowMs,
+      marketClock: latest?.marketClock ?? {},
+    });
+    nextWakeAt = new Date(nowMs + delayMs).toISOString();
 
     timer = setTimeoutImpl(async () => {
+      timer = null;
+      nextWakeAt = null;
       try {
         await runScheduledTick();
       } catch (error) {
@@ -163,6 +189,7 @@ export function createAlpacaUnderFiveSharedScanCache({
       clearTimeoutImpl(timer);
       timer = null;
     }
+    nextWakeAt = null;
     return diagnostics();
   };
 

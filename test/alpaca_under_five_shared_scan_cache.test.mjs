@@ -5,6 +5,7 @@ import {
   createAlpacaUnderFiveSharedScanCache,
   intervalSecForMarket,
   msUntilNextBoundary,
+  resolveNextWakeDelayMs,
 } from "../src/scanner/alpaca_under_five_shared_scan_cache.mjs";
 
 test("calculates exact shared scan boundaries and market cadence", () => {
@@ -13,6 +14,17 @@ test("calculates exact shared scan boundaries and market cadence", () => {
   assert.equal(msUntilNextBoundary(12_000, 15), 3_000);
   assert.equal(msUntilNextBoundary(300_000, 300), 300_000);
   assert.equal(msUntilNextBoundary(301_250, 300), 298_750);
+  assert.equal(resolveNextWakeDelayMs({
+    nowMs: Date.parse("2026-07-25T07:50:00.000Z"),
+    marketClock: {
+      isOpen: false,
+      nextOpen: "2026-07-27T09:30:00-04:00",
+    },
+  }), 193_200_000);
+  assert.equal(resolveNextWakeDelayMs({
+    nowMs: 301_250,
+    marketClock: { isOpen: false },
+  }), 298_750);
 });
 
 test("shares one cached scan result across repeated readers", async () => {
@@ -104,9 +116,14 @@ test("starts without a full scan and schedules the next closed-market boundary",
   assert.equal(scanCalls, 0);
   assert.equal(scheduled.length, 1);
   assert.equal(scheduled[0].delayMs, 298_750);
+  assert.equal(cache.getDiagnostics().timerScheduled, true);
+  assert.equal(cache.getDiagnostics().inFlight, false);
+  assert.equal(cache.getDiagnostics().nextWakeAt, new Date(600_000).toISOString());
 
   cache.stop();
   assert.equal(cache.getDiagnostics().running, false);
+  assert.equal(cache.getDiagnostics().timerScheduled, false);
+  assert.equal(cache.getDiagnostics().nextWakeAt, null);
 });
 
 test("scheduler keeps running after a refresh failure", async () => {
@@ -220,6 +237,38 @@ test("audit hook failures do not fail or stop completed scans", async () => {
   assert.equal(cache.getDiagnostics().lastError, null);
 });
 
+test("closed market schedules one wake at Alpaca next open instead of five-minute polling", async () => {
+  const scheduled = [];
+  const nowMs = Date.parse("2026-07-25T07:50:00.000Z");
+  const nextOpen = "2026-07-27T09:30:00-04:00";
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => nowMs,
+    setTimeoutImpl(fn, delayMs) {
+      scheduled.push({ fn, delayMs });
+      return scheduled.length;
+    },
+    clearTimeoutImpl() {},
+    fetchMarketClock: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      marketClock: { isOpen: false, nextOpen },
+    }),
+    fetchScan: async () => {
+      throw new Error("full scan must not run before next open");
+    },
+  });
+
+  await cache.start();
+
+  const diagnostics = cache.getDiagnostics();
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].delayMs, 193_200_000);
+  assert.equal(diagnostics.nextWakeAt, "2026-07-27T13:30:00.000Z");
+  assert.equal(diagnostics.timerScheduled, true);
+  assert.equal(diagnostics.inFlight, false);
+  cache.stop();
+});
+
 test("defers the full universe scan at startup while the market is closed", async () => {
   const scheduled = [];
   let scanCalls = 0;
@@ -238,7 +287,6 @@ test("defers the full universe scan at startup while the market is closed", asyn
         status: "connected_readonly",
         marketClock: {
           isOpen: false,
-          nextOpen: "2026-07-21T09:30:00-04:00",
         },
       };
     },
