@@ -226,8 +226,25 @@ export function renderCustomerUnderFiveDashboardHtml(dashboard = {}, account = n
     : 30;
   const marketOpen = dashboard?.marketClock?.isOpen === true;
   const marketLabel = marketOpen ? "MARKET OPEN" : "MARKET CLOSED";
+  const nextOpenTimestamp = Date.parse(String(dashboard?.marketClock?.nextOpen ?? ""));
+  const nextOpenLabel = Number.isFinite(nextOpenTimestamp)
+    ? new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      }).format(new Date(nextOpenTimestamp))
+    : "Unavailable";
+  const resultRows = Number(dashboard?.candidateCount ?? 0) > 0
+    ? rows
+    : marketOpen
+      ? '<section class="card scanner-empty-state"><b>No current matches.</b><p>No scanner decisions match the selected filters.</p></section>'
+      : `<section class="card scanner-empty-state closed-market-empty-state"><b>Market closed.</b><p>Live scanner results are paused until the next market open.</p><p><b>Next market open:</b> ${esc(nextOpenLabel)}</p></section>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return `<doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(dashboard.title)}</title>
 ${renderGlobalThemeCss({ surface: "customer" })}
 <style>
@@ -239,17 +256,19 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <section class="hero"><h1>${esc(dashboard.title)}</h1><p>${esc(dashboard.headline)}</p><p><b>Mode:</b> Decision assist / read-only</p></section>
 <section class="scan-status-bar" aria-label="Scanner timing and market status">
 <div class="scan-status-item ${marketOpen ? "market-open" : "market-closed"}" data-market-status>${marketLabel}</div>
-<div class="scan-status-item scan-countdown">NEXT SCAN IN <span data-scan-countdown>${esc(refreshSec)}</span>s</div>
+${marketOpen
+  ? `<div class="scan-status-item scan-countdown">NEXT SCAN IN <span data-scan-countdown>${esc(refreshSec)}</span>s</div>`
+  : `<div class="scan-status-item scan-countdown">SCANNER PAUSED<br><small>Next open: ${esc(nextOpenLabel)}</small></div>`}
 </section>
 <section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Price range:</b> ${esc(dashboard.priceRangeLabel ?? "$0–$10")}<br><b>Selected states:</b> ${esc((dashboard.selectedStateLabels ?? []).join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${esc(refreshSec)}s | <b>Market:</b> ${dashboard?.marketClock?.isOpen === true ? "Open" : "Closed"}</section>
 
 <section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(String(dashboard.paperAccount?.ledger?.finalDecision ?? "NO GO FOR ORDER PLACEMENT").replaceAll("_", " "))} | No broker contact or account mutation.</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
-${rows}
+${resultRows}
 <section class="card"><b>Customer safety:</b> Decision assist only. No order placement, broker contact, or account mutation controls.</section>
 </main>
 ${renderGlobalFooter()}
-<script src="/assets/customer-scanner-countdown.js" defer></script>
+${marketOpen ? '<script src="/assets/customer-scanner-countdown.js" defer></script>' : ""}
 </body></html>`;
 }
 

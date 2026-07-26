@@ -31,6 +31,20 @@ function refreshIntervalSec(source = {}) {
   return source?.marketIsOpen === true ? 15 : 30;
 }
 
+function formatNextMarketOpen(value) {
+  const timestamp = Date.parse(String(value ?? ""));
+  if (!Number.isFinite(timestamp)) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(timestamp));
+}
+
 export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
   const detailBaseHref = String(options.detailBaseHref ?? "/customer-zero/under-five-scanner").replace(/\/$/, "");
   const candidates = list(source.candidates).map((candidate) => ({
@@ -66,6 +80,8 @@ export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
     refreshIntervalSec: options.refreshIntervalSec,
     marketIsOpen: source?.marketClock?.isOpen === true,
   });
+  const marketClosed = source?.marketClock?.isOpen === false;
+  const nextOpenLabel = formatNextMarketOpen(source?.marketClock?.nextOpen);
 
   return {
     ok: source?.ok === true,
@@ -79,6 +95,8 @@ export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
     lastUpdatedAt: generatedAt,
     autoRefreshEnabled: options.autoRefreshEnabled !== false,
     refreshIntervalSec: refreshSec,
+    marketClosed,
+    nextOpenLabel,
     sourceVersion: source?.version ?? null,
     sourceStatus: source?.status ?? null,
     assetCount: Number(source?.assetCount ?? 0),
@@ -131,7 +149,7 @@ ${candidate.detailHref ? `<p><a class="detail-link" href="${esc(candidate.detail
 </article>`).join("") || "<p>No under-$5 candidates available.</p>";
 
   const refreshSec = refreshIntervalSec(card);
-  const autoRefresh = card.autoRefreshEnabled === true
+  const autoRefresh = card.autoRefreshEnabled === true && card.marketClosed !== true
     ? `<script data-readonly-auto-refresh="true">
 (() => {
   const totalSec = ${JSON.stringify(refreshSec)};
@@ -185,7 +203,7 @@ ${candidate.detailHref ? `<p><a class="detail-link" href="${esc(candidate.detail
 <style>
 body{font-family:system-ui;margin:0;background:#f5f5f5;color:#111;padding:14px}.wrap{max-width:760px;margin:auto}.hero,.card,.candidate{background:white;border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 8px 22px #0001}.hero{background:#111;color:white}.candidate h2{margin:0}.candidate-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.candidate-head h2{flex:1}small{font-size:11px;color:#777}.decision-popover{min-width:138px}.decision-popover summary{cursor:pointer;list-style:none;border-radius:999px;padding:10px 13px;font-weight:800;text-align:center}.decision-popover summary::-webkit-details-marker{display:none}.decision-popover p{margin:8px 0 0;padding:10px;border-radius:12px;background:#f4f6f8;font-size:.92rem}.decision-popover.enter summary{background:#dff7e7;color:#11652e}.decision-popover.wait summary{background:#fff2c8;color:#765800}.decision-popover.do-not-enter summary{background:#ffe0e0;color:#8a1111}.detail-link{display:block;text-align:center;padding:12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:800}@media(hover:hover){.decision-popover:not([open]):hover p{display:block}.decision-popover:not([open]) p{display:none}}
 </style></head><body><main class="wrap">
-<section class="hero"><h1>${esc(card.title)}</h1><p>${esc(card.displayState)}</p><p class="market-status"><b>Market status:</b> <span data-market-status>${card?.marketClock?.isOpen === true ? "Market open" : "Market closed"}</span></p><p class="refresh-countdown"><b>Next refresh in:</b> <span data-refresh-countdown>${esc(card.refreshIntervalSec)}</span> seconds</p></section>
+<section class="hero"><h1>${esc(card.title)}</h1><p>${card.marketClosed === true ? "Market closed. Live scanner results are paused until the next market open." : esc(card.displayState)}</p><p class="market-status"><b>Market status:</b> <span data-market-status>${card?.marketClock?.isOpen === true ? "Market open" : "Market closed"}</span></p>${card.marketClosed === true ? `<p class="next-market-open"><b>Next market open:</b> ${esc(card.nextOpenLabel ?? "Unavailable")}</p><p class="scanner-paused"><b>Scanner status:</b> Paused while the market is closed.</p>` : `<p class="refresh-countdown"><b>Next refresh in:</b> <span data-refresh-countdown>${esc(card.refreshIntervalSec)}</span> seconds</p>`}</section>
 <section class="card"><b>Last updated:</b> ${esc(card.lastUpdatedAt)} | <b>Refresh:</b> ${esc(card.refreshIntervalSec)}s<br><b>Assets:</b> ${esc(card.assetCount)} | <b>Snapshots:</b> ${esc(card.snapshotCount)} | <b>Candidates:</b> ${esc(card.candidateCount)}</section>
 ${rows}
 <section class="card"><b>No execution controls:</b> ${esc(card.noExecutionControls)}<br><b>Order submitted:</b> ${esc(card.orderSubmitted)}<br><b>Broker contact attempted:</b> ${esc(card.brokerContactAttempted)}<br><b>Account mutation attempted:</b> ${esc(card.accountMutationAttempted)}</section>
