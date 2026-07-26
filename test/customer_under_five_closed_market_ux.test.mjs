@@ -52,6 +52,24 @@ test("customer scanner emits a valid HTML doctype", () => {
   assert.doesNotMatch(html, /^<doctype html>/i);
 });
 
+test("closed customer scanner does not advertise a polling interval while paused", () => {
+  const html = renderCustomerUnderFiveDashboardHtml({
+    title: "Under $5 Scanner",
+    headline: "Read-only",
+    candidateCount: 0,
+    candidates: [],
+    refreshSec: 30,
+    marketClock: {
+      isOpen: false,
+      nextOpen: "2026-07-27T13:30:00.000Z",
+    },
+  });
+
+  assert.match(html, /<b>Refresh:<\/b> Paused until market open/);
+  assert.doesNotMatch(html, /<b>Refresh:<\/b> 30s/);
+  assert.match(html, /<b>Market:<\/b> Closed/);
+});
+
 test("closed customer scanner shows paused status and closed-market empty state", () => {
   const dashboard = buildCustomerUnderFiveDashboard(source, {
     maxPrice: 5,
