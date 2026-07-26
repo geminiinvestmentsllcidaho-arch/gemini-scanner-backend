@@ -84,3 +84,33 @@ test("closed customer scanner shows paused status and closed-market empty state"
   assert.doesNotMatch(html, /customer-scanner-countdown\.js/);
   assert.match(html, /No order placement, broker contact, or account mutation controls/);
 });
+
+test("closed market suppresses cached candidate cards and shows only paused-state results", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: {
+      isOpen: false,
+      nextOpen: "2026-07-27T13:30:00.000Z",
+    },
+    candidates: [{
+      symbol: "STALE",
+      price: 4.25,
+      decision: "WAIT",
+      sourceStale: true,
+      sourceAgeSec: 9999,
+      readonlyPotentialScore: 80,
+    }],
+  }, {
+    route: "/customer-zero/under-five-scanner",
+    maxPrice: 5,
+  });
+
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+
+  assert.equal(dashboard.candidateCount, 1);
+  assert.match(html, /Market closed\./);
+  assert.match(html, /Live scanner results are paused until the next market open\./);
+  assert.doesNotMatch(html, /class="decision-card/);
+  assert.doesNotMatch(html, />STALE</);
+});

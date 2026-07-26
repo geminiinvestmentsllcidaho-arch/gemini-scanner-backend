@@ -238,11 +238,11 @@ export function renderCustomerUnderFiveDashboardHtml(dashboard = {}, account = n
         timeZoneName: "short",
       }).format(new Date(nextOpenTimestamp))
     : "Unavailable";
-  const resultRows = Number(dashboard?.candidateCount ?? 0) > 0
-    ? rows
-    : marketOpen
-      ? '<section class="card scanner-empty-state"><b>No current matches.</b><p>No scanner decisions match the selected filters.</p></section>'
-      : `<section class="card scanner-empty-state closed-market-empty-state"><b>Market closed.</b><p>Live scanner results are paused until the next market open.</p><p><b>Next market open:</b> ${esc(nextOpenLabel)}</p></section>`;
+  const resultRows = !marketOpen
+    ? `<section class="card scanner-empty-state closed-market-empty-state"><b>Market closed.</b><p>Live scanner results are paused until the next market open.</p><p><b>Next market open:</b> ${esc(nextOpenLabel)}</p></section>`
+    : Number(dashboard?.candidateCount ?? 0) > 0
+      ? rows
+      : '<section class="card scanner-empty-state"><b>No current matches.</b><p>No scanner decisions match the selected filters.</p></section>';
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(dashboard.title)}</title>

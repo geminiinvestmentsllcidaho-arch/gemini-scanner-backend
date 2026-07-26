@@ -133,6 +133,7 @@ test("authenticated customer under-five route loads account result filters", () 
 test("customer dashboard renders compact operator decision cards", () => {
   const dashboard = buildCustomerUnderFiveDashboard({
     ...source,
+    marketClock: { isOpen: true },
     candidates: [{
       symbol: "FAST",
       name: "Fast Example",
@@ -167,6 +168,7 @@ test("customer dashboard renders compact operator decision cards", () => {
 test("customer decision card gives stale data blocking priority", () => {
   const dashboard = buildCustomerUnderFiveDashboard({
     ...source,
+    marketClock: { isOpen: true },
     candidates: [{
       symbol: "OLD",
       price: 2.5,
@@ -193,6 +195,7 @@ test("customer decision card gives stale data blocking priority", () => {
 test("customer dashboard renders read-only allocation controls and calculated preview", () => {
   const dashboard = buildCustomerUnderFiveDashboard({
     ...source,
+    marketClock: { isOpen: true },
     candidates: [{
       symbol: "SIZE",
       price: 4,
@@ -225,6 +228,7 @@ test("customer dashboard renders read-only allocation controls and calculated pr
 test("stale customer allocation preview stays blocked", () => {
   const dashboard = buildCustomerUnderFiveDashboard({
     ...source,
+    marketClock: { isOpen: true },
     candidates: [{
       symbol: "OLD",
       price: 2,
