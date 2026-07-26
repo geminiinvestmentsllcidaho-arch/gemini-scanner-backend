@@ -36,6 +36,22 @@ test("closed-market app card explains pause and disables page reload", () => {
   assert.doesNotMatch(html, /window\.location\.reload/);
 });
 
+test("customer scanner emits a valid HTML doctype", () => {
+  const html = renderCustomerUnderFiveDashboardHtml({
+    title: "Under $5 Scanner",
+    headline: "Read-only",
+    candidateCount: 0,
+    candidates: [],
+    marketClock: {
+      isOpen: false,
+      nextOpen: "2026-07-27T13:30:00.000Z",
+    },
+  });
+
+  assert.match(html, /^<!doctype html>/i);
+  assert.doesNotMatch(html, /^<doctype html>/i);
+});
+
 test("closed customer scanner shows paused status and closed-market empty state", () => {
   const dashboard = buildCustomerUnderFiveDashboard(source, {
     maxPrice: 5,
