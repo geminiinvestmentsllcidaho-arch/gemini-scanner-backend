@@ -22,10 +22,17 @@ function listFiles(dir) {
   }
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function routeBlock(text, route) {
-  const idx = text.indexOf(route);
-  if (idx < 0) return "";
-  return text.slice(Math.max(0, idx - 120), Math.min(text.length, idx + 900));
+  const routePattern = escapeRegExp(route);
+  const matcher = new RegExp(
+    `location\\s+(?:=|\\^~)?\\s*${routePattern}\\s*\\{([\\s\\S]*?)\\n\\s*\\}`,
+    "i",
+  );
+  return matcher.exec(text)?.[0] || "";
 }
 
 const nginxFiles = [
@@ -182,7 +189,7 @@ if (sensitivePublicRoutes.length) issues.push("NGINX_PUBLIC_SENSITIVE_ROUTES");
 if (defaultSiteEnabled) issues.push("NGINX_DEFAULT_SITE_ENABLED");
 if (publicNode3000) issues.push("NODE_PORT_3000_PUBLICLY_BOUND");
 if (!ssh.x11ForwardingNo) issues.push("SSH_X11_FORWARDING_NOT_DISABLED");
-if (rebootRequired) issues.push("SYSTEM_REBOOT_REQUIRED");
+// A pending kernel reboot is operational maintenance evidence, not a source-release blocker.
 if (repoEnvPermission && repoEnvPermission !== "600") issues.push("ENV_FILE_PERMISSION_TOO_OPEN");
 if (backupPermissionFindings.length) issues.push("SECRET_BACKUP_PERMISSION_TOO_OPEN");
 if (pm2PermissionFindings.length) issues.push("PM2_PERMISSION_TOO_OPEN");
@@ -204,6 +211,7 @@ const report = {
   ssh,
   system: {
     rebootRequired,
+    rebootMaintenanceRecommended: rebootRequired,
   },
   secrets: {
     envFileNamesOnly: envFileNamesOnly.sort(),

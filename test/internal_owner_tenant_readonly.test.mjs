@@ -21,6 +21,9 @@ test("internal owner tenant foundation is internal-only and read-only", () => {
   assert.equal(model.access.tenantIsolationImplemented, true);
   assert.equal(model.access.tenantIsolationPolicy, "internal_owner_single_tenant_request_scope_v1");
   assert.equal(model.access.multiTenantDataPartitioningImplemented, false);
+  assert.equal(model.access.multiTenantDataPartitioningPolicy, "customer_tenant_account_path_partition_v1");
+  assert.equal(model.access.existingCustomerStoresMigrated, false);
+  assert.equal(model.access.customerRuntimeStoreCutoverEnabled, false);
   assert.equal(model.credentials.storageMode, "encrypted_local_file_per_tenant");
   assert.equal(model.credentials.encryptedPerTenantStorageImplemented, false);
   assert.equal(model.credentials.encryptionPolicy, "aes_256_gcm_per_tenant_envelope_v1");
@@ -69,4 +72,23 @@ test("internal owner tenant foundation accepts safe credential store status", ()
   assert.equal(model.credentials.storePathLabel, "credentials.enc.json");
   assert.equal(model.credentials.migrationRequired, false);
   assert.equal(model.credentials.rawSecretsExposed, false);
+});
+
+
+test("internal owner tenant foundation reports customer path partitioning without migration or cutover", () => {
+  const model = buildInternalOwnerTenantReadonly({
+    dataPartitioningStatus: {
+      pathPartitioningImplemented: true,
+      policy: "customer_tenant_account_path_partition_v1",
+      existingStoresMigrated: false,
+      runtimeStoreCutoverEnabled: false,
+    },
+  });
+
+  assert.equal(model.access.multiTenantDataPartitioningImplemented, true);
+  assert.equal(model.access.multiTenantDataPartitioningPolicy, "customer_tenant_account_path_partition_v1");
+  assert.equal(model.access.existingCustomerStoresMigrated, false);
+  assert.equal(model.access.customerRuntimeStoreCutoverEnabled, false);
+  assert.equal(model.safety.readOnly, true);
+  assert.equal(model.safety.orderPlacementAllowed, false);
 });

@@ -9,6 +9,9 @@ export function buildInternalOwnerTenantReadonly(options = {}) {
   const credentialStoreStatus = options.credentialStoreStatus && typeof options.credentialStoreStatus === "object"
     ? options.credentialStoreStatus
     : {};
+  const dataPartitioningStatus = options.dataPartitioningStatus && typeof options.dataPartitioningStatus === "object"
+    ? options.dataPartitioningStatus
+    : {};
 
   return {
     ok: true,
@@ -40,7 +43,14 @@ export function buildInternalOwnerTenantReadonly(options = {}) {
       authorizationPolicy: "internal_owner_exact_tenant_role_v1",
       tenantIsolationImplemented: true,
       tenantIsolationPolicy: "internal_owner_single_tenant_request_scope_v1",
-      multiTenantDataPartitioningImplemented: false,
+      multiTenantDataPartitioningImplemented:
+        dataPartitioningStatus.pathPartitioningImplemented === true,
+      multiTenantDataPartitioningPolicy:
+        clean(dataPartitioningStatus.policy, "customer_tenant_account_path_partition_v1"),
+      existingCustomerStoresMigrated:
+        dataPartitioningStatus.existingStoresMigrated === true,
+      customerRuntimeStoreCutoverEnabled:
+        dataPartitioningStatus.runtimeStoreCutoverEnabled === true,
     },
     credentials: {
       storageMode: clean(credentialStoreStatus.storageMode, "encrypted_local_file_per_tenant"),

@@ -19,6 +19,9 @@ test("builds internal owner tenant bootstrap app screen safely", () => {
   assert.equal(screen.access.tenantIsolationImplemented, true);
   assert.equal(screen.access.tenantIsolationPolicy, "internal_owner_single_tenant_request_scope_v1");
   assert.equal(screen.access.multiTenantDataPartitioningImplemented, false);
+  assert.equal(screen.access.multiTenantDataPartitioningPolicy, "customer_tenant_account_path_partition_v1");
+  assert.equal(screen.access.existingCustomerStoresMigrated, false);
+  assert.equal(screen.access.customerRuntimeStoreCutoverEnabled, false);
   assert.equal(screen.credentials.encryptedPerTenantStorageImplemented, false);
   assert.equal(screen.credentials.encryptionPolicy, "aes_256_gcm_per_tenant_envelope_v1");
   assert.equal(screen.credentials.keyConfigured, false);
@@ -33,6 +36,10 @@ test("renders owner screen without mutation controls", () => {
   const html = renderInternalOwnerTenantAppScreenHtml();
   assert.match(html, /Internal Owner Account/);
   assert.match(html, /protected by the existing operator token/);
+  assert.match(html, /Existing customer stores are not migrated/);
+  assert.match(html, /Data partitioning policy:<\/b> customer_tenant_account_path_partition_v1/);
+  assert.match(html, /Existing customer stores migrated:<\/b> no/);
+  assert.match(html, /Runtime store cutover enabled:<\/b> no/);
   assert.match(html, /Authentication implemented:<\/b> yes/);
   assert.match(html, /Authentication mode:<\/b> shared_operator_token/);
   assert.match(html, /Route protection implemented:<\/b> yes/);
