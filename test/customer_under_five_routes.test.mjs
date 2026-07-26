@@ -556,3 +556,47 @@ test("customer scanner run route excludes automatic premarket from manual modes"
   assert.match(server, /alpaca_premarket_shared_scan_cache\.mjs/);
   assert.match(server, /scanner: 'alpaca_premarket_shared_readonly'/);
 });
+
+test("all customer scanner result routes share closed-market card suppression rendering", () => {
+  const server = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const routePairs = [
+    ["app.post('/customer/scanner/run'", "app.get('/customer/watchlist'"],
+    ["app.get('/customer/scanner/under-five'", "async function renderCustomerZeroPortfolioHub"],
+    ["app.get('/customer-zero/under-five-scanner'", "app.get('/diagnostics/alpaca-paper-account-dashboard'"],
+  ];
+
+  for (const [startMarker, endMarker] of routePairs) {
+    const start = server.indexOf(startMarker);
+    const end = server.indexOf(endMarker, start);
+    assert.notEqual(start, -1, `missing route marker: ${startMarker}`);
+    assert.notEqual(end, -1, `missing route end marker: ${endMarker}`);
+    const routeBlock = server.slice(start, end);
+    assert.match(routeBlock, /getUnderFiveSharedSource/);
+    assert.match(routeBlock, /buildCustomer(?:Zero)?UnderFiveDashboard/);
+    assert.match(routeBlock, /renderCustomer(?:Zero)?UnderFiveDashboardHtml/);
+  }
+
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: {
+      isOpen: false,
+      nextOpen: "2026-07-27T13:30:00.000Z",
+    },
+    candidates: [{
+      symbol: "CACHED",
+      price: 4.5,
+      decision: "WAIT",
+      sourceStale: true,
+      sourceAgeSec: 9000,
+    }],
+  });
+
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.equal(dashboard.candidateCount, 1);
+  assert.match(html, /MARKET CLOSED/);
+  assert.match(html, /SCANNER PAUSED/);
+  assert.doesNotMatch(html, /class="decision-card/);
+  assert.doesNotMatch(html, />CACHED</);
+  assert.doesNotMatch(html, /customer-scanner-countdown\.js/);
+});
