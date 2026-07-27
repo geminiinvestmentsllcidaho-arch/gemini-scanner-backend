@@ -272,7 +272,7 @@ ${premarketMultiscanPanel}
     : `<section class="card premarket-auto-panel premarket-unavailable"><div class="eyebrow">Automatic premarket scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
 
   const postMarket = hub.postMarketAutoStatus;
-  const postMarketState = postMarket?.schedulerState ?? postMarket?.lastStatus ?? "unavailable";
+  const postMarketState = postMarket?.schedulerState ?? postMarket?.lastPlan?.schedulerState ?? postMarket?.lastStatus ?? "unavailable";
   const postMarketLastResult = postMarket?.lastResult ?? null;
   const postMarketPanel = postMarket
     ? `<section class="card postmarket-auto-panel postmarket-${esc(postMarketState)}">

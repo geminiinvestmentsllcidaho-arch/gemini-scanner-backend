@@ -88,6 +88,33 @@ test("post-market next activation uses the authoritative schedule contract acros
   }
 });
 
+
+test("post-market customer status uses the authoritative nested scheduler state", () => {
+  const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    route: "/customer/scanner",
+    postMarketAutoStatus: {
+      enabled: true,
+      running: true,
+      timerScheduled: true,
+      lastStatus: "scheduled",
+      lastPlan: {
+        schedulerState: "weekend_sleep",
+        nextCycleAt: "2026-07-20T20:15:00.000Z",
+      },
+    },
+  }));
+
+  assert.match(html, /WEEKEND SLEEP/);
+  assert.doesNotMatch(
+    html,
+    /<strong>SCHEDULED<\/strong>/,
+  );
+  assert.doesNotMatch(
+    html,
+    /<span>Next activation<\/span><b>Unavailable<\/b>/,
+  );
+});
+
 test("post-market next activation preserves legacy wake timestamp compatibility", () => {
   const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
     route: "/customer/scanner",
