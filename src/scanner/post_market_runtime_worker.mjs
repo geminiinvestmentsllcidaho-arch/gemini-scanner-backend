@@ -187,6 +187,8 @@ export function createPostMarketRuntimeWorker({
       lastCompletedAt,
       lastStatus,
       lastErrorCode,
+      schedulerState: lastPlan?.schedulerState ?? lastStatus,
+      nextWakeAt: lastPlan?.nextCycleAt ?? null,
       lastPlan,
       lastResult,
       previousFingerprint,

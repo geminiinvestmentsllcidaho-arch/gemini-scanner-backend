@@ -49,6 +49,40 @@ test("starts automatically and runs one scheduled read-only cycle", async () => 
   assert.equal(scheduledMs, 899000);
 });
 
+
+test("exposes top-level customer runtime aliases from the authoritative schedule plan", async () => {
+  const scheduled = [];
+  const nextCycleAt = "2026-07-20T20:15:00.000Z";
+  const worker = createPostMarketRuntimeWorker({
+    enabled: true,
+    now: () => new Date("2026-07-19T20:00:00.000Z"),
+    setTimeoutImpl: (fn, delay) => {
+      scheduled.push({ fn, delay });
+      return { fn, delay };
+    },
+    clearTimeoutImpl: () => {},
+    planSchedule: async () => ({
+      shouldRunNow: false,
+      schedulerState: "weekend_sleep",
+      nextCycleAt,
+    }),
+    runCycle: async () => {
+      throw new Error("cycle should not run");
+    },
+  });
+
+  await worker.tick();
+  const status = worker.getStatus();
+
+  assert.equal(status.schedulerState, "weekend_sleep");
+  assert.equal(status.nextWakeAt, nextCycleAt);
+  assert.equal(status.lastPlan.schedulerState, "weekend_sleep");
+  assert.equal(status.lastPlan.nextCycleAt, nextCycleAt);
+  assert.equal(status.readOnly, true);
+  assert.equal(status.orderPlacementAllowed, false);
+  assert.equal(scheduled.length, 0);
+});
+
 test("sleeps until the next relevant window when no cycle is due", async () => {
   let cycleCalls = 0;
   let scheduledMs = null;
