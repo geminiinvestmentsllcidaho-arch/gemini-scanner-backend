@@ -65,6 +65,14 @@ export function buildAlpacaUnderFiveUniverseAppCard(source = {}, options = {}) {
     decision: candidate?.decision ?? "DO_NOT_ENTER",
     briefExplanation: candidate?.briefExplanation ?? "Do not enter: decision data is unavailable.",
     blockingFlags: list(candidate?.blockingFlags),
+    decisionReviewAllowed: candidate?.decisionReviewAllowed === true,
+    resultState: candidate?.resultState ?? null,
+    rankingConnected: candidate?.rankingConnected === true,
+    rankingRank: finite(candidate?.rankingRank),
+    rankingSetupScore: finite(candidate?.rankingSetupScore),
+    rankingConfidence: finite(candidate?.rankingConfidence),
+    rankingQuality: finite(candidate?.rankingQuality),
+    rankingReasons: list(candidate?.rankingReasons),
     detailHref: candidate?.symbol
       ? `${detailBaseHref}/${encodeURIComponent(String(candidate.symbol).toUpperCase())}`
       : null,

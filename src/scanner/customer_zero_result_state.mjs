@@ -76,6 +76,7 @@ export function normalizeCustomerZeroResultState(source = {}) {
     values.includes("REVIEW_SETUP");
 
   const permissionApproved =
+    source.decisionReviewAllowed === true ||
     source.tradeAllowed === true ||
     source.orderPlacementAllowed === true ||
     text(source.permission) === "APPROVED" ||

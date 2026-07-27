@@ -481,6 +481,29 @@ test("customer result cards use compact dark metric cells with readable text", (
 });
 
 
+test("production-style under-five ENTER decision survives dashboard normalization without execution permission", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    ok: true,
+    status: "connected_readonly",
+    marketClock: { isOpen: true },
+    candidates: [{
+      symbol: "READY",
+      price: 4.25,
+      decision: "ENTER",
+      decisionReviewAllowed: true,
+      readonlyPotentialScore: 88,
+      sourceStale: false,
+    }],
+  }, {
+    route: "/customer/scanner/under-five",
+    maxPrice: 5,
+  });
+
+  assert.equal(dashboard.candidates[0].resultState, "ENTER");
+  assert.equal(dashboard.candidates[0].decisionReviewAllowed, true);
+  assert.equal(dashboard.candidates[0].orderPlacementAllowed, false);
+});
+
 test("customer scanner prioritizes ENTER results and hides unowned EXIT results", () => {
   const dashboard = buildCustomerUnderFiveDashboard({
     sourceStatus: "connected_readonly",

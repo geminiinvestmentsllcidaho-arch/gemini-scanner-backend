@@ -59,6 +59,19 @@ test("requires explicit approval before producing ENTER", () => {
   assert.equal(result.liveOrderPlacementAllowed, false);
 });
 
+test("allows explicit read-only decision review permission to surface ENTER without execution", () => {
+  const result = normalizeCustomerZeroResultState({
+    decision: "ENTER",
+    decisionReviewAllowed: true,
+    orderPlacementAllowed: false,
+  });
+  assert.equal(result.state, "ENTER");
+  assert.equal(result.tradePermission, "review_allowed");
+  assert.equal(result.orderPlacementAllowed, false);
+  assert.equal(result.paperOrderPlacementAllowed, false);
+  assert.equal(result.liveOrderPlacementAllowed, false);
+});
+
 test("defaults unknown outcomes to NO_SETUP", () => {
   assert.equal(normalizeCustomerZeroResultState({ decision: "mystery_state" }).state, "NO_SETUP");
 });

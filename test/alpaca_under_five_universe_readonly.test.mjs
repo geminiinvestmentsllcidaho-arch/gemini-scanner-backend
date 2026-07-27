@@ -394,6 +394,7 @@ test("adds explicit enter wait and do-not-enter decisions with explanations", as
 
   const bySymbol = Object.fromEntries(result.candidates.map((item) => [item.symbol, item]));
   assert.equal(bySymbol.ENTER.decision, "ENTER");
+  assert.equal(bySymbol.ENTER.decisionReviewAllowed, true);
   assert.match(bySymbol.ENTER.briefExplanation, /Strong score/);
   assert.equal(bySymbol.BLOCK.decision, "DO_NOT_ENTER");
   assert.ok(bySymbol.BLOCK.blockingFlags.includes("wide_spread"));

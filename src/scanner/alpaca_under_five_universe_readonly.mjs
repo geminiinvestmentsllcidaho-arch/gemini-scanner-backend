@@ -128,6 +128,7 @@ function readonlyPotential(candidate = {}) {
     decision,
     briefExplanation,
     blockingFlags,
+    decisionReviewAllowed: decision === "ENTER",
     decisionAssistOnly: true,
     buyRecommendation: false,
   };
