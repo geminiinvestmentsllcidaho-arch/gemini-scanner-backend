@@ -282,7 +282,7 @@ ${premarketMultiscanPanel}
 </div>
 <div class="postmarket-auto-grid">
 <div><span>Schedule</span><b>${postMarket.timerScheduled ? "Automatic timer active" : "Timer unavailable"}</b></div>
-<div><span>Next activation</span><b>${esc(formatCustomerDateTime(postMarket.nextWakeAt ?? postMarket.lastPlan?.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
+<div><span>Next activation</span><b>${esc(formatCustomerDateTime(postMarket.nextWakeAt ?? postMarket.lastPlan?.nextCycleAt ?? postMarket.lastPlan?.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
 <div><span>Completed cycles</span><b>${esc(postMarket.runCount ?? 0)}</b></div>
 <div><span>Skipped cycles</span><b>${esc(postMarket.skippedCount ?? 0)}</b></div>
 <div><span>Last cycle</span><b>${esc(formatCustomerDateTime(postMarket.lastCompletedAt, account, { fallback: "Not run yet" }))}</b></div>
