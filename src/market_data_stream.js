@@ -115,20 +115,28 @@ async function backfillBars({ symbol, limit = 200 }) {
   return bars.length;
 }
 
-export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
+export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} } = {}) {
+  const WebSocketImpl = runtime.WebSocketImpl || WebSocket;
+  const nowFn = runtime.nowFn || Date.now;
+  const setTimeoutFn = runtime.setTimeoutFn || setTimeout;
+  const clearTimeoutFn = runtime.clearTimeoutFn || clearTimeout;
+  const setIntervalFn = runtime.setIntervalFn || setInterval;
+  const clearIntervalFn = runtime.clearIntervalFn || clearInterval;
   const envSymbols = parseSymbolsEnv(process.env.ALPACA_SYMBOLS);
   if (envSymbols) symbols = envSymbols;
 
-  const open = await isMarketOpen();
+  const open = runtime.skipInitialFetches ? false : await isMarketOpen();
 
-  try {
-    for (const s of symbols) {
-      const backfillLimit = Number(process.env.ALPACA_BACKFILL_LIMIT || 3000);
-      const n = await backfillBars({ symbol: s, limit: backfillLimit });
-      console.log('[md] backfilled bars', { symbol: s, count: n, marketOpen: open });
+  if (!runtime.skipInitialFetches) {
+    try {
+      for (const s of symbols) {
+        const backfillLimit = Number(process.env.ALPACA_BACKFILL_LIMIT || 3000);
+        const n = await backfillBars({ symbol: s, limit: backfillLimit });
+        console.log('[md] backfilled bars', { symbol: s, count: n, marketOpen: open });
+      }
+    } catch (e) {
+      console.log('[md] backfill error', String(e?.message || e), { marketOpen: open });
     }
-  } catch (e) {
-    console.log('[md] backfill error', String(e?.message || e), { marketOpen: open });
   }
 
   let ws = null;
@@ -158,7 +166,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
     console.log('[md] reconnect scheduled', { attempt, delay });
 
-    reconnectTimer = setTimeout(() => {
+    reconnectTimer = setTimeoutFn(() => {
       reconnectTimer = null;
       connect();
     }, delay);
@@ -166,11 +174,11 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
   function connect() {
     if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
+      clearTimeoutFn(reconnectTimer);
       reconnectTimer = null;
     }
 
-    ws = new WebSocket(WS_URL);
+    ws = new WebSocketImpl(WS_URL);
 
     ws.on('open', () => {
       console.log('[md] ws open', WS_URL);
@@ -178,7 +186,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
       resetReconnectAttempts();
 
       // Start watchdog clock at connect time so "no data after connect" is detectable
-      lastRxTsMs = Date.now();
+      lastRxTsMs = nowFn();
 
       ws.send(JSON.stringify({ action: 'auth', key: KEY, secret: SECRET }));
     });
@@ -201,7 +209,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
         if (m.T === 'q' && m.S) {
           const ts = Date.parse(m.t);
-          lastRxTsMs = Number.isFinite(ts) ? ts : Date.now();
+          lastRxTsMs = Number.isFinite(ts) ? ts : nowFn();
           markStreamEvent(ts);
 
           updateQuote(m.S, { t: m.t, bp: m.bp, bs: m.bs, ap: m.ap, as: m.as });
@@ -210,7 +218,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
 
         if (m.T === 'b' && m.S) {
           const ts = Date.parse(m.t);
-          lastRxTsMs = Number.isFinite(ts) ? ts : Date.now();
+          lastRxTsMs = Number.isFinite(ts) ? ts : nowFn();
           markStreamEvent(ts);
 
           updateBar(m.S, { t: m.t, o: m.o, h: m.h, l: m.l, c: m.c, v: m.v, vw: m.vw });
@@ -236,11 +244,11 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
   connect();
 
   // Stale watchdog: if socket is OPEN but no rx for threshold, force reconnect.
-  watchdogTimer = setInterval(() => {
+  watchdogTimer = setIntervalFn(() => {
     if (closedManually) return;
     if (!ws) return;
     if (ws.readyState !== WebSocket.OPEN) return;
-    const nowMs = Date.now();
+    const nowMs = nowFn();
     if (!shouldReconnectStaleStream({ nowMs, lastRxTsMs, staleThresholdSec })) return;
 
     const ageSec = Math.floor((nowMs - lastRxTsMs) / 1000);
@@ -260,8 +268,8 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
     open,
     stop() {
       closedManually = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (watchdogTimer) clearInterval(watchdogTimer);
+      if (reconnectTimer) clearTimeoutFn(reconnectTimer);
+      if (watchdogTimer) clearIntervalFn(watchdogTimer);
       if (ws) ws.close();
     },
   };
