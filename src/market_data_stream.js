@@ -10,6 +10,7 @@ import {
   incrementReconnectAttempts,
   resetReconnectAttempts,
   incrementWatchdogTriggers,
+  markStreamMarketSession,
 } from './utils/stream_telemetry.js';
 
 const KEY = process.env.ALPACA_KEY;
@@ -129,6 +130,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
   if (envSymbols) symbols = envSymbols;
 
   let marketOpen = runtime.skipInitialFetches ? false : await marketOpenFn();
+  markStreamMarketSession(marketOpen, { nowMs: nowFn() });
   const marketClockEveryMs = Number(runtime.marketClockEveryMs || 60_000);
 
   if (!runtime.skipInitialFetches) {
@@ -253,6 +255,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
       if (closedManually) return;
       try {
         marketOpen = await marketOpenFn();
+        markStreamMarketSession(marketOpen, { nowMs: nowFn() });
       } catch (error) {
         console.log('[md] market clock refresh error', String(error?.message || error));
       }

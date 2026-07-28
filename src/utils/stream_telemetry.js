@@ -11,6 +11,8 @@ const telemetry = {
   reconnectCountTotal: 0,
   watchdogTriggerCount: 0,
   lastReconnectTs: null,
+  marketOpen: null,
+  marketClockUpdatedAtMs: null,
 
   uptimeAccumMs: 0,
   lastConnectedAtMs: null,
@@ -57,6 +59,11 @@ export function incrementWatchdogTriggers() {
   telemetry.watchdogTriggerCount += 1;
 }
 
+export function markStreamMarketSession(isOpen, { nowMs = Date.now() } = {}) {
+  telemetry.marketOpen = typeof isOpen === 'boolean' ? isOpen : null;
+  telemetry.marketClockUpdatedAtMs = Number.isFinite(nowMs) ? nowMs : Date.now();
+}
+
 export function getStreamTelemetry({ nowMs = Date.now() } = {}) {
   const staleThresholdSec = Number(process.env.STREAM_STALE_THRESHOLD_SEC || 30); // default 30s
 
@@ -66,6 +73,7 @@ export function getStreamTelemetry({ nowMs = Date.now() } = {}) {
       : null;
 
   const streamStale =
+    telemetry.marketOpen !== false &&
     telemetry.streamConnected &&
     lastEventAgeSec !== null &&
     Number.isFinite(staleThresholdSec) &&
@@ -91,5 +99,7 @@ export function getStreamTelemetry({ nowMs = Date.now() } = {}) {
     watchdogTriggerCount: telemetry.watchdogTriggerCount,
     streamUptimeMs,
     lastReconnectTs: telemetry.lastReconnectTs,
+    marketOpen: telemetry.marketOpen,
+    marketClockUpdatedAtMs: telemetry.marketClockUpdatedAtMs,
   };
 }
