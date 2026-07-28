@@ -40,8 +40,23 @@ export function shouldEnforceStreamFreshness(nowMs = Date.now()) {
   }).formatToParts(new Date(nowMs));
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   if (values.weekday === 'Sat' || values.weekday === 'Sun') return false;
+
+  // Quote/bar inactivity is only actionable during the regular US equity session.
+  // Outside 09:30-16:00 ET, an authenticated and subscribed Alpaca socket may
+  // legitimately remain quiet. Real close/error events still reconnect normally.
   const minutes = (Number(values.hour) * 60) + Number(values.minute);
-  return minutes >= 240 && minutes < 1200;
+  return minutes >= 570 && minutes < 960;
+}
+
+export function shouldReconnectStaleStream({
+  nowMs = Date.now(),
+  lastRxTsMs,
+  staleThresholdSec,
+} = {}) {
+  if (!shouldEnforceStreamFreshness(nowMs)) return false;
+  if (!Number.isFinite(lastRxTsMs)) return false;
+  if (!Number.isFinite(staleThresholdSec) || staleThresholdSec < 0) return false;
+  return Math.floor((nowMs - lastRxTsMs) / 1000) > staleThresholdSec;
 }
 
 async function isMarketOpen() {
@@ -225,20 +240,17 @@ export async function startMarketDataStream({ symbols = ['AAPL'] } = {}) {
     if (closedManually) return;
     if (!ws) return;
     if (ws.readyState !== WebSocket.OPEN) return;
-    if (!Number.isFinite(lastRxTsMs)) return;
-    if (!Number.isFinite(staleThresholdSec)) return;
-    if (!shouldEnforceStreamFreshness(Date.now())) return;
+    const nowMs = Date.now();
+    if (!shouldReconnectStaleStream({ nowMs, lastRxTsMs, staleThresholdSec })) return;
 
-    const ageSec = Math.floor((Date.now() - lastRxTsMs) / 1000);
-    if (ageSec > staleThresholdSec) {
-      incrementWatchdogTriggers();
+    const ageSec = Math.floor((nowMs - lastRxTsMs) / 1000);
+    incrementWatchdogTriggers();
 
-      console.log('[md] watchdog stale -> reconnect', { ageSec, staleThresholdSec });
-      try { ws.terminate(); } catch {
-        try { ws.close(); } catch {}
-      }
-      // close handler schedules reconnect
+    console.log('[md] watchdog stale -> reconnect', { ageSec, staleThresholdSec });
+    try { ws.terminate(); } catch {
+      try { ws.close(); } catch {}
     }
+    // close handler schedules reconnect
   }, watchdogEveryMs);
 
   return {
