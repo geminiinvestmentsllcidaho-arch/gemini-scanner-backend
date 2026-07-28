@@ -25,6 +25,7 @@ test("customer symbol detail surfaces runtime health stale reasons in customer l
   assert.equal(detail.decision, "STALE_DATA");
   assert.equal(detail.decisionLabel, "STALE DATA");
   assert.equal(detail.sourceStale, true);
+  assert.equal(detail.passedChecks.includes("Freshness check passed"), false);
   assert.deepEqual(detail.runtimeHealthReasons, [
     "Market session status is stale.",
     "Live market data stream is stale.",
@@ -36,6 +37,8 @@ test("customer symbol detail surfaces runtime health stale reasons in customer l
   assert.match(html, /class="decision stale-data"/);
   assert.match(html, />STALE DATA</);
   assert.match(html, /Why this result is blocked/);
+  assert.match(html, /decision stale-data/);
+  assert.match(html, /runtime-health-block/);
   assert.match(html, /Current data cannot be trusted for a fresh scanner decision/);
   assert.match(html, /Market session status is stale\./);
   assert.match(html, /Live market data stream is stale\./);

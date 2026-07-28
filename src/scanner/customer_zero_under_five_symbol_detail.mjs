@@ -50,6 +50,7 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
   const resultState = candidate.sourceStale === true
     ? "STALE_DATA"
     : candidate.resultState ?? candidate.decision ?? "DO_NOT_ENTER";
+  const sourceStale = candidate.sourceStale === true || resultState === "STALE_DATA";
   return {
     version: VERSION,
     route: candidate.symbol
@@ -75,13 +76,13 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
     dollarVolume: candidate.dollarVolume ?? null,
     sourceTs: candidate.sourceTs ?? null,
     sourceAgeSec: candidate.sourceAgeSec ?? null,
-    sourceStale: candidate.sourceStale === true || resultState === "STALE_DATA",
+    sourceStale,
     staleReasons,
     runtimeHealthReasons,
     flags,
     blockers: [...runtimeHealthReasons, ...blockers],
     passedChecks: [
-      candidate.sourceStale !== true ? "Freshness check passed" : null,
+      sourceStale !== true ? "Freshness check passed" : null,
       Number(candidate.spreadPct) <= 1 ? "Spread check passed" : null,
       Number(candidate.dollarVolume) >= 1000000 ? "Liquidity check passed" : null,
       Number(candidate.changePct) > 0 ? "Momentum check passed" : null,
@@ -106,7 +107,7 @@ export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}, account
 <title>${esc(detail.title)}</title>
 ${renderGlobalThemeCss({ surface: "customer" })}
 <style>
-.wrap{max-width:760px;margin:auto;padding:42px 16px 72px}.card{background:rgba(0,0,0,.72)!important;color:var(--gs-text)!important;border:1px solid var(--gs-line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 22px #0008}.hero{background:rgba(0,0,0,.82)!important}.decision{display:inline-block;padding:10px 14px;border-radius:999px;font-weight:800}.enter{background:#dff7e7;color:#11652e}.wait{background:#fff2c8;color:#765800}.do-not-enter{background:#ffe0e0;color:#8a1111}a{color:var(--gs-accent);font-weight:700}
+.wrap{max-width:760px;margin:auto;padding:42px 16px 72px}.card{background:rgba(0,0,0,.72)!important;color:var(--gs-text)!important;border:1px solid var(--gs-line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 22px #0008}.hero{background:rgba(0,0,0,.82)!important}.decision{display:inline-block;padding:10px 14px;border-radius:999px;font-weight:800}.enter{background:#dff7e7;color:#11652e}.wait{background:#fff2c8;color:#765800}.do-not-enter,.stale-data{background:#ffe0e0;color:#8a1111}.runtime-health-block{border-color:#ff7b7b!important}a{color:var(--gs-accent);font-weight:700}
 </style></head><body data-gs-page="customer-under-five-symbol-detail">
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
