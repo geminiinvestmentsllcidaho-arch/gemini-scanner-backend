@@ -1,4 +1,5 @@
 import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
+import { buildRuntimeHealthState } from "../utils/health.js";
 
 export const VERSION = "customer_zero_fresh_ranking_bridge_v1";
 
@@ -16,7 +17,7 @@ function symbol(value) {
   return String(value ?? "").trim().toUpperCase();
 }
 
-export function bridgeCustomerZeroFreshRankings(source = {}, rankingRoot = {}) {
+export function bridgeCustomerZeroFreshRankings(source = {}, rankingRoot = {}, streamTelemetry = {}) {
   const rankings = new Map(
     list(rankingRoot?.rankings)
       .map((ranking) => [symbol(ranking?.symbol), ranking])
@@ -28,13 +29,15 @@ export function bridgeCustomerZeroFreshRankings(source = {}, rankingRoot = {}) {
   const rankingMaxAgeSec = finite(rankingRoot?.maxAgeSec);
   const rankingsStale = rankingRoot?.stale !== false;
   const rankingIssues = list(rankingRoot?.issues);
+  const runtimeHealth = buildRuntimeHealthState(streamTelemetry);
+  const runtimeIssues = [...runtimeHealth.issues];
 
   const candidates = list(source?.candidates).map((candidate) => {
     const key = symbol(candidate?.symbol);
     const ranking = rankings.get(key) ?? null;
     const candidateStale = candidate?.sourceStale === true;
     const rankingMissing = ranking === null;
-    const stale = candidateStale || rankingsStale || rankingMissing;
+    const stale = candidateStale || rankingsStale || rankingMissing || runtimeHealth.degraded;
 
     const bridged = {
       ...candidate,
@@ -53,6 +56,7 @@ export function bridgeCustomerZeroFreshRankings(source = {}, rankingRoot = {}) {
         ...(candidateStale ? ["QUOTE_STALE"] : []),
         ...(rankingsStale ? ["RANKINGS_STALE"] : []),
         ...(rankingMissing ? ["RANKING_MISSING"] : []),
+        ...runtimeIssues,
       ],
       decisionAssistOnly: true,
       orderPlacementAllowed: false,
@@ -72,6 +76,12 @@ export function bridgeCustomerZeroFreshRankings(source = {}, rankingRoot = {}) {
     version: VERSION,
     candidates,
     candidateCount: candidates.length,
+    runtimeHealth: {
+      degraded: runtimeHealth.degraded,
+      issues: runtimeIssues,
+      readOnly: true,
+      executionAllowed: false,
+    },
     rankingBridge: {
       connected: list(rankingRoot?.rankings).length > 0,
       sourceTs: rankingSourceTs,

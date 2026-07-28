@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import fs from "node:fs";
 
@@ -54,7 +55,7 @@ test("shared under-five source bridges scanner rankings before customer routes r
   assert.match(server, /import \{ bridgeCustomerZeroFreshRankings \} from '\.\/scanner\/customer_zero_fresh_ranking_bridge\.mjs';/);
   assert.match(block, /cache\.noteDemand\?\.\(\);/);
   assert.match(block, /current\?\.idleNoDemand === true/);
-  assert.match(block, /return bridgeCustomerZeroFreshRankings\(source, readUnderFiveLiveRankings\(source\)\);/);
+  assert.match(block, /return bridgeCustomerZeroFreshRankings\(source,\s*readUnderFiveLiveRankings\(source\),\s*getStreamTelemetry\(\)\);/);
 });
 
 
@@ -101,4 +102,13 @@ test("server exposes bounded read-only customer scanner freshness diagnostics", 
   assert.match(block, /getStreamTelemetry\(\)/);
   assert.match(block, /Cache-Control', 'no-store'/);
   assert.doesNotMatch(block, /refreshNow|fetchAlpacaUnderFiveUniverseReadonly/);
+});
+
+
+test("shared under-five source passes authoritative stream telemetry into customer bridge", () => {
+  const server = readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const start = server.indexOf("async function getUnderFiveSharedSource");
+  const end = server.indexOf("async function getPremarketSharedSource", start);
+  const block = server.slice(start, end);
+  assert.match(block, /bridgeCustomerZeroFreshRankings\(source,\s*readUnderFiveLiveRankings\(source\),\s*getStreamTelemetry\(\)\)/);
 });

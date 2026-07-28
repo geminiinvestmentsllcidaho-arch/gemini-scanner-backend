@@ -11,7 +11,7 @@ test("customer under-five bridge ranks the current shared-cache candidates inste
   );
   assert.match(
     server,
-    /return bridgeCustomerZeroFreshRankings\(source, readUnderFiveLiveRankings\(source\)\);/
+    /return bridgeCustomerZeroFreshRankings\(source, readUnderFiveLiveRankings\(source\), getStreamTelemetry\(\)\);/
   );
   assert.doesNotMatch(
     server,

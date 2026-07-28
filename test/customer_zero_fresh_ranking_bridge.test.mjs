@@ -116,3 +116,80 @@ test("quote staleness remains blocking when rankings are fresh", () => {
   assert.equal(out.candidates[0].resultState, "STALE_DATA");
   assert.deepEqual(out.candidates[0].staleReasons, ["QUOTE_STALE"]);
 });
+
+
+test("runtime health degradation fails every customer candidate closed as stale data", () => {
+  const out = bridgeCustomerZeroFreshRankings(
+    {
+      candidates: [{
+        symbol: "SAFE",
+        sourceStale: false,
+        decision: "ENTER",
+        permission: "APPROVED",
+      }],
+    },
+    {
+      stale: false,
+      sourceTs: "2026-07-28T05:00:00.000Z",
+      sourceAgeSec: 1,
+      maxAgeSec: 180,
+      rankings: [{
+        symbol: "SAFE",
+        rank: 1,
+        setupScore: 95,
+        compositeConfidence: 0.95,
+        qualityOverall: 0.95,
+      }],
+    },
+    {
+      marketClockStale: true,
+      streamStale: true,
+      marketOpen: true,
+      streamConnected: false,
+    }
+  );
+
+  assert.deepEqual(out.runtimeHealth, {
+    degraded: true,
+    issues: ["MARKET_CLOCK_STALE", "STREAM_STALE", "STREAM_DISCONNECTED"],
+    readOnly: true,
+    executionAllowed: false,
+  });
+  assert.equal(out.candidates[0].sourceStale, true);
+  assert.equal(out.candidates[0].resultState, "STALE_DATA");
+  assert.deepEqual(out.candidates[0].staleReasons, [
+    "MARKET_CLOCK_STALE",
+    "STREAM_STALE",
+    "STREAM_DISCONNECTED",
+  ]);
+  assert.equal(out.candidates[0].orderPlacementAllowed, false);
+  assert.equal(out.candidates[0].accountMutationAllowed, false);
+});
+
+test("fresh closed-session runtime health preserves eligible customer candidate state", () => {
+  const out = bridgeCustomerZeroFreshRankings(
+    {
+      candidates: [{
+        symbol: "SAFE",
+        sourceStale: false,
+        decision: "ENTER",
+        permission: "APPROVED",
+      }],
+    },
+    {
+      stale: false,
+      rankings: [{ symbol: "SAFE", rank: 1, compositeConfidence: 0.9 }],
+    },
+    {
+      marketClockStale: false,
+      streamStale: false,
+      marketOpen: false,
+      streamConnected: false,
+    }
+  );
+
+  assert.deepEqual(out.runtimeHealth.issues, []);
+  assert.equal(out.runtimeHealth.degraded, false);
+  assert.equal(out.candidates[0].sourceStale, false);
+  assert.equal(out.candidates[0].resultState, "ENTER");
+});

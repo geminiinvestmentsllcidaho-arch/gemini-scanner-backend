@@ -374,7 +374,7 @@ async function getUnderFiveSharedSource({ refresh = false } = {}) {
   const source = refresh || !current || current?.idleNoDemand === true
     ? await cache.refreshNow()
     : current;
-  return bridgeCustomerZeroFreshRankings(source, readUnderFiveLiveRankings(source));
+  return bridgeCustomerZeroFreshRankings(source, readUnderFiveLiveRankings(source), getStreamTelemetry());
 }
 
 async function getPremarketSharedSource({ refresh = false, maxPrice = 1000 } = {}) {
