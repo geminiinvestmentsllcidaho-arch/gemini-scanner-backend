@@ -88,19 +88,21 @@ export function runStrategyObservationPersistence(options = {}) {
     swingMaxSessions: options.swingMaxSessions,
   });
 
+  const maxPersistedOutcomes = integer(options.maxPersistedOutcomes, 5000, 1, 5000);
+  const persistenceCandidates = report.outcomes.slice(0, maxPersistedOutcomes);
   const existingRecords = listStrategyObservationRecords({
     observationPath: options.observationPath,
     maxRecords: integer(options.maxObservationRecords, 5000, 1, 5000),
   });
   const existingLatest = latestByKey(existingRecords);
-  const changedOutcomes = report.outcomes.filter((outcome) => {
+  const changedOutcomes = persistenceCandidates.filter((outcome) => {
     const candidate = buildStrategyObservationRecord(outcome, {
       now: options.now ?? report.generatedAt,
     });
     const previous = existingLatest.get(candidate.key);
     return !previous || materialFingerprint(candidate) !== materialFingerprint(previous);
   });
-  const skippedUnchangedCount = report.outcomeCount - changedOutcomes.length;
+  const skippedUnchangedCount = persistenceCandidates.length - changedOutcomes.length;
 
   const persistence = options.persist === false
     ? Object.freeze({
@@ -131,6 +133,7 @@ export function runStrategyObservationPersistence(options = {}) {
     auditRecordCount: auditRecords.length,
     outcomeCount: report.outcomeCount,
     observableOutcomeCount: report.observableOutcomeCount,
+    persistenceCandidateCount: persistenceCandidates.length,
     changedOutcomeCount: changedOutcomes.length,
     skippedUnchangedCount,
     appendedCount: persistence.appendedCount,

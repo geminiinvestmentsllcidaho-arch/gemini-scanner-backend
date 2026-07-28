@@ -141,6 +141,48 @@ test("suppresses identical reruns and appends only materially changed outcomes",
   assert.equal(scan1Snapshots[0].latestReturnPct, 8);
 });
 
+test("keeps bounded persistence idempotent when report outcomes exceed the store window", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-bounded-idempotency-"));
+  const observationPath = path.join(dir, "strategy.jsonl");
+  try {
+    const newestFirst = Array.from({ length: 110 }, (_, index) =>
+      auditRecord(
+        new Date(Date.parse("2026-07-20T13:30:00.000Z") + index * 60_000).toISOString(),
+        `scan-${index + 1}`,
+        10 + index / 100,
+      )
+    ).reverse();
+
+    const first = runStrategyObservationPersistence({
+      auditRecords: newestFirst,
+      observationPath,
+      now: new Date("2026-07-20T16:00:00.000Z"),
+      intradayMinutes: 30,
+      maxPersistedOutcomes: 100,
+      maxObservationRecords: 100,
+    });
+    assert.equal(first.outcomeCount > first.persistenceCandidateCount, true);
+    assert.equal(first.persistenceCandidateCount, 100);
+    assert.equal(first.appendedCount, 100);
+
+    const identical = runStrategyObservationPersistence({
+      auditRecords: newestFirst,
+      observationPath,
+      now: new Date("2026-07-20T16:15:00.000Z"),
+      intradayMinutes: 30,
+      maxPersistedOutcomes: 100,
+      maxObservationRecords: 100,
+    });
+    assert.equal(identical.persistenceCandidateCount, 100);
+    assert.equal(identical.changedOutcomeCount, 0);
+    assert.equal(identical.skippedUnchangedCount, 100);
+    assert.equal(identical.appendedCount, 0);
+    assert.equal(listStrategyObservationRecords({ observationPath, maxRecords: 200 }).length, 100);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("supports preview-only persistence without writing", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-preview-"));
   const observationPath = path.join(dir, "strategy.jsonl");
