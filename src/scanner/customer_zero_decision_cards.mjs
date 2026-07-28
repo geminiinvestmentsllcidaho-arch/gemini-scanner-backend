@@ -28,11 +28,26 @@ function stateLabel(value) {
   return String(value ?? "NO_SETUP").replaceAll("_", " ");
 }
 
+function issueLabel(value) {
+  const issue = String(value ?? "").trim().toUpperCase();
+  const labels = {
+    QUOTE_STALE: "Quote data is stale.",
+    RANKINGS_STALE: "Scanner rankings are stale.",
+    RANKING_MISSING: "Current scanner ranking is unavailable.",
+    MARKET_CLOCK_STALE: "Market session status is stale.",
+    STREAM_STALE: "Live market data stream is stale.",
+    STREAM_DISCONNECTED: "Live market data stream is disconnected.",
+  };
+  return labels[issue] ?? issue.replaceAll("_", " ").toLowerCase();
+}
+
 export function buildCustomerZeroDecisionCards(candidates = []) {
   return list(candidates).map((candidate) => {
     const state = candidate?.sourceStale === true ? "STALE_DATA" : candidate?.resultState ?? candidate?.decision ?? "NO_SETUP";
+    const staleReasons = list(candidate?.staleReasons);
     const reasons = [
       candidate?.briefExplanation,
+      ...staleReasons.map(issueLabel),
       ...list(candidate?.blockingFlags),
       ...list(candidate?.readonlyPotentialFlags),
     ].filter(Boolean);
@@ -47,6 +62,7 @@ export function buildCustomerZeroDecisionCards(candidates = []) {
       sourceTs: candidate?.sourceTs ?? null,
       sourceAgeSec: number(candidate?.sourceAgeSec),
       stale: candidate?.sourceStale === true || state === "STALE_DATA",
+      staleReasons,
       setupName: candidate?.readonlyPotentialLabel ?? "unclassified",
       confidence: number(candidate?.readonlyPotentialScore),
       reasons,
