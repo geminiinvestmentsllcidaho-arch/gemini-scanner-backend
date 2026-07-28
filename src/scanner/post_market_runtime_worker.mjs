@@ -90,8 +90,6 @@ export function createPostMarketRuntimeWorker({
           schedulePlan: plan,
         });
         runCount += 1;
-        lastCompletedAt = now().toISOString();
-        lastResult = result ?? null;
         if (result?.fingerprint) previousFingerprint = result.fingerprint;
 
         let afterCycleResult = null;
@@ -127,6 +125,7 @@ export function createPostMarketRuntimeWorker({
           ...(result ?? {}),
           strategyObservationPersistence: afterCycleResult,
         });
+        lastCompletedAt = now().toISOString();
         lastStatus = result?.duplicateSnapshot
           ? "duplicate_snapshot_suppressed"
           : result?.status ?? "completed_readonly";

@@ -143,6 +143,47 @@ test("suppresses overlapping ticks", async () => {
   await first;
 });
 
+test("does not report completion while the after-cycle hook is still in flight", async () => {
+  let releaseAfterCycle;
+  const pendingAfterCycle = new Promise((resolve) => {
+    releaseAfterCycle = resolve;
+  });
+  const worker = createPostMarketRuntimeWorker({
+    now: () => new Date("2026-07-17T21:00:00.000Z"),
+    getMarketClock: async () => ({}),
+    buildPlan: () => immediatePlan(),
+    runCycle: async () => ({
+      status: "completed_readonly",
+      fingerprint: "phase-safe",
+      duplicateSnapshot: false,
+    }),
+    afterCycle: async () => {
+      await pendingAfterCycle;
+      return { status: "persisted_readonly" };
+    },
+    setTimeoutImpl: () => ({ unref() {} }),
+    clearTimeoutImpl: () => {},
+  });
+
+  const tick = worker.tick();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const duringHook = worker.getStatus();
+  assert.equal(duringHook.inFlight, true);
+  assert.equal(duringHook.lastStatus, "running_readonly_cycle");
+  assert.equal(duringHook.lastCompletedAt, null);
+  assert.equal(duringHook.lastResult, null);
+
+  releaseAfterCycle();
+  await tick;
+
+  const completed = worker.getStatus();
+  assert.equal(completed.inFlight, false);
+  assert.equal(completed.lastStatus, "completed_readonly");
+  assert.equal(typeof completed.lastCompletedAt, "string");
+  assert.equal(completed.lastResult.strategyObservationPersistence.status, "persisted_readonly");
+});
+
 test("tracks duplicate snapshot suppression", async () => {
   const worker = createPostMarketRuntimeWorker({
     now: () => new Date("2026-07-17T21:00:00.000Z"),
