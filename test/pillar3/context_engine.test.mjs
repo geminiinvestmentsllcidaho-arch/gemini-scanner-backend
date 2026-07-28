@@ -113,6 +113,8 @@ test("contextEngine: reliability telemetry penalties are deterministic and bound
   const telemetry = {
     streamConnected: false,
     streamStale: true,
+    marketOpen: true,
+    marketClockStale: true,
     lastEventAgeSec: 90,
     staleThresholdSec: 30,
     reconnectCountTotal: 50,
@@ -124,6 +126,7 @@ test("contextEngine: reliability telemetry penalties are deterministic and bound
 
   assert.deepEqual(a, b);
 
+  assert.equal(a.penalties.marketClockStale, 0.15);
   assert.equal(a.penalties.streamDisconnected, 0.05);
   assert.equal(a.penalties.streamStale, 0.15);
   assert.equal(a.penalties.streamEventAge, 0.1);
@@ -137,9 +140,26 @@ test("contextEngine: reliability telemetry omitted produces zero reliability pen
   const bars = mkBars({ n: 120, drift: 0.0005, noise: 0.00001 });
   const out = computeContext({ bars });
 
+  assert.equal(out.penalties.marketClockStale, 0);
   assert.equal(out.penalties.streamDisconnected, 0);
   assert.equal(out.penalties.streamStale, 0);
   assert.equal(out.penalties.streamEventAge, 0);
   assert.equal(out.penalties.reconnectPressure, 0);
   assert.equal(out.penalties.watchdogPressure, 0);
+});
+
+test("contextEngine suppresses disconnected penalty for an authoritative closed session", () => {
+  const bars = mkBars({ n: 120, drift: 0.0005, noise: 0.00001 });
+  const out = computeContext({ bars }, {
+    telemetry: {
+      streamConnected: false,
+      streamStale: false,
+      marketOpen: false,
+      marketClockStale: false,
+    },
+  });
+
+  assert.equal(out.penalties.marketClockStale, 0);
+  assert.equal(out.penalties.streamDisconnected, 0);
+  assert.equal(out.penalties.streamStale, 0);
 });

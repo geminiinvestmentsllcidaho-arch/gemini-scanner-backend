@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { buildRuntimeHealthState } from "../utils/health.js";
 
 export const VERSION = "customer_scanner_freshness_diagnostic_v1";
 
@@ -35,6 +36,7 @@ export function buildCustomerScannerFreshnessDiagnostic({ nowMs = Date.now(), ca
   const rankingMaxAgeSec = finite(rankingRoot?.maxAgeSec);
   const rankingStale = rankingRoot?.stale !== false;
   const sourceFile = fileMetadata(rankingRoot?.source ?? null);
+  const runtimeHealth = buildRuntimeHealthState(streamTelemetry);
 
   const candidateDiagnostics = candidates.slice(0, 100).map((candidate) => {
     const symbol = String(candidate?.symbol ?? "").trim().toUpperCase();
@@ -97,6 +99,10 @@ export function buildCustomerScannerFreshnessDiagnostic({ nowMs = Date.now(), ca
       rankingCount: finite(rankingRoot?.count) ?? list(rankingRoot?.rankings).length,
       issues: list(rankingRoot?.issues),
     },
+    runtimeHealth: {
+      degraded: runtimeHealth.degraded,
+      issues: [...runtimeHealth.issues],
+    },
     stream: {
       connected: streamTelemetry?.streamConnected === true,
       stale: streamTelemetry?.streamStale === true,
@@ -112,6 +118,7 @@ export function buildCustomerScannerFreshnessDiagnostic({ nowMs = Date.now(), ca
       marketClockUpdatedAt: Number.isFinite(finite(streamTelemetry?.marketClockUpdatedAtMs))
         ? new Date(finite(streamTelemetry?.marketClockUpdatedAtMs)).toISOString()
         : null,
+      marketClockStale: streamTelemetry?.marketClockStale === true,
     },
     staleReasonCounts,
     candidates: candidateDiagnostics,

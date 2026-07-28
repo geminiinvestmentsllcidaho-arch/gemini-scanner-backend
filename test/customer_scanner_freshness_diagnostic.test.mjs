@@ -15,6 +15,7 @@ test("freshness diagnostic separates ranking staleness from quote freshness", ()
   assert.deepEqual(out.candidates[0].staleReasons, ["RANKINGS_STALE"]);
   assert.equal(out.candidates[0].finalResultState, "STALE_DATA");
   assert.equal(out.stream.connected, true);
+  assert.deepEqual(out.runtimeHealth, { degraded: false, issues: [] });
   assert.equal(out.safety.orderPlacementAllowed, false);
 });
 
@@ -58,6 +59,7 @@ test("freshness diagnostic exposes authoritative stream session telemetry read o
     marketOpen: false,
     marketClockUpdatedAtMs,
     marketClockUpdatedAt: "2026-07-27T21:00:00.000Z",
+    marketClockStale: false,
   });
   assert.equal(out.safety.readOnly, true);
   assert.equal(out.safety.orderPlacementAllowed, false);
@@ -78,4 +80,25 @@ test("freshness diagnostic normalizes unknown stream session telemetry safely", 
   assert.equal(out.stream.marketClockUpdatedAtMs, null);
   assert.equal(out.stream.marketClockUpdatedAt, null);
   assert.equal(out.stream.lastReconnectTs, null);
+});
+
+test("freshness diagnostic propagates shared runtime health issues without mutation capability", () => {
+  const out = buildCustomerScannerFreshnessDiagnostic({
+    cacheDiagnostics: { latest: { candidates: [] } },
+    rankingRoot: { stale: false, rankings: [] },
+    streamTelemetry: {
+      streamConnected: false,
+      streamStale: true,
+      marketOpen: true,
+      marketClockStale: true,
+    },
+  });
+
+  assert.deepEqual(out.runtimeHealth, {
+    degraded: true,
+    issues: ["MARKET_CLOCK_STALE", "STREAM_STALE", "STREAM_DISCONNECTED"],
+  });
+  assert.equal(out.stream.marketClockStale, true);
+  assert.equal(out.safety.readOnly, true);
+  assert.equal(out.safety.orderPlacementAllowed, false);
 });

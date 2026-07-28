@@ -1,3 +1,4 @@
+import { buildRuntimeHealthState } from "../utils/health.js";
 /**
  * Pillar 3: compute-only context engine (decision-assist; no side effects)
  * Deterministic by construction: stable filtering, stable sorting, stable rounding.
@@ -390,6 +391,8 @@ function computeContextV1(snapshot, opts = {}) {
     (Array.isArray(snapshot?.bars) ? snapshot.bars.length : 0) - bars.length;
 
   // Penalties are small, additive, deterministic. Quality is clamped to [0, 1].
+  const runtimeHealth = buildRuntimeHealthState(telemetry);
+  const runtimeIssues = runtimeHealth.issues;
   const penalties = {
     invalidBarsFiltered:
       invalidBarsFiltered > 0
@@ -402,9 +405,10 @@ function computeContextV1(snapshot, opts = {}) {
     unknownRegime: regimeKnown ? 0 : 0.1,
     unknownVolatility: volKnown ? 0 : 0.1,
 
-    // Reliability penalties are deterministic and caller-supplied only.
-    streamDisconnected: telemetry.streamConnected === false ? 0.05 : 0,
-    streamStale: telemetry.streamStale === true ? 0.15 : 0,
+    // Reliability penalties consume the shared runtime health issue authority.
+    marketClockStale: runtimeIssues.includes("MARKET_CLOCK_STALE") ? 0.15 : 0,
+    streamDisconnected: runtimeIssues.includes("STREAM_DISCONNECTED") ? 0.05 : 0,
+    streamStale: runtimeIssues.includes("STREAM_STALE") ? 0.15 : 0,
     streamEventAge:
       telemetryLastEventAgeSec !== null && telemetryStaleThresholdSec !== null && telemetryStaleThresholdSec > 0
         ? roundN(Math.min(0.15, Math.max(0, (telemetryLastEventAgeSec - telemetryStaleThresholdSec) / telemetryStaleThresholdSec) * 0.05), 4)
@@ -424,6 +428,7 @@ function computeContextV1(snapshot, opts = {}) {
       penalties.lowLookbackRatio +
       penalties.unknownRegime +
       penalties.unknownVolatility +
+      penalties.marketClockStale +
       penalties.streamDisconnected +
       penalties.streamStale +
       penalties.streamEventAge +
