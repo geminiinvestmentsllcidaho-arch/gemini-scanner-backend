@@ -1,6 +1,7 @@
 export const VERSION = "customer_zero_readonly_allocation_preview_v1";
 
 function finite(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }

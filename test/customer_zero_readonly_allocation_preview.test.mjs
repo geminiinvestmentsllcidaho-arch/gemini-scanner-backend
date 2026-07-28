@@ -59,3 +59,26 @@ test("warns when maximum dollars exceed buying power", () => {
   assert.equal(out.preview.finalNotional, 16);
   assert.ok(out.warnings.includes("MAX_DOLLARS_EXCEEDS_BUYING_POWER"));
 });
+
+
+test("renders allocation preview warnings in customer language through decision cards", async () => {
+  const { buildCustomerZeroDecisionCards, renderCustomerZeroDecisionCardsHtml } = await import("../src/scanner/customer_zero_decision_cards.mjs");
+  const allocationPreview = buildCustomerZeroReadonlyAllocationPreview(
+    { symbol: "OLD", price: null, resultState: "STALE_DATA" },
+    { buyingPower: null, availableFundsPct: 95, maxDollarsPerStock: 0 }
+  );
+  const cards = buildCustomerZeroDecisionCards([{
+    symbol: "OLD",
+    resultState: "STALE_DATA",
+    allocationPreview,
+  }]);
+  const html = renderCustomerZeroDecisionCardsHtml(cards);
+
+  assert.match(html, /Paper buying power is unavailable\./);
+  assert.match(html, /Available funds percentage was capped at 80%\./);
+  assert.match(html, /Maximum dollars per stock must be greater than \$0\./);
+  assert.match(html, /Allocation preview is blocked because scanner data is stale\./);
+  assert.match(html, /A current price is unavailable\./);
+  assert.match(html, /The calculated amount is not enough for one whole share\./);
+  assert.doesNotMatch(html, /BUYING_POWER_UNAVAILABLE|AVAILABLE_FUNDS_PCT_CAPPED_AT_80|MAX_DOLLARS_INVALID|STALE_DATA_BLOCKED|PRICE_UNAVAILABLE|WHOLE_SHARE_QUANTITY_ZERO/);
+});

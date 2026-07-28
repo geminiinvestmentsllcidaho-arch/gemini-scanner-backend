@@ -243,7 +243,7 @@ test("stale customer allocation preview stays blocked", () => {
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
 
   assert.equal(dashboard.candidates[0].allocationPreview.preview.ready, false);
-  assert.match(html, /Preview blocked: STALE_DATA_BLOCKED/);
+  assert.match(html, /Preview blocked: Allocation preview is blocked because scanner data is stale\./);
   assert.equal(dashboard.orderPlacementAllowed, false);
 });
 
