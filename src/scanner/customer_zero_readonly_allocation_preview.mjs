@@ -1,5 +1,18 @@
 export const VERSION = "customer_zero_readonly_allocation_preview_v1";
 
+export const FIRST_MANUAL_PAPER_TRADE_TEST_POLICY = Object.freeze({
+  id: "first_manual_paper_trade_test_v1",
+  mode: "paper_only_readonly",
+  sizingBase: "paper_equity",
+  targetAllocationPct: 0.25,
+  hardDollarCap: 250,
+  wholeSharesOnly: true,
+  maxConcurrentTestPositions: 1,
+  averagingDownAllowed: false,
+  leverageAllowed: false,
+  requiresManualOperatorSubmission: true,
+});
+
 function finite(value) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
@@ -16,17 +29,22 @@ function money(value) {
 
 export function buildCustomerZeroReadonlyAllocationPreview(candidate = {}, options = {}) {
   const price = finite(candidate?.price);
-  const buyingPower = finite(options?.buyingPower);
+  const buyingPower = finite(
+    options?.equity
+      ?? options?.paperEquity
+      ?? options?.accountEquity
+      ?? options?.buyingPower,
+  );
   const requestedFundsPct = finite(options?.availableFundsPct);
-  const availableFundsPct = clamp(requestedFundsPct ?? 5, 0, 80);
+  const availableFundsPct = clamp(requestedFundsPct ?? FIRST_MANUAL_PAPER_TRADE_TEST_POLICY.targetAllocationPct, 0, 80);
   const requestedMaxDollars = finite(options?.maxDollarsPerStock);
   const maxDollarsPerStock = requestedMaxDollars !== null && requestedMaxDollars > 0
     ? requestedMaxDollars
-    : 25;
+    : FIRST_MANUAL_PAPER_TRADE_TEST_POLICY.hardDollarCap;
 
   const percentageLimit = buyingPower !== null
     ? money(buyingPower * (availableFundsPct / 100))
-    : null;
+    : FIRST_MANUAL_PAPER_TRADE_TEST_POLICY.hardDollarCap;
 
   const scannerRiskLimit = finite(candidate?.scannerRiskLimitDollars)
     ?? finite(candidate?.rankingSetupScore)
@@ -65,6 +83,11 @@ export function buildCustomerZeroReadonlyAllocationPreview(candidate = {}, optio
 
   return {
     version: VERSION,
+    allocationPolicy: FIRST_MANUAL_PAPER_TRADE_TEST_POLICY,
+    allocationPolicyId: FIRST_MANUAL_PAPER_TRADE_TEST_POLICY.id,
+    sizingBase: FIRST_MANUAL_PAPER_TRADE_TEST_POLICY.sizingBase,
+    targetAllocationPct: availableFundsPct,
+    hardDollarCap: money(maxDollarsPerStock),
     symbol: String(candidate?.symbol ?? "").toUpperCase(),
     readOnly: true,
     previewOnly: true,
@@ -100,5 +123,6 @@ export function buildCustomerZeroReadonlyAllocationPreview(candidate = {}, optio
 
 export default {
   VERSION,
+  FIRST_MANUAL_PAPER_TRADE_TEST_POLICY,
   buildCustomerZeroReadonlyAllocationPreview,
 };
