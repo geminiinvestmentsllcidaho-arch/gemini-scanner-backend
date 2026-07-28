@@ -28,6 +28,15 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
   const paperAccount = options.paperAccount ?? {};
   const allocationPreview = options.allocationPreview ?? candidate?.allocationPreview ?? {};
   const position = findPosition(paperAccount, symbol);
+  const openPositionCount = list(paperAccount.positions)
+    .filter((item) => (finite(item?.qty) ?? 0) > 0)
+    .length;
+  const maxConcurrentTestPositions =
+    finite(allocationPreview?.allocationPolicy?.maxConcurrentTestPositions)
+    ?? finite(options.maxConcurrentTestPositions)
+    ?? 1;
+  const concurrentPositionCapacityAvailable =
+    openPositionCount < Math.max(1, Math.trunc(maxConcurrentTestPositions));
   const marketOpen = bool(options.marketOpen);
   const paperExecutionEnabled = bool(options.paperExecutionEnabled);
   const operatorApproved = bool(options.operatorApproved);
@@ -57,6 +66,7 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
   const enterChecks = {
     ...baseChecks,
     enterState: state === "ENTER",
+    concurrentPositionCapacityAvailable,
     allocationReady,
     sufficientQuantity: wholeShares > 0,
   };
@@ -81,6 +91,11 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
     symbol,
     state,
     position,
+    positionPolicy: {
+      openPositionCount,
+      maxConcurrentTestPositions: Math.max(1, Math.trunc(maxConcurrentTestPositions)),
+      capacityAvailable: concurrentPositionCapacityAvailable,
+    },
     enter: {
       visible: state === "ENTER",
       label: "ENTER / BUY",

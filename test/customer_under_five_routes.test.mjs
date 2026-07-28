@@ -631,3 +631,14 @@ test("all customer scanner result routes share closed-market card suppression re
   assert.doesNotMatch(html, />CACHED</);
   assert.doesNotMatch(html, /customer-scanner-countdown\.js/);
 });
+
+
+test("customer zero scanner route wires paper equity and buying power into allocation previews", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  const routeStart = server.indexOf("app.get('/customer-zero/under-five-scanner'");
+  const routeEnd = server.indexOf("app.get('/diagnostics/alpaca-paper-account-dashboard'", routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = server.slice(routeStart, routeEnd);
+  assert.match(route, /equity:\s*paperAccount\.accountHealthy\s*\?\s*paperAccount\.account\.equity\s*:\s*null/);
+  assert.match(route, /buyingPower:\s*paperAccount\.accountHealthy\s*\?\s*paperAccount\.account\.buyingPower\s*:\s*null/);
+});

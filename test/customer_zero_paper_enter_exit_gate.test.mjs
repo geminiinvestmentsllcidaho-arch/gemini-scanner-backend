@@ -143,3 +143,25 @@ test("EXIT without a matching paper position fails closed", () => {
   assert.equal(gate.exit.ready, false);
   assert.ok(gate.exit.blockedReasons.includes("positionPresent"));
 });
+
+
+test("existing paper position blocks a new ENTER under the first-trade concurrency policy", () => {
+  const gate = buildCustomerZeroPaperEnterExitGate({
+    symbol: "NEW",
+    resultState: "ENTER",
+    price: 4,
+    sourceAgeSec: 5,
+    sourceStale: false,
+  }, safeOptions({
+    paperAccount: {
+      accountHealthy: true,
+      positions: [{ symbol: "SPY", qty: 1 }],
+    },
+  }));
+
+  assert.equal(gate.positionPolicy.openPositionCount, 1);
+  assert.equal(gate.positionPolicy.maxConcurrentTestPositions, 1);
+  assert.equal(gate.positionPolicy.capacityAvailable, false);
+  assert.equal(gate.enter.ready, false);
+  assert.ok(gate.enter.blockedReasons.includes("concurrentPositionCapacityAvailable"));
+});
