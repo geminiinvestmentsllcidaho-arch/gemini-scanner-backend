@@ -98,18 +98,28 @@ export function buildTimeBasedStrategyObservationReport(records = [], options = 
     Math.min(30, Number(options.swingMaxSessions) || DEFAULT_SWING_MAX_SESSIONS),
   );
   const minDecision = clean(options.minDecision, 32).toUpperCase();
+  const indexedRecords = ordered.map((record) => {
+    const recordSessionKey = sessionKey(record.eventAt);
+    const candidatesBySymbol = new Map();
+    for (const candidate of Array.isArray(record.candidates) ? record.candidates : []) {
+      const symbol = clean(candidate?.symbol, 20).toUpperCase();
+      if (symbol && !candidatesBySymbol.has(symbol)) candidatesBySymbol.set(symbol, candidate);
+    }
+    return Object.freeze({ record, recordSessionKey, candidatesBySymbol });
+  });
   const sessionKeys = [...new Set(
-    ordered
-      .filter((record) => record.marketOpen === true)
-      .map((record) => sessionKey(record.eventAt))
+    indexedRecords
+      .filter(({ record }) => record.marketOpen === true)
+      .map(({ recordSessionKey }) => recordSessionKey)
       .filter(Boolean),
   )];
   const sessionIndex = new Map(sessionKeys.map((key, index) => [key, index]));
   const outcomes = [];
 
-  for (let originIndex = 0; originIndex < ordered.length; originIndex += 1) {
-    const origin = ordered[originIndex];
-    const originSessionKey = sessionKey(origin.eventAt);
+  for (let originIndex = 0; originIndex < indexedRecords.length; originIndex += 1) {
+    const originMeta = indexedRecords[originIndex];
+    const origin = originMeta.record;
+    const originSessionKey = originMeta.recordSessionKey;
     const originSessionIndex = sessionIndex.get(originSessionKey);
     const candidates = Array.isArray(origin.candidates) ? origin.candidates : [];
 
@@ -130,16 +140,15 @@ export function buildTimeBasedStrategyObservationReport(records = [], options = 
 
       const future = [];
       if (originObservable) {
-        for (let futureIndex = originIndex + 1; futureIndex < ordered.length; futureIndex += 1) {
-          const futureRecord = ordered[futureIndex];
+        for (let futureIndex = originIndex + 1; futureIndex < indexedRecords.length; futureIndex += 1) {
+          const futureMeta = indexedRecords[futureIndex];
+          const futureRecord = futureMeta.record;
           if (futureRecord.marketOpen !== true) continue;
-          const futureCandidate = (Array.isArray(futureRecord.candidates)
-            ? futureRecord.candidates
-            : []).find((row) => clean(row?.symbol, 20).toUpperCase() === symbol);
+          const futureCandidate = futureMeta.candidatesBySymbol.get(symbol);
           if (!futureCandidate || futureCandidate.sourceStale === true) continue;
           const price = finite(futureCandidate.price);
           if (price === null || price <= 0) continue;
-          const futureSessionKey = sessionKey(futureRecord.eventAt);
+          const futureSessionKey = futureMeta.recordSessionKey;
           const futureSessionIndex = sessionIndex.get(futureSessionKey);
           if (!Number.isInteger(futureSessionIndex)) continue;
           future.push(Object.freeze({

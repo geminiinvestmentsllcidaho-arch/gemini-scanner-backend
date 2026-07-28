@@ -119,3 +119,24 @@ test("uses stable scan and symbol identity and classifies strategy", () => {
   assert.equal(Object.isFrozen(report), true);
   assert.equal(Object.isFrozen(report.outcomes[0]), true);
 });
+
+
+test("indexes future candidates once for bounded high-cardinality scan history", () => {
+  const base = Date.parse("2026-07-13T14:00:00.000Z");
+  const records = Array.from({ length: 40 }, (_, scanIndex) => record(
+    `scan-${scanIndex}`,
+    new Date(base + scanIndex * 60_000).toISOString(),
+    Array.from({ length: 50 }, (_, symbolIndex) => ({
+      symbol: `S${String(symbolIndex).padStart(3, "0")}`,
+      price: 10 + scanIndex * 0.01 + symbolIndex * 0.001,
+      decision: scanIndex === 0 ? "ENTER" : "WAIT",
+    })),
+  ));
+  const startedAt = Date.now();
+  const report = buildTimeBasedStrategyObservationReport(records, {
+    now: "2026-07-13T21:00:00.000Z",
+  });
+  assert.equal(report.outcomeCount, 2000);
+  assert.equal(report.outcomes[0].observations, 39);
+  assert.equal(Date.now() - startedAt < 5000, true);
+});
