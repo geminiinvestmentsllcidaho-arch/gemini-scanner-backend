@@ -353,6 +353,8 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   });
   const enterHtml = renderCustomerUnderFiveDashboardHtml(enterDashboard);
   assert.match(enterHtml, /ENTER control preview/);
+  assert.match(enterHtml, /All preview gates passed\./);
+  assert.doesNotMatch(enterHtml, /operatorApproved|paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk/);
   assert.match(enterHtml, /ENTER \/ BUY/);
   assert.match(enterHtml, /No broker contact or order placement/);
 
@@ -380,6 +382,8 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   });
   const exitHtml = renderCustomerUnderFiveDashboardHtml(exitDashboard);
   assert.match(exitHtml, /EXIT control preview/);
+  assert.match(exitHtml, /Explicit EXIT confirmation is required\.|All preview gates passed\./);
+  assert.doesNotMatch(exitHtml, /operatorApproved|paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk|positionPresent/);
   assert.match(exitHtml, /class="paper-control priority-red">EXIT</);
   assert.match(exitHtml, /@keyframes gs-exit-flash/);
   assert.match(exitHtml, /\.state-exit \.state-badge\{[^}]*animation:gs-exit-flash/);

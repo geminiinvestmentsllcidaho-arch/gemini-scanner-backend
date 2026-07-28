@@ -82,3 +82,37 @@ test("renders allocation preview warnings in customer language through decision 
   assert.match(html, /The calculated amount is not enough for one whole share\./);
   assert.doesNotMatch(html, /BUYING_POWER_UNAVAILABLE|AVAILABLE_FUNDS_PCT_CAPPED_AT_80|MAX_DOLLARS_INVALID|STALE_DATA_BLOCKED|PRICE_UNAVAILABLE|WHOLE_SHARE_QUANTITY_ZERO/);
 });
+
+
+test("renders blocked paper ENTER preview reasons in customer language", async () => {
+  const { buildCustomerZeroDecisionCards, renderCustomerZeroDecisionCardsHtml } = await import("../src/scanner/customer_zero_decision_cards.mjs");
+  const cards = buildCustomerZeroDecisionCards([{
+    symbol: "WAIT",
+    resultState: "ENTER",
+    paperEnterExitGate: {
+      enter: {
+        visible: true,
+        label: "ENTER / BUY",
+        ready: false,
+        confirmationRequired: true,
+        quantityPreview: 0,
+        blockedReasons: [
+          "operatorApproved",
+          "marketOpen",
+          "freshQuote",
+          "allocationReady",
+          "sufficientQuantity",
+        ],
+      },
+      exit: { visible: false },
+    },
+  }]);
+  const html = renderCustomerZeroDecisionCardsHtml(cards);
+
+  assert.match(html, /Operator approval is still required\./);
+  assert.match(html, /The market is currently closed\./);
+  assert.match(html, /A fresh current quote is unavailable\./);
+  assert.match(html, /The allocation preview is not ready\./);
+  assert.match(html, /The calculated quantity is less than one whole share\./);
+  assert.doesNotMatch(html, /operatorApproved|marketOpen|freshQuote|allocationReady|sufficientQuantity/);
+});
