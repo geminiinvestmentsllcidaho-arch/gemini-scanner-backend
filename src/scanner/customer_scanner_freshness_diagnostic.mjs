@@ -103,6 +103,15 @@ export function buildCustomerScannerFreshnessDiagnostic({ nowMs = Date.now(), ca
       lastEventAgeSec: finite(streamTelemetry?.lastEventAgeSec),
       staleThresholdSec: finite(streamTelemetry?.staleThresholdSec),
       reconnectAttempts: finite(streamTelemetry?.reconnectAttempts),
+      reconnectCountTotal: finite(streamTelemetry?.reconnectCountTotal),
+      watchdogTriggerCount: finite(streamTelemetry?.watchdogTriggerCount),
+      streamUptimeMs: finite(streamTelemetry?.streamUptimeMs),
+      lastReconnectTs: iso(streamTelemetry?.lastReconnectTs),
+      marketOpen: typeof streamTelemetry?.marketOpen === "boolean" ? streamTelemetry.marketOpen : null,
+      marketClockUpdatedAtMs: finite(streamTelemetry?.marketClockUpdatedAtMs),
+      marketClockUpdatedAt: Number.isFinite(finite(streamTelemetry?.marketClockUpdatedAtMs))
+        ? new Date(finite(streamTelemetry?.marketClockUpdatedAtMs)).toISOString()
+        : null,
     },
     staleReasonCounts,
     candidates: candidateDiagnostics,

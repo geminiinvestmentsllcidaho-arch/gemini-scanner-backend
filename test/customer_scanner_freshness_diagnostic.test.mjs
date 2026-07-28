@@ -23,3 +23,59 @@ test("freshness diagnostic reports missing ranking independently", () => {
   assert.deepEqual(out.candidates[0].staleReasons, ["RANKING_MISSING"]);
   assert.equal(out.staleReasonCounts.RANKING_MISSING, 1);
 });
+
+test("freshness diagnostic exposes authoritative stream session telemetry read only", () => {
+  const marketClockUpdatedAtMs = Date.parse("2026-07-27T21:00:00.000Z");
+  const out = buildCustomerScannerFreshnessDiagnostic({
+    nowMs: marketClockUpdatedAtMs + 5_000,
+    cacheDiagnostics: { latest: { candidates: [] } },
+    rankingRoot: { stale: false, rankings: [] },
+    streamTelemetry: {
+      streamConnected: true,
+      streamStale: false,
+      lastEventAgeSec: 300,
+      staleThresholdSec: 90,
+      reconnectAttempts: 0,
+      reconnectCountTotal: 4,
+      watchdogTriggerCount: 2,
+      streamUptimeMs: 123456,
+      lastReconnectTs: "2026-07-27T20:55:00.000Z",
+      marketOpen: false,
+      marketClockUpdatedAtMs,
+    },
+  });
+
+  assert.deepEqual(out.stream, {
+    connected: true,
+    stale: false,
+    lastEventAgeSec: 300,
+    staleThresholdSec: 90,
+    reconnectAttempts: 0,
+    reconnectCountTotal: 4,
+    watchdogTriggerCount: 2,
+    streamUptimeMs: 123456,
+    lastReconnectTs: "2026-07-27T20:55:00.000Z",
+    marketOpen: false,
+    marketClockUpdatedAtMs,
+    marketClockUpdatedAt: "2026-07-27T21:00:00.000Z",
+  });
+  assert.equal(out.safety.readOnly, true);
+  assert.equal(out.safety.orderPlacementAllowed, false);
+});
+
+test("freshness diagnostic normalizes unknown stream session telemetry safely", () => {
+  const out = buildCustomerScannerFreshnessDiagnostic({
+    cacheDiagnostics: { latest: { candidates: [] } },
+    rankingRoot: { stale: false, rankings: [] },
+    streamTelemetry: {
+      marketOpen: "false",
+      marketClockUpdatedAtMs: "invalid",
+      lastReconnectTs: "invalid",
+    },
+  });
+
+  assert.equal(out.stream.marketOpen, null);
+  assert.equal(out.stream.marketClockUpdatedAtMs, null);
+  assert.equal(out.stream.marketClockUpdatedAt, null);
+  assert.equal(out.stream.lastReconnectTs, null);
+});
