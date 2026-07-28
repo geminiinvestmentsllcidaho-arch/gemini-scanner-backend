@@ -544,9 +544,8 @@ ${panelCards}
           var stream = health.stream || {};
           var sessionLabel = stream.marketOpen === true ? "MARKET OPEN" : stream.marketOpen === false ? "MARKET CLOSED" : "SESSION UNKNOWN";
           var connectionLabel = stream.streamConnected === true ? "STREAM CONNECTED" : "STREAM DISCONNECTED";
-          var marketClockUpdatedAtMs = Number(stream.marketClockUpdatedAtMs);
-          var marketClockAgeSec = Number.isFinite(marketClockUpdatedAtMs)
-            ? Math.max(0, Math.floor((Date.now() - marketClockUpdatedAtMs) / 1000))
+          var marketClockAgeSec = Number.isFinite(Number(stream.marketClockAgeSec))
+            ? Math.max(0, Math.floor(Number(stream.marketClockAgeSec)))
             : null;
           var marketClockLabel = marketClockAgeSec === null
             ? "MARKET CLOCK UNKNOWN"
@@ -556,7 +555,7 @@ ${panelCards}
           if (health.degraded === true) warnings.push("DEGRADED");
           if (stream.streamStale === true) warnings.push("STREAM_STALE");
           if (stream.marketOpen === true && stream.streamConnected !== true) warnings.push("STREAM_DISCONNECTED");
-          if (marketClockAgeSec === null || marketClockAgeSec > 180) warnings.push("MARKET_CLOCK_STALE");
+          if (stream.marketClockStale === true) warnings.push("MARKET_CLOCK_STALE");
           if (n(stream.watchdogTriggerCount) > 0) warnings.push("WATCHDOG_RECONNECT");
           if (scanner.rankingConfidence !== undefined && n(scanner.rankingConfidence) < 0.15) warnings.push("LOW_CONFIDENCE");
 

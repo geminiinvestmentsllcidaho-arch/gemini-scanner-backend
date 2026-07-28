@@ -66,6 +66,7 @@ export function markStreamMarketSession(isOpen, { nowMs = Date.now() } = {}) {
 
 export function getStreamTelemetry({ nowMs = Date.now() } = {}) {
   const staleThresholdSec = Number(process.env.STREAM_STALE_THRESHOLD_SEC || 30); // default 30s
+  const marketClockStaleThresholdSec = Number(process.env.MARKET_CLOCK_STALE_THRESHOLD_SEC || 180);
 
   const lastEventAgeSec =
     Number.isFinite(telemetry.lastEventTsMs)
@@ -78,6 +79,17 @@ export function getStreamTelemetry({ nowMs = Date.now() } = {}) {
     lastEventAgeSec !== null &&
     Number.isFinite(staleThresholdSec) &&
     lastEventAgeSec > staleThresholdSec;
+
+  const marketClockAgeSec =
+    Number.isFinite(telemetry.marketClockUpdatedAtMs)
+      ? Math.max(0, Math.floor((nowMs - telemetry.marketClockUpdatedAtMs) / 1000))
+      : null;
+
+  const marketClockStale =
+    marketClockAgeSec === null ||
+    !Number.isFinite(marketClockStaleThresholdSec) ||
+    marketClockStaleThresholdSec <= 0 ||
+    marketClockAgeSec > marketClockStaleThresholdSec;
 
   // --- Additive uptime calculation ---
   const liveUptimeMs =
@@ -101,5 +113,8 @@ export function getStreamTelemetry({ nowMs = Date.now() } = {}) {
     lastReconnectTs: telemetry.lastReconnectTs,
     marketOpen: telemetry.marketOpen,
     marketClockUpdatedAtMs: telemetry.marketClockUpdatedAtMs,
+    marketClockAgeSec,
+    marketClockStaleThresholdSec,
+    marketClockStale,
   };
 }

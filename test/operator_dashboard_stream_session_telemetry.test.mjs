@@ -22,8 +22,9 @@ test("operator dashboard exposes watchdog reconnect history without adding mutat
 });
 
 test("operator dashboard presents bounded market clock freshness and warns when stale", () => {
-  assert.match(source, /marketClockAgeSec = Number\.isFinite\(marketClockUpdatedAtMs\)/);
+  assert.match(source, /stream\.marketClockAgeSec/);
   assert.match(source, /"MARKET CLOCK " \+ marketClockAgeSec \+ "s AGO"/);
-  assert.match(source, /marketClockAgeSec === null \|\| marketClockAgeSec > 180/);
+  assert.match(source, /stream\.marketClockStale === true/);
   assert.match(source, /warnings\.push\("MARKET_CLOCK_STALE"\)/);
+  assert.doesNotMatch(source, /marketClockAgeSec > 180/);
 });
