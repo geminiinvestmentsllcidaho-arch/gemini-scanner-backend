@@ -21,5 +21,24 @@ export function health(req, res) {
 }
 
 export function readiness(req, res) {
-  res.json({ ready: true });
+  const stream = getStreamTelemetry();
+
+  const issues = [];
+  if (stream.marketClockStale) issues.push("MARKET_CLOCK_STALE");
+  if (stream.streamStale) issues.push("STREAM_STALE");
+  if (stream.marketOpen === true && !stream.streamConnected) issues.push("STREAM_DISCONNECTED");
+
+  const ready = issues.length === 0;
+  const payload = {
+    ready,
+    degraded: !ready,
+    issues,
+    stream,
+  };
+
+  if (!ready && typeof res?.status === "function") {
+    return res.status(503).json(payload);
+  }
+
+  return res.json(payload);
 }
