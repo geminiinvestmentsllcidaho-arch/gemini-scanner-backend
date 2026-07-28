@@ -6,7 +6,7 @@ export function health(req, res) {
 
   const issues = [];
   if (stream.streamStale) issues.push("STREAM_STALE");
-  if (!stream.streamConnected) issues.push("STREAM_DISCONNECTED");
+  if (stream.marketOpen === true && !stream.streamConnected) issues.push("STREAM_DISCONNECTED");
 
   const degraded = issues.length > 0;
 
