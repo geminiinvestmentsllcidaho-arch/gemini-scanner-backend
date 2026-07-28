@@ -63,11 +63,27 @@ function summary(positions = []) {
   };
 }
 async function readJson(fetchImpl, url, headers) {
-  const r = await fetchImpl(url, { method: "GET", headers });
-  const body = await r.text();
-  let json = null;
-  try { json = body ? JSON.parse(body) : null; } catch {}
-  return { ok: r.ok, statusCode: r.status, json };
+  try {
+    const r = await fetchImpl(url, { method: "GET", headers });
+    const body = await r.text();
+    let json = null;
+    try { json = body ? JSON.parse(body) : null; } catch {}
+    return {
+      ok: r.ok,
+      statusCode: r.status,
+      json,
+      errorName: null,
+      errorCode: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      statusCode: null,
+      json: null,
+      errorName: String(error?.name ?? "Error").slice(0, 120),
+      errorCode: error?.code ? String(error.code).slice(0, 120) : null,
+    };
+  }
 }
 
 export async function fetchAlpacaPaperAccountReadonly({
@@ -100,7 +116,29 @@ export async function fetchAlpacaPaperAccountReadonly({
     readJson(fetchImpl, new URL("/v2/account", baseUrl).toString(), headers),
     readJson(fetchImpl, new URL("/v2/positions", baseUrl).toString(), headers),
   ]);
-  if (!a.ok || !p.ok) return { ok: false, version: VERSION, status: "readonly_fetch_failed", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_FETCH_FAILED", mode: "PAPER_ONLY", runtime, fetchStatus: { account: a.statusCode, positions: p.statusCode }, account: null, positions: [], summary: { ...summary([]), operatorMessage: "Readonly paper account fetch failed. Secrets remain redacted." } };
+  if (!a.ok || !p.ok) return {
+    ok: false,
+    version: VERSION,
+    status: "readonly_fetch_failed",
+    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_FETCH_FAILED",
+    mode: "PAPER_ONLY",
+    runtime,
+    fetchStatus: { account: a.statusCode, positions: p.statusCode },
+    fetchErrors: {
+      account: a.errorName || a.errorCode
+        ? { name: a.errorName, code: a.errorCode }
+        : null,
+      positions: p.errorName || p.errorCode
+        ? { name: p.errorName, code: p.errorCode }
+        : null,
+    },
+    account: null,
+    positions: [],
+    summary: {
+      ...summary([]),
+      operatorMessage: "Readonly paper account fetch failed. Secrets remain redacted.",
+    },
+  };
   const positions = Array.isArray(p.json) ? p.json.map(position) : [];
   return { ok: true, version: VERSION, status: "connected_readonly", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED", mode: "PAPER_ONLY", runtime, account: account(a.json || {}), positions, summary: { ...summary(positions), operatorMessage: "Readonly paper account balances and positions fetched with GET requests only." } };
 }
