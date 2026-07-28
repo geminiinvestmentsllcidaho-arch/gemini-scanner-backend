@@ -552,10 +552,13 @@ ${panelCards}
             : "MARKET CLOCK " + marketClockAgeSec + "s AGO";
           var telemetryLabel = sessionLabel + " | " + connectionLabel + " | " + marketClockLabel;
 
-          if (health.degraded === true) warnings.push("DEGRADED");
-          if (stream.streamStale === true) warnings.push("STREAM_STALE");
-          if (stream.marketOpen === true && stream.streamConnected !== true) warnings.push("STREAM_DISCONNECTED");
-          if (stream.marketClockStale === true) warnings.push("MARKET_CLOCK_STALE");
+          var runtimeIssues = Array.isArray(health.issues)
+            ? health.issues.filter(function (issue) { return typeof issue === "string" && issue.length > 0; })
+            : [];
+          if (health.degraded === true && runtimeIssues.length === 0) warnings.push("DEGRADED");
+          runtimeIssues.forEach(function (issue) {
+            if (!warnings.includes(issue)) warnings.push(issue);
+          });
           if (n(stream.watchdogTriggerCount) > 0) warnings.push("WATCHDOG_RECONNECT");
           if (scanner.rankingConfidence !== undefined && n(scanner.rankingConfidence) < 0.15) warnings.push("LOW_CONFIDENCE");
 

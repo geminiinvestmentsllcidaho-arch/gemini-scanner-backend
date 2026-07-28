@@ -10,9 +10,12 @@ test("operator dashboard presents authoritative stream session and connection st
   assert.match(source, /telemetryLabel = sessionLabel \+ " \| " \+ connectionLabel/);
 });
 
-test("operator dashboard only escalates disconnected stream during authoritative open session", () => {
-  assert.match(source, /stream\.marketOpen === true && stream\.streamConnected !== true/);
-  assert.match(source, /warnings\.push\("STREAM_DISCONNECTED"\)/);
+test("operator dashboard consumes shared runtime health issue semantics", () => {
+  assert.match(source, /Array\.isArray\(health\.issues\)/);
+  assert.match(source, /runtimeIssues\.forEach/);
+  assert.match(source, /warnings\.includes\(issue\)/);
+  assert.doesNotMatch(source, /stream\.marketOpen === true && stream\.streamConnected !== true/);
+  assert.doesNotMatch(source, /warnings\.push\("STREAM_DISCONNECTED"\)/);
 });
 
 test("operator dashboard exposes watchdog reconnect history without adding mutation controls", () => {
@@ -24,7 +27,8 @@ test("operator dashboard exposes watchdog reconnect history without adding mutat
 test("operator dashboard presents bounded market clock freshness and warns when stale", () => {
   assert.match(source, /stream\.marketClockAgeSec/);
   assert.match(source, /"MARKET CLOCK " \+ marketClockAgeSec \+ "s AGO"/);
-  assert.match(source, /stream\.marketClockStale === true/);
-  assert.match(source, /warnings\.push\("MARKET_CLOCK_STALE"\)/);
+  assert.match(source, /health\.issues/);
+  assert.doesNotMatch(source, /stream\.marketClockStale === true/);
+  assert.doesNotMatch(source, /warnings\.push\("MARKET_CLOCK_STALE"\)/);
   assert.doesNotMatch(source, /marketClockAgeSec > 180/);
 });
