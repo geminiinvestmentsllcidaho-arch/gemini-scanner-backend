@@ -25,6 +25,19 @@ function decisionLabel(value) {
   return String(value ?? "DO_NOT_ENTER").replaceAll("_", " ");
 }
 
+function issueLabel(value) {
+  const issue = String(value ?? "").trim().toUpperCase();
+  const labels = {
+    QUOTE_STALE: "Quote data is stale.",
+    RANKINGS_STALE: "Scanner rankings are stale.",
+    RANKING_MISSING: "Current scanner ranking is unavailable.",
+    MARKET_CLOCK_STALE: "Market session status is stale.",
+    STREAM_STALE: "Live market data stream is stale.",
+    STREAM_DISCONNECTED: "Live market data stream is disconnected.",
+  };
+  return labels[issue] ?? issue.replaceAll("_", " ").toLowerCase();
+}
+
 export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options = {}) {
   const routeBase = String(options.routeBase ?? "/customer-zero/under-five-scanner").replace(/\/$/, "");
   const role = String(options.role ?? "customer");
@@ -32,6 +45,11 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
   const tenant = String(options.tenant ?? "customer");
   const flags = list(candidate.readonlyPotentialFlags);
   const blockers = list(candidate.blockingFlags);
+  const staleReasons = list(candidate.staleReasons);
+  const runtimeHealthReasons = staleReasons.map(issueLabel);
+  const resultState = candidate.sourceStale === true
+    ? "STALE_DATA"
+    : candidate.resultState ?? candidate.decision ?? "DO_NOT_ENTER";
   return {
     version: VERSION,
     route: candidate.symbol
@@ -44,8 +62,8 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
     title: `${candidate.symbol ?? "Unknown"} — Under $5 Scan Detail`,
     symbol: candidate.symbol ?? null,
     name: candidate.name ?? null,
-    decision: candidate.decision ?? "DO_NOT_ENTER",
-    decisionLabel: decisionLabel(candidate.decision),
+    decision: resultState,
+    decisionLabel: decisionLabel(resultState),
     briefExplanation: candidate.briefExplanation ?? "Decision detail is unavailable.",
     score: candidate.readonlyPotentialScore ?? null,
     potentialLabel: candidate.readonlyPotentialLabel ?? "low_priority",
@@ -57,9 +75,11 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
     dollarVolume: candidate.dollarVolume ?? null,
     sourceTs: candidate.sourceTs ?? null,
     sourceAgeSec: candidate.sourceAgeSec ?? null,
-    sourceStale: candidate.sourceStale === true,
+    sourceStale: candidate.sourceStale === true || resultState === "STALE_DATA",
+    staleReasons,
+    runtimeHealthReasons,
     flags,
-    blockers,
+    blockers: [...runtimeHealthReasons, ...blockers],
     passedChecks: [
       candidate.sourceStale !== true ? "Freshness check passed" : null,
       Number(candidate.spreadPct) <= 1 ? "Spread check passed" : null,
@@ -80,6 +100,7 @@ export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}, account
   const passed = list(detail.passedChecks).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
   const flags = list(detail.flags).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
   const blockers = list(detail.blockers).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
+  const runtimeHealth = list(detail.runtimeHealthReasons).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(detail.title)}</title>
@@ -99,6 +120,7 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <p><b>Data timestamp:</b> ${esc(formatCustomerDateTime(detail.sourceTs, account, { fallback: "Unavailable" }))}</p>
 <p><b>Source age:</b> ${esc(detail.sourceAgeSec)}s | <b>Stale:</b> ${esc(detail.sourceStale)}</p></section>
 <section class="card"><h2>Checks passed</h2><ul>${passed}</ul></section>
+${detail.sourceStale ? `<section class="card runtime-health-block"><h2>Why this result is blocked</h2><p>Current data cannot be trusted for a fresh scanner decision.</p><ul>${runtimeHealth}</ul></section>` : ""}
 <section class="card"><h2>Flags</h2><ul>${flags}</ul><h2>Blocking reasons</h2><ul>${blockers}</ul></section>
 <section class="card"><b>Decision assist only:</b> ${esc(detail.decisionAssistOnly)}<br><b>Buy recommendation:</b> ${esc(detail.buyRecommendation)}<br><b>No execution controls:</b> ${esc(detail.noExecutionControls)}</section>
 </main>
