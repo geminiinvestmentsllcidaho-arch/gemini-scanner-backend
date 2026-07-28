@@ -39,12 +39,25 @@ test("default preview sizes from equity at 0.25 percent with a 250 dollar cap", 
   assert.equal(preview.executionAllowed, false);
 });
 
+test("buying power without paper equity fails closed", () => {
+  const preview = buildCustomerZeroReadonlyAllocationPreview(
+    { symbol: "TEST", price: 4 },
+    { buyingPower: 399_078.36 },
+  );
+  assert.equal(preview.limits.paperEquity, null);
+  assert.equal(preview.preview.finalNotional, 0);
+  assert.equal(preview.preview.estimatedWholeShares, 0);
+  assert.equal(preview.preview.ready, false);
+  assert.ok(preview.warnings.includes("PAPER_EQUITY_UNAVAILABLE"));
+});
+
 test("default preview never sizes from leveraged buying power when equity is supplied", () => {
   const preview = buildCustomerZeroReadonlyAllocationPreview(
     { symbol: "TEST", price: 5 },
     { equity: 1_000, buyingPower: 1_000_000 },
   );
-  assert.equal(preview.limits.buyingPower, 1_000);
+  assert.equal(preview.limits.paperEquity, 1_000);
+  assert.equal(preview.limits.buyingPower, 1_000_000);
   assert.equal(preview.limits.percentageLimit, 2.5);
   assert.equal(preview.preview.finalNotional, 2.5);
   assert.equal(preview.preview.estimatedWholeShares, 0);

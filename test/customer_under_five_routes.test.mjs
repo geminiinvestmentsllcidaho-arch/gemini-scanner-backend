@@ -209,6 +209,7 @@ test("customer dashboard renders read-only allocation controls and calculated pr
   }, {
     route: "/customer/scanner/under-five",
     tenant: "customer",
+    equity: 1000,
     buyingPower: 1000,
     availableFundsPct: 20,
     maxDollarsPerStock: 100,
@@ -236,6 +237,7 @@ test("stale customer allocation preview stays blocked", () => {
       sourceStale: true,
     }],
   }, {
+    equity: 500,
     buyingPower: 500,
     availableFundsPct: 10,
     maxDollarsPerStock: 50,
@@ -243,7 +245,7 @@ test("stale customer allocation preview stays blocked", () => {
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
 
   assert.equal(dashboard.candidates[0].allocationPreview.preview.ready, false);
-  assert.match(html, /Preview blocked: Allocation preview is blocked because scanner data is stale\./);
+  assert.match(html, /Preview blocked: .*Allocation preview is blocked because scanner data is stale\./);
   assert.equal(dashboard.orderPlacementAllowed, false);
 });
 
@@ -292,6 +294,7 @@ test("customer dashboard exposes connected paper account buying power positions 
     route: "/customer-zero/under-five-scanner",
     tenant: "customer-zero",
     paperAccount,
+    equity: paperAccount.account.equity,
     buyingPower: paperAccount.account.buyingPower,
   });
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
@@ -339,10 +342,11 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
       sourceStale: false,
     }],
   }, {
+    equity: 1000,
     buyingPower: 1000,
     availableFundsPct: 10,
     maxDollarsPerStock: 50,
-    paperAccount: { accountHealthy: true, positions: [] },
+    paperAccount: { accountHealthy: true, account: { equity: 1000, buyingPower: 1000 }, positions: [] },
     marketOpen: true,
     paperExecutionEnabled: true,
     operatorApproved: true,

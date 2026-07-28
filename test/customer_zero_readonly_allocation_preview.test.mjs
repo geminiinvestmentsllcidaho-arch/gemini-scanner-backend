@@ -14,6 +14,7 @@ test("calculates lowest read-only allocation limit", () => {
     portfolioExposureLimitDollars: 90,
     liquidityCapacityLimitDollars: 80,
   }, {
+    equity: 1000,
     buyingPower: 1000,
     availableFundsPct: 20,
     maxDollarsPerStock: 100,
@@ -31,7 +32,7 @@ test("calculates lowest read-only allocation limit", () => {
 test("caps available funds percentage at eighty percent", () => {
   const out = buildCustomerZeroReadonlyAllocationPreview(
     { symbol: "CAP", price: 10 },
-    { buyingPower: 100, availableFundsPct: 95, maxDollarsPerStock: 100 }
+    { equity: 100, buyingPower: 100, availableFundsPct: 95, maxDollarsPerStock: 100 }
   );
 
   assert.equal(out.controls.availableFundsPct, 80);
@@ -42,7 +43,7 @@ test("caps available funds percentage at eighty percent", () => {
 test("stale data blocks preview readiness", () => {
   const out = buildCustomerZeroReadonlyAllocationPreview(
     { symbol: "OLD", price: 5, sourceStale: true },
-    { buyingPower: 500, availableFundsPct: 10, maxDollarsPerStock: 50 }
+    { equity: 500, buyingPower: 500, availableFundsPct: 10, maxDollarsPerStock: 50 }
   );
 
   assert.equal(out.preview.ready, false);
@@ -53,7 +54,7 @@ test("stale data blocks preview readiness", () => {
 test("warns when maximum dollars exceed buying power", () => {
   const out = buildCustomerZeroReadonlyAllocationPreview(
     { symbol: "WARN", price: 2 },
-    { buyingPower: 20, availableFundsPct: 80, maxDollarsPerStock: 100 }
+    { equity: 20, buyingPower: 20, availableFundsPct: 80, maxDollarsPerStock: 100 }
   );
 
   assert.equal(out.preview.finalNotional, 16);
