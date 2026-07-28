@@ -541,13 +541,20 @@ ${panelCards}
 
           if (!rows.length) critical.push("NO_RANKINGS");
           if (rows.length && nonZeroCount === 0) critical.push("ZERO_RANKINGS");
+          var stream = health.stream || {};
+          var sessionLabel = stream.marketOpen === true ? "MARKET OPEN" : stream.marketOpen === false ? "MARKET CLOSED" : "SESSION UNKNOWN";
+          var connectionLabel = stream.streamConnected === true ? "STREAM CONNECTED" : "STREAM DISCONNECTED";
+          var telemetryLabel = sessionLabel + " | " + connectionLabel;
+
           if (health.degraded === true) warnings.push("DEGRADED");
-          if (health.stream && health.stream.streamStale === true) warnings.push("STREAM_STALE");
+          if (stream.streamStale === true) warnings.push("STREAM_STALE");
+          if (stream.marketOpen === true && stream.streamConnected !== true) warnings.push("STREAM_DISCONNECTED");
+          if (n(stream.watchdogTriggerCount) > 0) warnings.push("WATCHDOG_RECONNECT");
           if (scanner.rankingConfidence !== undefined && n(scanner.rankingConfidence) < 0.15) warnings.push("LOW_CONFIDENCE");
 
-          if (critical.length) setBadge("critical", "ALERT: " + critical.join(", "));
-          else if (warnings.length) setBadge("warning", "WARN: " + warnings.join(", "));
-          else setBadge("ok", "OK: scanner stable");
+          if (critical.length) setBadge("critical", "ALERT: " + critical.join(", ") + " | " + telemetryLabel);
+          else if (warnings.length) setBadge("warning", "WARN: " + warnings.join(", ") + " | " + telemetryLabel);
+          else setBadge("ok", "OK: scanner stable | " + telemetryLabel);
         }).catch(function () {
           setBadge("critical", "ALERT: scanner check failed");
         });
