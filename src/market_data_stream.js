@@ -52,8 +52,10 @@ export function shouldReconnectStaleStream({
   nowMs = Date.now(),
   lastRxTsMs,
   staleThresholdSec,
+  marketOpen,
 } = {}) {
-  if (!shouldEnforceStreamFreshness(nowMs)) return false;
+  if (marketOpen === false) return false;
+  if (marketOpen !== true && !shouldEnforceStreamFreshness(nowMs)) return false;
   if (!Number.isFinite(lastRxTsMs)) return false;
   if (!Number.isFinite(staleThresholdSec) || staleThresholdSec < 0) return false;
   return Math.floor((nowMs - lastRxTsMs) / 1000) > staleThresholdSec;
@@ -122,26 +124,29 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
   const clearTimeoutFn = runtime.clearTimeoutFn || clearTimeout;
   const setIntervalFn = runtime.setIntervalFn || setInterval;
   const clearIntervalFn = runtime.clearIntervalFn || clearInterval;
+  const marketOpenFn = runtime.marketOpenFn || isMarketOpen;
   const envSymbols = parseSymbolsEnv(process.env.ALPACA_SYMBOLS);
   if (envSymbols) symbols = envSymbols;
 
-  const open = runtime.skipInitialFetches ? false : await isMarketOpen();
+  let marketOpen = runtime.skipInitialFetches ? false : await marketOpenFn();
+  const marketClockEveryMs = Number(runtime.marketClockEveryMs || 60_000);
 
   if (!runtime.skipInitialFetches) {
     try {
       for (const s of symbols) {
         const backfillLimit = Number(process.env.ALPACA_BACKFILL_LIMIT || 3000);
         const n = await backfillBars({ symbol: s, limit: backfillLimit });
-        console.log('[md] backfilled bars', { symbol: s, count: n, marketOpen: open });
+        console.log('[md] backfilled bars', { symbol: s, count: n, marketOpen });
       }
     } catch (e) {
-      console.log('[md] backfill error', String(e?.message || e), { marketOpen: open });
+      console.log('[md] backfill error', String(e?.message || e), { marketOpen });
     }
   }
 
   let ws = null;
   let reconnectTimer = null;
   let watchdogTimer = null;
+  let marketClockTimer = null;
   let closedManually = false;
 
   // Internal rx clock (NOT exposed, no schema changes). Used only for watchdog.
@@ -243,13 +248,24 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
   // Start connection
   connect();
 
+  if (!runtime.skipInitialFetches) {
+    marketClockTimer = setIntervalFn(async () => {
+      if (closedManually) return;
+      try {
+        marketOpen = await marketOpenFn();
+      } catch (error) {
+        console.log('[md] market clock refresh error', String(error?.message || error));
+      }
+    }, marketClockEveryMs);
+  }
+
   // Stale watchdog: if socket is OPEN but no rx for threshold, force reconnect.
   watchdogTimer = setIntervalFn(() => {
     if (closedManually) return;
     if (!ws) return;
     if (ws.readyState !== WebSocket.OPEN) return;
     const nowMs = nowFn();
-    if (!shouldReconnectStaleStream({ nowMs, lastRxTsMs, staleThresholdSec })) return;
+    if (!shouldReconnectStaleStream({ nowMs, lastRxTsMs, staleThresholdSec, marketOpen })) return;
 
     const ageSec = Math.floor((nowMs - lastRxTsMs) / 1000);
     incrementWatchdogTriggers();
@@ -265,11 +281,14 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
     get ws() {
       return ws;
     },
-    open,
+    get open() {
+      return marketOpen;
+    },
     stop() {
       closedManually = true;
       if (reconnectTimer) clearTimeoutFn(reconnectTimer);
       if (watchdogTimer) clearIntervalFn(watchdogTimer);
+      if (marketClockTimer) clearIntervalFn(marketClockTimer);
       if (ws) ws.close();
     },
   };

@@ -30,3 +30,48 @@ test('manual stop clears timers and suppresses reconnect', async()=>{
   const stream=await startMarketDataStream({runtime:r.api}); const ws=FakeWS.instances[0]; ws.open(); stream.stop();
   assert.equal(r.intervals.length,1); assert.equal(r.intervals[0].cleared,true); assert.equal(r.timeouts.length,0); assert.equal(ws.closeCalls,1);
 });
+
+test('authoritative market clock refresh updates exposed session state and clears its timer on stop', async () => {
+  FakeWS.instances.length = 0;
+  const timeouts = [];
+  const intervals = [];
+  const marketStates = [false, true];
+
+  const runtime = {
+    WebSocketImpl: FakeWS,
+    nowFn: () => Date.parse('2026-11-27T18:30:00.000Z'),
+    marketOpenFn: async () => marketStates.shift(),
+    marketClockEveryMs: 60_000,
+    setTimeoutFn(fn, delay) {
+      const token = { fn, delay, cleared: false };
+      timeouts.push(token);
+      return token;
+    },
+    clearTimeoutFn(token) {
+      if (token) token.cleared = true;
+    },
+    setIntervalFn(fn, delay) {
+      const token = { fn, delay, cleared: false };
+      intervals.push(token);
+      return token;
+    },
+    clearIntervalFn(token) {
+      if (token) token.cleared = true;
+    },
+  };
+
+  const stream = await startMarketDataStream({ symbols: ['AAPL'], runtime });
+  assert.equal(stream.open, false);
+  assert.equal(intervals.length, 2);
+
+  const marketClockTimer = intervals.find((token) => token.delay === 60_000);
+  assert.ok(marketClockTimer);
+
+  await marketClockTimer.fn();
+  assert.equal(stream.open, true);
+
+  stream.stop();
+  assert.equal(marketClockTimer.cleared, true);
+  assert.equal(intervals.every((token) => token.cleared), true);
+  assert.equal(timeouts.length, 0);
+});
