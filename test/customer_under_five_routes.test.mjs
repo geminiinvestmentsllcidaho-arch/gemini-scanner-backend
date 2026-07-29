@@ -301,7 +301,10 @@ test("customer dashboard exposes connected paper account buying power positions 
 
   assert.equal(dashboard.paperAccount.account.buyingPower, 1600);
   assert.equal(dashboard.paperAccount.summary.positionsCount, 1);
-  assert.equal(dashboard.candidates[0].allocationPreview.limits.buyingPower, 1600);
+  assert.equal(
+    dashboard.ownedPositionSignals.monitoredOwned[0].allocationPreview.limits.buyingPower,
+    1600,
+  );
   assert.match(html, /Paper account — read only/);
   assert.match(html, /Buying power: \$1600/);
   assert.match(html, /Positions: 1/);
@@ -385,13 +388,15 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
     spreadLiquidityOk: true,
   });
   const exitHtml = renderCustomerUnderFiveDashboardHtml(exitDashboard);
-  assert.match(exitHtml, /EXIT control preview/);
-  assert.match(exitHtml, /Explicit EXIT confirmation is required\.|All preview gates passed\./);
+  assert.deepEqual(exitDashboard.candidates, []);
+  assert.equal(exitDashboard.positionAlerts.length, 1);
+  assert.equal(exitDashboard.positionAlerts[0].symbol, "SELL");
+  assert.equal(exitDashboard.positionAlerts[0].paperEnterExitGate.exit.visible, true);
+  assert.match(exitHtml, /URGENT PAPER POSITION EXIT REVIEW/);
+  assert.match(exitHtml, /SELL — EXIT/);
+  assert.match(exitHtml, /Enable EXIT sound and notifications/);
   assert.doesNotMatch(exitHtml, /operatorApproved|paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk|positionPresent/);
-  assert.match(exitHtml, /class="paper-control priority-red">EXIT</);
   assert.match(exitHtml, /@keyframes gs-exit-flash/);
-  assert.match(exitHtml, /\.state-exit \.state-badge\{[^}]*animation:gs-exit-flash/);
-  assert.match(exitHtml, /\.priority-red\{[^}]*animation:gs-exit-flash/);
   assert.match(exitHtml, /\.market-closed\{color:#ff2929/);
   assert.equal(exitDashboard.orderPlacementAllowed, false);
 });
@@ -532,15 +537,18 @@ test("customer scanner prioritizes ENTER results and hides unowned EXIT results"
 
   assert.deepEqual(
     dashboard.candidates.map((candidate) => candidate.symbol),
-    ["ENTER1", "ENTER2", "EXITOWN", "WATCH1", "WAIT1"],
+    ["ENTER1", "ENTER2", "WATCH1", "WAIT1"],
   );
   assert.equal(
     dashboard.candidates.some((candidate) => candidate.symbol === "EXITNO"),
     false,
   );
+  assert.deepEqual(
+    dashboard.positionAlerts.map((candidate) => candidate.symbol),
+    ["EXITOWN"],
+  );
   assert.equal(
-    dashboard.candidates.find((candidate) => candidate.symbol === "EXITOWN")
-      ?.paperEnterExitGate?.exit?.visible,
+    dashboard.positionAlerts[0]?.paperEnterExitGate?.exit?.visible,
     true,
   );
 });
@@ -665,4 +673,10 @@ test("customer zero scanner route wires paper equity and buying power into alloc
   const route = server.slice(routeStart, routeEnd);
   assert.match(route, /equity:\s*paperAccount\.accountHealthy\s*\?\s*paperAccount\.account\.equity\s*:\s*null/);
   assert.match(route, /buyingPower:\s*paperAccount\.accountHealthy\s*\?\s*paperAccount\.account\.buyingPower\s*:\s*null/);
+});
+
+test("owned EXIT alerts and scale-in reviews are separate from opportunities",()=>{
+ const d=buildCustomerUnderFiveDashboard({sourceStatus:"connected_readonly",marketClock:{isOpen:true},candidates:[{symbol:"NEW",price:4,decision:"ENTER",tradeAllowed:true},{symbol:"SELL",price:4,decision:"EXIT",readonlyPotentialScore:99},{symbol:"ADD",price:4,decision:"ENTER",tradeAllowed:true,readonlyPotentialScore:95}]},{paperAccount:{accountHealthy:true,positions:[{symbol:"SELL",qty:3},{symbol:"ADD",qty:2,averageEntryPrice:3.5}]}});
+ assert.deepEqual(d.candidates.map(x=>x.symbol),["NEW"]);assert.deepEqual(d.positionAlerts.map(x=>x.symbol),["SELL"]);assert.deepEqual(d.scaleInReviews.map(x=>x.symbol),["ADD"]);
+ const h=renderCustomerUnderFiveDashboardHtml(d);assert.match(h,/URGENT PAPER POSITION EXIT REVIEW/);assert.match(h,/Enable EXIT sound and notifications/);assert.match(h,/SCALE-IN REVIEW/);assert.match(h,/customer-owned-position-alerts\.js/);
 });
