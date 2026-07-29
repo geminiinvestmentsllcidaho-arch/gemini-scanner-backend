@@ -101,7 +101,24 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       maxSourceAgeSec: options.maxSourceAgeSec,
     }),
   }));
-  const ownedPositionSignals = routeCustomerOwnedPositionSignals(gatedCandidates, options.paperAccount);
+  const independentOwnedCandidates = Array.isArray(options.ownedPositionCandidates)
+    ? options.ownedPositionCandidates
+    : [];
+  const combinedBySymbol = new Map();
+  for (const candidate of [...gatedCandidates, ...independentOwnedCandidates]) {
+    const symbol = String(candidate?.symbol ?? "").trim().toUpperCase();
+    if (!symbol) continue;
+    const existing = combinedBySymbol.get(symbol);
+    const candidateOwnedMonitor = candidate?.ownedPositionMonitorOnly === true;
+    const existingOwnedMonitor = existing?.ownedPositionMonitorOnly === true;
+    if (!existing || (candidateOwnedMonitor && !existingOwnedMonitor)) {
+      combinedBySymbol.set(symbol, candidate);
+    }
+  }
+  const ownedPositionSignals = routeCustomerOwnedPositionSignals(
+    [...combinedBySymbol.values()],
+    options.paperAccount,
+  );
   const priorityByState = Object.freeze({ ENTER:0, WATCH:1, WAIT:2, DO_NOT_ENTER:3, BLOCKED:4, STALE_DATA:5, NO_SETUP:6 });
   const prioritizedCandidates = [...ownedPositionSignals.scannerCandidates].sort((left, right) => {
     const leftState=String(left?.resultState??"NO_SETUP").toUpperCase();
@@ -131,6 +148,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     ownedPositionSignals,
     positionAlerts: ownedPositionSignals.exitAlerts,
     scaleInReviews: ownedPositionSignals.scaleInReviews,
+    monitoredOwned: ownedPositionSignals.monitoredOwned,
     resultFilters,
     performanceReport,
     paperAccount: options.paperAccount ?? {
@@ -230,8 +248,10 @@ export function renderCustomerUnderFiveDashboardHtml(dashboard = {}, account = n
 
   const positionAlerts=Array.isArray(dashboard?.positionAlerts)?dashboard.positionAlerts:[];
   const scaleInReviews=Array.isArray(dashboard?.scaleInReviews)?dashboard.scaleInReviews:[];
+  const monitoredOwned=Array.isArray(dashboard?.monitoredOwned)?dashboard.monitoredOwned:[];
   const exitAlertsHtml=positionAlerts.length?`<section class="owned-exit-stack" data-owned-exit-alerts data-alert-count="${esc(positionAlerts.length)}"><div class="owned-exit-banner" role="alert"><b>URGENT PAPER POSITION EXIT REVIEW</b><button type="button" data-enable-exit-alerts>Enable EXIT sound and notifications</button></div>${positionAlerts.map(a=>`<article><h2>${esc(a.symbol)} — EXIT</h2><p>Owned quantity: ${esc(a.ownedPositionQty??"Unavailable")} | Score: ${esc(a.readonlyPotentialScore??"Unavailable")}</p><p>Manual review only. No broker contact or order placement.</p></article>`).join("")}</section>`:"";
   const scaleInHtml=scaleInReviews.length?`<section class="card owned-scale-in" data-owned-scale-in-reviews><b>Owned-position scale-in reviews</b><p>Owned symbols are excluded from ordinary opportunity results.</p>${scaleInReviews.map(a=>`<article><h3>${esc(a.symbol)} — SCALE-IN REVIEW</h3><p>Owned quantity: ${esc(a.ownedPositionQty??"Unavailable")} | Average entry: ${esc(a.ownedAverageEntryPrice??"Unavailable")} | Score: ${esc(a.readonlyPotentialScore??"Unavailable")}</p><p>Blocked pending separate approval and sizing review. No automatic averaging down.</p></article>`).join("")}</section>`:"";
+  const monitoredOwnedHtml=monitoredOwned.length?`<section class="card owned-position-monitor" data-owned-position-monitors data-monitor-count="${esc(monitoredOwned.length)}"><b>Owned paper positions under active review</b><p>These positions are monitored independently from the opportunity price range.</p>${monitoredOwned.map(a=>`<article><h3>${esc(a.symbol)} — ${esc(a.resultState??a.decision??"WATCH")}</h3><p>Owned quantity: ${esc(a.ownedPositionQty??"Unavailable")} | Average entry: ${esc(a.ownedAverageEntryPrice??"Unavailable")} | Current price: ${esc(a.currentPrice??a.price??"Unavailable")}</p><p>Read-only monitoring. No automatic exit, scale-in, or order placement.</p></article>`).join("")}</section>`:"";
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(dashboard.title)}</title>
@@ -258,6 +278,7 @@ ${marketOpen
 <section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(String(dashboard.paperAccount?.ledger?.finalDecision ?? "NO GO FOR ORDER PLACEMENT").replaceAll("_", " "))} | No broker contact or account mutation.</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
 ${scaleInHtml}
+${monitoredOwnedHtml}
 ${resultRows}
 <section class="card"><b>Customer safety:</b> Decision assist only. No order placement, broker contact, or account mutation controls.</section>
 </main>

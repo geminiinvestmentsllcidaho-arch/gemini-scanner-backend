@@ -5674,9 +5674,13 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+    const ownedMonitorSourceMod = await import('./scanner/customer_owned_position_monitor_source.mjs');
     const source = await getUnderFiveSharedSource();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const ownedMonitorSource = await ownedMonitorSourceMod.fetchCustomerOwnedPositionMonitorSource({
+      paperAccount,
+    });
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
     const resultFilters = getCustomerZeroResultFilters(req.customerAccount?.id).filters;
@@ -5778,9 +5782,13 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+    const ownedMonitorSourceMod = await import('./scanner/customer_owned_position_monitor_source.mjs');
     const source = await getUnderFiveSharedSource();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const ownedMonitorSource = await ownedMonitorSourceMod.fetchCustomerOwnedPositionMonitorSource({
+      paperAccount,
+    });
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
     const requestedMaxPrice = Number(req.query.maxPrice);
@@ -5788,6 +5796,7 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
       route: '/customer-zero/under-five-scanner',
       paperAccount,
+      ownedPositionCandidates: ownedMonitorSource.candidates,
       paperLedger,
       paperLedgerHistory: paperPositionLedger.records,
       performancePeriod: req.query.period,

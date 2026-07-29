@@ -680,3 +680,45 @@ test("owned EXIT alerts and scale-in reviews are separate from opportunities",()
  assert.deepEqual(d.candidates.map(x=>x.symbol),["NEW"]);assert.deepEqual(d.positionAlerts.map(x=>x.symbol),["SELL"]);assert.deepEqual(d.scaleInReviews.map(x=>x.symbol),["ADD"]);
  const h=renderCustomerUnderFiveDashboardHtml(d);assert.match(h,/URGENT PAPER POSITION EXIT REVIEW/);assert.match(h,/Enable EXIT sound and notifications/);assert.match(h,/SCALE-IN REVIEW/);assert.match(h,/customer-owned-position-alerts\.js/);
 });
+
+test("customer zero under-five route loads independent owned-position monitor candidates", () => {
+  const server = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const start = server.indexOf("app.get('/customer-zero/under-five-scanner'");
+  const block = server.slice(start, server.indexOf("app.get('/diagnostics/alpaca-paper-account-dashboard'", start));
+  assert.match(block, /customer_owned_position_monitor_source\.mjs/);
+  assert.match(block, /fetchCustomerOwnedPositionMonitorSource\(\{\s*paperAccount,/);
+  assert.match(block, /ownedPositionCandidates:\s*ownedMonitorSource\.candidates/);
+});
+
+test("owned WATCH monitoring is rendered independently from opportunity results", async () => {
+  const mod = await import("../src/scanner/customer_under_five_dashboard.mjs");
+  const dashboard = mod.buildCustomerZeroUnderFiveDashboard(
+    { ok:true, candidates:[], marketClock:{isOpen:true} },
+    {
+      paperAccount:{
+        connected:true,
+        accountHealthy:true,
+        account:{equity:100000,buyingPower:100000},
+        positions:[{symbol:"SPY",qty:1,averageEntryPrice:749.19}]
+      },
+      ownedPositionCandidates:[{
+        symbol:"SPY",
+        price:740,
+        currentPrice:740,
+        resultState:"WATCH",
+        decision:"WATCH",
+        ownedPositionMonitorOnly:true,
+        readOnly:true,
+        paperOnly:true
+      }],
+      maxPrice:5,
+      now:new Date("2026-07-29T15:00:00.000Z")
+    }
+  );
+  assert.deepEqual(dashboard.candidates.map(x=>x.symbol),[]);
+  assert.deepEqual(dashboard.monitoredOwned.map(x=>x.symbol),["SPY"]);
+  const html=mod.renderCustomerZeroUnderFiveDashboardHtml(dashboard);
+  assert.match(html,/data-owned-position-monitors/);
+  assert.match(html,/SPY — WATCH/);
+  assert.match(html,/monitored independently from the opportunity price range/);
+});
