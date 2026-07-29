@@ -680,7 +680,7 @@ test("customer zero scanner route wires paper equity and buying power into alloc
 test("owned EXIT alerts and scale-in reviews are separate from opportunities",()=>{
  const d=buildCustomerUnderFiveDashboard({sourceStatus:"connected_readonly",marketClock:{isOpen:true},candidates:[{symbol:"NEW",price:4,decision:"ENTER",tradeAllowed:true},{symbol:"SELL",price:4,decision:"EXIT",readonlyPotentialScore:99},{symbol:"ADD",price:4,decision:"ENTER",tradeAllowed:true,readonlyPotentialScore:95}]},{paperAccount:{accountHealthy:true,positions:[{symbol:"SELL",qty:3},{symbol:"ADD",qty:2,averageEntryPrice:3.5}]}});
  assert.deepEqual(d.candidates.map(x=>x.symbol),["NEW"]);assert.deepEqual(d.positionAlerts.map(x=>x.symbol),["SELL"]);assert.deepEqual(d.scaleInReviews.map(x=>x.symbol),["ADD"]);
- const h=renderCustomerUnderFiveDashboardHtml(d);assert.match(h,/URGENT PAPER POSITION EXIT REVIEW/);assert.match(h,/Enable EXIT sound and notifications/);assert.match(h,/SCALE-IN REVIEW/);assert.match(h,/customer-owned-position-alerts\.js/);
+ const h=renderCustomerUnderFiveDashboardHtml(d);assert.match(h,/URGENT PAPER POSITION EXIT REVIEW/);assert.match(h,/Enable EXIT sound and notifications/);assert.match(h,/REVIEW ADDING MORE/);assert.match(h,/Current return:/);assert.match(h,/review only—not permission to buy more/);assert.match(h,/will not recommend averaging down/);assert.match(h,/customer-owned-position-alerts\.js/);
 });
 
 test("customer zero under-five route loads independent owned-position monitor candidates", () => {
