@@ -122,6 +122,9 @@ export async function runPostMarketReadonlyWorkerCycle(options = {}) {
       ?? process.env.ALPACA_SYMBOLS;
     const symbols = normalizeEvidenceSymbols(positionSymbols, configuredSymbols);
     marketEvidence = await fetchMarketEvidence({
+      minPrice: 0,
+      maxPrice: Number.POSITIVE_INFINITY,
+      minDailyVolume: 0,
       ...(options.marketEvidenceOptions ?? {}),
       symbols,
       maxAssets: symbols.length,

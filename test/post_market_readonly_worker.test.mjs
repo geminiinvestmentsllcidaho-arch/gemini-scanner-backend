@@ -78,6 +78,9 @@ test("bounds market evidence to paper positions plus configured watchlist symbol
   assert.equal(result.status, "completed_readonly");
   assert.deepEqual(evidenceOptions.symbols, ["AAA", "NVDA", "NEXT", "MSFT"]);
   assert.equal(evidenceOptions.maxAssets, 4);
+  assert.equal(evidenceOptions.minPrice, 0);
+  assert.equal(evidenceOptions.maxPrice, Number.POSITIVE_INFINITY);
+  assert.equal(evidenceOptions.minDailyVolume, 0);
   assert.equal(evidenceOptions.symbols.length <= 50, true);
 });
 
