@@ -393,6 +393,8 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   assert.equal(exitDashboard.positionAlerts[0].symbol, "SELL");
   assert.equal(exitDashboard.positionAlerts[0].paperEnterExitGate.exit.visible, true);
   assert.match(exitHtml, /URGENT PAPER POSITION EXIT REVIEW/);
+  assert.match(exitHtml, /Position return:/);
+  assert.match(exitHtml, /Reason:/);
   assert.match(exitHtml, /SELL — EXIT/);
   assert.match(exitHtml, /Enable EXIT sound and notifications/);
   assert.doesNotMatch(exitHtml, /operatorApproved|paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk|positionPresent/);
@@ -719,6 +721,9 @@ test("owned WATCH monitoring is rendered independently from opportunity results"
   assert.deepEqual(dashboard.monitoredOwned.map(x=>x.symbol),["SPY"]);
   const html=mod.renderCustomerZeroUnderFiveDashboardHtml(dashboard);
   assert.match(html,/data-owned-position-monitors/);
-  assert.match(html,/SPY — WATCH/);
+  assert.match(html,/Position return:/);
+  assert.match(html,/No EXIT review is active/);
+  assert.match(html,/SPY — MONITOR/);
+  assert.match(html,/Current assessment:<\/b> WATCH\. No EXIT review is active\./);
   assert.match(html,/monitored independently from the opportunity price range/);
 });
