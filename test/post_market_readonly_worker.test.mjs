@@ -38,6 +38,27 @@ test("suppresses duplicate unchanged snapshots", async () => {
   assert.equal(second.duplicateSnapshot, true);
 });
 
+
+test("fails closed without fabricating freshness when held-position evidence is missing", async () => {
+  const result = await runPostMarketReadonlyWorkerCycle({
+    now,
+    fetchPaperAccount: async () => paper(),
+    fetchMarketEvidence: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      candidates: [],
+    }),
+  });
+
+  assert.equal(result.status, "completed_readonly");
+  assert.equal(result.positionReviews[0].symbol, "AAA");
+  assert.equal(result.positionReviews[0].state, "REVIEW_UNAVAILABLE");
+  assert.equal(result.positionReviews[0].sourceTimestamp, null);
+  assert.deepEqual(result.positionReviews[0].flags, ["SOURCE_TIMESTAMP_UNAVAILABLE"]);
+  assert.equal(result.overnightReviews[0].state, "INSUFFICIENT_DATA");
+  assert.equal(result.qualityReview.proposalReport.proposalCount, 0);
+});
+
 test("stale evidence produces no calibration proposals", async () => {
   const stale = evidence();
   stale.candidates = stale.candidates.map((candidate) => ({ ...candidate, sourceTs: "2026-07-17T20:00:00.000Z" }));

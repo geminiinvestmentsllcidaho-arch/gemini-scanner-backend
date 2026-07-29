@@ -39,7 +39,7 @@ function candidateInput(candidate = {}, generatedAt) {
     afterHoursPrice: candidate.afterHoursPrice ?? candidate.currentPrice ?? candidate.price,
     afterHoursChangePct: candidate.afterHoursChangePct ?? candidate.changePct,
     dayChangePct: candidate.dayChangePct ?? candidate.changePct,
-    sourceTimestamp: candidate.sourceTimestamp ?? candidate.sourceTs ?? generatedAt,
+    sourceTimestamp: candidate.sourceTimestamp ?? candidate.sourceTs ?? null,
   };
 }
 
@@ -64,7 +64,7 @@ function positionInput(position = {}, evidence = {}, generatedAt, portfolioValue
     earningsWithinOneDay: position.earningsWithinOneDay === true || match.earningsWithinOneDay === true,
     halted: position.halted === true || match.halted === true,
     restricted: position.restricted === true || match.restricted === true,
-    sourceTimestamp: position.sourceTimestamp ?? match.sourceTimestamp ?? match.sourceTs ?? generatedAt,
+    sourceTimestamp: position.sourceTimestamp ?? match.sourceTimestamp ?? match.sourceTs ?? null,
   };
 }
 
