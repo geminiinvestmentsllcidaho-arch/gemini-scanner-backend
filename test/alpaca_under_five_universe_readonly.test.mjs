@@ -434,3 +434,47 @@ test("adds read-only Alpaca market clock status", async () => {
   assert.equal(result.marketClock.nextClose, "2026-07-10T16:00:00-04:00");
   assert.equal(result.runtime.allowedMethods.includes("GET"), true);
 });
+
+test("derives bounded relative volume from current and previous daily bars", async () => {
+  const now = "2026-07-10T18:30:00.000Z";
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      ALPACA_KEY: "key",
+      ALPACA_SECRET: "secret",
+    },
+    nowMs: Date.parse(now),
+    maxAssets: 10,
+    minPrice: 0,
+    maxPrice: Number.POSITIVE_INFINITY,
+    minDailyVolume: 0,
+    fetchImpl: async (url) => {
+      if (String(url).includes("/v2/assets")) {
+        return response(200, [
+          { symbol: "RVOL", name: "Relative Volume", exchange: "NASDAQ", status: "active", tradable: true },
+          { symbol: "MISS", name: "Missing Previous Volume", exchange: "NYSE", status: "active", tradable: true },
+        ]);
+      }
+      return response(200, {
+        RVOL: {
+          latestTrade: { p: 10, t: now },
+          latestQuote: { bp: 9.99, ap: 10.01, t: now },
+          dailyBar: { v: 900000 },
+          prevDailyBar: { c: 9.5, v: 300000 },
+        },
+        MISS: {
+          latestTrade: { p: 5, t: now },
+          latestQuote: { bp: 4.99, ap: 5.01, t: now },
+          dailyBar: { v: 100000 },
+          prevDailyBar: { c: 4.8 },
+        },
+      });
+    },
+  });
+
+  const bySymbol = Object.fromEntries(result.candidates.map((item) => [item.symbol, item]));
+  assert.equal(bySymbol.RVOL.relativeVolume, 3);
+  assert.equal(bySymbol.MISS.relativeVolume, null);
+  assert.equal(result.runtime.readOnly, true);
+  assert.equal(result.runtime.orderPlacementAllowed, false);
+  assert.equal(result.runtime.accountMutationAllowed, false);
+});

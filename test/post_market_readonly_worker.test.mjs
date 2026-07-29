@@ -125,3 +125,30 @@ test("uses a small default evidence universe when positions and watchlist are em
   assert.deepEqual(evidenceOptions.symbols, ["AAPL", "MSFT", "NVDA", "SPY"]);
   assert.equal(evidenceOptions.maxAssets, 4);
 });
+
+test("propagates provider relative volume into held-position overnight evidence", async () => {
+  const result = await runPostMarketReadonlyWorkerCycle({
+    now,
+    fetchPaperAccount: async () => paper(),
+    fetchMarketEvidence: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      candidates: [{
+        symbol: "AAA",
+        currentPrice: 9.5,
+        changePct: -2,
+        relativeVolume: 3,
+        spreadPct: 0.5,
+        dollarVolume: 4000000,
+        catalystKnown: true,
+        sourceTs: "2026-07-17T20:59:00.000Z",
+      }],
+    }),
+  });
+
+  assert.equal(result.overnightReviews[0].metrics.relativeVolume, 3);
+  assert.equal(result.overnightReviews[0].flags.includes("RELATIVE_VOLUME_UNAVAILABLE"), false);
+  assert.equal(result.readOnly, true);
+  assert.equal(result.orderPlacementAllowed, false);
+  assert.equal(result.accountMutationAllowed, false);
+});

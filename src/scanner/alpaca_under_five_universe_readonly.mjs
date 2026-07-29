@@ -38,6 +38,13 @@ function latestVolume(snapshot = {}) {
   return finite(snapshot?.dailyBar?.v ?? snapshot?.minuteBar?.v) ?? 0;
 }
 
+function relativeVolume(snapshot = {}) {
+  const currentVolume = finite(snapshot?.dailyBar?.v);
+  const previousVolume = finite(snapshot?.prevDailyBar?.v);
+  if (currentVolume === null || previousVolume === null || currentVolume < 0 || previousVolume <= 0) return null;
+  return Number((currentVolume / previousVolume).toFixed(4));
+}
+
 function percentChange(current, previous) {
   const c = finite(current);
   const p = finite(previous);
@@ -324,6 +331,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
         spreadPct: spreadPct(snapshot),
         dailyVolume,
         dollarVolume,
+        relativeVolume: relativeVolume(snapshot),
         ...freshness,
       };
       return {
