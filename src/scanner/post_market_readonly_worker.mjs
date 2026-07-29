@@ -29,7 +29,27 @@ function normalizeEvidenceSymbols(...sources) {
       if (symbols.length >= MAX_EVIDENCE_SYMBOLS) return symbols;
     }
   }
-  return symbols.length ? symbols : [...DEFAULT_EVIDENCE_SYMBOLS];
+  return symbols;
+}
+
+function mergeMarketEvidence(positionEvidence, watchEvidence) {
+  const merged = new Map();
+  for (const candidate of Array.isArray(watchEvidence?.candidates) ? watchEvidence.candidates : []) {
+    const symbol = String(candidate?.symbol ?? "").trim().toUpperCase();
+    if (symbol) merged.set(symbol, candidate);
+  }
+  for (const candidate of Array.isArray(positionEvidence?.candidates) ? positionEvidence.candidates : []) {
+    const symbol = String(candidate?.symbol ?? "").trim().toUpperCase();
+    if (symbol) merged.set(symbol, candidate);
+  }
+  return Object.freeze({
+    ok: positionEvidence?.ok === true && watchEvidence?.ok === true,
+    status:
+      positionEvidence?.status === "connected_readonly" && watchEvidence?.status === "connected_readonly"
+        ? "connected_readonly"
+        : positionEvidence?.status ?? watchEvidence?.status ?? "unavailable",
+    candidates: Object.freeze([...merged.values()]),
+  });
 }
 
 function candidateInput(candidate = {}, generatedAt) {
@@ -113,24 +133,48 @@ export async function runPostMarketReadonlyWorkerCycle(options = {}) {
   let marketEvidence;
   try {
     paperAccount = await fetchPaperAccount(options.paperAccountOptions ?? {});
-    const positionSymbols = (Array.isArray(paperAccount?.positions) ? paperAccount.positions : [])
-      .map((position) => position?.symbol);
-    const configuredSymbols =
+    const positionSymbols = normalizeEvidenceSymbols(
+      (Array.isArray(paperAccount?.positions) ? paperAccount.positions : [])
+        .map((position) => position?.symbol),
+    );
+    const configuredSymbols = normalizeEvidenceSymbols(
       options.marketEvidenceOptions?.symbols
       ?? options.evidenceSymbols
       ?? options.env?.ALPACA_SYMBOLS
-      ?? process.env.ALPACA_SYMBOLS;
-    const symbols = normalizeEvidenceSymbols(positionSymbols, configuredSymbols);
-    marketEvidence = await fetchMarketEvidence({
-      minPrice: 0,
-      maxPrice: Number.POSITIVE_INFINITY,
-      minDailyVolume: 0,
+      ?? process.env.ALPACA_SYMBOLS,
+    );
+    const watchSymbols = configuredSymbols.length
+      ? configuredSymbols
+      : positionSymbols.length
+        ? []
+        : [...DEFAULT_EVIDENCE_SYMBOLS];
+    const sharedOptions = {
       ...(options.marketEvidenceOptions ?? {}),
-      symbols,
-      maxAssets: symbols.length,
       nowMs: now.getTime(),
       maxSourceAgeSec: maxFreshSec,
-    });
+    };
+    delete sharedOptions.symbols;
+
+    const positionEvidence = positionSymbols.length
+      ? await fetchMarketEvidence({
+          ...sharedOptions,
+          minPrice: 0,
+          maxPrice: Number.POSITIVE_INFINITY,
+          minDailyVolume: 0,
+          symbols: positionSymbols,
+          maxAssets: positionSymbols.length,
+        })
+      : { ok: true, status: "connected_readonly", candidates: [] };
+
+    const watchEvidence = watchSymbols.length
+      ? await fetchMarketEvidence({
+          ...sharedOptions,
+          symbols: watchSymbols,
+          maxAssets: watchSymbols.length,
+        })
+      : { ok: true, status: "connected_readonly", candidates: [] };
+
+    marketEvidence = mergeMarketEvidence(positionEvidence, watchEvidence);
   } catch (error) {
     return failureResult(generatedAt, "source_fetch_failed_closed", String(error?.code ?? error?.message ?? "SOURCE_FETCH_FAILED").slice(0, 160), { paperAccount: "exception", marketEvidence: "exception" });
   }

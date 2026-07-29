@@ -76,8 +76,8 @@ test("keeps all execution and mutation locks closed", async () => {
 });
 
 
-test("bounds market evidence to paper positions plus configured watchlist symbols", async () => {
-  let evidenceOptions = null;
+test("separates held-position evidence from configured watchlist evidence", async () => {
+  const calls = [];
   const result = await runPostMarketReadonlyWorkerCycle({
     now,
     env: { ALPACA_SYMBOLS: "NEXT, MSFT, next, BAD SYMBOL" },
@@ -91,22 +91,25 @@ test("bounds market evidence to paper positions plus configured watchlist symbol
       ],
     }),
     fetchMarketEvidence: async (options) => {
-      evidenceOptions = options;
+      calls.push(options);
       return evidence();
     },
   });
 
   assert.equal(result.status, "completed_readonly");
-  assert.deepEqual(evidenceOptions.symbols, ["AAA", "NVDA", "NEXT", "MSFT"]);
-  assert.equal(evidenceOptions.maxAssets, 4);
-  assert.equal(evidenceOptions.minPrice, 0);
-  assert.equal(evidenceOptions.maxPrice, Number.POSITIVE_INFINITY);
-  assert.equal(evidenceOptions.minDailyVolume, 0);
-  assert.equal(evidenceOptions.symbols.length <= 50, true);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].symbols, ["AAA", "NVDA"]);
+  assert.equal(calls[0].minPrice, 0);
+  assert.equal(calls[0].maxPrice, Number.POSITIVE_INFINITY);
+  assert.equal(calls[0].minDailyVolume, 0);
+  assert.deepEqual(calls[1].symbols, ["NEXT", "MSFT"]);
+  assert.equal(Object.hasOwn(calls[1], "minPrice"), false);
+  assert.equal(Object.hasOwn(calls[1], "maxPrice"), false);
+  assert.equal(Object.hasOwn(calls[1], "minDailyVolume"), false);
 });
 
 test("uses a small default evidence universe when positions and watchlist are empty", async () => {
-  let evidenceOptions = null;
+  const calls = [];
   await runPostMarketReadonlyWorkerCycle({
     now,
     env: {},
@@ -117,13 +120,17 @@ test("uses a small default evidence universe when positions and watchlist are em
       positions: [],
     }),
     fetchMarketEvidence: async (options) => {
-      evidenceOptions = options;
+      calls.push(options);
       return evidence();
     },
   });
 
-  assert.deepEqual(evidenceOptions.symbols, ["AAPL", "MSFT", "NVDA", "SPY"]);
-  assert.equal(evidenceOptions.maxAssets, 4);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].symbols, ["AAPL", "MSFT", "NVDA", "SPY"]);
+  assert.equal(calls[0].maxAssets, 4);
+  assert.equal(Object.hasOwn(calls[0], "minPrice"), false);
+  assert.equal(Object.hasOwn(calls[0], "maxPrice"), false);
+  assert.equal(Object.hasOwn(calls[0], "minDailyVolume"), false);
 });
 
 test("propagates provider relative volume into held-position overnight evidence", async () => {
@@ -148,6 +155,40 @@ test("propagates provider relative volume into held-position overnight evidence"
 
   assert.equal(result.overnightReviews[0].metrics.relativeVolume, 3);
   assert.equal(result.overnightReviews[0].flags.includes("RELATIVE_VOLUME_UNAVAILABLE"), false);
+  assert.equal(result.readOnly, true);
+  assert.equal(result.orderPlacementAllowed, false);
+  assert.equal(result.accountMutationAllowed, false);
+});
+
+test("held-position evidence takes merge precedence over a repeated watchlist symbol", async () => {
+  let call = 0;
+  const result = await runPostMarketReadonlyWorkerCycle({
+    now,
+    env: { ALPACA_SYMBOLS: "AAA,NEXT" },
+    fetchPaperAccount: async () => paper(),
+    fetchMarketEvidence: async (options) => {
+      call += 1;
+      const held = options.minPrice === 0;
+      return {
+        ok: true,
+        status: "connected_readonly",
+        candidates: options.symbols.map((symbol) => ({
+          symbol,
+          currentPrice: held ? 9.5 : 99,
+          changePct: -2,
+          relativeVolume: held ? 3 : 1,
+          spreadPct: 0.5,
+          dollarVolume: 4000000,
+          catalystKnown: true,
+          sourceTs: "2026-07-17T20:59:00.000Z",
+        })),
+      };
+    },
+  });
+
+  assert.equal(call, 2);
+  assert.equal(result.positionReviews[0].metrics.currentPrice, 9.5);
+  assert.equal(result.overnightReviews[0].metrics.relativeVolume, 3);
   assert.equal(result.readOnly, true);
   assert.equal(result.orderPlacementAllowed, false);
   assert.equal(result.accountMutationAllowed, false);
