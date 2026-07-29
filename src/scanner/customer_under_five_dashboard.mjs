@@ -262,6 +262,9 @@ ${marketOpen
   : `<div class="scan-status-item scan-countdown">SCANNER PAUSED<br><small>Next open: ${esc(nextOpenLabel)}</small></div>`}
 </section>
 <section class="card" data-role-badge="customer"><b>Role:</b> ${esc(dashboard.roleLabel ?? "Customer")} | <b>Price range:</b> ${esc(dashboard.priceRangeLabel ?? "$0–$10")}<br><b>Selected states:</b> ${esc((dashboard.selectedStateLabels ?? []).join(", ") || "All")} | <b>Results:</b> ${esc(dashboard.candidateCount)}<br><b>Refresh:</b> ${marketOpen ? `${esc(refreshSec)}s` : "Paused until market open"} | <b>Market:</b> ${marketOpen ? "Open" : "Closed"}</section>
+<section class="card ranking-order-note" data-result-order>
+<b>Result order:</b> ENTER candidates appear first, ranked from strongest potential score to weakest. Owned EXIT alerts follow, then WATCH, WAIT, DO NOT ENTER, BLOCKED, STALE DATA, and NO SETUP. Equal scores are sorted by symbol.
+</section>
 
 <section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} | Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} | Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} | Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(String(dashboard.paperAccount?.ledger?.finalDecision ?? "NO GO FOR ORDER PLACEMENT").replaceAll("_", " "))} | No broker contact or account mutation.</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) | Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>

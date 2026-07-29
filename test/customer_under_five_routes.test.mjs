@@ -546,6 +546,30 @@ test("customer scanner prioritizes ENTER results and hides unowned EXIT results"
 });
 
 
+test("customer scanner explains ENTER-first strongest-score result ordering", () => {
+  const dashboard = buildCustomerUnderFiveDashboard({
+    sourceStatus: "connected_readonly",
+    marketClock: { isOpen: true },
+    candidates: [
+      { symbol: "LOWER", price: 4, decision: "ENTER", tradeAllowed: true, readonlyPotentialScore: 72 },
+      { symbol: "HIGHER", price: 4, decision: "ENTER", tradeAllowed: true, readonlyPotentialScore: 94 },
+      { symbol: "WATCH1", price: 4, decision: "WATCH", readonlyPotentialScore: 99 },
+    ],
+  });
+
+  assert.deepEqual(
+    dashboard.candidates.map((candidate) => candidate.symbol),
+    ["HIGHER", "LOWER", "WATCH1"],
+  );
+
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.match(html, /Result order:/);
+  assert.match(html, /ENTER candidates appear first/);
+  assert.match(html, /strongest potential score to weakest/);
+  assert.match(html, /Equal scores are sorted by symbol/);
+  assert.match(html, /data-result-order/);
+});
+
 test("watchlist scanner has no price ceiling and renders top scan status", () => {
   const source = {
     status: "connected_readonly",
