@@ -109,3 +109,26 @@ test("dashboard integration can route an independently sourced owned EXIT", asyn
   assert.equal(dashboard.positionAlerts[0].priority, "highest");
   assert.equal(dashboard.positionAlerts[0].orderPlacementAllowed, false);
 });
+
+test("applies the owned-position EXIT review policy before routing", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount: {
+      positions: [{
+        symbol: "LOSS", qty: 1, averageEntryPrice: 100,
+        currentPrice: 96, unrealizedPlpc: -0.04,
+      }],
+    },
+    fetchSymbols: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      candidates: [{
+        symbol: "LOSS", price: 96, changePct: -0.2, sourceStale: false,
+        readonlyPotentialScore: 70, resultState: "WAIT", decision: "WAIT",
+      }],
+    }),
+  });
+  assert.equal(result.candidates[0].resultState, "EXIT");
+  assert.equal(result.candidates[0].ownedExitReviewTriggered, true);
+  assert.equal(result.candidates[0].automaticExitAllowed, false);
+  assert.equal(result.candidates[0].orderPlacementAllowed, false);
+});

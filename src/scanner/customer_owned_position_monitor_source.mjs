@@ -1,4 +1,5 @@
 import { fetchAlpacaUnderFiveUniverseReadonly } from "./alpaca_under_five_universe_readonly.mjs";
+import { applyOwnedPositionExitReviewPolicy } from "./customer_owned_position_exit_review_policy.mjs";
 
 export const VERSION = "customer_owned_position_monitor_source_v1";
 
@@ -86,7 +87,7 @@ export async function fetchCustomerOwnedPositionMonitorSource({
   for (const position of positions) {
     const candidate = bySymbol.get(position.symbol);
     if (candidate) {
-      candidates.push(Object.freeze({
+      candidates.push(Object.freeze(applyOwnedPositionExitReviewPolicy({
         ...candidate,
         symbol: position.symbol,
         sourceCoverage: "owned_position_symbol_fetch",
@@ -96,7 +97,7 @@ export async function fetchCustomerOwnedPositionMonitorSource({
         brokerContactAllowed: false,
         orderPlacementAllowed: false,
         accountMutationAllowed: false,
-      }));
+      }, position)));
     } else {
       missingSymbols.push(position.symbol);
       candidates.push(fallbackCandidate(position));
