@@ -132,3 +132,41 @@ test("applies the owned-position EXIT review policy before routing", async () =>
   assert.equal(result.candidates[0].automaticExitAllowed, false);
   assert.equal(result.candidates[0].orderPlacementAllowed, false);
 });
+
+test("applies production-shaped scale-in review policy before routing", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount: {
+      positions: [{
+        symbol: "GAIN", qty: 2, averageEntryPrice: 100,
+        currentPrice: 102, unrealizedPlpc: 0.02,
+      }],
+    },
+    fetchSymbols: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      candidates: [{
+        symbol: "GAIN",
+        price: 102,
+        changePct: 0.8,
+        sourceAgeSec: 5,
+        maxSourceAgeSec: 120,
+        sourceStale: false,
+        readonlyPotentialScore: 82,
+        readonlyPotentialFlags: [],
+        resultState: "ENTER",
+        decision: "ENTER",
+      }],
+    }),
+  });
+
+  const candidate = result.candidates[0];
+  assert.equal(candidate.resultState, "ENTER");
+  assert.equal(candidate.decision, "ENTER");
+  assert.equal(candidate.ownedScaleInReviewTriggered, true);
+  assert.equal(candidate.ownedScaleInReviewReason, "OWNED_POSITION_CONFIRMED_STRENGTH_REVIEW");
+  assert.equal(candidate.ownedReturnPct, 2);
+  assert.equal(candidate.automaticScaleInAllowed, false);
+  assert.equal(candidate.brokerContactAllowed, false);
+  assert.equal(candidate.orderPlacementAllowed, false);
+  assert.equal(candidate.accountMutationAllowed, false);
+});
