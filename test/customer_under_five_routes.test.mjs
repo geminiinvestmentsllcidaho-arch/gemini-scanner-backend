@@ -729,6 +729,69 @@ test("owned WATCH monitoring is rendered independently from opportunity results"
 });
 
 
+
+test("portfolio wind-down suppresses owned scale-in reviews while preserving exit and scale-out precedence", () => {
+  const dashboard = buildCustomerUnderFiveDashboard(
+    {
+      sourceStatus: "connected_readonly",
+      marketClock: { isOpen: true },
+      candidates: [
+        { symbol: "EXIT", price: 4, decision: "EXIT", readonlyPotentialScore: 40 },
+        {
+          symbol: "ADD",
+          price: 4,
+          decision: "ENTER",
+          resultState: "ENTER",
+          tradeAllowed: true,
+          readonlyPotentialScore: 95,
+          changePct: 1,
+          sourceStale: false,
+          sourceAgeSec: 1,
+        },
+      ],
+    },
+    {
+      portfolioWindDownActive: true,
+      ownedPositionCandidates: [{
+        symbol: "TRIM",
+        price: 4,
+        currentPrice: 4,
+        decision: "WATCH",
+        resultState: "WATCH",
+        readonlyPotentialScore: 50,
+        changePct: -1,
+        sourceStale: false,
+        sourceAgeSec: 1,
+        ownedReturnPct: 33.333333,
+        ownedScaleOutReviewTriggered: true,
+        ownedScaleOutReviewReason: "OWNED_POSITION_PROFIT_PROTECTION_REVIEW",
+        ownedScaleOutSuggestedFraction: 0.5,
+        ownedScaleOutSuggestedQty: 2,
+        ownedPositionMonitorOnly: true,
+        readOnly: true,
+        paperOnly: true,
+      }],
+      paperAccount: {
+        accountHealthy: true,
+        positions: [
+          { symbol: "EXIT", qty: 3, averageEntryPrice: 5 },
+          { symbol: "TRIM", qty: 4, averageEntryPrice: 3 },
+          { symbol: "ADD", qty: 2, averageEntryPrice: 3.5 },
+        ],
+      },
+    },
+  );
+
+  assert.deepEqual(dashboard.positionAlerts.map((row) => row.symbol), ["EXIT"]);
+  assert.deepEqual(dashboard.scaleOutReviews.map((row) => row.symbol), ["TRIM"]);
+  assert.deepEqual(dashboard.scaleInReviews, []);
+  assert.deepEqual(dashboard.ownedPositionSignals.scaleInReviews, []);
+  const html = renderCustomerUnderFiveDashboardHtml(dashboard);
+  assert.match(html, /URGENT PAPER POSITION EXIT REVIEW/);
+  assert.match(html, /REVIEW SELLING PART/);
+  assert.doesNotMatch(html, /REVIEW ADDING MORE/);
+});
+
 test("customer dashboard propagates portfolio wind-down into every ENTER gate", async () => {
   const mod = await import("../src/scanner/customer_under_five_dashboard.mjs");
   const dashboard = mod.buildCustomerUnderFiveDashboard({

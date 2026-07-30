@@ -86,6 +86,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       }),
     };
   });
+  const portfolioWindDownActive = options.portfolioWindDownActive === true;
   const gatedCandidates = candidates.map((candidate) => ({
     ...candidate,
     paperEnterExitGate: buildCustomerZeroPaperEnterExitGate(candidate, {
@@ -99,7 +100,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       priceDeviationOk: options.priceDeviationOk,
       spreadLiquidityOk: options.spreadLiquidityOk,
       maxSourceAgeSec: options.maxSourceAgeSec,
-      portfolioWindDownActive: options.portfolioWindDownActive === true,
+      portfolioWindDownActive,
     }),
   }));
   const independentOwnedCandidates = Array.isArray(options.ownedPositionCandidates)
@@ -120,6 +121,12 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     [...combinedBySymbol.values()],
     options.paperAccount,
   );
+  const effectiveOwnedPositionSignals = portfolioWindDownActive
+    ? Object.freeze({
+        ...ownedPositionSignals,
+        scaleInReviews: Object.freeze([]),
+      })
+    : ownedPositionSignals;
   const priorityByState = Object.freeze({ ENTER:0, WATCH:1, WAIT:2, DO_NOT_ENTER:3, BLOCKED:4, STALE_DATA:5, NO_SETUP:6 });
   const prioritizedCandidates = [...ownedPositionSignals.scannerCandidates].sort((left, right) => {
     const leftState=String(left?.resultState??"NO_SETUP").toUpperCase();
@@ -146,11 +153,11 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     ...customerCard,
     candidates: prioritizedCandidates,
     candidateCount: prioritizedCandidates.length,
-    ownedPositionSignals,
-    positionAlerts: ownedPositionSignals.exitAlerts,
-    scaleOutReviews: ownedPositionSignals.scaleOutReviews,
-    scaleInReviews: ownedPositionSignals.scaleInReviews,
-    monitoredOwned: ownedPositionSignals.monitoredOwned,
+    ownedPositionSignals: effectiveOwnedPositionSignals,
+    positionAlerts: effectiveOwnedPositionSignals.exitAlerts,
+    scaleOutReviews: effectiveOwnedPositionSignals.scaleOutReviews,
+    scaleInReviews: effectiveOwnedPositionSignals.scaleInReviews,
+    monitoredOwned: effectiveOwnedPositionSignals.monitoredOwned,
     resultFilters,
     performanceReport,
     portfolioWindDownActive: options.portfolioWindDownActive === true,
