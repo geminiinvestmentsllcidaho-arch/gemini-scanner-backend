@@ -40,7 +40,11 @@ test("qualified ENTER exposes green paper-only control preview behind all gates"
   assert.equal(gate.enter.visible, true);
   assert.equal(gate.enter.ready, true);
   assert.equal(gate.enter.style, "bright_green");
-  assert.equal(gate.enter.quantityPreview, 10);
+  assert.equal(gate.enter.quantityPreview, 1);
+  assert.equal(gate.enter.firstTestQuantity, 1);
+  assert.equal(gate.enter.firstTestEstimatedCost, 4);
+  assert.equal(gate.enter.suggestedQuantity, 10);
+  assert.equal(gate.enter.temporaryOneShareTestLimit, true);
   assert.equal(gate.safety.paperOnly, true);
   assert.equal(gate.safety.orderPlacementAllowed, false);
   assert.equal(gate.safety.brokerContactAllowed, false);
@@ -192,5 +196,23 @@ test("portfolio wind-down blocks ENTER even when every ordinary paper check pass
   assert.equal(gate.portfolioWindDownActive, true);
   assert.equal(gate.enter.ready, false);
   assert.ok(gate.enter.blockedReasons.includes("portfolioWindDownInactive"));
+  assert.equal(gate.safety.orderPlacementAllowed, false);
+});
+
+
+test("blocked ENTER uses disabled presentation while preserving normal sizing context", () => {
+  const gate = buildCustomerZeroPaperEnterExitGate({
+    symbol: "BLOCK",
+    resultState: "ENTER",
+    price: 5,
+    sourceAgeSec: 10,
+    sourceStale: false,
+  }, safeOptions({ marketOpen: false }));
+
+  assert.equal(gate.enter.ready, false);
+  assert.equal(gate.enter.style, "disabled_gray");
+  assert.equal(gate.enter.quantityPreview, 1);
+  assert.equal(gate.enter.suggestedQuantity, 10);
+  assert.ok(gate.enter.blockedReasons.includes("marketOpen"));
   assert.equal(gate.safety.orderPlacementAllowed, false);
 });

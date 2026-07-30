@@ -50,6 +50,10 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
   const allocationReady = allocationPreview?.preview?.ready === true;
   const portfolioWindDownActive = options.portfolioWindDownActive === true;
   const wholeShares = finite(allocationPreview?.preview?.estimatedWholeShares) ?? 0;
+  const firstTestQuantity = wholeShares > 0 ? 1 : 0;
+  const firstTestEstimatedCost = price !== null && firstTestQuantity > 0
+    ? Number((price * firstTestQuantity).toFixed(2))
+    : 0;
   const positionQty = finite(position?.qty) ?? 0;
   const exitConfirmationRequired = state === "EXIT";
   const baseChecks = {
@@ -102,11 +106,16 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
     enter: {
       visible: state === "ENTER",
       label: "ENTER / BUY",
-      style: "bright_green",
+      style: enterReady ? "bright_green" : "disabled_gray",
       ready: enterReady,
       confirmationRequired: true,
-      quantityPreview: wholeShares,
+      quantityPreview: firstTestQuantity,
+      firstTestQuantity,
+      firstTestEstimatedCost,
+      suggestedQuantity: wholeShares,
+      temporaryOneShareTestLimit: true,
       blockedReasons: enterBlockedReasons,
+      checks: enterChecks,
     },
     exit: {
       visible: state === "EXIT" && positionQty > 0,

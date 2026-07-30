@@ -117,3 +117,38 @@ test("renders blocked paper ENTER preview reasons in customer language", async (
   assert.match(html, /The calculated quantity is less than one whole share\./);
   assert.doesNotMatch(html, /operatorApproved|marketOpen|freshQuote|allocationReady|sufficientQuantity/);
 });
+
+
+test("renders one-share first-test distinction and disabled blocked state", async () => {
+  const { buildCustomerZeroDecisionCards, renderCustomerZeroDecisionCardsHtml } = await import("../src/scanner/customer_zero_decision_cards.mjs");
+  const cards = buildCustomerZeroDecisionCards([{
+    symbol: "TEST",
+    resultState: "ENTER",
+    allocationPreview: { preview: { estimatedWholeShares: 25 } },
+    paperEnterExitGate: {
+      enter: {
+        visible: true,
+        ready: false,
+        confirmationRequired: true,
+        quantityPreview: 1,
+        firstTestQuantity: 1,
+        firstTestEstimatedCost: 4.75,
+        suggestedQuantity: 25,
+        blockedReasons: ["marketOpen"],
+      },
+      exit: { visible: false },
+    },
+  }]);
+  const html = renderCustomerZeroDecisionCardsHtml(cards);
+
+  assert.match(html, /PAPER TEST BLOCKED/);
+  assert.match(html, /aria-disabled="true"/);
+  assert.match(html, /Normal suggested quantity/);
+  assert.match(html, />25</);
+  assert.match(html, /Temporary test quantity/);
+  assert.match(html, />1 share</);
+  assert.match(html, /Estimated test cost/);
+  assert.match(html, /\$4\.75/);
+  assert.match(html, /The market is currently closed\./);
+  assert.doesNotMatch(html, /paper-control bright-green[^>]*>ENTER \/ BUY/);
+});
