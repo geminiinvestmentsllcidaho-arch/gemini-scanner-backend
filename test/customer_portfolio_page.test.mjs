@@ -117,21 +117,29 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
     model: { account: {}, summary: {}, positions: [], warnings: [] },
     ownedAssets: { positions: [{ symbol: "AAPL", qty: 10, averageEntryPrice: 185.4, brokerLabel: "Other broker" }], updatedAt: "2026-07-30T00:00:00Z" },
-    connectedPositions: [{ symbol: "SPY", qty: 1, averageEntryPrice: 749.19 }],
+    connectedPositions: [{ symbol: "SPY", qty: 1, averageEntryPrice: 749.19, currentPrice: 751.25 }],
     brokerConnected: true,
     windDown: { exitAllRequested: true, steps: [{ symbol: "AAPL", ownedQty: 10, suggestedReviewQty: 2, remainingAfterReview: 8 }] },
   }));
   assert.match(html, /Connected account positions/);
-  assert.match(html, /synchronized automatically from your connected Alpaca paper account/);
+  assert.match(html, /Automatically synchronized from Alpaca\./);
+  assert.match(html, /Current price/);
+  assert.match(html, /\$751\.25/);
   assert.match(html, /SPY/);
   assert.match(html, /Synced from Alpaca/);
-  assert.match(html, /Other positions to monitor/);
+  assert.match(html, /Positions you want GeminiScanner to monitor/);
+  assert.match(html, /<h3>Other positions<\/h3>/);
+  assert.match(html, /Add positions manually when they are not available from a connected paper account\./);
+  assert.match(html, /Add positions held in another account or broker manually\./);
+  assert.match(html, /GeminiScanner uses this information only for monitoring, performance calculations, and ENTER\/EXIT review suggestions\. It will not place orders or change your brokerage account\./);
+  assert.match(html, /Added manually/);
   assert.match(html, /name="symbol" value="AAPL"/);
   assert.match(html, /name="qty" value="10"/);
   assert.match(html, /name="averageEntryPrice" value="185.4"/);
   assert.match(html, /name="brokerLabel" value="Other broker"/);
   assert.match(html, /Add another position/);
   assert.match(html, /Save positions/);
+  assert.match(html, /Manually saved positions:<\/strong> 1 \/ <strong>Last updated:/);
   assert.doesNotMatch(html, /<textarea\b/i);
   assert.match(html, /ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED/);
   assert.match(html, /review a partial sale of 2 out of 10/);

@@ -84,13 +84,14 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const manualRows = [...ownedAssets, ...Array.from({ length: Math.max(1, 3 - ownedAssets.length) }, () => ({}))];
   const windDown = page.windDown ?? {};
   const connectedRows = connectedPositions.length
-    ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span></td></tr>`).join("")
-    : '<tr><td colspan="4">No positions are currently available from a connected paper account.</td></tr>';
+    ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span></td></tr>`).join("")
+    : '<tr><td colspan="5">No positions are currently available from a connected paper account.</td></tr>';
   const manualInputRows = manualRows.map((position) => `<div class="position-row">
 <label>Symbol<input name="symbol" value="${esc(position.symbol ?? "")}" placeholder="AAPL" autocomplete="off"></label>
 <label>Quantity<input name="qty" value="${esc(position.qty ?? "")}" placeholder="10" inputmode="decimal"></label>
 <label>Average purchase price<input name="averageEntryPrice" value="${esc(position.averageEntryPrice ?? "")}" placeholder="185.40" inputmode="decimal"></label>
 <label>Broker or source<input name="brokerLabel" value="${esc(position.brokerLabel ?? "")}" placeholder="Other broker"></label>
+<span class="source-badge manual-source">Added manually</span>
 <button class="remove-row" type="button" aria-label="Remove position">Remove</button>
 </div>`).join("");
   const windRows = Array.isArray(windDown.steps) ? windDown.steps.map((step) => `<li><strong>${esc(step.symbol)}</strong>: review a partial sale of ${esc(amount(step.suggestedReviewQty, locale))} out of ${esc(amount(step.ownedQty, locale))}; estimated quantity remaining: ${esc(amount(step.remainingAfterReview, locale))}.</li>`).join("") : "";
@@ -210,15 +211,17 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 
 <section class="card panel">
 <h2>Connected account positions</h2>
-<p>${page.brokerConnected ? "These positions are synchronized automatically from your connected Alpaca paper account." : "Connect a supported paper account to synchronize positions automatically."}</p>
-<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average purchase price</th><th>Source</th></tr></thead><tbody>${connectedRows}</tbody></table></div>
+<p>${page.brokerConnected ? "Automatically synchronized from Alpaca." : "Connect a supported paper account to synchronize positions automatically."}</p>
+<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average purchase price</th><th>Current price</th><th>Source</th></tr></thead><tbody>${connectedRows}</tbody></table></div>
 <p class="helper">Broker-synced positions are read-only here and refresh from the connected account. GeminiScanner does not place orders or modify the account.</p>
 </section>
 
 <section class="card panel">
-<h2>Other positions to monitor</h2>
-<p>Add positions that are not available from your connected paper account, such as assets held at another broker.</p>
-<p>GeminiScanner uses these details only for monitoring, performance calculations, and decision-assistance reviews.</p>
+<h2>Positions you want GeminiScanner to monitor</h2>
+<h3>Other positions</h3>
+<p>Add positions manually when they are not available from a connected paper account.</p>
+<p>Add positions held in another account or broker manually.</p>
+<p>GeminiScanner uses this information only for monitoring, performance calculations, and ENTER/EXIT review suggestions. It will not place orders or change your brokerage account.</p>
 ${page.saved ? '<p class="notice"><strong>Manual positions saved.</strong></p>' : ''}
 <form method="post" action="/customer/portfolio/owned-assets" id="owned-position-form">
 <div id="owned-position-rows">${manualInputRows}</div>
@@ -227,7 +230,7 @@ ${page.saved ? '<p class="notice"><strong>Manual positions saved.</strong></p>' 
 <button class="safe-button" type="submit">Save positions</button>
 </div>
 </form>
-<p><strong>Manually saved positions:</strong> ${esc(ownedAssets.length)} | <strong>Last updated:</strong> ${esc(page.ownedAssets?.updatedAt ?? "Not saved yet")}</p>
+<p><strong>Manually saved positions:</strong> ${esc(ownedAssets.length)} / <strong>Last updated:</strong> ${esc(page.ownedAssets?.updatedAt ?? "Not saved yet")}</p>
 </section>
 
 <section class="card panel ${windDown.exitAllRequested ? "wind-active" : ""}">
@@ -268,7 +271,7 @@ ${renderGlobalFooter()}
   add.addEventListener("click", () => {
     const row = document.createElement("div");
     row.className = "position-row";
-    row.innerHTML = '<label>Symbol<input name="symbol" placeholder="AAPL" autocomplete="off"></label><label>Quantity<input name="qty" placeholder="10" inputmode="decimal"></label><label>Average purchase price<input name="averageEntryPrice" placeholder="185.40" inputmode="decimal"></label><label>Broker or source<input name="brokerLabel" placeholder="Other broker"></label><button class="remove-row" type="button" aria-label="Remove position">Remove</button>';
+    row.innerHTML = '<label>Symbol<input name="symbol" placeholder="AAPL" autocomplete="off"></label><label>Quantity<input name="qty" placeholder="10" inputmode="decimal"></label><label>Average purchase price<input name="averageEntryPrice" placeholder="185.40" inputmode="decimal"></label><label>Broker or source<input name="brokerLabel" placeholder="Other broker"></label><span class="source-badge manual-source">Added manually</span><button class="remove-row" type="button" aria-label="Remove position">Remove</button>';
     container.appendChild(row);
     wireRemove(row.querySelector(".remove-row"));
     row.querySelector("input")?.focus();
