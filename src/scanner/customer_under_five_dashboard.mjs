@@ -99,6 +99,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       priceDeviationOk: options.priceDeviationOk,
       spreadLiquidityOk: options.spreadLiquidityOk,
       maxSourceAgeSec: options.maxSourceAgeSec,
+      portfolioWindDownActive: options.portfolioWindDownActive === true,
     }),
   }));
   const independentOwnedCandidates = Array.isArray(options.ownedPositionCandidates)
@@ -152,6 +153,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
     monitoredOwned: ownedPositionSignals.monitoredOwned,
     resultFilters,
     performanceReport,
+    portfolioWindDownActive: options.portfolioWindDownActive === true,
     paperAccount: options.paperAccount ?? {
       connected: false,
       accountHealthy: false,

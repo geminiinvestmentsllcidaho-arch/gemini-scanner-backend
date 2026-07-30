@@ -4410,10 +4410,20 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const portfolioPageMod = await import('./scanner/customer_portfolio_page.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+    const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
+    const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
-    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const brokerPaperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const ownedAssets = ownedAssetStore.getCustomerOwnedAssets(req.customerAccount?.id);
+    const paperAccount = brokerPaperAccount?.positions?.length
+      ? brokerPaperAccount
+      : { ...brokerPaperAccount, accountHealthy: ownedAssets.positions.length > 0, positions: ownedAssets.positions };
+    const windDown = windDownPolicy.buildCustomerPortfolioWindDown({
+      exitAllRequested: req.customerAccount?.portfolioWindDownRequested === true,
+      positions: paperAccount.positions,
+    });
     const model = portfolioModelMod.buildCustomerPortfolioModel({
       paperAccount,
       sourceTs: now.toISOString(),
@@ -4422,6 +4432,10 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
+      ownedAssets,
+      windDown,
+      saved: req.query?.saved === "1",
+      windDownUpdated: req.query?.windDown === "1",
     });
 
     res.set('Cache-Control', 'no-store');
@@ -4434,6 +4448,27 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       '<!doctype html><html><body><main><h1>Portfolio unavailable</h1><p>Paper account balances and positions could not be loaded.</p><p>Read-only. No live trading, order placement, broker contact, or account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
     );
   }
+});
+
+
+app.post('/customer/portfolio/owned-assets', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  const mod = await import('./scanner/customer_owned_asset_store.mjs');
+  const positions = String(req.body?.positions ?? '').split(/\r?\n/).map((line) => {
+    const [symbol, qty, averageEntryPrice, brokerLabel] = line.split(',').map((part) => part.trim());
+    return { symbol, qty, averageEntryPrice, brokerLabel, source: 'manual' };
+  });
+  const result = mod.updateCustomerOwnedAssets(req.customerAccount?.id, positions);
+  if (!result.ok) return res.status(400).type('text').send('Owned assets could not be saved.');
+  return res.redirect(303, '/customer/portfolio?saved=1');
+});
+
+app.post('/customer/portfolio/wind-down', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  const accountStore = await import('./scanner/customer_account_store.mjs');
+  const account = accountStore.findCustomerAccountById(req.customerAccount?.id);
+  if (!account) return res.status(404).type('text').send('Customer account not found.');
+  const requested = String(req.body?.action ?? '') === 'exit_all';
+  accountStore.appendCustomerAccountRecord({ ...account, portfolioWindDownRequested: requested, portfolioWindDownUpdatedAt: new Date().toISOString() });
+  return res.redirect(303, '/customer/portfolio?windDown=1');
 });
 
 

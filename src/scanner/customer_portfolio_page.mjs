@@ -62,6 +62,10 @@ export function buildCustomerPortfolioPage(options = {}) {
     readOnly: true,
     paperOnly: true,
     decisionAssistOnly: true,
+    ownedAssets: options.ownedAssets ?? { positions: [], updatedAt: null },
+    windDown: options.windDown ?? { status: "inactive", steps: [] },
+    saved: options.saved === true,
+    windDownUpdated: options.windDownUpdated === true,
   });
 }
 
@@ -71,6 +75,10 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const locale = page.locale ?? "en-US";
   const positions = Array.isArray(model.positions) ? model.positions : [];
   const warnings = Array.isArray(model.warnings) ? model.warnings : [];
+  const ownedAssets = Array.isArray(page.ownedAssets?.positions) ? page.ownedAssets.positions : [];
+  const windDown = page.windDown ?? {};
+  const ownedAssetText = ownedAssets.map((position) => `${position.symbol},${position.qty},${position.averageEntryPrice},${position.brokerLabel ?? ""}`).join("\n");
+  const windRows = Array.isArray(windDown.steps) ? windDown.steps.map((step) => `<li><strong>${esc(step.symbol)}</strong>: review selling ${esc(amount(step.suggestedReviewQty, locale))} of ${esc(amount(step.ownedQty, locale))}; estimated remaining ${esc(amount(step.remainingAfterReview, locale))}.</li>`).join("") : "";
 
   const rows = positions.length
     ? positions.map((position) => `<tr>
@@ -112,6 +120,7 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .positive{color:var(--gs-accent)}
 .negative{color:#ff6b6b}
 .stale{color:#ffd166}
+textarea{width:100%;min-height:150px;padding:12px;border-radius:12px;background:rgba(0,0,0,.42);color:var(--gs-text);border:1px solid var(--gs-line);box-sizing:border-box}button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}.danger-button{background:#9b111e;color:#fff;border:1px solid #ff6b6b}.safe-button{background:var(--gs-accent);color:#001b13;border:0}.wind-active{border:2px solid #ff6b6b}.notice{padding:10px;border-radius:10px;background:rgba(57,255,32,.1);border:1px solid rgba(57,255,32,.35)}
 </style>
 </head>
 <body data-gs-page="customer-portfolio">
@@ -165,6 +174,31 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 <p>Read-only, paper-only decision assistance. No live trading, order placement, broker contact, or account mutation controls are available.</p>
 </section>
 </div>
+
+<section class="card panel">
+<h2>Assets you already own</h2>
+<p>Enter one position per line as <code>SYMBOL, QUANTITY, AVERAGE ENTRY PRICE, BROKER</code>. Example: <code>AAPL, 10, 185.40, Alpaca</code>.</p>
+<p>This local portfolio record is used only for monitoring and decision assistance. It does not connect to a broker or place orders.</p>
+${page.saved ? '<p class="notice"><strong>Owned assets saved.</strong></p>' : ''}
+<form method="post" action="/customer/portfolio/owned-assets">
+<textarea name="positions" aria-label="Owned assets">${esc(ownedAssetText)}</textarea>
+<p><button class="safe-button" type="submit">Save owned assets</button></p>
+</form>
+<p><strong>Saved positions:</strong> ${esc(ownedAssets.length)} | <strong>Last updated:</strong> ${esc(page.ownedAssets?.updatedAt ?? "Not saved yet")}</p>
+</section>
+
+<section class="card panel ${windDown.exitAllRequested ? "wind-active" : ""}">
+<h2>Portfolio wind-down</h2>
+<p>Exit All immediately blocks new-buy and scale-in decisions, then creates gradual partial-exit reviews for current positions. It does not sell automatically.</p>
+${page.windDownUpdated ? '<p class="notice"><strong>Wind-down preference updated.</strong></p>' : ''}
+<p><strong>Status:</strong> ${esc(windDown.exitAllRequested ? "ACTIVE — NEW BUYS BLOCKED" : "Inactive")}</p>
+${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
+<form method="post" action="/customer/portfolio/wind-down">
+<input type="hidden" name="action" value="${windDown.exitAllRequested ? "resume" : "exit_all"}">
+<button class="${windDown.exitAllRequested ? "safe-button" : "danger-button"}" type="submit">${windDown.exitAllRequested ? "Resume new-buy reviews" : "Exit All — stop new buys and begin gradual scale-out reviews"}</button>
+</form>
+<p>Paper-only, review-only. No broker contact, order placement, or account mutation.</p>
+</section>
 
 <section class="card panel">
 <h2>Open paper positions</h2>

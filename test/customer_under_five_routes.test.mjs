@@ -727,3 +727,36 @@ test("owned WATCH monitoring is rendered independently from opportunity results"
   assert.match(html,/Current assessment:<\/b> WATCH\. No EXIT review is active\./);
   assert.match(html,/monitored independently from the opportunity price range/);
 });
+
+
+test("customer dashboard propagates portfolio wind-down into every ENTER gate", async () => {
+  const mod = await import("../src/scanner/customer_under_five_dashboard.mjs");
+  const dashboard = mod.buildCustomerUnderFiveDashboard({
+    status: "connected_readonly",
+    sourceStatus: "connected_readonly",
+    candidates: [{
+      symbol: "WIND",
+      price: 10,
+      resultState: "ENTER",
+      sourceAgeSec: 1,
+      sourceStale: false,
+      readonlyPotentialScore: 90,
+    }],
+  }, {
+    maxPrice: 50,
+    portfolioWindDownActive: true,
+    paperAccount: { accountHealthy: true, positions: [], account: { equity: 1000, buyingPower: 1000 } },
+    marketOpen: true,
+    paperExecutionEnabled: true,
+    operatorApproved: true,
+    killSwitchActive: false,
+    duplicateOrderDetected: false,
+    priceDeviationOk: true,
+    spreadLiquidityOk: true,
+    availableFundsPct: 5,
+    maxDollarsPerStock: 25,
+  });
+  assert.equal(dashboard.portfolioWindDownActive, true);
+  assert.equal(dashboard.candidates[0].paperEnterExitGate.portfolioWindDownActive, true);
+  assert.ok(dashboard.candidates[0].paperEnterExitGate.enter.blockedReasons.includes("portfolioWindDownInactive"));
+});

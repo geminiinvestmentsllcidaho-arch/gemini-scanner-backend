@@ -112,3 +112,16 @@ test("customer portfolio uses the shared primary navigation", () => {
   assert.match(html, /href="\/customer\/settings">Settings<\/a>/);
   assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);
 });
+
+test("renders owned-asset entry and portfolio wind-down controls without execution", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    ownedAssets: { positions: [{ symbol: "AAPL", qty: 10, averageEntryPrice: 185.4, brokerLabel: "Alpaca" }], updatedAt: "2026-07-30T00:00:00Z" },
+    windDown: { exitAllRequested: true, steps: [{ symbol: "AAPL", ownedQty: 10, suggestedReviewQty: 2, remainingAfterReview: 8 }] },
+  }));
+  assert.match(html, /Assets you already own/);
+  assert.match(html, /AAPL,10,185.4,Alpaca/);
+  assert.match(html, /ACTIVE — NEW BUYS BLOCKED/);
+  assert.match(html, /review selling 2 of 10/);
+  assert.match(html, /No broker contact, order placement/);
+});

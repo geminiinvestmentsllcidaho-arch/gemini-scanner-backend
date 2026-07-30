@@ -165,3 +165,32 @@ test("existing paper position blocks a new ENTER under the first-trade concurren
   assert.equal(gate.enter.ready, false);
   assert.ok(gate.enter.blockedReasons.includes("concurrentPositionCapacityAvailable"));
 });
+
+
+test("portfolio wind-down blocks ENTER even when every ordinary paper check passes", () => {
+  const gate = buildCustomerZeroPaperEnterExitGate({
+    symbol: "WIND",
+    resultState: "ENTER",
+    price: 10,
+    sourceAgeSec: 1,
+    sourceStale: false,
+  }, {
+    portfolioWindDownActive: true,
+    paperAccount: { accountHealthy: true, positions: [] },
+    allocationPreview: {
+      preview: { ready: true, estimatedWholeShares: 1 },
+      allocationPolicy: { maxConcurrentTestPositions: 5 },
+    },
+    marketOpen: true,
+    paperExecutionEnabled: true,
+    operatorApproved: true,
+    killSwitchActive: false,
+    duplicateOrderDetected: false,
+    priceDeviationOk: true,
+    spreadLiquidityOk: true,
+  });
+  assert.equal(gate.portfolioWindDownActive, true);
+  assert.equal(gate.enter.ready, false);
+  assert.ok(gate.enter.blockedReasons.includes("portfolioWindDownInactive"));
+  assert.equal(gate.safety.orderPlacementAllowed, false);
+});

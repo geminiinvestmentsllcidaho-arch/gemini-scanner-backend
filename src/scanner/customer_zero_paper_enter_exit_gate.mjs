@@ -48,6 +48,7 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
   const freshQuote = price !== null && candidate?.sourceStale !== true;
   const freshSignal = sourceAgeSec !== null && sourceAgeSec <= Number(options.maxSourceAgeSec ?? 600);
   const allocationReady = allocationPreview?.preview?.ready === true;
+  const portfolioWindDownActive = options.portfolioWindDownActive === true;
   const wholeShares = finite(allocationPreview?.preview?.estimatedWholeShares) ?? 0;
   const positionQty = finite(position?.qty) ?? 0;
   const exitConfirmationRequired = state === "EXIT";
@@ -66,6 +67,7 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
   const enterChecks = {
     ...baseChecks,
     enterState: state === "ENTER",
+    portfolioWindDownInactive: !portfolioWindDownActive,
     concurrentPositionCapacityAvailable,
     allocationReady,
     sufficientQuantity: wholeShares > 0,
@@ -91,6 +93,7 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
     symbol,
     state,
     position,
+    portfolioWindDownActive,
     positionPolicy: {
       openPositionCount,
       maxConcurrentTestPositions: Math.max(1, Math.trunc(maxConcurrentTestPositions)),
