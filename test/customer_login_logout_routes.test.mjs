@@ -1006,4 +1006,6 @@ test("portfolio manual positions use friendly fields and exclude connected broke
   assert.match(source, /brokerConnected: brokerPaperAccount\.connected === true/);
   assert.match(source, /const connectedSymbols = new Set/);
   assert.match(source, /filter\(\(position\) => !connectedSymbols\.has/);
+  assert.match(source, /fetchedPaperAccount\?\.ok !== true/);
+  assert.match(source, /Manual positions were not changed/);
 });

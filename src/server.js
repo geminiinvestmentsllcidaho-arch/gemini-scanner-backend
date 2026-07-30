@@ -4463,6 +4463,9 @@ app.post('/customer/portfolio/owned-assets', requireCustomerSession, requireCust
   const averageEntryPrices = values(req.body?.averageEntryPrice);
   const brokerLabels = values(req.body?.brokerLabel);
   const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+  if (fetchedPaperAccount?.ok !== true) {
+    return res.status(503).type('text').send('Connected paper account positions could not be verified. Manual positions were not changed.');
+  }
   const brokerPaperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
   const connectedSymbols = new Set((brokerPaperAccount.positions ?? []).map((position) => String(position?.symbol ?? '').toUpperCase()));
   const positions = symbols.map((symbol, index) => ({
