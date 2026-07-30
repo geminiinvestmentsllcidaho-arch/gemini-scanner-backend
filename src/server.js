@@ -201,6 +201,12 @@ app.get('/assets/GeminiScanner-Logo.jpg', (_req, res) => {
   res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/GeminiScanner-Logo.jpg');
 });
 
+app.get('/customer-portfolio-owned-assets.js', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('application/javascript');
+  res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/customer-portfolio-owned-assets.js');
+});
+
 app.get('/assets/global-theme.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.type('application/javascript').send(`(() => {

@@ -1012,8 +1012,10 @@ test("portfolio manual positions use friendly fields and exclude connected broke
 });
 
 test("portfolio remove-button client script is served as a same-origin static asset", () => {
-  const source = readFileSync(new URL("../public/customer-portfolio-owned-assets.js", import.meta.url), "utf8");
-  assert.match(source, /container\.addEventListener\("click"/);
-  assert.match(source, /closest\("\.remove-row"\)/);
-  assert.match(source, /row\.remove\(\)/);
+  const clientSource = readFileSync(new URL("../public/customer-portfolio-owned-assets.js", import.meta.url), "utf8");
+  assert.match(clientSource, /container\.addEventListener\("click"/);
+  assert.match(clientSource, /closest\("\.remove-row"\)/);
+  assert.match(clientSource, /row\.remove\(\)/);
+  assert.match(source, /app\.get\('\/customer-portfolio-owned-assets\.js'/);
+  assert.match(source, /public\/customer-portfolio-owned-assets\.js/);
 });
