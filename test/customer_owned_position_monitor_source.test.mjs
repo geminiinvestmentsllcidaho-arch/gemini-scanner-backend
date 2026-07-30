@@ -170,3 +170,15 @@ test("applies production-shaped scale-in review policy before routing", async ()
   assert.equal(candidate.orderPlacementAllowed, false);
   assert.equal(candidate.accountMutationAllowed, false);
 });
+
+test("applies production-shaped scale-out review policy before routing", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount:{positions:[{symbol:"WIN",qty:8,averageEntryPrice:100,currentPrice:103,unrealizedPlpc:0.03}]},
+    fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{symbol:"WIN",price:103,changePct:-0.4,sourceStale:false,sourceAgeSec:15,maxSourceAgeSec:120,readonlyPotentialScore:62,readonlyPotentialFlags:["negative_momentum"],resultState:"WATCH",decision:"WATCH"}]}),
+  });
+  const candidate=result.candidates[0];
+  assert.equal(candidate.ownedScaleOutReviewTriggered,true);
+  assert.equal(candidate.ownedScaleOutReviewReason,"OWNED_POSITION_PROFIT_PROTECTION_REVIEW");
+  assert.equal(candidate.ownedScaleOutSuggestedQty,2);
+  assert.equal(candidate.orderPlacementAllowed,false);
+});

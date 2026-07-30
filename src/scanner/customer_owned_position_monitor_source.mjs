@@ -1,6 +1,7 @@
 import { fetchAlpacaUnderFiveUniverseReadonly } from "./alpaca_under_five_universe_readonly.mjs";
 import { applyOwnedPositionExitReviewPolicy } from "./customer_owned_position_exit_review_policy.mjs";
 import { applyOwnedPositionScaleInReviewPolicy } from "./customer_owned_position_scale_in_review_policy.mjs";
+import { applyOwnedPositionScaleOutReviewPolicy } from "./customer_owned_position_scale_out_review_policy.mjs";
 
 export const VERSION = "customer_owned_position_monitor_source_v1";
 
@@ -99,8 +100,9 @@ export async function fetchCustomerOwnedPositionMonitorSource({
         orderPlacementAllowed: false,
         accountMutationAllowed: false,
       }, position);
+      const scaleOutReviewed = applyOwnedPositionScaleOutReviewPolicy(exitReviewed, position);
       candidates.push(Object.freeze(
-        applyOwnedPositionScaleInReviewPolicy(exitReviewed, position),
+        applyOwnedPositionScaleInReviewPolicy(scaleOutReviewed, position),
       ));
     } else {
       missingSymbols.push(position.symbol);
