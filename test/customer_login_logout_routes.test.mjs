@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from "node:fs";
 
 const source = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
 const sameOriginSource = await readFile(new URL('../src/scanner/customer_same_origin.mjs', import.meta.url), 'utf8');
@@ -1008,4 +1009,11 @@ test("portfolio manual positions use friendly fields and exclude connected broke
   assert.match(source, /filter\(\(position\) => !connectedSymbols\.has/);
   assert.match(source, /fetchedPaperAccount\?\.ok !== true/);
   assert.match(source, /Manual positions were not changed/);
+});
+
+test("portfolio remove-button client script is served as a same-origin static asset", () => {
+  const source = readFileSync(new URL("../public/customer-portfolio-owned-assets.js", import.meta.url), "utf8");
+  assert.match(source, /container\.addEventListener\("click"/);
+  assert.match(source, /closest\("\.remove-row"\)/);
+  assert.match(source, /row\.remove\(\)/);
 });

@@ -139,9 +139,21 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.match(html, /name="brokerLabel" value="Other broker"/);
   assert.match(html, /Add another position/);
   assert.match(html, /Save positions/);
+  assert.match(html, /<script src="\/customer-portfolio-owned-assets\.js" defer><\/script>/);
+  assert.doesNotMatch(html, /<script>\s*\(\(\) =>/);
   assert.match(html, /Manually saved positions:<\/strong> 1 \/ <strong>Last updated:/);
   assert.doesNotMatch(html, /<textarea\b/i);
   assert.match(html, /ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED/);
   assert.match(html, /review a partial sale of 2 out of 10/);
   assert.match(html, /will not contact a broker, place an order, or modify an account/);
+});
+
+test("renders only one empty manual position row when no positions are saved", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    ownedAssets: { positions: [], updatedAt: null },
+    connectedPositions: [],
+    brokerConnected: false,
+  }));
+  assert.equal((html.match(/class="position-row"/g) ?? []).length, 1);
 });

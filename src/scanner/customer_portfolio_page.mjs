@@ -81,7 +81,7 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const connectedSymbols = new Set(connectedPositions.map((position) => String(position?.symbol ?? "").toUpperCase()));
   const ownedAssets = (Array.isArray(page.ownedAssets?.positions) ? page.ownedAssets.positions : [])
     .filter((position) => !connectedSymbols.has(String(position?.symbol ?? "").toUpperCase()));
-  const manualRows = [...ownedAssets, ...Array.from({ length: Math.max(1, 3 - ownedAssets.length) }, () => ({}))];
+  const manualRows = ownedAssets.length ? [...ownedAssets] : [{}];
   const windDown = page.windDown ?? {};
   const connectedRows = connectedPositions.length
     ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span></td></tr>`).join("")
@@ -257,27 +257,7 @@ ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 </section>
 </main>
 ${renderGlobalFooter()}
-<script>
-(() => {
-  const container = document.getElementById("owned-position-rows");
-  const add = document.getElementById("add-position-row");
-  if (!container || !add) return;
-  const wireRemove = (button) => button.addEventListener("click", () => {
-    const rows = container.querySelectorAll(".position-row");
-    if (rows.length > 1) button.closest(".position-row")?.remove();
-    else button.closest(".position-row")?.querySelectorAll("input").forEach((input) => { input.value = ""; });
-  });
-  container.querySelectorAll(".remove-row").forEach(wireRemove);
-  add.addEventListener("click", () => {
-    const row = document.createElement("div");
-    row.className = "position-row";
-    row.innerHTML = '<label>Symbol<input name="symbol" placeholder="AAPL" autocomplete="off"></label><label>Quantity<input name="qty" placeholder="10" inputmode="decimal"></label><label>Average purchase price<input name="averageEntryPrice" placeholder="185.40" inputmode="decimal"></label><label>Broker or source<input name="brokerLabel" placeholder="Other broker"></label><span class="source-badge manual-source">Added manually</span><button class="remove-row" type="button" aria-label="Remove position">Remove</button>';
-    container.appendChild(row);
-    wireRemove(row.querySelector(".remove-row"));
-    row.querySelector("input")?.focus();
-  });
-})();
-</script>
+<script src="/customer-portfolio-owned-assets.js" defer></script>
 </body>
 </html>`;
 }
