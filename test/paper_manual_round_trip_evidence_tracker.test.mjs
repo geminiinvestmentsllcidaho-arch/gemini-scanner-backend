@@ -59,7 +59,10 @@ test("fails closed when account is unavailable or baseline is ambiguous", () => 
    { symbol: "MSFT", qty: 1, side: "long" },
   ]));
   assert.equal(state.enterDetected, false);
-  assert.deepEqual(state.issues, ["manual_test_symbol_required_for_multiple_positions"]);
+  assert.deepEqual(state.issues, [
+    "manual_test_symbol_required_for_multiple_positions",
+    "manual_baseline_requires_zero_positions",
+  ]);
 });
 
 test("builds promotion-lock proof only from completed mechanical evidence", async () => {
@@ -108,4 +111,22 @@ test("promotion-lock accepts only the completed tracker proof", async () => {
   assert.equal(access.allowed, true);
   assert.equal(access.safety.executionEnabled, false);
   assert.equal(access.safety.brokerContactAllowed, false);
+});
+
+test("fails closed with explicit issue when baseline account already holds a position", () => {
+  const state = evaluatePaperManualRoundTripEvidence(
+    defaultPaperManualRoundTripEvidence(new Date("2026-07-30T22:00:00.000Z")),
+    {
+      status: "connected_readonly",
+      positions: [{ symbol: "SPY", qty: 1, side: "long" }],
+    },
+    { now: new Date("2026-07-30T22:01:00.000Z") },
+  );
+
+  assert.equal(state.baselineObserved, false);
+  assert.equal(state.enterDetected, false);
+  assert.equal(state.mechanicalSuccess, false);
+  assert.deepEqual(state.issues, ["manual_baseline_requires_zero_positions"]);
+  assert.equal(state.orderPlacementAllowed, false);
+  assert.equal(state.accountMutationAllowed, false);
 });

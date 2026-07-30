@@ -78,6 +78,8 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
       state.baselineObserved = true;
       state.baselineObservedAt = now.toISOString();
       state.status = "awaiting_manual_enter";
+    } else if (accountConnected && positionsOf(snapshot).length > 0) {
+      issues.push("manual_baseline_requires_zero_positions");
     }
   } else if (!state.enterDetected) {
     const candidates = symbol ? [target].filter(Boolean) : positionsOf(snapshot);
