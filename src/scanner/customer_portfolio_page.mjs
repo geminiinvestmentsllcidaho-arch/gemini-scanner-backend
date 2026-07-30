@@ -90,7 +90,7 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
 <label>Symbol<input name="symbol" value="${esc(position.symbol ?? "")}" placeholder="AAPL" autocomplete="off"></label>
 <label>Quantity<input name="qty" value="${esc(position.qty ?? "")}" placeholder="10" inputmode="decimal"></label>
 <label>Average purchase price<input name="averageEntryPrice" value="${esc(position.averageEntryPrice ?? "")}" placeholder="185.40" inputmode="decimal"></label>
-<label>Broker or source<input name="brokerLabel" value="${esc(position.brokerLabel ?? "")}" placeholder="Other broker"></label>
+<label>Broker/source<input name="brokerLabel" value="${esc(position.brokerLabel ?? "")}" placeholder="Other broker"></label>
 <span class="source-badge manual-source">Added manually</span>
 <button class="remove-row" type="button" aria-label="Remove position">Remove</button>
 </div>`).join("");
@@ -226,7 +226,7 @@ ${page.saved ? '<p class="notice"><strong>Manual positions saved.</strong></p>' 
 <form method="post" action="/customer/portfolio/owned-assets" id="owned-position-form">
 <div id="owned-position-rows">${manualInputRows}</div>
 <div class="form-actions">
-<button class="secondary-button" type="button" id="add-position-row">Add another position</button>
+<button class="secondary-button" type="button" id="add-position-row">Add position</button>
 <button class="safe-button" type="submit">Save positions</button>
 </div>
 </form>

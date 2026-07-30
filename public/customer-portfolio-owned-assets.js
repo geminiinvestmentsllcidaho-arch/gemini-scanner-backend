@@ -25,7 +25,7 @@
   add.addEventListener("click", () => {
     const row = document.createElement("div");
     row.className = "position-row";
-    row.innerHTML = '<label>Symbol<input name="symbol" placeholder="AAPL" autocomplete="off"></label><label>Quantity<input name="qty" placeholder="10" inputmode="decimal"></label><label>Average purchase price<input name="averageEntryPrice" placeholder="185.40" inputmode="decimal"></label><label>Broker or source<input name="brokerLabel" placeholder="Other broker"></label><span class="source-badge manual-source">Added manually</span><button class="remove-row" type="button" aria-label="Remove position">Remove</button>';
+    row.innerHTML = '<label>Symbol<input name="symbol" placeholder="AAPL" autocomplete="off"></label><label>Quantity<input name="qty" placeholder="10" inputmode="decimal"></label><label>Average purchase price<input name="averageEntryPrice" placeholder="185.40" inputmode="decimal"></label><label>Broker/source<input name="brokerLabel" placeholder="Other broker"></label><span class="source-badge manual-source">Added manually</span><button class="remove-row" type="button" aria-label="Remove position">Remove</button>';
     container.appendChild(row);
     row.querySelector("input")?.focus();
   });

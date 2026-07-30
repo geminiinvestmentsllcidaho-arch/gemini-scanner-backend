@@ -137,7 +137,7 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.match(html, /name="qty" value="10"/);
   assert.match(html, /name="averageEntryPrice" value="185.4"/);
   assert.match(html, /name="brokerLabel" value="Other broker"/);
-  assert.match(html, /Add another position/);
+  assert.match(html, /Add position/);
   assert.match(html, /Save positions/);
   assert.match(html, /<script src="\/customer-portfolio-owned-assets\.js" defer><\/script>/);
   assert.doesNotMatch(html, /<script>\s*\(\(\) =>/);
