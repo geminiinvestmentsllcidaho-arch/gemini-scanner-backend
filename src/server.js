@@ -4701,6 +4701,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     paperLedger,
     paperLedgerHistory: paperPositionLedger.records,
     performanceSourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+    equity: paperAccount.accountHealthy ? paperAccount.account.equity : null,
     buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
     role: 'customer',
     roleLabel: 'Customer',
