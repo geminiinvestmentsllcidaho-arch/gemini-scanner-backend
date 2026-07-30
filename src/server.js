@@ -4445,7 +4445,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
   } catch (_error) {
     res.set('Cache-Control', 'no-store');
     return res.status(500).type('html').send(
-      '<!doctype html><html><body><main><h1>Portfolio unavailable</h1><p>Paper account balances and positions could not be loaded.</p><p>Read-only. No live trading, order placement, broker contact, or account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
+      '<!doctype html><html><body><main><h1>Portfolio unavailable</h1><p>Paper account balances and positions could not be loaded.</p><p>Read-only. No live trading, order placement, broker contact, or broker account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
     );
   }
 });
@@ -4464,10 +4464,9 @@ app.post('/customer/portfolio/owned-assets', requireCustomerSession, requireCust
 
 app.post('/customer/portfolio/wind-down', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   const accountStore = await import('./scanner/customer_account_store.mjs');
-  const account = accountStore.findCustomerAccountById(req.customerAccount?.id);
-  if (!account) return res.status(404).type('text').send('Customer account not found.');
   const requested = String(req.body?.action ?? '') === 'exit_all';
-  accountStore.appendCustomerAccountRecord({ ...account, portfolioWindDownRequested: requested, portfolioWindDownUpdatedAt: new Date().toISOString() });
+  const result = accountStore.updateCustomerPortfolioWindDownPreference(req.customerAccount?.id, requested);
+  if (!result.ok) return res.status(404).type('text').send('Customer account not found.');
   return res.redirect(303, '/customer/portfolio?windDown=1');
 });
 
@@ -4682,6 +4681,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     role: 'customer',
     roleLabel: 'Customer',
     tenant: 'customer',
+    portfolioWindDownActive: req.customerAccount?.portfolioWindDownRequested === true,
     title: watchlistOnly
       ? 'Watchlist Scanner'
       : `$0–$${maxPrice.toLocaleString('en-US')} Intraday Scanner`,
@@ -5734,6 +5734,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       role: 'customer',
       roleLabel: 'Customer',
       tenant: 'customer',
+      portfolioWindDownActive: req.customerAccount?.portfolioWindDownRequested === true,
       title: `$0–$${maxPrice.toLocaleString('en-US')} Scanner`,
       maxPrice,
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,

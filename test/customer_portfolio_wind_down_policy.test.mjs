@@ -18,3 +18,14 @@ test("inactive wind-down leaves buy blocking off", () => {
   assert.equal(model.newBuyDecisionsBlocked, false);
   assert.equal(model.steps.length, 0);
 });
+
+
+test("preserves fractional quantities in gradual reviews", () => {
+  const result = buildCustomerPortfolioWindDown({
+    exitAllRequested: true,
+    positions: [{ symbol: "FRACT", qty: 1.5 }],
+  });
+  assert.equal(result.steps[0].suggestedReviewQty, 0.375);
+  assert.equal(result.steps[0].remainingAfterReview, 1.125);
+  assert.equal(result.brokerAccountMutationAllowed, false);
+});

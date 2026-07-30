@@ -760,3 +760,10 @@ test("customer dashboard propagates portfolio wind-down into every ENTER gate", 
   assert.equal(dashboard.candidates[0].paperEnterExitGate.portfolioWindDownActive, true);
   assert.ok(dashboard.candidates[0].paperEnterExitGate.enter.blockedReasons.includes("portfolioWindDownInactive"));
 });
+
+
+test("authenticated scanner routes propagate persisted wind-down state", () => {
+  const server = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const matches = server.match(/portfolioWindDownActive: req\.customerAccount\?\.portfolioWindDownRequested === true/g) ?? [];
+  assert.ok(matches.length >= 2);
+});

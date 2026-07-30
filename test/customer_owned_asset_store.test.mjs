@@ -24,5 +24,16 @@ test("persists customer-owned assets without broker or order capability", () => 
   assert.equal(loaded.positions[0].symbol, "MSFT");
   assert.equal(loaded.brokerContactAllowed, false);
   assert.equal(loaded.orderPlacementAllowed, false);
-  assert.equal(loaded.accountMutationAllowed, false);
+  assert.equal(loaded.brokerAccountMutationAllowed, false);
+});
+
+
+test("fails closed on malformed owned-asset storage", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-owned-assets-bad-"));
+  const storePath = path.join(dir, "owned.jsonl");
+  fs.writeFileSync(storePath, "{bad}\n", { mode: 0o600 });
+  const loaded = getCustomerOwnedAssets("acct-1", { storePath });
+  assert.equal(loaded.ok, false);
+  assert.deepEqual(loaded.positions, []);
+  assert.equal(updateCustomerOwnedAssets("acct-1", [{ symbol: "SPY", qty: 1, averageEntryPrice: 500 }], { storePath }).ok, false);
 });

@@ -1,4 +1,4 @@
-export const VERSION = "customer_portfolio_wind_down_policy_v1";
+export const VERSION = "customer_portfolio_wind_down_policy_v2";
 function list(value) { return Array.isArray(value) ? value : []; }
 function finite(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }
 function sym(value) { return String(value ?? "").trim().toUpperCase(); }
@@ -7,7 +7,7 @@ export function buildCustomerPortfolioWindDown(input = {}) {
   const positions = list(input.positions).filter((p) => (finite(p?.qty) ?? 0) > 0 && sym(p?.symbol));
   const steps = active ? positions.map((position) => {
     const qty = finite(position.qty);
-    const suggestedQty = qty <= 1 ? qty : Math.max(1, Math.floor(qty * 0.25));
+    const suggestedQty = qty <= 1 ? qty : Math.max(0.000001, Number((qty * 0.25).toFixed(6)));
     return Object.freeze({
       symbol: sym(position.symbol),
       ownedQty: qty,
@@ -32,7 +32,7 @@ export function buildCustomerPortfolioWindDown(input = {}) {
     decisionAssistOnly: true,
     brokerContactAllowed: false,
     orderPlacementAllowed: false,
-    accountMutationAllowed: false,
+    brokerAccountMutationAllowed: false,
     automaticSaleAllowed: false,
   });
 }
