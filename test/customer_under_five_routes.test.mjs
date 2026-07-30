@@ -830,3 +830,19 @@ test("authenticated scanner routes propagate persisted wind-down state", () => {
   const matches = server.match(/portfolioWindDownActive: req\.customerAccount\?\.portfolioWindDownRequested === true/g) ?? [];
   assert.ok(matches.length >= 2);
 });
+
+test("authenticated and Customer Zero owned-position routes propagate runtime env and monitored candidates", () => {
+  const server = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  for (const routeStartText of [
+    "app.get('/customer/scanner/under-five'",
+    "app.get('/customer-zero/under-five-scanner'",
+  ]) {
+    const start = server.indexOf(routeStartText);
+    assert.ok(start >= 0);
+    const end = server.indexOf("\napp.get(", start + routeStartText.length);
+    const block = server.slice(start, end > start ? end : undefined);
+    assert.match(block, /fetchSymbols:\s*\(options\s*=\s*\{\}\)\s*=>/);
+    assert.match(block, /fetchAlpacaUnderFiveUniverseReadonly\(\{\s*\.\.\.options,\s*env:\s*process\.env,/);
+    assert.match(block, /ownedPositionCandidates:\s*ownedMonitorSource\.candidates/);
+  }
+});

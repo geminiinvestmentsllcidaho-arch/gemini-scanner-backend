@@ -20,17 +20,21 @@ const sharedRouteBlocks = [
   return server.slice(start, end);
 }).join("\n");
 
-test("under-five pages share one cached backend scan", () => {
+test("under-five opportunity pages share one cached backend scan while owned positions use isolated symbol monitoring", () => {
   assert.match(server, /createAlpacaUnderFiveSharedScanCache/);
   assert.match(server, /async function getUnderFiveSharedSource/);
   assert.equal(
     (sharedRouteBlocks.match(/const source = await getUnderFiveSharedSource\(\);/g) ?? []).length,
     5,
   );
-  assert.doesNotMatch(
-    sharedRouteBlocks,
-    /fetchAlpacaUnderFiveUniverseReadonly/,
+  const directOwnedMonitorFetches =
+    sharedRouteBlocks.match(/fetchSymbols:\s*\(options\s*=\s*\{\}\)\s*=>\s*ownedMarketSourceMod\.fetchAlpacaUnderFiveUniverseReadonly/g) ?? [];
+  assert.equal(directOwnedMonitorFetches.length, 2);
+  const withoutOwnedMonitorFetches = sharedRouteBlocks.replace(
+    /fetchSymbols:\s*\(options\s*=\s*\{\}\)\s*=>\s*ownedMarketSourceMod\.fetchAlpacaUnderFiveUniverseReadonly/g,
+    "fetchSymbols: isolatedOwnedPositionMonitorFetch",
   );
+  assert.doesNotMatch(withoutOwnedMonitorFetches, /fetchAlpacaUnderFiveUniverseReadonly/);
 });
 
 test("shared cache starts with server and customer-zero refresh stays adaptive", () => {

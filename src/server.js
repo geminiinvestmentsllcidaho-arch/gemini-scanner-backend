@@ -5713,8 +5713,13 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
     const source = await getUnderFiveSharedSource();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const ownedMarketSourceMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const ownedMonitorSource = await ownedMonitorSourceMod.fetchCustomerOwnedPositionMonitorSource({
       paperAccount,
+      fetchSymbols: (options = {}) => ownedMarketSourceMod.fetchAlpacaUnderFiveUniverseReadonly({
+        ...options,
+        env: process.env,
+      }),
     });
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
@@ -5725,6 +5730,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       route: '/customer/scanner/under-five',
       resultFilters,
       paperAccount,
+      ownedPositionCandidates: ownedMonitorSource.candidates,
       paperLedger,
       paperLedgerHistory: paperPositionLedger.records,
       performancePeriod: req.query.period,
@@ -5822,8 +5828,13 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
     const source = await getUnderFiveSharedSource();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const ownedMarketSourceMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const ownedMonitorSource = await ownedMonitorSourceMod.fetchCustomerOwnedPositionMonitorSource({
       paperAccount,
+      fetchSymbols: (options = {}) => ownedMarketSourceMod.fetchAlpacaUnderFiveUniverseReadonly({
+        ...options,
+        env: process.env,
+      }),
     });
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
