@@ -101,9 +101,21 @@ export async function fetchCustomerOwnedPositionMonitorSource({
         accountMutationAllowed: false,
       }, position);
       const scaleOutReviewed = applyOwnedPositionScaleOutReviewPolicy(exitReviewed, position);
-      candidates.push(Object.freeze(
-        applyOwnedPositionScaleInReviewPolicy(scaleOutReviewed, position),
-      ));
+      const scaleInReviewed = applyOwnedPositionScaleInReviewPolicy(scaleOutReviewed, position);
+      const normalizedOwnedAssessment = (
+        String(scaleInReviewed?.resultState ?? scaleInReviewed?.decision ?? "").toUpperCase() !== "EXIT"
+        && scaleInReviewed?.ownedExitReviewTriggered !== true
+        && scaleInReviewed?.ownedScaleOutReviewTriggered !== true
+        && scaleInReviewed?.ownedScaleInReviewTriggered !== true
+      )
+        ? {
+            ...scaleInReviewed,
+            resultState: "WATCH",
+            decision: "WATCH",
+            ownedPositionAssessment: "WATCH",
+          }
+        : scaleInReviewed;
+      candidates.push(Object.freeze(normalizedOwnedAssessment));
     } else {
       missingSymbols.push(position.symbol);
       candidates.push(fallbackCandidate(position));

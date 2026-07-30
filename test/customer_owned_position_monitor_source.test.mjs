@@ -182,3 +182,43 @@ test("applies production-shaped scale-out review policy before routing", async (
   assert.equal(candidate.ownedScaleOutSuggestedQty,2);
   assert.equal(candidate.orderPlacementAllowed,false);
 });
+
+
+test("normalizes an owned non-actionable market decision to WATCH monitoring", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount: {
+      positions: [{
+        symbol: "SPY",
+        qty: 1,
+        averageEntryPrice: 749.19,
+        currentPrice: 732.9,
+        unrealizedPlpc: -0.02174,
+      }],
+    },
+    fetchSymbols: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      candidates: [{
+        symbol: "SPY",
+        price: 728,
+        changePct: -1.7272,
+        readonlyPotentialScore: 39,
+        readonlyPotentialFlags: ["negative_momentum", "stale_source"],
+        sourceAgeSec: 50000,
+        maxSourceAgeSec: 120,
+        sourceStale: true,
+        resultState: "DO_NOT_ENTER",
+        decision: "DO_NOT_ENTER",
+      }],
+    }),
+  });
+
+  assert.equal(result.candidates.length, 1);
+  assert.equal(result.candidates[0].resultState, "WATCH");
+  assert.equal(result.candidates[0].decision, "WATCH");
+  assert.equal(result.candidates[0].ownedPositionAssessment, "WATCH");
+  assert.equal(result.candidates[0].ownedExitReviewTriggered, false);
+  assert.equal(result.candidates[0].ownedScaleOutReviewTriggered, false);
+  assert.equal(result.candidates[0].ownedScaleInReviewTriggered, false);
+  assert.equal(result.candidates[0].orderPlacementAllowed, false);
+});
