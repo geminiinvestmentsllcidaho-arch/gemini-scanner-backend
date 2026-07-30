@@ -81,7 +81,7 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const connectedSymbols = new Set(connectedPositions.map((position) => String(position?.symbol ?? "").toUpperCase()));
   const ownedAssets = (Array.isArray(page.ownedAssets?.positions) ? page.ownedAssets.positions : [])
     .filter((position) => !connectedSymbols.has(String(position?.symbol ?? "").toUpperCase()));
-  const manualRows = ownedAssets.length ? [...ownedAssets] : [{}];
+  const manualRows = [...ownedAssets, {}];
   const windDown = page.windDown ?? {};
   const connectedRows = connectedPositions.length
     ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span></td></tr>`).join("")

@@ -148,7 +148,7 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.match(html, /will not contact a broker, place an order, or modify an account/);
 });
 
-test("renders only one empty manual position row when no positions are saved", () => {
+test("renders one empty manual position row when no positions are saved", () => {
   const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
     model: { account: {}, summary: {}, positions: [], warnings: [] },
     ownedAssets: { positions: [], updatedAt: null },
@@ -156,4 +156,23 @@ test("renders only one empty manual position row when no positions are saved", (
     brokerConnected: false,
   }));
   assert.equal((html.match(/class="position-row"/g) ?? []).length, 1);
+});
+
+test("renders an additional blank row after saved manual positions", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    ownedAssets: {
+      positions: [
+        { symbol: "AAPL", qty: 1, averageEntryPrice: 200, brokerLabel: "Other broker" },
+        { symbol: "MSFT", qty: 2, averageEntryPrice: 400, brokerLabel: "Other broker" },
+      ],
+      updatedAt: "2026-07-30T19:00:00.000Z",
+    },
+    connectedPositions: [],
+    brokerConnected: false,
+  }));
+  assert.equal((html.match(/class="position-row"/g) ?? []).length, 3);
+  assert.match(html, /name="symbol" value="AAPL"/);
+  assert.match(html, /name="symbol" value="MSFT"/);
+  assert.match(html, /name="symbol" value=""/);
 });
