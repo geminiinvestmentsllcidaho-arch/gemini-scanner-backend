@@ -996,3 +996,14 @@ test('customer password fields expose an accessible show and hide password contr
   assert.match(source, /button\.setAttribute\('aria-controls', input\.id\)/);
   assert.match(source, /<script src="\/customer\/assets\/password-visibility\.js" defer><\/script>/);
 });
+
+test("portfolio manual positions use friendly fields and exclude connected broker duplicates", () => {
+  assert.match(source, /req\.body\?\.symbol/);
+  assert.match(source, /req\.body\?\.qty/);
+  assert.match(source, /req\.body\?\.averageEntryPrice/);
+  assert.match(source, /req\.body\?\.brokerLabel/);
+  assert.match(source, /connectedPositions: brokerPaperAccount\.positions/);
+  assert.match(source, /brokerConnected: brokerPaperAccount\.connected === true/);
+  assert.match(source, /const connectedSymbols = new Set/);
+  assert.match(source, /filter\(\(position\) => !connectedSymbols\.has/);
+});

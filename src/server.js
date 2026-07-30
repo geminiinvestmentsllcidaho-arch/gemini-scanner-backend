@@ -4433,6 +4433,8 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       model,
       account: req.customerAccount,
       ownedAssets,
+      connectedPositions: brokerPaperAccount.positions,
+      brokerConnected: brokerPaperAccount.connected === true,
       windDown,
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
@@ -4453,12 +4455,25 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
 
 app.post('/customer/portfolio/owned-assets', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   const mod = await import('./scanner/customer_owned_asset_store.mjs');
-  const positions = String(req.body?.positions ?? '').split(/\r?\n/).map((line) => {
-    const [symbol, qty, averageEntryPrice, brokerLabel] = line.split(',').map((part) => part.trim());
-    return { symbol, qty, averageEntryPrice, brokerLabel, source: 'manual' };
-  });
+  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+  const values = (value) => Array.isArray(value) ? value : value === undefined ? [] : [value];
+  const symbols = values(req.body?.symbol);
+  const quantities = values(req.body?.qty);
+  const averageEntryPrices = values(req.body?.averageEntryPrice);
+  const brokerLabels = values(req.body?.brokerLabel);
+  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+  const brokerPaperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+  const connectedSymbols = new Set((brokerPaperAccount.positions ?? []).map((position) => String(position?.symbol ?? '').toUpperCase()));
+  const positions = symbols.map((symbol, index) => ({
+    symbol,
+    qty: quantities[index],
+    averageEntryPrice: averageEntryPrices[index],
+    brokerLabel: brokerLabels[index],
+    source: 'manual',
+  })).filter((position) => !connectedSymbols.has(String(position.symbol ?? '').trim().toUpperCase()));
   const result = mod.updateCustomerOwnedAssets(req.customerAccount?.id, positions);
-  if (!result.ok) return res.status(400).type('text').send('Owned assets could not be saved.');
+  if (!result.ok) return res.status(400).type('text').send('Positions could not be saved.');
   return res.redirect(303, '/customer/portfolio?saved=1');
 });
 

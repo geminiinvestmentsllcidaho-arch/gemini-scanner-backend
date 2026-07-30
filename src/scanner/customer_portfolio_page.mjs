@@ -63,6 +63,8 @@ export function buildCustomerPortfolioPage(options = {}) {
     paperOnly: true,
     decisionAssistOnly: true,
     ownedAssets: options.ownedAssets ?? { positions: [], updatedAt: null },
+    connectedPositions: Array.isArray(options.connectedPositions) ? options.connectedPositions : [],
+    brokerConnected: options.brokerConnected === true,
     windDown: options.windDown ?? { status: "inactive", steps: [] },
     saved: options.saved === true,
     windDownUpdated: options.windDownUpdated === true,
@@ -75,9 +77,22 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const locale = page.locale ?? "en-US";
   const positions = Array.isArray(model.positions) ? model.positions : [];
   const warnings = Array.isArray(model.warnings) ? model.warnings : [];
-  const ownedAssets = Array.isArray(page.ownedAssets?.positions) ? page.ownedAssets.positions : [];
+  const connectedPositions = Array.isArray(page.connectedPositions) ? page.connectedPositions : [];
+  const connectedSymbols = new Set(connectedPositions.map((position) => String(position?.symbol ?? "").toUpperCase()));
+  const ownedAssets = (Array.isArray(page.ownedAssets?.positions) ? page.ownedAssets.positions : [])
+    .filter((position) => !connectedSymbols.has(String(position?.symbol ?? "").toUpperCase()));
+  const manualRows = [...ownedAssets, ...Array.from({ length: Math.max(1, 3 - ownedAssets.length) }, () => ({}))];
   const windDown = page.windDown ?? {};
-  const ownedAssetText = ownedAssets.map((position) => `${position.symbol},${position.qty},${position.averageEntryPrice},${position.brokerLabel ?? ""}`).join("\n");
+  const connectedRows = connectedPositions.length
+    ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span></td></tr>`).join("")
+    : '<tr><td colspan="4">No positions are currently available from a connected paper account.</td></tr>';
+  const manualInputRows = manualRows.map((position) => `<div class="position-row">
+<label>Symbol<input name="symbol" value="${esc(position.symbol ?? "")}" placeholder="AAPL" autocomplete="off"></label>
+<label>Quantity<input name="qty" value="${esc(position.qty ?? "")}" placeholder="10" inputmode="decimal"></label>
+<label>Average purchase price<input name="averageEntryPrice" value="${esc(position.averageEntryPrice ?? "")}" placeholder="185.40" inputmode="decimal"></label>
+<label>Broker or source<input name="brokerLabel" value="${esc(position.brokerLabel ?? "")}" placeholder="Other broker"></label>
+<button class="remove-row" type="button" aria-label="Remove position">Remove</button>
+</div>`).join("");
   const windRows = Array.isArray(windDown.steps) ? windDown.steps.map((step) => `<li><strong>${esc(step.symbol)}</strong>: review a partial sale of ${esc(amount(step.suggestedReviewQty, locale))} out of ${esc(amount(step.ownedQty, locale))}; estimated quantity remaining: ${esc(amount(step.remainingAfterReview, locale))}.</li>`).join("") : "";
 
   const rows = positions.length
@@ -120,7 +135,15 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .positive{color:var(--gs-accent)}
 .negative{color:#ff6b6b}
 .stale{color:#ffd166}
-textarea{width:100%;min-height:150px;padding:12px;border-radius:12px;background:rgba(0,0,0,.42);color:var(--gs-text);border:1px solid var(--gs-line);box-sizing:border-box}
+input{width:100%;padding:11px;border-radius:10px;background:rgba(0,0,0,.42);color:var(--gs-text);border:1px solid var(--gs-line);box-sizing:border-box}
+.position-row{display:grid;grid-template-columns:1fr 1fr 1.4fr 1.2fr auto;gap:10px;align-items:end;margin:12px 0;padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.24)}
+.position-row label{font-size:13px;color:var(--gs-muted)}
+.position-row label input{display:block;margin-top:6px;color:var(--gs-text)}
+.remove-row{background:transparent;color:#ff8f8f;border:1px solid rgba(255,107,107,.55)}
+.source-badge{display:inline-block;padding:5px 9px;border-radius:999px;background:rgba(57,255,32,.1);border:1px solid rgba(57,255,32,.35);font-size:12px;font-weight:800}
+.form-actions{display:flex;gap:10px;flex-wrap:wrap}
+.secondary-button{background:transparent;color:var(--gs-text);border:1px solid var(--gs-line)}
+.helper{color:var(--gs-muted)}
 button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .danger-button{background:#9b111e;color:#fff;border:1px solid #ff6b6b}
 .safe-button{background:var(--gs-accent);color:#001b13;border:0}
@@ -130,7 +153,7 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
 .wind-actions{margin:14px 0 10px}
 .wind-actions button{width:100%;max-width:620px}
-@media(max-width:640px){.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
+@media(max-width:760px){.position-row{grid-template-columns:1fr 1fr}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
 </style>
 </head>
 <body data-gs-page="customer-portfolio">
@@ -186,15 +209,25 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 </div>
 
 <section class="card panel">
-<h2>Assets you already own</h2>
-<p>Enter one position per line as <code>SYMBOL, QUANTITY, AVERAGE ENTRY PRICE, BROKER</code>. Example: <code>AAPL, 10, 185.40, Alpaca</code>.</p>
-<p>This local portfolio record is used only for monitoring and decision assistance. It does not connect to a broker or place orders.</p>
-${page.saved ? '<p class="notice"><strong>Owned assets saved.</strong></p>' : ''}
-<form method="post" action="/customer/portfolio/owned-assets">
-<textarea name="positions" aria-label="Owned assets">${esc(ownedAssetText)}</textarea>
-<p><button class="safe-button" type="submit">Save owned assets</button></p>
+<h2>Connected account positions</h2>
+<p>${page.brokerConnected ? "These positions are synchronized automatically from your connected Alpaca paper account." : "Connect a supported paper account to synchronize positions automatically."}</p>
+<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average purchase price</th><th>Source</th></tr></thead><tbody>${connectedRows}</tbody></table></div>
+<p class="helper">Broker-synced positions are read-only here and refresh from the connected account. GeminiScanner does not place orders or modify the account.</p>
+</section>
+
+<section class="card panel">
+<h2>Other positions to monitor</h2>
+<p>Add positions that are not available from your connected paper account, such as assets held at another broker.</p>
+<p>GeminiScanner uses these details only for monitoring, performance calculations, and decision-assistance reviews.</p>
+${page.saved ? '<p class="notice"><strong>Manual positions saved.</strong></p>' : ''}
+<form method="post" action="/customer/portfolio/owned-assets" id="owned-position-form">
+<div id="owned-position-rows">${manualInputRows}</div>
+<div class="form-actions">
+<button class="secondary-button" type="button" id="add-position-row">Add another position</button>
+<button class="safe-button" type="submit">Save positions</button>
+</div>
 </form>
-<p><strong>Saved positions:</strong> ${esc(ownedAssets.length)} | <strong>Last updated:</strong> ${esc(page.ownedAssets?.updatedAt ?? "Not saved yet")}</p>
+<p><strong>Manually saved positions:</strong> ${esc(ownedAssets.length)} | <strong>Last updated:</strong> ${esc(page.ownedAssets?.updatedAt ?? "Not saved yet")}</p>
 </section>
 
 <section class="card panel ${windDown.exitAllRequested ? "wind-active" : ""}">
@@ -221,6 +254,27 @@ ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 </section>
 </main>
 ${renderGlobalFooter()}
+<script>
+(() => {
+  const container = document.getElementById("owned-position-rows");
+  const add = document.getElementById("add-position-row");
+  if (!container || !add) return;
+  const wireRemove = (button) => button.addEventListener("click", () => {
+    const rows = container.querySelectorAll(".position-row");
+    if (rows.length > 1) button.closest(".position-row")?.remove();
+    else button.closest(".position-row")?.querySelectorAll("input").forEach((input) => { input.value = ""; });
+  });
+  container.querySelectorAll(".remove-row").forEach(wireRemove);
+  add.addEventListener("click", () => {
+    const row = document.createElement("div");
+    row.className = "position-row";
+    row.innerHTML = '<label>Symbol<input name="symbol" placeholder="AAPL" autocomplete="off"></label><label>Quantity<input name="qty" placeholder="10" inputmode="decimal"></label><label>Average purchase price<input name="averageEntryPrice" placeholder="185.40" inputmode="decimal"></label><label>Broker or source<input name="brokerLabel" placeholder="Other broker"></label><button class="remove-row" type="button" aria-label="Remove position">Remove</button>';
+    container.appendChild(row);
+    wireRemove(row.querySelector(".remove-row"));
+    row.querySelector("input")?.focus();
+  });
+})();
+</script>
 </body>
 </html>`;
 }

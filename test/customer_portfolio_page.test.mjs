@@ -116,11 +116,23 @@ test("customer portfolio uses the shared primary navigation", () => {
 test("renders owned-asset entry and portfolio wind-down controls without execution", () => {
   const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
     model: { account: {}, summary: {}, positions: [], warnings: [] },
-    ownedAssets: { positions: [{ symbol: "AAPL", qty: 10, averageEntryPrice: 185.4, brokerLabel: "Alpaca" }], updatedAt: "2026-07-30T00:00:00Z" },
+    ownedAssets: { positions: [{ symbol: "AAPL", qty: 10, averageEntryPrice: 185.4, brokerLabel: "Other broker" }], updatedAt: "2026-07-30T00:00:00Z" },
+    connectedPositions: [{ symbol: "SPY", qty: 1, averageEntryPrice: 749.19 }],
+    brokerConnected: true,
     windDown: { exitAllRequested: true, steps: [{ symbol: "AAPL", ownedQty: 10, suggestedReviewQty: 2, remainingAfterReview: 8 }] },
   }));
-  assert.match(html, /Assets you already own/);
-  assert.match(html, /AAPL,10,185.4,Alpaca/);
+  assert.match(html, /Connected account positions/);
+  assert.match(html, /synchronized automatically from your connected Alpaca paper account/);
+  assert.match(html, /SPY/);
+  assert.match(html, /Synced from Alpaca/);
+  assert.match(html, /Other positions to monitor/);
+  assert.match(html, /name="symbol" value="AAPL"/);
+  assert.match(html, /name="qty" value="10"/);
+  assert.match(html, /name="averageEntryPrice" value="185.4"/);
+  assert.match(html, /name="brokerLabel" value="Other broker"/);
+  assert.match(html, /Add another position/);
+  assert.match(html, /Save positions/);
+  assert.doesNotMatch(html, /<textarea\b/i);
   assert.match(html, /ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED/);
   assert.match(html, /review a partial sale of 2 out of 10/);
   assert.match(html, /will not contact a broker, place an order, or modify an account/);
