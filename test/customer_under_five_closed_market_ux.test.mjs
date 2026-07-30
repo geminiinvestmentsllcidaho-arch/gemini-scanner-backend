@@ -82,7 +82,7 @@ test("closed customer scanner shows paused status and closed-market empty state"
   assert.match(html, /Live scanner results are paused until the next market open/);
   assert.doesNotMatch(html, /NEXT SCAN IN/);
   assert.doesNotMatch(html, /customer-scanner-countdown\.js/);
-  assert.match(html, /No order placement, broker contact, or account mutation controls/);
+  assert.match(html, /No order-placement, broker-contact, or account-modification controls are available/);
 });
 
 test("closed market suppresses cached candidate cards and shows only paused-state results", () => {

@@ -78,7 +78,7 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const ownedAssets = Array.isArray(page.ownedAssets?.positions) ? page.ownedAssets.positions : [];
   const windDown = page.windDown ?? {};
   const ownedAssetText = ownedAssets.map((position) => `${position.symbol},${position.qty},${position.averageEntryPrice},${position.brokerLabel ?? ""}`).join("\n");
-  const windRows = Array.isArray(windDown.steps) ? windDown.steps.map((step) => `<li><strong>${esc(step.symbol)}</strong>: review selling ${esc(amount(step.suggestedReviewQty, locale))} of ${esc(amount(step.ownedQty, locale))}; estimated remaining ${esc(amount(step.remainingAfterReview, locale))}.</li>`).join("") : "";
+  const windRows = Array.isArray(windDown.steps) ? windDown.steps.map((step) => `<li><strong>${esc(step.symbol)}</strong>: review a partial sale of ${esc(amount(step.suggestedReviewQty, locale))} out of ${esc(amount(step.ownedQty, locale))}; estimated quantity remaining: ${esc(amount(step.remainingAfterReview, locale))}.</li>`).join("") : "";
 
   const rows = positions.length
     ? positions.map((position) => `<tr>
@@ -120,7 +120,17 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .positive{color:var(--gs-accent)}
 .negative{color:#ff6b6b}
 .stale{color:#ffd166}
-textarea{width:100%;min-height:150px;padding:12px;border-radius:12px;background:rgba(0,0,0,.42);color:var(--gs-text);border:1px solid var(--gs-line);box-sizing:border-box}button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}.danger-button{background:#9b111e;color:#fff;border:1px solid #ff6b6b}.safe-button{background:var(--gs-accent);color:#001b13;border:0}.wind-active{border:2px solid #ff6b6b}.notice{padding:10px;border-radius:10px;background:rgba(57,255,32,.1);border:1px solid rgba(57,255,32,.35)}
+textarea{width:100%;min-height:150px;padding:12px;border-radius:12px;background:rgba(0,0,0,.42);color:var(--gs-text);border:1px solid var(--gs-line);box-sizing:border-box}
+button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
+.danger-button{background:#9b111e;color:#fff;border:1px solid #ff6b6b}
+.safe-button{background:var(--gs-accent);color:#001b13;border:0}
+.wind-active{border:2px solid #ff6b6b}
+.notice{padding:10px;border-radius:10px;background:rgba(57,255,32,.1);border:1px solid rgba(57,255,32,.35)}
+.wind-summary{margin:12px 0;padding:12px 14px;border-radius:12px;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.35)}
+.wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
+.wind-actions{margin:14px 0 10px}
+.wind-actions button{width:100%;max-width:620px}
+@media(max-width:640px){.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
 </style>
 </head>
 <body data-gs-page="customer-portfolio">
@@ -189,15 +199,15 @@ ${page.saved ? '<p class="notice"><strong>Owned assets saved.</strong></p>' : ''
 
 <section class="card panel ${windDown.exitAllRequested ? "wind-active" : ""}">
 <h2>Portfolio wind-down</h2>
-<p>Exit All immediately blocks new-buy and scale-in decisions, then creates gradual partial-exit reviews for current positions. It does not sell automatically.</p>
+<p>Use portfolio wind-down when you want to stop reviewing new purchases and focus on reducing existing paper positions.</p>
 ${page.windDownUpdated ? '<p class="notice"><strong>Wind-down preference updated.</strong></p>' : ''}
-<p><strong>Status:</strong> ${esc(windDown.exitAllRequested ? "ACTIVE — NEW BUYS BLOCKED" : "Inactive")}</p>
+<div class="wind-summary"><p><strong>Status:</strong> ${esc(windDown.exitAllRequested ? "ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED" : "Inactive — new-buy reviews remain available")}</p><p>${windDown.exitAllRequested ? "Full EXIT alerts and qualified partial profit-protection reviews remain available. No sale occurs automatically." : "Activating wind-down blocks new-buy and add-on reviews, while keeping full EXIT alerts and qualified partial profit-protection reviews available."}</p></div>
 ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 <form method="post" action="/customer/portfolio/wind-down">
 <input type="hidden" name="action" value="${windDown.exitAllRequested ? "resume" : "exit_all"}">
-<button class="${windDown.exitAllRequested ? "safe-button" : "danger-button"}" type="submit">${windDown.exitAllRequested ? "Resume new-buy reviews" : "Exit All — stop new buys and begin gradual scale-out reviews"}</button>
+<p class="wind-actions"><button class="${windDown.exitAllRequested ? "safe-button" : "danger-button"}" type="submit">${windDown.exitAllRequested ? "End wind-down and resume new-buy reviews" : "Start portfolio wind-down"}</button></p>
 </form>
-<p>Paper-only, review-only. No broker contact, order placement, or account mutation.</p>
+<p>Paper-only and review-only. GeminiScanner will not contact a broker, place an order, or modify an account.</p>
 </section>
 
 <section class="card panel">

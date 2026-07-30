@@ -121,7 +121,7 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   }));
   assert.match(html, /Assets you already own/);
   assert.match(html, /AAPL,10,185.4,Alpaca/);
-  assert.match(html, /ACTIVE — NEW BUYS BLOCKED/);
-  assert.match(html, /review selling 2 of 10/);
-  assert.match(html, /No broker contact, order placement/);
+  assert.match(html, /ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED/);
+  assert.match(html, /review a partial sale of 2 out of 10/);
+  assert.match(html, /will not contact a broker, place an order, or modify an account/);
 });

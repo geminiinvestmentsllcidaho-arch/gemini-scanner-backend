@@ -77,7 +77,7 @@ export function buildCustomerScannerHub(options = {}) {
     tenant,
     title: "GeminiScanner",
     subtitle: options.route === "/customer/scanner"
-      ? "Choose scanner modes, price ranges, assets, and result states."
+      ? "Choose scanner modes, price ranges, asset types, and result filters."
       : "Review account status, paper performance, and scanner readiness.",
     defaultMode: "intraday",
     defaultAssetType: "stocks",
@@ -162,9 +162,9 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <div class="scanner-actions">
 <button class="save-filters" type="submit" formaction="/customer/scanner/filters" formmethod="post">Save selections</button>
 <button class="reset-filters" type="submit" formaction="/customer/scanner/reset" formmethod="post">Reset all settings</button>
-<button class="run-scanners" type="submit">Run scanner(s) now</button>
+<button class="run-scanners" type="submit">Run selected scanners</button>
 <a class="exit-demo-link" href="/customer/scanner/exit-demo">View flashing EXIT demo</a>
-<p class="nested-range-note">Nested ranges run once at the highest selected ceiling. All lower ranges are included automatically.</p>
+<p class="nested-range-note">When multiple price ranges are selected, the scanner runs once using the highest ceiling and automatically includes every lower range.</p>
 </div>
 </form>`;
 
@@ -264,7 +264,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <div><span>Last error</span><b>${esc(premarket.lastError ?? "None")}</b></div>
 </div>
 <p>${premarket.session?.active
-  ? "The scanner is automatically hunting for premarket opportunities now."
+  ? "The scanner is automatically reviewing premarket opportunities now."
   : "The scheduler is sleeping until the next valid premarket window."}</p>
 <p class="premarket-auto-safety">Read only · Paper only · Decision assist · No order placement or scanner-logic mutation.</p>
 ${premarketMultiscanPanel}
@@ -475,7 +475,7 @@ ${postMarketPanel}
 </section>
 ${isScannerRoute ? `<section class="card panel scanner-controls">
 <h2>Scanner controls</h2>
-<p>Select all scanner modes, asset types, and result filters that apply.</p>
+<p>Select the scanner modes, asset types, price ranges, and result filters you want to review.</p>
 ${scannerControls}
 </section>` : ""}
 <section class="card safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>

@@ -158,7 +158,7 @@ test("renders dropdown multi-select controls with select-all and run button", ()
   assert.match(html, /data-select-all="modes"/);
   assert.match(html, /data-select-all="assets"/);
   assert.match(html, /data-select-all="states"/);
-  assert.match(html, /Run scanner\(s\) now/);
+  assert.match(html, /Run selected scanners/);
   assert.match(html, /action="\/customer\/scanner\/run"/);
   assert.match(html, /src="\/assets\/customer-scanner-controls\.js"/);
 });

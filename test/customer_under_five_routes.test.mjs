@@ -188,7 +188,7 @@ test("customer decision card gives stale data blocking priority", () => {
   assert.match(html, /class="decision-card state-stale-data"/);
   assert.match(html, />STALE DATA</);
   assert.match(html, /STALE — BLOCKED/);
-  assert.match(html, /No order placement, broker contact, or account mutation controls/);
+  assert.match(html, /No order-placement, broker-contact, or account-modification controls are available/);
 });
 
 
@@ -574,9 +574,9 @@ test("customer scanner explains ENTER-first strongest-score result ordering", ()
 
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
   assert.match(html, /Result order:/);
-  assert.match(html, /ENTER candidates appear first/);
-  assert.match(html, /strongest potential score to weakest/);
-  assert.match(html, /Equal scores are sorted by symbol/);
+  assert.match(html, /New ENTER opportunities appear first/);
+  assert.match(html, /strongest potential score to the weakest/);
+  assert.match(html, /Ties are sorted by symbol/);
   assert.match(html, /data-result-order/);
 });
 
@@ -680,7 +680,7 @@ test("customer zero scanner route wires paper equity and buying power into alloc
 test("owned EXIT alerts and scale-in reviews are separate from opportunities",()=>{
  const d=buildCustomerUnderFiveDashboard({sourceStatus:"connected_readonly",marketClock:{isOpen:true},candidates:[{symbol:"NEW",price:4,decision:"ENTER",tradeAllowed:true},{symbol:"SELL",price:4,decision:"EXIT",readonlyPotentialScore:99},{symbol:"ADD",price:4,decision:"ENTER",tradeAllowed:true,readonlyPotentialScore:95}]},{paperAccount:{accountHealthy:true,positions:[{symbol:"SELL",qty:3},{symbol:"ADD",qty:2,averageEntryPrice:3.5}]}});
  assert.deepEqual(d.candidates.map(x=>x.symbol),["NEW"]);assert.deepEqual(d.positionAlerts.map(x=>x.symbol),["SELL"]);assert.deepEqual(d.scaleInReviews.map(x=>x.symbol),["ADD"]);
- const h=renderCustomerUnderFiveDashboardHtml(d);assert.match(h,/URGENT PAPER POSITION EXIT REVIEW/);assert.match(h,/Enable EXIT sound and notifications/);assert.match(h,/REVIEW ADDING MORE/);assert.match(h,/Current return:/);assert.match(h,/review only—not permission to buy more/);assert.match(h,/will not recommend averaging down/);assert.match(h,/customer-owned-position-alerts\.js/);
+ const h=renderCustomerUnderFiveDashboardHtml(d);assert.match(h,/URGENT PAPER POSITION EXIT REVIEW/);assert.match(h,/Enable EXIT sound and notifications/);assert.match(h,/REVIEW AN ADD-ON/);assert.match(h,/Current return:/);assert.match(h,/review only, not permission to buy more/);assert.match(h,/will not recommend averaging down/);assert.match(h,/customer-owned-position-alerts\.js/);
 });
 
 test("customer zero under-five route loads independent owned-position monitor candidates", () => {
@@ -788,8 +788,8 @@ test("portfolio wind-down suppresses owned scale-in reviews while preserving exi
   assert.deepEqual(dashboard.ownedPositionSignals.scaleInReviews, []);
   const html = renderCustomerUnderFiveDashboardHtml(dashboard);
   assert.match(html, /URGENT PAPER POSITION EXIT REVIEW/);
-  assert.match(html, /REVIEW SELLING PART/);
-  assert.doesNotMatch(html, /REVIEW ADDING MORE/);
+  assert.match(html, /REVIEW A PARTIAL SALE/);
+  assert.doesNotMatch(html, /REVIEW AN ADD-ON/);
 });
 
 test("customer dashboard propagates portfolio wind-down into every ENTER gate", async () => {
