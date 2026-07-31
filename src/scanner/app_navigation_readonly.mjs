@@ -248,6 +248,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_user_approved_disabled_preview",
+    title: "User-Approved Paper Trade Preview",
+    subtitle: "Stage 2 mechanical preview with execution disabled.",
+    description: "Read-only user-approved paper-trade proposal, approval binding, submission-gate, and disabled-adapter status with no approval, broker contact, order placement, cancellation, account mutation, or execution controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-user-approved-disabled-preview",
+    diagnosticHref: "/app/paper-user-approved-disabled-preview",
+    routeHref: "/app/paper-user-approved-disabled-preview",
+    displayState: "PAPER_USER_APPROVED_DISABLED_PREVIEW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_operator_start_here",
     title: "Paper Operator Start Here",
     subtitle: "Read-only start point for the paper trading readiness workflow.",
