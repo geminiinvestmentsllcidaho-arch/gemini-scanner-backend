@@ -43,7 +43,7 @@ export async function runPaperManualRoundTripWatcher(options = {}) {
     });
     fs.mkdirSync(path.dirname(statusPath), { recursive: true });
     const tmp = `${statusPath}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, `${JSON.stringify(last, null, 2)}\n`, { mode: 0x600 });
+    fs.writeFileSync(tmp, `${JSON.stringify(last, null, 2)}\n`, { mode: 0o600 });
     fs.renameSync(tmp, statusPath);
     if (once || operator.mechanicalSuccess) break;
     await sleep(intervalMs);
