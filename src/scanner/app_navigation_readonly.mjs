@@ -248,6 +248,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_automatic_disabled_summary_review",
+    title: "Fully Automatic Disabled Summary Review",
+    subtitle: "Stage 3 disabled summary review with every execution path closed.",
+    description: "Read-only review of the fully automatic disabled summary with no approval, unlock, adapter invocation, network call, broker contact, order placement, cancellation, account mutation, automatic entry, automatic exit, or execution controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-automatic-disabled-summary-review",
+    diagnosticHref: "/app/paper-automatic-disabled-summary-review",
+    routeHref: "/app/paper-automatic-disabled-summary-review",
+    displayState: "PAPER_AUTOMATIC_DISABLED_SUMMARY_REVIEW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_automatic_disabled_summary",
     title: "Fully Automatic Disabled Summary",
     subtitle: "Stage 3 disabled summary with automatic entry and exit locked.",
