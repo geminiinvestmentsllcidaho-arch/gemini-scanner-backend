@@ -8,9 +8,36 @@ import {
   buildManualStagePromotionProof,
 } from "../src/scanner/paper_manual_round_trip_evidence_tracker.mjs";
 
+function validPersistedState(value) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    value.version === "paper_manual_round_trip_evidence_tracker_v2" &&
+    value.stage === "manual_detection_only" &&
+    typeof value.status === "string" &&
+    typeof value.baselineObserved === "boolean" &&
+    typeof value.enterDetected === "boolean" &&
+    typeof value.exitDetected === "boolean" &&
+    typeof value.roundTripClosed === "boolean" &&
+    typeof value.mechanicalSuccess === "boolean" &&
+    value.readOnly === true &&
+    value.brokerContactAllowed === false &&
+    value.orderPlacementAllowed === false &&
+    value.accountMutationAllowed === false
+  );
+}
+
 function readState(file) {
-  try { return JSON.parse(fs.readFileSync(file, "utf8")); }
-  catch (error) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!validPersistedState(parsed)) {
+      const error = new Error("paper_manual_round_trip_persisted_state_invalid");
+      error.code = "PAPER_MANUAL_STATE_INVALID";
+      throw error;
+    }
+    return parsed;
+  } catch (error) {
     if (error?.code === "ENOENT") return defaultPaperManualRoundTripEvidence();
     throw error;
   }
@@ -39,7 +66,8 @@ export async function runPaperManualRoundTripEvidenceTracker(options = {}) {
     safety: {
       readOnly: true,
       allowedMethods: ["GET"],
-      brokerContactAllowed: true,
+      readonlyBrokerReadAllowed: true,
+      brokerContactAllowed: false,
       orderPlacementAllowed: false,
       accountMutationAllowed: false,
       executionEnabled: false,

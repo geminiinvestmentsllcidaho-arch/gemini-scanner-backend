@@ -37,3 +37,35 @@ test("runner fails closed without connected readonly account", async () => {
   assert.deepEqual(result.state.issues, ["paper_account_not_connected_readonly"]);
   assert.equal(result.safety.executionEnabled, false);
 });
+
+test("runner names readonly broker access precisely", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-runner-"));
+  const result = await runPaperManualRoundTripEvidenceTracker({ path: path.join(dir, "state.json"), snapshot: snap([]) });
+  assert.equal(result.safety.readonlyBrokerReadAllowed, true);
+  assert.equal(result.safety.brokerContactAllowed, false);
+  assert.equal(result.safety.orderPlacementAllowed, false);
+});
+
+test("runner fails closed on malformed or incompatible persisted state", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-runner-"));
+  const malformed = path.join(dir, "malformed.json");
+  fs.writeFileSync(malformed, "{not-json");
+  await assert.rejects(
+    () => runPaperManualRoundTripEvidenceTracker({ path: malformed, snapshot: snap([]) }),
+    SyntaxError,
+  );
+
+  const incompatible = path.join(dir, "incompatible.json");
+  fs.writeFileSync(incompatible, JSON.stringify({
+    version: "paper_manual_round_trip_evidence_tracker_v1",
+    stage: "manual_detection_only",
+    readOnly: true,
+    brokerContactAllowed: false,
+    orderPlacementAllowed: false,
+    accountMutationAllowed: false,
+  }));
+  await assert.rejects(
+    () => runPaperManualRoundTripEvidenceTracker({ path: incompatible, snapshot: snap([]) }),
+    /paper_manual_round_trip_persisted_state_invalid/,
+  );
+});

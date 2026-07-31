@@ -130,3 +130,20 @@ test("fails closed with explicit issue when baseline account already holds a pos
   assert.equal(state.orderPlacementAllowed, false);
   assert.equal(state.accountMutationAllowed, false);
 });
+
+test("keeps recovery verification sticky and repeated snapshots idempotent", () => {
+  let state = defaultPaperManualRoundTripEvidence(at("2026-07-30T20:00:00Z"));
+  state = evaluatePaperManualRoundTripEvidence(state, { ...snap([]), account: { accountStatus: "ACTIVE" } }, { now: at("2026-07-30T20:01:00Z") });
+  assert.match(state.baselineFingerprint, /^[a-f0-9]{24}$/);
+  const updatedAt = state.updatedAt;
+  state = evaluatePaperManualRoundTripEvidence(state, { ...snap([]), account: { accountStatus: "ACTIVE" } }, { now: at("2026-07-30T20:02:00Z") });
+  assert.equal(state.updatedAt, updatedAt);
+  state = evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }]), { now: at("2026-07-30T20:03:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:04:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:05:00Z"), restartRecoveryVerified: true, duplicateProtectionVerified: true });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:06:00Z") });
+  assert.equal(state.restartRecoveryVerified, true);
+  assert.equal(state.duplicateProtectionVerified, true);
+  assert.equal(state.mechanicalSuccess, true);
+  assert.equal(state.readonlyBrokerReadAllowed, true);
+});

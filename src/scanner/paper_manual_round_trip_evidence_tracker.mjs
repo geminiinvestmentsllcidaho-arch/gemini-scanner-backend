@@ -3,7 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { PAPER_EXECUTION_STAGES } from "./paper_execution_stage_promotion_lock.mjs";
 
-export const VERSION = "paper_manual_round_trip_evidence_tracker_v1";
+export const VERSION = "paper_manual_round_trip_evidence_tracker_v2";
 export const DEFAULT_PATH = path.join(process.cwd(), "runs", "paper_manual_round_trip_evidence.json");
 
 const clean = (value) => String(value ?? "").trim();
@@ -38,6 +38,7 @@ export function defaultPaperManualRoundTripEvidence(now = new Date()) {
     stage: PAPER_EXECUTION_STAGES.MANUAL,
     status: "awaiting_baseline",
     symbol: null,
+    baselineFingerprint: null,
     baselineObserved: false,
     enterDetected: false,
     enterReconciled: false,
@@ -55,6 +56,7 @@ export function defaultPaperManualRoundTripEvidence(now = new Date()) {
     completedAt: null,
     updatedAt: now.toISOString(),
     readOnly: true,
+    readonlyBrokerReadAllowed: true,
     brokerContactAllowed: false,
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
@@ -76,7 +78,8 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
   if (!state.baselineObserved) {
     if (accountConnected && positionsOf(snapshot).length === 0) {
       state.baselineObserved = true;
-      state.baselineObservedAt = now.toISOString();
+      state.baselineFingerprint = state.baselineFingerprint ?? crypto.createHash("sha256").update(JSON.stringify({ status: snapshot?.status ?? null, positionsCount: positionsOf(snapshot).length, accountStatus: snapshot?.account?.accountStatus ?? null })).digest("hex").slice(0, 24);
+      state.baselineObservedAt = state.baselineObservedAt ?? now.toISOString();
       state.status = "awaiting_manual_enter";
     } else if (accountConnected && positionsOf(snapshot).length > 0) {
       issues.push("manual_baseline_requires_zero_positions");
@@ -88,7 +91,7 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
       state.enterDetected = true;
       state.enterReconciled = true;
       state.monitoringStarted = true;
-      state.enterDetectedAt = now.toISOString();
+      state.enterDetectedAt = state.enterDetectedAt ?? now.toISOString();
       state.status = "monitoring_manual_position";
     } else if (candidates.some(Boolean)) {
       issues.push("manual_enter_must_be_exactly_one_long_share");
@@ -99,7 +102,7 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
       state.exitDetected = true;
       state.exitReconciled = true;
       state.roundTripClosed = true;
-      state.exitDetectedAt = now.toISOString();
+      state.exitDetectedAt = state.exitDetectedAt ?? now.toISOString();
       state.status = "awaiting_recovery_checks";
     } else if (held && !oneShare(held)) {
       issues.push("manual_position_changed_from_exactly_one_long_share");
@@ -107,11 +110,11 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
   }
 
   state.restartRecoveryVerified =
-    state.roundTripClosed === true &&
-    options.restartRecoveryVerified === true;
+    state.restartRecoveryVerified === true ||
+    (state.roundTripClosed === true && options.restartRecoveryVerified === true);
   state.duplicateProtectionVerified =
-    state.roundTripClosed === true &&
-    options.duplicateProtectionVerified === true;
+    state.duplicateProtectionVerified === true ||
+    (state.roundTripClosed === true && options.duplicateProtectionVerified === true);
   state.mechanicalSuccess =
     state.baselineObserved === true &&
     state.enterDetected === true &&
@@ -129,9 +132,12 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
     state.evidenceId = state.evidenceId ?? evidenceId(state);
   }
 
-  state.updatedAt = now.toISOString();
+  const priorComparable = JSON.stringify({ ...previous, updatedAt: undefined });
+  const nextComparable = JSON.stringify({ ...state, issues, updatedAt: undefined });
+  state.updatedAt = priorComparable === nextComparable && previous?.updatedAt ? previous.updatedAt : now.toISOString();
   state.issues = issues;
   state.readOnly = true;
+  state.readonlyBrokerReadAllowed = true;
   state.brokerContactAllowed = false;
   state.orderPlacementAllowed = false;
   state.accountMutationAllowed = false;
@@ -186,6 +192,7 @@ export function buildManualStagePromotionProof(state = {}) {
     evidenceId: valid ? clean(state.evidenceId) : null,
     completedAt: valid ? clean(state.completedAt) : null,
     readOnly: true,
+    readonlyBrokerReadAllowed: true,
     brokerContactAllowed: false,
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
