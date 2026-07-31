@@ -453,6 +453,16 @@ app.use((req, res, next) => {
 
 
 
+app.get('/app/paper-user-approved-disabled-approval-review', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_user_approved_disabled_approval_review_app_screen.mjs');
+    const screen = await mod.buildPaperUserApprovedDisabledApprovalReviewAppScreen();
+    res.type('html').send(mod.renderPaperUserApprovedDisabledApprovalReviewAppScreenHtml(screen));
+  } catch {
+    res.status(500).json({ error: 'paper_user_approved_disabled_approval_review_unavailable' });
+  }
+});
+
 app.get('/app/paper-user-approved-disabled-preview', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_user_approved_disabled_app_screen.mjs');

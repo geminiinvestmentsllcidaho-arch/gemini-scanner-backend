@@ -248,6 +248,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_user_approved_disabled_approval_review",
+    title: "User Approval Contract Review",
+    subtitle: "Stage 2 exact-proposal approval contract with execution disabled.",
+    description: "Read-only approval-contract review with no approval recording, broker contact, order placement, cancellation, account mutation, or execution controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-user-approved-disabled-approval-review",
+    diagnosticHref: "/app/paper-user-approved-disabled-approval-review",
+    routeHref: "/app/paper-user-approved-disabled-approval-review",
+    displayState: "PAPER_USER_APPROVED_DISABLED_APPROVAL_REVIEW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_user_approved_disabled_preview",
     title: "User-Approved Paper Trade Preview",
     subtitle: "Stage 2 mechanical preview with execution disabled.",
