@@ -182,3 +182,12 @@ test("renders the Stage 1 manual trade panel supplied by the route", () => {
   assert.match(html, /data-stage1-manual-panel/);
   assert.match(html, /Stage 1 manual proof/);
 });
+
+test("renders Stage 1 reconciliation evidence supplied by the route", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    stage1ReconciliationHtml: '<section data-stage1-reconciliation>Stage 1 reconciliation proof</section>',
+  }));
+  assert.match(html, /data-stage1-reconciliation/);
+  assert.match(html, /Stage 1 reconciliation proof/);
+});
