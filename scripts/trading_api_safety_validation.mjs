@@ -26,11 +26,21 @@ const riskyPatterns = [
 ];
 
 const hits = [];
+const READONLY_OPEN_ORDERS_FILE = "src/scanner/alpaca_paper_account_readonly_fetch.mjs";
+
+function allowedReadonlyOpenOrdersEndpoint(file, text, pattern) {
+  if (pattern.code !== "ORDER_ENDPOINT" || file !== READONLY_OPEN_ORDERS_FILE) return false;
+  const exactEndpointCount = (text.match(/\/v2\/orders\?status=open/g) || []).length;
+  const getOnlyRuntime = /allowedMethods:\s*\["GET"\]/.test(text);
+  const getCall = /readJson\([^\n]*new URL\("\/v2\/orders\?status=open"/.test(text);
+  const mutationMethod = /method\s*:\s*["'](?:POST|DELETE|PATCH|PUT)["']/i.test(text);
+  return exactEndpointCount === 1 && getOnlyRuntime && getCall && !mutationMethod;
+}
 
 for (const file of files) {
   const text = fs.readFileSync(file, "utf8");
   for (const pattern of riskyPatterns) {
-    if (pattern.re.test(text)) hits.push({ file, code: pattern.code });
+    if (pattern.re.test(text) && !allowedReadonlyOpenOrdersEndpoint(file, text, pattern)) hits.push({ file, code: pattern.code });
   }
 }
 

@@ -22,12 +22,16 @@ test("contains transient readonly Alpaca transport failures without throwing", a
 
   assert.equal(result.ok, false);
   assert.equal(result.status, "readonly_fetch_failed");
-  assert.deepEqual(result.fetchStatus, { account: null, positions: null });
+  assert.deepEqual(result.fetchStatus, { account: null, positions: null, openOrders: null });
   assert.deepEqual(result.fetchErrors.account, {
     name: "TypeError",
     code: "UND_ERR_CONNECT_TIMEOUT",
   });
   assert.deepEqual(result.fetchErrors.positions, {
+    name: "TypeError",
+    code: "UND_ERR_CONNECT_TIMEOUT",
+  });
+  assert.deepEqual(result.fetchErrors.openOrders, {
     name: "TypeError",
     code: "UND_ERR_CONNECT_TIMEOUT",
   });
@@ -53,6 +57,6 @@ test("keeps HTTP failures distinct from transport failures", async () => {
   });
 
   assert.equal(result.status, "readonly_fetch_failed");
-  assert.deepEqual(result.fetchStatus, { account: 503, positions: 503 });
-  assert.deepEqual(result.fetchErrors, { account: null, positions: null });
+  assert.deepEqual(result.fetchStatus, { account: 503, positions: 503, openOrders: 503 });
+  assert.deepEqual(result.fetchErrors, { account: null, positions: null, openOrders: null });
 });

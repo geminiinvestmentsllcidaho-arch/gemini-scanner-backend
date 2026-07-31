@@ -48,7 +48,7 @@ test("readonly fetch uses encrypted tenant credentials when runtime env keys are
   assert.equal(result.status, "connected_readonly");
   assert.equal(result.runtime.credentialSource, "encrypted_tenant_store");
   assert.equal(result.runtime.secretsRedacted, true);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   for (const call of calls) {
     assert.equal(call.options.method, "GET");
     assert.equal(call.options.headers["APCA-API-KEY-ID"], "encrypted-key");
@@ -95,7 +95,7 @@ test("readonly fetch prefers encrypted tenant credentials over runtime env keys"
   assert.equal(result.ok, true);
   assert.equal(result.status, "connected_readonly");
   assert.equal(result.runtime.credentialSource, "encrypted_tenant_store");
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   for (const call of calls) {
     assert.equal(call.options.method, "GET");
     assert.equal(call.options.headers["APCA-API-KEY-ID"], "encrypted-key");
@@ -126,4 +126,40 @@ test("readonly fetch remains disconnected when encrypted credential resolver fai
   assert.equal(result.status, "not_connected_readonly");
   assert.equal(result.runtime.credentialSource, "runtime_env");
   assert.equal(contacted, false);
+});
+
+test("readonly fetch includes open orders and observation timestamp after all GETs succeed", async () => {
+  const calls = [];
+  const result = await fetchAlpacaPaperAccountReadonly({
+    env: { ALPACA_KEY: "paper-key", ALPACA_SECRET: "paper-secret" },
+    credentialResolver: null,
+    async fetchImpl(url, options) {
+      calls.push({ url, options });
+      if (url.endsWith("/v2/account")) return response(200, { status: "ACTIVE" });
+      if (url.endsWith("/v2/positions")) return response(200, []);
+      return response(200, [{ id: "o1", symbol: "SPY", side: "buy", qty: "1", status: "accepted" }]);
+    },
+  });
+  assert.equal(result.status, "connected_readonly");
+  assert.match(result.observedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(result.openOrders.length, 1);
+  assert.equal(result.summary.openOrdersCount, 1);
+  assert.equal(calls.length, 3);
+  assert.equal(calls.some((call) => call.url.includes("/v2/orders?status=open")), true);
+  assert.equal(calls.every((call) => call.options.method === "GET"), true);
+});
+
+test("readonly fetch fails closed on malformed open-order shape", async () => {
+  const result = await fetchAlpacaPaperAccountReadonly({
+    env: { ALPACA_KEY: "paper-key", ALPACA_SECRET: "paper-secret" },
+    credentialResolver: null,
+    async fetchImpl(url) {
+      if (url.endsWith("/v2/account")) return response(200, { status: "ACTIVE" });
+      if (url.endsWith("/v2/positions")) return response(200, []);
+      return response(200, {});
+    },
+  });
+  assert.equal(result.status, "readonly_fetch_failed");
+  assert.deepEqual(result.openOrders, []);
+  assert.equal(result.observedAt, undefined);
 });

@@ -61,7 +61,9 @@ export async function runPaperManualRoundTripEvidenceTracker(options = {}) {
     promotionProof: buildManualStagePromotionProof(state),
     snapshot: {
       status: snapshot?.status ?? null,
+      observedAt: snapshot?.observedAt ?? null,
       positionsCount: Array.isArray(snapshot?.positions) ? snapshot.positions.length : 0,
+      openOrdersCount: Array.isArray(snapshot?.openOrders) ? snapshot.openOrders.length : null,
       positions: Object.freeze(
         (Array.isArray(snapshot?.positions) ? snapshot.positions : []).map((row) =>
           Object.freeze({

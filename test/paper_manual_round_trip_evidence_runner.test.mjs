@@ -5,14 +5,19 @@ import path from "node:path";
 import fs from "node:fs";
 import { runPaperManualRoundTripEvidenceTracker } from "../scripts/run_paper_manual_round_trip_evidence_tracker.mjs";
 
-const snap = (positions) => ({ status: "connected_readonly", positions });
+const snap = (positions, options = {}) => ({
+  status: "connected_readonly",
+  positions,
+  openOrders: options.openOrders ?? [],
+  observedAt: options.observedAt ?? new Date().toISOString(),
+});
 
 test("runner persists baseline and resumes exact one-share evidence across invocations", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-runner-"));
   const file = path.join(dir, "state.json");
-  let result = await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([]), now: new Date("2026-07-30T20:00:00Z") });
+  let result = await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([], { observedAt: "2026-07-30T19:59:30.000Z" }), now: new Date("2026-07-30T20:00:00Z") });
   assert.equal(result.state.status, "awaiting_manual_enter");
-  result = await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([{ symbol: "SPY", qty: 1, side: "long" }]), now: new Date("2026-07-30T20:01:00Z") });
+  result = await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([{ symbol: "SPY", qty: 1, side: "long" }], { observedAt: "2026-07-30T20:00:30.000Z" }), now: new Date("2026-07-30T20:01:00Z") });
   assert.equal(result.state.status, "monitoring_manual_position");
   assert.equal(result.state.symbol, "SPY");
   assert.equal(result.safety.orderPlacementAllowed, false);

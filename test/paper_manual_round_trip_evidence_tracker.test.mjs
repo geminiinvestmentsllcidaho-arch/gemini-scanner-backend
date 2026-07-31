@@ -6,7 +6,12 @@ import {
 } from "../src/scanner/paper_manual_round_trip_evidence_tracker.mjs";
 
 const at = (iso) => new Date(iso);
-const snap = (positions, status = "connected_readonly") => ({ status, positions });
+const snap = (positions, status = "connected_readonly", options = {}) => ({
+  status,
+  positions,
+  openOrders: options.openOrders ?? [],
+  observedAt: options.observedAt ?? "2026-07-30T20:00:30.000Z",
+});
 
 test("tracks exact one-share manual enter and exit without broker capability", () => {
   let state = defaultPaperManualRoundTripEvidence(at("2026-07-30T20:00:00Z"));
@@ -35,16 +40,22 @@ test("tracks exact one-share manual enter and exit without broker capability", (
 });
 
 test("rejects non-one-share or short manual entry evidence", () => {
-  let state = evaluatePaperManualRoundTripEvidence({}, snap([]));
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([]), {
+    now: at("2026-07-30T20:01:00Z"),
+  });
   state = evaluatePaperManualRoundTripEvidence(state, snap([
     { symbol: "QQQ", qty: 2, side: "long" },
-  ]));
+  ], "connected_readonly", { observedAt: "2026-07-30T20:01:30.000Z" }), {
+    now: at("2026-07-30T20:02:00Z"),
+  });
   assert.equal(state.enterDetected, false);
   assert.deepEqual(state.issues, ["manual_enter_must_be_exactly_one_long_share"]);
 
   state = evaluatePaperManualRoundTripEvidence(state, snap([
     { symbol: "QQQ", qty: 1, side: "short" },
-  ]));
+  ], "connected_readonly", { observedAt: "2026-07-30T20:02:30.000Z" }), {
+    now: at("2026-07-30T20:03:00Z"),
+  });
   assert.equal(state.enterDetected, false);
   assert.deepEqual(state.issues, ["manual_enter_must_be_exactly_one_long_share"]);
 });
@@ -57,7 +68,7 @@ test("fails closed when account is unavailable or baseline is ambiguous", () => 
   state = evaluatePaperManualRoundTripEvidence({}, snap([
     { symbol: "AAPL", qty: 1, side: "long" },
    { symbol: "MSFT", qty: 1, side: "long" },
-  ]));
+  ]), { now: at("2026-07-30T20:01:00Z") });
   assert.equal(state.enterDetected, false);
   assert.deepEqual(state.issues, [
     "manual_test_symbol_required_for_multiple_positions",
@@ -92,15 +103,16 @@ test("builds promotion-lock proof only from completed mechanical evidence", asyn
 test("promotion-lock accepts only the completed tracker proof", async () => {
   const tracker = await import("../src/scanner/paper_manual_round_trip_evidence_tracker.mjs");
   const lock = await import("../src/scanner/paper_execution_stage_promotion_lock.mjs");
-  let state = tracker.evaluatePaperManualRoundTripEvidence({}, snap([]));
+  let state = tracker.evaluatePaperManualRoundTripEvidence({}, snap([]), { now: at("2026-07-30T20:01:00Z") });
   let proof = tracker.buildManualStagePromotionProof(state);
   let access = lock.evaluatePaperExecutionStageAccess(lock.PAPER_EXECUTION_STAGES.USER_APPROVED, {
     state: { ...lock.defaultPaperExecutionStageState(), manualProof: proof, stage2Unlocked: true },
   });
   assert.equal(access.allowed, false);
 
-  state = tracker.evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }]));
-  state = tracker.evaluatePaperManualRoundTripEvidence(state, snap([]), {
+  state = tracker.evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }], "connected_readonly", { observedAt: "2026-07-30T20:01:30.000Z" }), { now: at("2026-07-30T20:02:00Z") });
+  state = tracker.evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", { observedAt: "2026-07-30T20:02:30.000Z" }), {
+    now: at("2026-07-30T20:03:00Z"),
     restartRecoveryVerified: true,
     duplicateProtectionVerified: true,
   });
@@ -119,6 +131,8 @@ test("fails closed with explicit issue when baseline account already holds a pos
     {
       status: "connected_readonly",
       positions: [{ symbol: "SPY", qty: 1, side: "long" }],
+      openOrders: [],
+      observedAt: "2026-07-30T22:00:30.000Z",
     },
     { now: new Date("2026-07-30T22:01:00.000Z") },
   );
@@ -146,4 +160,41 @@ test("keeps recovery verification sticky and repeated snapshots idempotent", () 
   assert.equal(state.duplicateProtectionVerified, true);
   assert.equal(state.mechanicalSuccess, true);
   assert.equal(state.readonlyBrokerReadAllowed, true);
+});
+
+test("baseline requires fresh snapshot and zero open orders", () => {
+  const now = at("2026-07-30T20:01:00Z");
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([], "connected_readonly", {
+    openOrders: [{ id: "o1", symbol: "SPY" }],
+    observedAt: "2026-07-30T20:00:30.000Z",
+  }), { now });
+  assert.equal(state.baselineObserved, false);
+  assert.deepEqual(state.issues, ["manual_baseline_requires_zero_open_orders"]);
+
+  state = evaluatePaperManualRoundTripEvidence({}, {
+    status: "connected_readonly",
+    positions: [],
+    observedAt: "2026-07-30T20:00:30.000Z",
+  }, { now });
+  assert.equal(state.baselineObserved, false);
+  assert.deepEqual(state.issues, ["paper_open_orders_unavailable"]);
+
+  state = evaluatePaperManualRoundTripEvidence({}, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T19:50:00.000Z",
+  }), { now });
+  assert.equal(state.baselineObserved, false);
+  assert.deepEqual(state.issues, ["paper_account_snapshot_stale_or_missing"]);
+});
+
+test("entry requires side exactly long", () => {
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([]), {
+    now: at("2026-07-30T20:01:00Z"),
+  });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([
+    { symbol: "QQQ", qty: 1, side: "unknown" },
+  ], "connected_readonly", { observedAt: "2026-07-30T20:01:30.000Z" }), {
+    now: at("2026-07-30T20:02:00Z"),
+  });
+  assert.equal(state.enterDetected, false);
+  assert.deepEqual(state.issues, ["manual_enter_must_be_exactly_one_long_share"]);
 });

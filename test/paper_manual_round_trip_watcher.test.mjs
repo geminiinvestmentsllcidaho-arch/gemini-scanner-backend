@@ -12,7 +12,7 @@ test("watcher performs one read-only cycle and persists operator status", async 
     statusPath: path.join(dir, "status.json"),
     runnerOptions: {
       path: path.join(dir, "evidence.json"),
-      snapshot: { status: "connected_readonly", positions: [] },
+      snapshot: { status: "connected_readonly", positions: [], openOrders: [], observedAt: "2026-07-30T22:59:30.000Z" },
       now: new Date("2026-07-30T23:00:00.000Z"),
     },
   });
@@ -30,7 +30,7 @@ test("watcher preserves bounded held-position identity for operator closeout gui
     statusPath: path.join(dir, "status.json"),
     runnerOptions: {
       path: path.join(dir, "evidence.json"),
-      snapshot: { status: "connected_readonly", positions: [{ symbol: "SPY", qty: 1, side: "long" }] },
+      snapshot: { status: "connected_readonly", positions: [{ symbol: "SPY", qty: 1, side: "long" }], openOrders: [], observedAt: new Date().toISOString() },
     },
   });
   assert.equal(result.operator.operatorState, "EXISTING_POSITIONS_MUST_BE_CLOSED");

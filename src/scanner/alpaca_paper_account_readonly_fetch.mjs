@@ -55,6 +55,16 @@ function position(raw = {}) {
     unrealizedPl: n(raw.unrealized_pl), unrealizedPlpc: n(raw.unrealized_plpc), side: s(raw.side, "unknown"),
   };
 }
+function openOrder(raw = {}) {
+  return {
+    id: s(raw.id) || null,
+    clientOrderId: s(raw.client_order_id) || null,
+    symbol: s(raw.symbol, "UNKNOWN"),
+    side: s(raw.side, "unknown").toLowerCase(),
+    qty: n(raw.qty),
+    status: s(raw.status, "unknown").toLowerCase(),
+  };
+}
 function summary(positions = []) {
   return {
     positionsCount: positions.length,
@@ -112,18 +122,19 @@ export async function fetchAlpacaPaperAccountReadonly({
   if (!runtime.hasRuntimeKeys) return { ok: true, version: VERSION, status: "not_connected_readonly", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_NOT_CONNECTED", mode: "PAPER_ONLY", runtime, account: null, positions: [], summary: { ...summary([]), operatorMessage: "Readonly helper is installed. Runtime keys are not present, so no paper account read was attempted." } };
   if (typeof fetchImpl !== "function") return { ok: false, version: VERSION, status: "fetch_unavailable", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_FETCH_UNAVAILABLE", mode: "PAPER_ONLY", runtime, account: null, positions: [], summary: { ...summary([]), operatorMessage: "Readonly helper cannot run because fetch is unavailable." } };
   const headers = { "APCA-API-KEY-ID": apiKey, "APCA-API-SECRET-KEY": apiSecret, Accept: "application/json" };
-  const [a, p] = await Promise.all([
+  const [a, p, o] = await Promise.all([
     readJson(fetchImpl, new URL("/v2/account", baseUrl).toString(), headers),
     readJson(fetchImpl, new URL("/v2/positions", baseUrl).toString(), headers),
+    readJson(fetchImpl, new URL("/v2/orders?status=open", baseUrl).toString(), headers),
   ]);
-  if (!a.ok || !p.ok) return {
+  if (!a.ok || !p.ok || !o.ok) return {
     ok: false,
     version: VERSION,
     status: "readonly_fetch_failed",
     displayState: "ALPACA_PAPER_ACCOUNT_READONLY_FETCH_FAILED",
     mode: "PAPER_ONLY",
     runtime,
-    fetchStatus: { account: a.statusCode, positions: p.statusCode },
+    fetchStatus: { account: a.statusCode, positions: p.statusCode, openOrders: o.statusCode },
     fetchErrors: {
       account: a.errorName || a.errorCode
         ? { name: a.errorName, code: a.errorCode }
@@ -131,16 +142,55 @@ export async function fetchAlpacaPaperAccountReadonly({
       positions: p.errorName || p.errorCode
         ? { name: p.errorName, code: p.errorCode }
         : null,
+      openOrders: o.errorName || o.errorCode
+        ? { name: o.errorName, code: o.errorCode }
+        : null,
     },
     account: null,
     positions: [],
+    openOrders: [],
     summary: {
       ...summary([]),
       operatorMessage: "Readonly paper account fetch failed. Secrets remain redacted.",
     },
   };
-  const positions = Array.isArray(p.json) ? p.json.map(position) : [];
-  return { ok: true, version: VERSION, status: "connected_readonly", displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED", mode: "PAPER_ONLY", runtime, account: account(a.json || {}), positions, summary: { ...summary(positions), operatorMessage: "Readonly paper account balances and positions fetched with GET requests only." } };
+  if (!Array.isArray(p.json) || !Array.isArray(o.json)) return {
+    ok: false,
+    version: VERSION,
+    status: "readonly_fetch_failed",
+    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_FETCH_FAILED",
+    mode: "PAPER_ONLY",
+    runtime,
+    fetchStatus: { account: a.statusCode, positions: p.statusCode, openOrders: o.statusCode },
+    fetchErrors: { account: null, positions: null, openOrders: null },
+    account: null,
+    positions: [],
+    openOrders: [],
+    summary: {
+      ...summary([]),
+      operatorMessage: "Readonly paper account response shape was invalid. Secrets remain redacted.",
+    },
+  };
+  const positions = p.json.map(position);
+  const openOrders = o.json.map(openOrder);
+  const observedAt = new Date().toISOString();
+  return {
+    ok: true,
+    version: VERSION,
+    status: "connected_readonly",
+    displayState: "ALPACA_PAPER_ACCOUNT_READONLY_CONNECTED",
+    mode: "PAPER_ONLY",
+    observedAt,
+    runtime,
+    account: account(a.json || {}),
+    positions,
+    openOrders,
+    summary: {
+      ...summary(positions),
+      openOrdersCount: openOrders.length,
+      operatorMessage: "Readonly paper account balances, positions, and open orders fetched with GET requests only.",
+    },
+  };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
