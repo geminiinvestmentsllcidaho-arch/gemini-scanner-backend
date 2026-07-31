@@ -248,6 +248,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_automatic_disabled_operator_preview_review",
+    title: "Fully Automatic Operator Preview Review",
+    subtitle: "Stage 3 disabled operator-preview review with all execution paths closed.",
+    description: "Read-only review of the fully automatic operator preview with no approval, unlock, adapter invocation, network call, broker contact, order placement, cancellation, account mutation, automatic entry, automatic exit, or execution controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-automatic-disabled-operator-preview-review",
+    diagnosticHref: "/app/paper-automatic-disabled-operator-preview-review",
+    routeHref: "/app/paper-automatic-disabled-operator-preview-review",
+    displayState: "PAPER_AUTOMATIC_DISABLED_OPERATOR_PREVIEW_REVIEW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_automatic_disabled_operator_preview",
     title: "Fully Automatic Operator Preview",
     subtitle: "Stage 3 disabled operator preview with every execution path closed.",
