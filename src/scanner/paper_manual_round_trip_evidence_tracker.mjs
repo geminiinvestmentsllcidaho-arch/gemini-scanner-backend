@@ -76,6 +76,7 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
   const snapshotFresh = Number.isFinite(observedAtMs) && now.getTime() >= observedAtMs && now.getTime() - observedAtMs <= MAX_SNAPSHOT_AGE_MS;
   const openOrders = openOrdersOf(snapshot);
   const openOrdersKnown = Array.isArray(openOrders);
+  const snapshotUsable = accountConnected && snapshotFresh && openOrdersKnown;
   const symbol = symbolOf(options.symbol ?? state.symbol);
   const target = symbol ? findPosition(snapshot, symbol) : null;
   const issues = [];
@@ -97,27 +98,37 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
       issues.push("manual_baseline_requires_zero_open_orders");
     }
   } else if (!state.enterDetected) {
-    const candidates = symbol ? [target].filter(Boolean) : positionsOf(snapshot);
-    if (candidates.length === 1 && oneShare(candidates[0])) {
-      state.symbol = symbolOf(candidates[0].symbol);
-      state.enterDetected = true;
-      state.enterReconciled = true;
-      state.monitoringStarted = true;
-      state.enterDetectedAt = state.enterDetectedAt ?? now.toISOString();
-      state.status = "monitoring_manual_position";
-    } else if (candidates.some(Boolean)) {
-      issues.push("manual_enter_must_be_exactly_one_long_share");
+    if (snapshotUsable) {
+      const positions = positionsOf(snapshot);
+      const candidate = positions.length === 1 ? positions[0] : null;
+      const targetMatches = !symbol || symbolOf(candidate?.symbol) === symbol;
+      if (candidate && targetMatches && oneShare(candidate)) {
+        state.symbol = symbolOf(candidate.symbol);
+        state.enterDetected = true;
+        state.enterReconciled = true;
+        state.monitoringStarted = true;
+        state.enterDetectedAt = state.enterDetectedAt ?? now.toISOString();
+        state.status = "monitoring_manual_position";
+      } else if (positions.length > 0) {
+        issues.push("manual_enter_must_be_exactly_one_long_share");
+      }
     }
   } else if (!state.exitDetected) {
-    const held = findPosition(snapshot, state.symbol);
-    if (accountConnected && !held) {
-      state.exitDetected = true;
-      state.exitReconciled = true;
-      state.roundTripClosed = true;
-      state.exitDetectedAt = state.exitDetectedAt ?? now.toISOString();
-      state.status = "awaiting_recovery_checks";
-    } else if (held && !oneShare(held)) {
-      issues.push("manual_position_changed_from_exactly_one_long_share");
+    if (snapshotUsable) {
+      const held = findPosition(snapshot, state.symbol);
+      if (!held && positionsOf(snapshot).length === 0 && openOrders.length === 0) {
+        state.exitDetected = true;
+        state.exitReconciled = true;
+        state.roundTripClosed = true;
+        state.exitDetectedAt = state.exitDetectedAt ?? now.toISOString();
+        state.status = "awaiting_recovery_checks";
+      } else if (!held && openOrders.length > 0) {
+        issues.push("manual_exit_requires_zero_open_orders");
+      } else if (held && !oneShare(held)) {
+        issues.push("manual_position_changed_from_exactly_one_long_share");
+      } else if (held && positionsOf(snapshot).length !== 1) {
+        issues.push("manual_position_set_changed_during_monitoring");
+      }
     }
   }
 

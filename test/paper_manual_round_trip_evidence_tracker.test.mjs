@@ -24,7 +24,9 @@ test("tracks exact one-share manual enter and exit without broker capability", (
   assert.equal(state.symbol, "SPY");
   assert.equal(state.monitoringStarted, true);
 
-  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:03:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T20:02:30.000Z",
+  }), { now: at("2026-07-30T20:03:00Z") });
   assert.equal(state.roundTripClosed, true);
   assert.equal(state.mechanicalSuccess, false);
 
@@ -81,7 +83,9 @@ test("builds promotion-lock proof only from completed mechanical evidence", asyn
   let state = mod.defaultPaperManualRoundTripEvidence(at("2026-07-30T20:00:00Z"));
   state = mod.evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:01:00Z") });
   state = mod.evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }]), { now: at("2026-07-30T20:02:00Z") });
-  state = mod.evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:03:00Z") });
+  state = mod.evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T20:02:30.000Z",
+  }), { now: at("2026-07-30T20:03:00Z") });
 
   const incomplete = mod.buildManualStagePromotionProof(state);
   assert.equal(incomplete.mechanicalSuccess, false);
@@ -152,10 +156,18 @@ test("keeps recovery verification sticky and repeated snapshots idempotent", () 
   const updatedAt = state.updatedAt;
   state = evaluatePaperManualRoundTripEvidence(state, { ...snap([]), account: { accountStatus: "ACTIVE" } }, { now: at("2026-07-30T20:02:00Z") });
   assert.equal(state.updatedAt, updatedAt);
-  state = evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }]), { now: at("2026-07-30T20:03:00Z") });
-  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:04:00Z") });
-  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:05:00Z"), restartRecoveryVerified: true, duplicateProtectionVerified: true });
-  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:06:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }], "connected_readonly", {
+    observedAt: "2026-07-30T20:02:30.000Z",
+  }), { now: at("2026-07-30T20:03:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T20:03:30.000Z",
+  }), { now: at("2026-07-30T20:04:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T20:04:30.000Z",
+  }), { now: at("2026-07-30T20:05:00Z"), restartRecoveryVerified: true, duplicateProtectionVerified: true });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T20:05:30.000Z",
+  }), { now: at("2026-07-30T20:06:00Z") });
   assert.equal(state.restartRecoveryVerified, true);
   assert.equal(state.duplicateProtectionVerified, true);
   assert.equal(state.mechanicalSuccess, true);
@@ -197,4 +209,80 @@ test("entry requires side exactly long", () => {
   });
   assert.equal(state.enterDetected, false);
   assert.deepEqual(state.issues, ["manual_enter_must_be_exactly_one_long_share"]);
+});
+
+test("stale or malformed snapshots cannot advance entry or exit", () => {
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([]), {
+    now: at("2026-07-30T20:01:00Z"),
+  });
+
+  state = evaluatePaperManualRoundTripEvidence(state, snap([
+    { symbol: "SPY", qty: 1, side: "long" },
+  ], "connected_readonly", { observedAt: "2026-07-30T19:50:00.000Z" }), {
+    now: at("2026-07-30T20:02:00Z"),
+  });
+  assert.equal(state.enterDetected, false);
+  assert.deepEqual(state.issues, ["paper_account_snapshot_stale_or_missing"]);
+
+  state = evaluatePaperManualRoundTripEvidence(state, {
+    status: "connected_readonly",
+    positions: [{ symbol: "SPY", qty: 1, side: "long" }],
+    observedAt: "2026-07-30T20:02:30.000Z",
+  }, {
+    now: at("2026-07-30T20:03:00Z"),
+  });
+  assert.equal(state.enterDetected, false);
+  assert.deepEqual(state.issues, ["paper_open_orders_unavailable"]);
+});
+
+test("configured entry still requires exactly one total matching long position", () => {
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([]), {
+    now: at("2026-07-30T20:01:00Z"),
+    symbol: "SPY",
+  });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([
+    { symbol: "SPY", qty: 1, side: "long" },
+    { symbol: "QQQ", qty: 1, side: "long" },
+  ], "connected_readonly", { observedAt: "2026-07-30T20:01:30.000Z" }), {
+    now: at("2026-07-30T20:02:00Z"),
+    symbol: "SPY",
+  });
+  assert.equal(state.enterDetected, false);
+  assert.deepEqual(state.issues, ["manual_enter_must_be_exactly_one_long_share"]);
+});
+
+test("exit reconciliation requires fresh zero-position zero-open-order snapshot", () => {
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([]), {
+    now: at("2026-07-30T20:01:00Z"),
+  });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([
+    { symbol: "SPY", qty: 1, side: "long" },
+  ], "connected_readonly", { observedAt: "2026-07-30T20:01:30.000Z" }), {
+    now: at("2026-07-30T20:02:00Z"),
+  });
+
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    openOrders: [{ id: "close-1", symbol: "SPY" }],
+    observedAt: "2026-07-30T20:02:30.000Z",
+  }), {
+    now: at("2026-07-30T20:03:00Z"),
+  });
+  assert.equal(state.exitDetected, false);
+  assert.deepEqual(state.issues, ["manual_exit_requires_zero_open_orders"]);
+
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T19:50:00.000Z",
+  }), {
+    now: at("2026-07-30T20:04:00Z"),
+  });
+  assert.equal(state.exitDetected, false);
+  assert.deepEqual(state.issues, ["paper_account_snapshot_stale_or_missing"]);
+
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-07-30T20:04:30.000Z",
+  }), {
+    now: at("2026-07-30T20:05:00Z"),
+  });
+  assert.equal(state.exitDetected, true);
+  assert.equal(state.exitReconciled, true);
 });
