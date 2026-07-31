@@ -42,7 +42,7 @@ test("watcher preserves bounded held-position identity for operator closeout gui
 test("ecosystem registers a dedicated read-only manual watcher process", async () => {
   const source = fs.readFileSync(new URL("../ecosystem.config.cjs", import.meta.url), "utf8");
   assert.match(source, /name:\s*"gemini-paper-manual-watcher"/);
-  assert.match(source, /watch_paper_manual_round_trip_evidence\.mjs/);
+  assert.match(source, /run_paper_manual_round_trip_watcher_pm2_safe\.sh|watch_paper_manual_round_trip_evidence\.mjs/);
   assert.match(source, /PAPER_MANUAL_WATCH_INTERVAL_MS:\s*"15000"/);
   assert.doesNotMatch(source, /gemini-dry-scanner/);
 });

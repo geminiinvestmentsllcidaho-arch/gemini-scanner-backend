@@ -4516,6 +4516,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
+    const stage1PanelMod = await import('./scanner/customer_stage1_manual_trade_panel.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
@@ -4533,6 +4534,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       sourceTs: now.toISOString(),
       now,
     });
+    const stage1Panel = stage1PanelMod.buildCustomerStage1ManualTradePanel({ marketOpen: getStreamTelemetry()?.marketOpen === true, nowMs: now.getTime() });
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -4542,6 +4544,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       windDown,
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
+      stage1PanelHtml: stage1PanelMod.renderCustomerStage1ManualTradePanelHtml(stage1Panel),
     });
 
     res.set('Cache-Control', 'no-store');

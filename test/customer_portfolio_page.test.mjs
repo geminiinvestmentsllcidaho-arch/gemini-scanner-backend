@@ -176,3 +176,9 @@ test("renders an additional blank row after saved manual positions", () => {
   assert.match(html, /name="symbol" value="MSFT"/);
   assert.match(html, /name="symbol" value=""/);
 });
+
+test("renders the Stage 1 manual trade panel supplied by the route", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1PanelHtml: '<section data-stage1-manual-panel>Stage 1 manual proof</section>' }));
+  assert.match(html, /data-stage1-manual-panel/);
+  assert.match(html, /Stage 1 manual proof/);
+});

@@ -68,6 +68,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     windDown: options.windDown ?? { status: "inactive", steps: [] },
     saved: options.saved === true,
     windDownUpdated: options.windDownUpdated === true,
+    stage1PanelHtml: options.stage1PanelHtml ?? "",
   });
 }
 
@@ -154,6 +155,7 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
 .wind-actions{margin:14px 0 10px}
 .wind-actions button{width:100%;max-width:620px}
+.stage1-panel{border:2px solid #ffd166}.stage1-ready{border-color:#39ff20}.stage1-monitoring{border-color:#18d7ff}.stage1-complete{border-color:#39ff20}.stage1-kicker{font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--gs-muted)}.stage1-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;padding:0;list-style:none}.stage1-checks li,.stage1-grid p{padding:10px;border-radius:10px;border:1px solid var(--gs-line)}.stage1-checks .pass{border-color:rgba(57,255,32,.45)}.stage1-checks .hold{border-color:rgba(255,209,102,.55)}.stage1-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.stage1-grid p{background:rgba(0,0,0,.3)}.stage1-grid span,.stage1-grid strong{display:block}.stage1-grid span{color:var(--gs-muted);font-size:12px}.stage1-grid strong{margin-top:5px}.stage1-issues{color:#ff8f8f}
 @media(max-width:760px){.position-row{grid-template-columns:1fr 1fr}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
 </style>
 </head>
@@ -171,6 +173,8 @@ ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 <p class="${model.stale ? "stale" : "positive"}"><strong>Data status:</strong> ${model.stale ? "Waiting for current paper-trading data" : "Paper-trading data is current"}</p>
 <p><strong>Last updated:</strong> ${esc(model.sourceTs ?? "No timestamp available")}</p>
 </section>
+
+${page.stage1PanelHtml ?? ""}
 
 <section class="card panel">
 <h2>Account overview</h2>
