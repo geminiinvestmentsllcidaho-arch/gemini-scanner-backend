@@ -1,10 +1,11 @@
 export function buildPaperManualRoundTripRunbook() {
   return Object.freeze({
-    version: "paper_manual_round_trip_runbook_v1",
+    version: "paper_manual_round_trip_runbook_v2",
     stage: "manual_detection_only",
     objective: "Prove one manual paper ENTER and EXIT round trip mechanically.",
     steps: Object.freeze([
-      "Confirm a fresh connected Alpaca PAPER snapshot with zero positions and zero open orders.",
+      "Run the non-mutating activation preflight and require READY from a fresh connected Alpaca PAPER snapshot with zero positions and zero open orders.",
+      "If persisted evidence is blocked, preview the local evidence reset and use the exact confirmation only after operator review.",
       "Capture the zero-position baseline with the read-only watcher.",
       "Choose one scanner-qualified symbol during an open market session.",
       "User manually buys exactly one long share in Alpaca PAPER UI.",
@@ -21,12 +22,14 @@ export function buildPaperManualRoundTripRunbook() {
       "Baseline contains any open position or open order.",
       "Observed entry is not exactly one long share.",
       "Observed position quantity or side changes unexpectedly.",
-      "Persisted evidence is malformed or incompatible.",
+      "Persisted evidence is malformed, incompatible, completed, or already in progress without explicit operator review.",
     ]),
     safety: Object.freeze({
       paperOnly: true,
       readonlyDetection: true,
       readonlyBrokerReadAllowed: true,
+      activationPreflightWritesEvidence: false,
+      evidenceResetRequiresExactConfirmation: true,
       orderPlacementAllowed: false,
       accountMutationAllowed: false,
       automaticEnterEnabled: false,

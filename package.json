@@ -161,7 +161,9 @@
     "run:customer-report-delivery": "node scripts/run_customer_report_delivery.mjs",
     "watch:paper-manual-round-trip": "node scripts/watch_paper_manual_round_trip_evidence.mjs",
     "watch:paper-manual-round-trip:once": "node scripts/watch_paper_manual_round_trip_evidence.mjs --once",
-    "runbook:paper-manual-round-trip": "node scripts/paper_manual_round_trip_runbook.mjs"
+    "runbook:paper-manual-round-trip": "node scripts/paper_manual_round_trip_runbook.mjs",
+    "preflight:paper-manual-round-trip": "node scripts/preview_paper_manual_round_trip_activation_preflight.mjs",
+    "reset:paper-manual-round-trip-evidence": "node scripts/reset_paper_manual_round_trip_evidence.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
