@@ -453,6 +453,17 @@ app.use((req, res, next) => {
 
 
 
+app.get('/app/paper-automatic-disabled-operator-preview', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_automatic_disabled_operator_preview_app_screen.mjs');
+    const screen = await mod.buildPaperAutomaticDisabledOperatorPreviewAppScreen();
+    res.set('Cache-Control', 'no-store');
+    res.status(200).type('html').send(mod.renderPaperAutomaticDisabledOperatorPreviewAppScreenHtml(screen));
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error?.message ?? String(error) });
+  }
+});
+
 app.get('/app/paper-automatic-disabled-chain', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_automatic_disabled_chain_app_screen.mjs');
