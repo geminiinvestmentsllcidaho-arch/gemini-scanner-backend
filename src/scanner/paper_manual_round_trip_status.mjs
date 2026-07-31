@@ -3,14 +3,23 @@ import { buildManualStagePromotionProof } from "./paper_manual_round_trip_eviden
 const clean = (value) => String(value ?? "").trim();
 
 export function buildPaperManualRoundTripStatus(state = {}, snapshot = {}) {
-  const positions = Array.isArray(snapshot?.positions) ? snapshot.positions : [];
+  const positionsKnown = Array.isArray(snapshot?.positions);
+  const positions = positionsKnown ? snapshot.positions : [];
+  const openOrdersKnown = Array.isArray(snapshot?.openOrders);
+  const openOrders = openOrdersKnown ? snapshot.openOrders : [];
   const connected = snapshot?.status === "connected_readonly";
   const proof = buildManualStagePromotionProof(state);
 
   let operatorState = "WAITING_FOR_READONLY_ACCOUNT";
   let nextOperatorAction = "RESTORE_READONLY_PAPER_ACCOUNT_ACCESS";
 
-  if (connected && state?.baselineObserved !== true && positions.length > 0) {
+  if (connected && (!positionsKnown || !openOrdersKnown)) {
+    operatorState = "BASELINE_SNAPSHOT_INCOMPLETE";
+    nextOperatorAction = "RESTORE_FRESH_POSITIONS_AND_OPEN_ORDERS_READS";
+  } else if (connected && state?.baselineObserved !== true && openOrders.length > 0) {
+    operatorState = "OPEN_ORDERS_MUST_CLEAR";
+    nextOperatorAction = "WAIT_FOR_OR_MANUALLY_RESOLVE_EXISTING_PAPER_OPEN_ORDERS";
+  } else if (connected && state?.baselineObserved !== true && positions.length > 0) {
     operatorState = "EXISTING_POSITIONS_MUST_BE_CLOSED";
     nextOperatorAction = positions.length === 1
       ? `MANUALLY_CLOSE_EXISTING_${clean(positions[0]?.symbol).toUpperCase() || "PAPER"}_POSITION`
@@ -37,7 +46,10 @@ export function buildPaperManualRoundTripStatus(state = {}, snapshot = {}) {
     operatorState,
     nextOperatorAction,
     symbol: clean(state?.symbol) || null,
-    positionsCount: positions.length,
+    positionsKnown,
+    positionsCount: positionsKnown ? positions.length : null,
+    openOrdersKnown,
+    openOrdersCount: openOrdersKnown ? openOrders.length : null,
     status: state?.status ?? null,
     baselineObserved: state?.baselineObserved === true,
     enterDetected: state?.enterDetected === true,

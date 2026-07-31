@@ -85,3 +85,16 @@ test("runner exposes bounded position identity for operator status without execu
   assert.equal("averageEntryPrice" in result.snapshot.positions[0], false);
   assert.equal(result.safety.orderPlacementAllowed, false);
 });
+
+
+test("runner exposes unknown positions distinctly and does not capture baseline", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-runner-"));
+  const result = await runPaperManualRoundTripEvidenceTracker({
+    path: path.join(dir, "state.json"),
+    snapshot: { status: "connected_readonly", observedAt: new Date().toISOString(), openOrders: [] },
+  });
+  assert.equal(result.snapshot.positionsKnown, false);
+  assert.equal(result.snapshot.positionsCount, null);
+  assert.equal(result.state.baselineObserved, false);
+  assert.ok(result.state.issues.includes("paper_positions_unavailable"));
+});

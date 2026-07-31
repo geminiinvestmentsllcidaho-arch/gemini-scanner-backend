@@ -4,7 +4,7 @@ export function buildPaperManualRoundTripRunbook() {
     stage: "manual_detection_only",
     objective: "Prove one manual paper ENTER and EXIT round trip mechanically.",
     steps: Object.freeze([
-      "Confirm Alpaca PAPER account and zero open positions.",
+      "Confirm a fresh connected Alpaca PAPER snapshot with zero positions and zero open orders.",
       "Capture the zero-position baseline with the read-only watcher.",
       "Choose one scanner-qualified symbol during an open market session.",
       "User manually buys exactly one long share in Alpaca PAPER UI.",
@@ -17,7 +17,8 @@ export function buildPaperManualRoundTripRunbook() {
     ]),
     stopConditions: Object.freeze([
       "Paper account is not connected read-only.",
-      "Baseline contains any open position.",
+      "Baseline snapshot is stale, missing positions, or missing open-order data.",
+      "Baseline contains any open position or open order.",
       "Observed entry is not exactly one long share.",
       "Observed position quantity or side changes unexpectedly.",
       "Persisted evidence is malformed or incompatible.",

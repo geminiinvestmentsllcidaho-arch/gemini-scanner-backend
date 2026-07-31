@@ -74,27 +74,28 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
   const accountConnected = snapshot?.status === "connected_readonly";
   const observedAtMs = Date.parse(snapshot?.observedAt ?? "");
   const snapshotFresh = Number.isFinite(observedAtMs) && now.getTime() >= observedAtMs && now.getTime() - observedAtMs <= MAX_SNAPSHOT_AGE_MS;
+  const positionsKnown = Array.isArray(snapshot?.positions);
   const openOrders = openOrdersOf(snapshot);
   const openOrdersKnown = Array.isArray(openOrders);
-  const snapshotUsable = accountConnected && snapshotFresh && openOrdersKnown;
+  const snapshotUsable = accountConnected && snapshotFresh && positionsKnown && openOrdersKnown;
   const symbol = symbolOf(options.symbol ?? state.symbol);
-  const target = symbol ? findPosition(snapshot, symbol) : null;
   const issues = [];
 
   if (!accountConnected) issues.push("paper_account_not_connected_readonly");
   if (accountConnected && !snapshotFresh) issues.push("paper_account_snapshot_stale_or_missing");
+  if (accountConnected && !positionsKnown) issues.push("paper_positions_unavailable");
   if (accountConnected && !openOrdersKnown) issues.push("paper_open_orders_unavailable");
-  if (!symbol && positionsOf(snapshot).length > 1) issues.push("manual_test_symbol_required_for_multiple_positions");
+  if (positionsKnown && !symbol && positionsOf(snapshot).length > 1) issues.push("manual_test_symbol_required_for_multiple_positions");
 
   if (!state.baselineObserved) {
-    if (accountConnected && snapshotFresh && openOrdersKnown && positionsOf(snapshot).length === 0 && openOrders.length === 0) {
+    if (snapshotUsable && positionsOf(snapshot).length === 0 && openOrders.length === 0) {
       state.baselineObserved = true;
       state.baselineFingerprint = state.baselineFingerprint ?? crypto.createHash("sha256").update(JSON.stringify({ status: snapshot?.status ?? null, positionsCount: positionsOf(snapshot).length, openOrdersCount: openOrders.length, observedAt: snapshot?.observedAt ?? null, accountStatus: snapshot?.account?.accountStatus ?? null })).digest("hex").slice(0, 24);
       state.baselineObservedAt = state.baselineObservedAt ?? now.toISOString();
       state.status = "awaiting_manual_enter";
-    } else if (accountConnected && snapshotFresh && openOrdersKnown && positionsOf(snapshot).length > 0) {
+    } else if (snapshotUsable && positionsOf(snapshot).length > 0) {
       issues.push("manual_baseline_requires_zero_positions");
-    } else if (accountConnected && snapshotFresh && openOrdersKnown && openOrders.length > 0) {
+    } else if (snapshotUsable && openOrders.length > 0) {
       issues.push("manual_baseline_requires_zero_open_orders");
     }
   } else if (!state.enterDetected) {

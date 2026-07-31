@@ -46,3 +46,18 @@ test("ecosystem registers a dedicated read-only manual watcher process", async (
   assert.match(source, /PAPER_MANUAL_WATCH_INTERVAL_MS:\s*"15000"/);
   assert.doesNotMatch(source, /gemini-dry-scanner/);
 });
+
+
+test("watcher reports incomplete baseline snapshot without treating missing positions as zero", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-watch-"));
+  const result = await runPaperManualRoundTripWatcher({
+    once: true,
+    statusPath: path.join(dir, "status.json"),
+    runnerOptions: {
+      path: path.join(dir, "evidence.json"),
+      snapshot: { status: "connected_readonly", openOrders: [], observedAt: new Date().toISOString() },
+    },
+  });
+  assert.equal(result.operator.operatorState, "BASELINE_SNAPSHOT_INCOMPLETE");
+  assert.equal(result.tracker.baselineObserved, false);
+});

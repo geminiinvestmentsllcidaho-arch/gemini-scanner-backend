@@ -20,7 +20,10 @@ export async function runPaperManualRoundTripWatcher(options = {}) {
     const result = await runPaperManualRoundTripEvidenceTracker(options.runnerOptions ?? {});
     const operator = buildPaperManualRoundTripStatus(result.state, {
       status: result.snapshot?.status,
-      positions: result.snapshot?.positions ?? [],
+      positions: result.snapshot?.positionsKnown === true ? result.snapshot.positions : null,
+      openOrders: result.snapshot?.openOrdersKnown === true
+        ? Array.from({ length: result.snapshot.openOrdersCount ?? 0 }, () => Object.freeze({}))
+        : null,
     });
     last = Object.freeze({
       ok: result.ok,

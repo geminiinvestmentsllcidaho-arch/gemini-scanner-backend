@@ -286,3 +286,17 @@ test("exit reconciliation requires fresh zero-position zero-open-order snapshot"
   assert.equal(state.exitDetected, true);
   assert.equal(state.exitReconciled, true);
 });
+
+
+test("tracker refuses baseline when positions array is missing or malformed", () => {
+  const now = new Date("2026-07-31T14:00:00.000Z");
+  for (const positions of [undefined, null, {}]) {
+    const state = evaluatePaperManualRoundTripEvidence(
+      defaultPaperManualRoundTripEvidence(now),
+      { status: "connected_readonly", positions, openOrders: [], observedAt: now.toISOString() },
+      { now },
+    );
+    assert.equal(state.baselineObserved, false);
+    assert.ok(state.issues.includes("paper_positions_unavailable"));
+  }
+});
