@@ -248,6 +248,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_automatic_disabled_chain",
+    title: "Fully Automatic Mechanical Chain",
+    subtitle: "Stage 3 disabled mechanical-chain status with every execution path closed.",
+    description: "Read-only automatic paper-trading chain review with no adapter invocation, network call, broker contact, order placement, cancellation, account mutation, automatic entry, automatic exit, or execution controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-automatic-disabled-chain",
+    diagnosticHref: "/app/paper-automatic-disabled-chain",
+    routeHref: "/app/paper-automatic-disabled-chain",
+    displayState: "PAPER_AUTOMATIC_DISABLED_CHAIN_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_automatic_disabled_review",
     title: "Fully Automatic Contract Review",
     subtitle: "Stage 3 proof, promotion, and safety requirements with execution disabled.",
