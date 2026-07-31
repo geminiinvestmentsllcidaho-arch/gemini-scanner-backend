@@ -453,6 +453,17 @@ app.use((req, res, next) => {
 
 
 
+app.get('/app/paper-automatic-disabled-review', async (_req, res) => {
+  try {
+    const mod = await import('./scanner/paper_automatic_disabled_review_app_screen.mjs');
+    const screen = mod.buildPaperAutomaticDisabledReviewAppScreen();
+    res.set('Cache-Control', 'no-store');
+    res.status(200).type('html').send(mod.renderPaperAutomaticDisabledReviewAppScreenHtml(screen));
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error?.message ?? String(error) });
+  }
+});
+
 app.get('/app/paper-automatic-disabled-preview', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_automatic_disabled_app_screen.mjs');

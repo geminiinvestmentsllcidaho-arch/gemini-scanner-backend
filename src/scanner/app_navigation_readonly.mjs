@@ -248,6 +248,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
+    id: "paper_automatic_disabled_review",
+    title: "Fully Automatic Contract Review",
+    subtitle: "Stage 3 proof, promotion, and safety requirements with execution disabled.",
+    description: "Read-only automatic paper-trading contract review with no approval, unlock, broker contact, order placement, cancellation, account mutation, or execution controls.",
+    category: "paper_lifecycle",
+    href: "/app/paper-automatic-disabled-review",
+    diagnosticHref: "/app/paper-automatic-disabled-review",
+    routeHref: "/app/paper-automatic-disabled-review",
+    displayState: "PAPER_AUTOMATIC_DISABLED_REVIEW_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_automatic_disabled_preview",
     title: "Fully Automatic Paper Trade Preview",
     subtitle: "Stage 3 architecture preview with automatic entry and exit disabled.",
