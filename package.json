@@ -158,7 +158,10 @@
     "paper:monday:freshness:strict": "node scripts/monday_market_open_freshness_decision.mjs --fail-on-no-go",
     "diagnostics:alpaca-operator-key-entry": "node src/scanner/alpaca_operator_key_entry_block.mjs",
     "diagnostics:alpaca-paper-account-dashboard": "node src/scanner/alpaca_paper_account_dashboard_readonly.mjs",
-    "run:customer-report-delivery": "node scripts/run_customer_report_delivery.mjs"
+    "run:customer-report-delivery": "node scripts/run_customer_report_delivery.mjs",
+    "watch:paper-manual-round-trip": "node scripts/watch_paper_manual_round_trip_evidence.mjs",
+    "watch:paper-manual-round-trip:once": "node scripts/watch_paper_manual_round_trip_evidence.mjs --once",
+    "runbook:paper-manual-round-trip": "node scripts/paper_manual_round_trip_runbook.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",

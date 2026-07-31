@@ -62,6 +62,15 @@ export async function runPaperManualRoundTripEvidenceTracker(options = {}) {
     snapshot: {
       status: snapshot?.status ?? null,
       positionsCount: Array.isArray(snapshot?.positions) ? snapshot.positions.length : 0,
+      positions: Object.freeze(
+        (Array.isArray(snapshot?.positions) ? snapshot.positions : []).map((row) =>
+          Object.freeze({
+            symbol: String(row?.symbol ?? "").trim().toUpperCase() || null,
+            qty: Number.isFinite(Number(row?.qty)) ? Number(row.qty) : null,
+            side: String(row?.side ?? "").trim().toLowerCase() || null,
+          }),
+        ),
+      ),
     },
     safety: {
       readOnly: true,

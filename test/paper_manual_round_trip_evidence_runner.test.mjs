@@ -69,3 +69,14 @@ test("runner fails closed on malformed or incompatible persisted state", async (
     /paper_manual_round_trip_persisted_state_invalid/,
   );
 });
+
+test("runner exposes bounded position identity for operator status without execution data", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-runner-"));
+  const result = await runPaperManualRoundTripEvidenceTracker({
+    path: path.join(dir, "state.json"),
+    snapshot: snap([{ symbol: "spy", qty: "1", side: "LONG", averageEntryPrice: 999 }]),
+  });
+  assert.deepEqual(result.snapshot.positions, [{ symbol: "SPY", qty: 1, side: "long" }]);
+  assert.equal("averageEntryPrice" in result.snapshot.positions[0], false);
+  assert.equal(result.safety.orderPlacementAllowed, false);
+});
