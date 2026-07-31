@@ -207,6 +207,12 @@ app.get('/customer-portfolio-owned-assets.js', (_req, res) => {
   res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/customer-portfolio-owned-assets.js');
 });
 
+app.get('/assets/customer-stage1-exit-alerts.js', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-exit-alerts.js');
+});
+
 app.get('/assets/global-theme.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.type('application/javascript').send(`(() => {
@@ -4518,6 +4524,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
     const stage1PanelMod = await import('./scanner/customer_stage1_manual_trade_panel.mjs');
     const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
+    const stage1ExitAlertMod = await import('./scanner/customer_stage1_exit_alert_panel.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
@@ -4540,6 +4547,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     try { stage1Status = JSON.parse(fs.readFileSync(stage1StatusPath, 'utf8')); } catch {}
     const stage1Panel = stage1PanelMod.buildCustomerStage1ManualTradePanel({ status: stage1Status, marketOpen: getStreamTelemetry()?.marketOpen === true, nowMs: now.getTime() });
     const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
+    const stage1ExitAlert = stage1ExitAlertMod.buildCustomerStage1ExitAlertPanel({ status: stage1Status });
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -4551,6 +4559,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       windDownUpdated: req.query?.windDown === "1",
       stage1PanelHtml: stage1PanelMod.renderCustomerStage1ManualTradePanelHtml(stage1Panel),
       stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
+      stage1ExitAlertHtml: stage1ExitAlertMod.renderCustomerStage1ExitAlertPanelHtml(stage1ExitAlert),
     });
 
     res.set('Cache-Control', 'no-store');

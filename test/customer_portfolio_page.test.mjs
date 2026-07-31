@@ -191,3 +191,16 @@ test("renders Stage 1 reconciliation evidence supplied by the route", () => {
   assert.match(html, /data-stage1-reconciliation/);
   assert.match(html, /Stage 1 reconciliation proof/);
 });
+
+test("renders Stage 1 EXIT alert asset only when alert HTML is supplied", () => {
+  const withAlert = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    stage1ExitAlertHtml: '<section data-stage1-exit-alert>EXIT alert</section>',
+  }));
+  assert.match(withAlert, /data-stage1-exit-alert/);
+  assert.match(withAlert, /customer-stage1-exit-alerts\.js/);
+  const withoutAlert = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+  }));
+  assert.doesNotMatch(withoutAlert, /customer-stage1-exit-alerts\.js/);
+});
