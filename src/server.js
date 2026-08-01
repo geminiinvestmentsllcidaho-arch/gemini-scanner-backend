@@ -4514,6 +4514,44 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
 });
 
 
+async function buildCurrentCustomerStage1EvidenceExport() {
+  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const exportMod = await import('./scanner/customer_stage1_evidence_export.mjs');
+  const statusPath = process.env.PAPER_MANUAL_WATCH_STATUS_PATH ?? path.join(process.cwd(), 'runs', 'paper_manual_round_trip_status.json');
+  let status = null;
+  try { status = JSON.parse(fs.readFileSync(statusPath, 'utf8')); } catch {}
+  const snapshot = await accountData.fetchAlpacaPaperAccountReadonly();
+  const generatedAt = status?.promotionProof?.completedAt ?? status?.generatedAt ?? status?.updatedAt ?? new Date().toISOString();
+  return { exportMod, record: exportMod.buildCustomerStage1EvidenceExport({ status, snapshot, generatedAt }) };
+}
+
+app.get('/customer/stage1/evidence.json', requireCustomerSession, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const { exportMod, record } = await buildCurrentCustomerStage1EvidenceExport();
+    if (record.exportReady !== true) return res.status(409).type('application/json').send(exportMod.serializeCustomerStage1EvidenceExportJson(record));
+    const safeId = String(record.evidenceId ?? 'complete').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80) || 'complete';
+    res.set('Content-Disposition', `attachment; filename="geminiscanner-stage1-evidence-${safeId}.json"`);
+    return res.type('application/json').send(exportMod.serializeCustomerStage1EvidenceExportJson(record));
+  } catch {
+    return res.status(503).type('application/json').send(JSON.stringify({ verdict: 'PENDING', exportReady: false, issues: ['stage1_status_or_snapshot_unavailable'] }, null, 2) + '\n');
+  }
+});
+
+app.get('/customer/stage1/evidence.txt', requireCustomerSession, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const { exportMod, record } = await buildCurrentCustomerStage1EvidenceExport();
+    if (record.exportReady !== true) return res.status(409).type('text/plain').send(exportMod.renderCustomerStage1EvidenceExportText(record));
+    const safeId = String(record.evidenceId ?? 'complete').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80) || 'complete';
+    res.set('Content-Disposition', `attachment; filename="geminiscanner-stage1-report-${safeId}.txt"`);
+    return res.type('text/plain').send(exportMod.renderCustomerStage1EvidenceExportText(record));
+  } catch {
+    return res.status(503).type('text/plain').send('GeminiScanner Stage 1 Mechanical Evidence Export\nVerdict: PENDING\nIssues: stage1_status_or_snapshot_unavailable\n');
+  }
+});
+
+
 app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
   try {
     const portfolioModelMod = await import('./scanner/customer_portfolio_model.mjs');
@@ -4527,6 +4565,8 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
     const stage1ExitAlertMod = await import('./scanner/customer_stage1_exit_alert_panel.mjs');
     const stage1CompletionRecordMod = await import('./scanner/customer_stage1_completion_record_panel.mjs');
+    const stage1EvidenceExportMod = await import('./scanner/customer_stage1_evidence_export.mjs');
+    const stage1EvidenceDownloadMod = await import('./scanner/customer_stage1_evidence_download_panel.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
@@ -4553,6 +4593,9 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
     const stage1ExitAlert = stage1ExitAlertMod.buildCustomerStage1ExitAlertPanel({ status: stage1Status });
     const stage1CompletionRecord = stage1CompletionRecordMod.buildCustomerStage1CompletionRecordPanel({ status: stage1Status });
+    const stage1EvidenceGeneratedAt = stage1Status?.promotionProof?.completedAt ?? stage1Status?.generatedAt ?? stage1Status?.updatedAt ?? now.toISOString();
+    const stage1EvidenceExport = stage1EvidenceExportMod.buildCustomerStage1EvidenceExport({ status: stage1Status, snapshot: fetchedPaperAccount, generatedAt: stage1EvidenceGeneratedAt });
+    const stage1EvidenceDownload = stage1EvidenceDownloadMod.buildCustomerStage1EvidenceDownloadPanel({ record: stage1EvidenceExport });
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -4567,6 +4610,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
       stage1ExitAlertHtml: stage1ExitAlertMod.renderCustomerStage1ExitAlertPanelHtml(stage1ExitAlert),
       stage1CompletionRecordHtml: stage1CompletionRecordMod.renderCustomerStage1CompletionRecordPanelHtml(stage1CompletionRecord),
+      stage1EvidenceDownloadHtml: stage1EvidenceDownloadMod.renderCustomerStage1EvidenceDownloadPanelHtml(stage1EvidenceDownload),
     });
 
     res.set('Cache-Control', 'no-store');
