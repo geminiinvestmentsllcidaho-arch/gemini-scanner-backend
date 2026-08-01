@@ -81,8 +81,8 @@ test("runner exposes bounded position identity for operator status without execu
     path: path.join(dir, "state.json"),
     snapshot: snap([{ symbol: "spy", qty: "1", side: "LONG", averageEntryPrice: 999 }]),
   });
-  assert.deepEqual(result.snapshot.positions, [{ symbol: "SPY", qty: 1, side: "long" }]);
-  assert.equal("averageEntryPrice" in result.snapshot.positions[0], false);
+  assert.deepEqual(result.snapshot.positions, [{ symbol: "SPY", qty: 1, side: "long", averageEntryPrice: 999 }]);
+  assert.equal(result.snapshot.positions[0].averageEntryPrice, 999);
   assert.equal(result.safety.orderPlacementAllowed, false);
 });
 

@@ -11,6 +11,7 @@ const snap = (positions, status = "connected_readonly", options = {}) => ({
   positions,
   openOrders: options.openOrders ?? [],
   observedAt: options.observedAt ?? "2026-07-30T20:00:30.000Z",
+  account: options.account ?? null,
 });
 
 test("tracks exact one-share manual enter and exit without broker capability", () => {
@@ -81,9 +82,9 @@ test("fails closed when account is unavailable or baseline is ambiguous", () => 
 test("builds promotion-lock proof only from completed mechanical evidence", async () => {
   const mod = await import("../src/scanner/paper_manual_round_trip_evidence_tracker.mjs");
   let state = mod.defaultPaperManualRoundTripEvidence(at("2026-07-30T20:00:00Z"));
-  state = mod.evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:01:00Z") });
-  state = mod.evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }]), { now: at("2026-07-30T20:02:00Z") });
-  state = mod.evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+  state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:01:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }]), { now: at("2026-07-30T20:02:00Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
     observedAt: "2026-07-30T20:02:30.000Z",
   }), { now: at("2026-07-30T20:03:00Z") });
 
@@ -91,7 +92,7 @@ test("builds promotion-lock proof only from completed mechanical evidence", asyn
   assert.equal(incomplete.mechanicalSuccess, false);
   assert.equal(incomplete.evidenceId, null);
 
-  state = mod.evaluatePaperManualRoundTripEvidence(state, snap([]), {
+  state = evaluatePaperManualRoundTripEvidence(state, snap([]), {
     now: at("2026-07-30T20:04:00Z"),
     restartRecoveryVerified: true,
     duplicateProtectionVerified: true,
@@ -299,4 +300,27 @@ test("tracker refuses baseline when positions array is missing or malformed", ()
     assert.equal(state.baselineObserved, false);
     assert.ok(state.issues.includes("paper_positions_unavailable"));
   }
+});
+
+test("captures immutable account reconciliation evidence at baseline entry and exit", () => {
+  const account = (cash, buyingPower, equity, portfolioValue) => ({ cash, buyingPower, equity, portfolioValue });
+  let state = evaluatePaperManualRoundTripEvidence({}, snap([], "connected_readonly", {
+    observedAt: "2026-08-03T13:30:00.000Z",
+    account: account(1000, 2000, 1000, 1000),
+  }), { now: at("2026-08-03T13:30:01.000Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([
+    { symbol: "TEST", qty: 1, side: "long", averageEntryPrice: 10 },
+  ], "connected_readonly", {
+    observedAt: "2026-08-03T13:35:00.000Z",
+    account: account(990, 1980, 1001, 1001),
+  }), { now: at("2026-08-03T13:35:01.000Z") });
+  state = evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", {
+    observedAt: "2026-08-03T14:15:00.000Z",
+    account: account(1002, 2004, 1002, 1002),
+  }), { now: at("2026-08-03T14:15:01.000Z") });
+  assert.deepEqual(state.baselineAccount, { cash: 1000, buyingPower: 2000, equity: 1000, portfolioValue: 1000, observedAt: "2026-08-03T13:30:01.000Z" });
+  assert.deepEqual(state.entryAccount, { cash: 990, buyingPower: 1980, equity: 1001, portfolioValue: 1001, observedAt: "2026-08-03T13:35:01.000Z" });
+  assert.deepEqual(state.exitAccount, { cash: 1002, buyingPower: 2004, equity: 1002, portfolioValue: 1002, observedAt: "2026-08-03T14:15:01.000Z" });
+  assert.equal(state.enterQty, 1);
+  assert.equal(state.averageEntryPrice, 10);
 });

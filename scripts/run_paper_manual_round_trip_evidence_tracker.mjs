@@ -66,12 +66,23 @@ export async function runPaperManualRoundTripEvidenceTracker(options = {}) {
       positionsCount: Array.isArray(snapshot?.positions) ? snapshot.positions.length : null,
       openOrdersKnown: Array.isArray(snapshot?.openOrders),
       openOrdersCount: Array.isArray(snapshot?.openOrders) ? snapshot.openOrders.length : null,
+      account: snapshot?.account && typeof snapshot.account === "object"
+        ? Object.freeze({
+            cash: Number.isFinite(Number(snapshot.account.cash)) ? Number(snapshot.account.cash) : null,
+            buyingPower: Number.isFinite(Number(snapshot.account.buyingPower)) ? Number(snapshot.account.buyingPower) : null,
+            equity: Number.isFinite(Number(snapshot.account.equity)) ? Number(snapshot.account.equity) : null,
+            portfolioValue: Number.isFinite(Number(snapshot.account.portfolioValue)) ? Number(snapshot.account.portfolioValue) : null,
+          })
+        : null,
       positions: Object.freeze(
         (Array.isArray(snapshot?.positions) ? snapshot.positions : []).map((row) =>
           Object.freeze({
             symbol: String(row?.symbol ?? "").trim().toUpperCase() || null,
             qty: Number.isFinite(Number(row?.qty)) ? Number(row.qty) : null,
             side: String(row?.side ?? "").trim().toLowerCase() || null,
+            averageEntryPrice: Number.isFinite(Number(row?.averageEntryPrice ?? row?.avgEntryPrice))
+              ? Number(row.averageEntryPrice ?? row.avgEntryPrice)
+              : null,
           }),
         ),
       ),

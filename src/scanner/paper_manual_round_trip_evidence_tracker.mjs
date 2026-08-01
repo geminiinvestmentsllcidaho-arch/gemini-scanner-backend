@@ -25,6 +25,21 @@ function openOrdersOf(snapshot = {}) {
 function findPosition(snapshot, symbol) {
   return positionsOf(snapshot).find((row) => symbolOf(row?.symbol) === symbol) ?? null;
 }
+function accountEvidence(snapshot = {}, observedAt = null) {
+  const account = snapshot?.account;
+  if (!account || typeof account !== "object") return null;
+  const evidence = {
+    cash: qtyOf(account?.cash),
+    buyingPower: qtyOf(account?.buyingPower),
+    equity: qtyOf(account?.equity),
+    portfolioValue: qtyOf(account?.portfolioValue),
+    observedAt: clean(observedAt ?? snapshot?.observedAt) || null,
+  };
+  return [evidence.cash, evidence.buyingPower, evidence.equity, evidence.portfolioValue].some((value) => value !== null)
+    ? Object.freeze(evidence)
+    : null;
+}
+
 
 function evidenceId(state) {
   return crypto.createHash("sha256").update(JSON.stringify({
@@ -43,6 +58,11 @@ export function defaultPaperManualRoundTripEvidence(now = new Date()) {
     status: "awaiting_baseline",
     symbol: null,
     baselineFingerprint: null,
+    baselineAccount: null,
+    entryAccount: null,
+    exitAccount: null,
+    enterQty: null,
+    averageEntryPrice: null,
     baselineObserved: false,
     enterDetected: false,
     enterReconciled: false,
@@ -90,6 +110,7 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
   if (!state.baselineObserved) {
     if (snapshotUsable && positionsOf(snapshot).length === 0 && openOrders.length === 0) {
       state.baselineObserved = true;
+      state.baselineAccount = state.baselineAccount ?? accountEvidence(snapshot, now.toISOString());
       state.baselineFingerprint = state.baselineFingerprint ?? crypto.createHash("sha256").update(JSON.stringify({ status: snapshot?.status ?? null, positionsCount: positionsOf(snapshot).length, openOrdersCount: openOrders.length, observedAt: snapshot?.observedAt ?? null, accountStatus: snapshot?.account?.accountStatus ?? null })).digest("hex").slice(0, 24);
       state.baselineObservedAt = state.baselineObservedAt ?? now.toISOString();
       state.status = "awaiting_manual_enter";
@@ -105,6 +126,9 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
       const targetMatches = !symbol || symbolOf(candidate?.symbol) === symbol;
       if (candidate && targetMatches && oneShare(candidate)) {
         state.symbol = symbolOf(candidate.symbol);
+        state.entryAccount = state.entryAccount ?? accountEvidence(snapshot, now.toISOString());
+        state.enterQty = state.enterQty ?? qtyOf(candidate.qty);
+        state.averageEntryPrice = state.averageEntryPrice ?? qtyOf(candidate.averageEntryPrice ?? candidate.avgEntryPrice);
         state.enterDetected = true;
         state.enterReconciled = true;
         state.monitoringStarted = true;
@@ -118,6 +142,7 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
     if (snapshotUsable) {
       const held = findPosition(snapshot, state.symbol);
       if (!held && positionsOf(snapshot).length === 0 && openOrders.length === 0) {
+        state.exitAccount = state.exitAccount ?? accountEvidence(snapshot, now.toISOString());
         state.exitDetected = true;
         state.exitReconciled = true;
         state.roundTripClosed = true;
