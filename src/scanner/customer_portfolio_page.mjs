@@ -68,6 +68,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     windDown: options.windDown ?? { status: "inactive", steps: [] },
     saved: options.saved === true,
     windDownUpdated: options.windDownUpdated === true,
+    stage1OperatorConsoleHtml: options.stage1OperatorConsoleHtml ?? "",
     stage1PanelHtml: options.stage1PanelHtml ?? "",
     stage1ReconciliationHtml: options.stage1ReconciliationHtml ?? "",
     stage1ExitAlertHtml: options.stage1ExitAlertHtml ?? "",
@@ -158,7 +159,7 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
 .wind-actions{margin:14px 0 10px}
 .wind-actions button{width:100%;max-width:620px}
-.stage1-panel{border:2px solid #ffd166}.stage1-ready{border-color:#39ff20}.stage1-monitoring{border-color:#18d7ff}.stage1-complete{border-color:#39ff20}.stage1-kicker{font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--gs-muted)}.stage1-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;padding:0;list-style:none}.stage1-checks li,.stage1-grid p{padding:10px;border-radius:10px;border:1px solid var(--gs-line)}.stage1-checks .pass{border-color:rgba(57,255,32,.45)}.stage1-checks .hold{border-color:rgba(255,209,102,.55)}.stage1-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.stage1-grid p{background:rgba(0,0,0,.3)}.stage1-grid span,.stage1-grid strong{display:block}.stage1-grid span{color:var(--gs-muted);font-size:12px}.stage1-grid strong{margin-top:5px}.stage1-issues{color:#ff8f8f}
+.stage1-operator-console{border:3px solid #18d7ff}.stage1-operator-stop{border-color:#ff1f1f;background:rgba(70,0,0,.72);box-shadow:0 0 22px rgba(255,31,31,.45)}.stage1-anomaly-banner{margin-top:12px;padding:14px;border:2px solid #ff1f1f;border-radius:12px;background:rgba(255,31,31,.12)}.stage1-panel{border:2px solid #ffd166}.stage1-ready{border-color:#39ff20}.stage1-monitoring{border-color:#18d7ff}.stage1-complete{border-color:#39ff20}.stage1-kicker{font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--gs-muted)}.stage1-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;padding:0;list-style:none}.stage1-checks li,.stage1-grid p{padding:10px;border-radius:10px;border:1px solid var(--gs-line)}.stage1-checks .pass{border-color:rgba(57,255,32,.45)}.stage1-checks .hold{border-color:rgba(255,209,102,.55)}.stage1-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.stage1-grid p{background:rgba(0,0,0,.3)}.stage1-grid span,.stage1-grid strong{display:block}.stage1-grid span{color:var(--gs-muted);font-size:12px}.stage1-grid strong{margin-top:5px}.stage1-issues{color:#ff8f8f}
 .stage1-reconciliation{border:2px solid #18d7ff}.stage1-recon-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.stage1-recon-columns article{padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.28)}.stage1-recon-columns ul{padding-left:18px}.stage1-recon-columns li.pass{color:#7dff9b}.stage1-recon-columns li.pending{color:#ffd166}.stage1-recon-columns article p span,.stage1-recon-columns article p strong{display:block}.stage1-recon-columns article p span{color:var(--gs-muted);font-size:12px}.stage1-alert-readiness{margin-top:12px;padding:12px;border-radius:10px;border:1px solid rgba(24,215,255,.45);background:rgba(24,215,255,.08)}
 .stage1-completion-record{border:3px solid #39ff20;box-shadow:0 0 20px rgba(57,255,32,.28)}.stage1-completion-times{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}.stage1-completion-times p{padding:10px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.3)}.stage1-completion-times span,.stage1-completion-times strong{display:block}.stage1-completion-times span{color:var(--gs-muted);font-size:12px}.stage1-completion-times strong{margin-top:5px;overflow-wrap:anywhere}.stage1-completion-record code{overflow-wrap:anywhere}
 .stage1-exit-alert{border:3px solid #ff1f1f;background:rgba(49,0,0,.78);box-shadow:0 0 24px rgba(255,31,31,.65);animation:stage1-exit-flash .9s steps(2,end) infinite}.stage1-exit-actions{display:flex;gap:10px;flex-wrap:wrap}.stage1-exit-actions button{flex:1;min-width:220px}.stage1-exit-alert[data-acknowledged="true"]{animation:none;box-shadow:none}@keyframes stage1-exit-flash{0%,48%{filter:brightness(1.25)}49%,100%{filter:brightness(.75)}}@media(prefers-reduced-motion:reduce){.stage1-exit-alert{animation:none}}
@@ -180,6 +181,7 @@ ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 <p><strong>Last updated:</strong> ${esc(model.sourceTs ?? "No timestamp available")}</p>
 </section>
 
+${page.stage1OperatorConsoleHtml ?? ""}
 ${page.stage1PanelHtml ?? ""}
 ${page.stage1ReconciliationHtml ?? ""}
 ${page.stage1ExitAlertHtml ?? ""}

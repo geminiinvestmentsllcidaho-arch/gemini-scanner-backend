@@ -210,3 +210,10 @@ test("renders Stage 1 completion record supplied by the route", () => {
   assert.match(html, /data-stage1-completion-record/);
   assert.match(html, /Stage 1 complete/);
 });
+
+
+test("renders Stage 1 Monday operator console supplied by the route", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>' }));
+  assert.match(html, /data-stage1-operator-console/);
+  assert.match(html, /Operator console/);
+});
