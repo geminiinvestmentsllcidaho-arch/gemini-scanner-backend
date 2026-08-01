@@ -120,6 +120,14 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
       issues.push("manual_baseline_requires_zero_open_orders");
     }
   } else if (!state.enterDetected) {
+    if (
+      state.baselineAccount === null &&
+      snapshotUsable &&
+      positionsOf(snapshot).length === 0 &&
+      openOrders.length === 0
+    ) {
+      state.baselineAccount = accountEvidence(snapshot, now.toISOString());
+    }
     if (snapshotUsable) {
       const positions = positionsOf(snapshot);
       const candidate = positions.length === 1 ? positions[0] : null;

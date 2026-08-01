@@ -324,3 +324,29 @@ test("captures immutable account reconciliation evidence at baseline entry and e
   assert.equal(state.enterQty, 1);
   assert.equal(state.averageEntryPrice, 10);
 });
+
+test("backfills missing baseline account evidence before manual entry without resetting baseline", () => {
+  const prior = {
+    ...defaultPaperManualRoundTripEvidence(at("2026-07-31T19:36:03.178Z")),
+    status: "awaiting_manual_enter",
+    baselineObserved: true,
+    baselineFingerprint: "a69acb6c7ce4ea7e24de14ba",
+    baselineObservedAt: "2026-07-31T19:36:03.178Z",
+    baselineAccount: null,
+  };
+  const state = evaluatePaperManualRoundTripEvidence(prior, snap([], "connected_readonly", {
+    observedAt: "2026-08-01T02:55:00.000Z",
+    account: { cash: 1000, buyingPower: 2000, equity: 1000, portfolioValue: 1000 },
+  }), { now: at("2026-08-01T02:55:01.000Z") });
+  assert.deepEqual(state.baselineAccount, {
+    cash: 1000,
+    buyingPower: 2000,
+    equity: 1000,
+    portfolioValue: 1000,
+    observedAt: "2026-08-01T02:55:01.000Z",
+  });
+  assert.equal(state.baselineObservedAt, "2026-07-31T19:36:03.178Z");
+  assert.equal(state.baselineFingerprint, "a69acb6c7ce4ea7e24de14ba");
+  assert.equal(state.enterDetected, false);
+  assert.equal(state.orderPlacementAllowed, false);
+});
