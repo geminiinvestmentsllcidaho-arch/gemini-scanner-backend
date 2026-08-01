@@ -204,3 +204,9 @@ test("renders Stage 1 EXIT alert asset only when alert HTML is supplied", () => 
   }));
   assert.doesNotMatch(withoutAlert, /customer-stage1-exit-alerts\.js/);
 });
+
+test("renders Stage 1 completion record supplied by the route", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1CompletionRecordHtml: '<section data-stage1-completion-record>Stage 1 complete</section>' }));
+  assert.match(html, /data-stage1-completion-record/);
+  assert.match(html, /Stage 1 complete/);
+});

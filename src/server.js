@@ -4525,6 +4525,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1PanelMod = await import('./scanner/customer_stage1_manual_trade_panel.mjs');
     const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
     const stage1ExitAlertMod = await import('./scanner/customer_stage1_exit_alert_panel.mjs');
+    const stage1CompletionRecordMod = await import('./scanner/customer_stage1_completion_record_panel.mjs');
 
     const now = new Date();
     const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
@@ -4548,6 +4549,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1Panel = stage1PanelMod.buildCustomerStage1ManualTradePanel({ status: stage1Status, marketOpen: getStreamTelemetry()?.marketOpen === true, nowMs: now.getTime() });
     const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
     const stage1ExitAlert = stage1ExitAlertMod.buildCustomerStage1ExitAlertPanel({ status: stage1Status });
+    const stage1CompletionRecord = stage1CompletionRecordMod.buildCustomerStage1CompletionRecordPanel({ status: stage1Status });
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -4560,6 +4562,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       stage1PanelHtml: stage1PanelMod.renderCustomerStage1ManualTradePanelHtml(stage1Panel),
       stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
       stage1ExitAlertHtml: stage1ExitAlertMod.renderCustomerStage1ExitAlertPanelHtml(stage1ExitAlert),
+      stage1CompletionRecordHtml: stage1CompletionRecordMod.renderCustomerStage1CompletionRecordPanelHtml(stage1CompletionRecord),
     });
 
     res.set('Cache-Control', 'no-store');
