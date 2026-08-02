@@ -323,6 +323,10 @@ test("captures immutable account reconciliation evidence at baseline entry and e
   assert.deepEqual(state.exitAccount, { cash: 1002, buyingPower: 2004, equity: 1002, portfolioValue: 1002, observedAt: "2026-08-03T14:15:01.000Z" });
   assert.equal(state.enterQty, 1);
   assert.equal(state.averageEntryPrice, 10);
+  assert.equal(state.enterSnapshotObservedAt, "2026-08-03T13:35:00.000Z");
+  assert.equal(state.enterDetectionLatencyMs, 1000);
+  assert.equal(state.exitSnapshotObservedAt, "2026-08-03T14:15:00.000Z");
+  assert.equal(state.exitDetectionLatencyMs, 1000);
 });
 
 test("backfills missing baseline account evidence before manual entry without resetting baseline", () => {

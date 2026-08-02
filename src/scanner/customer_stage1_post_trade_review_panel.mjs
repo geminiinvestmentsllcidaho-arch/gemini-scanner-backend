@@ -60,7 +60,11 @@ export function buildCustomerStage1PostTradeReviewPanel(options = {}) {
     timing: freeze({
       baselineObservedAt: tracker.baselineObservedAt ?? null,
       entryDetectedAt: tracker.enterDetectedAt ?? null,
+      entrySnapshotObservedAt: tracker.enterSnapshotObservedAt ?? null,
+      entryDetectionLatencyMs: finite(tracker.enterDetectionLatencyMs),
       exitDetectedAt: tracker.exitDetectedAt ?? null,
+      exitSnapshotObservedAt: tracker.exitSnapshotObservedAt ?? null,
+      exitDetectionLatencyMs: finite(tracker.exitDetectionLatencyMs),
       completedAt: completedAt || null,
       baselineToEntryMs: elapsedMs(tracker.enterDetectedAt, tracker.baselineObservedAt),
       entryToExitMs: elapsedMs(tracker.exitDetectedAt, tracker.enterDetectedAt),
@@ -124,7 +128,7 @@ export function renderCustomerStage1PostTradeReviewPanelHtml(panel = {}) {
 <p><strong>Verdict:</strong> ${esc(panel.verdict)} · <strong>Evidence:</strong> ${esc(panel.evidenceId)}</p>
 <div class="stage1-review-grid">
 <article><h3>Trade identity</h3><ul><li>Symbol: ${esc(trade.symbol)}</li><li>Quantity: ${esc(trade.quantity)}</li><li>Average entry: ${money(trade.averageEntryPrice)}</li><li>Estimated exit: ${money(trade.estimatedExitPrice)}</li><li>Estimated realized paper P/L: ${money(trade.estimatedRealizedPnl)}</li></ul></article>
-<article><h3>Detection timing</h3><ul><li>Baseline to entry: ${esc(timing.baselineToEntryMs)} ms</li><li>Entry to exit: ${esc(timing.entryToExitMs)} ms</li><li>Exit to completion: ${esc(timing.exitToCompletionMs)} ms</li></ul></article>
+<article><h3>Detection timing</h3><ul><li>Entry snapshot to detection: ${esc(timing.entryDetectionLatencyMs)} ms</li><li>Exit snapshot to detection: ${esc(timing.exitDetectionLatencyMs)} ms</li><li>Baseline to entry: ${esc(timing.baselineToEntryMs)} ms</li><li>Entry to exit: ${esc(timing.entryToExitMs)} ms</li><li>Exit to completion: ${esc(timing.exitToCompletionMs)} ms</li></ul></article>
 <article><h3>Account reconciliation</h3><ul><li>Entry cash delta: ${money(reconciliation.entryVsBaseline?.cash)}</li><li>Exit cash delta: ${money(reconciliation.exitVsBaseline?.cash)}</li><li>Exit equity delta: ${money(reconciliation.exitVsBaseline?.equity)}</li><li>Exit portfolio-value delta: ${money(reconciliation.exitVsBaseline?.portfolioValue)}</li></ul></article>
 <article><h3>Completion checks</h3><ul>${row("Baseline recorded", checks.baselineObserved)}${row("Entry detected and reconciled", checks.enterDetected && checks.enterReconciled)}${row("Position monitoring started", checks.monitoringStarted)}${row("Exit detected and reconciled", checks.exitDetected && checks.exitReconciled)}${row("Restart recovery verified", checks.restartRecoveryVerified)}${row("Duplicate protection verified", checks.duplicateProtectionVerified)}${row("Mechanical proof complete", checks.mechanicalSuccess)}</ul></article>
 </div>

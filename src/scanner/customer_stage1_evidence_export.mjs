@@ -65,7 +65,11 @@ export function buildCustomerStage1EvidenceExport(options = {}) {
     timestamps: {
       baselineObservedAt: tracker.baselineObservedAt ?? null,
       entryDetectedAt: tracker.enterDetectedAt ?? null,
+      entrySnapshotObservedAt: tracker.enterSnapshotObservedAt ?? null,
+      entryDetectionLatencyMs: finite(tracker.enterDetectionLatencyMs),
       exitDetectedAt: tracker.exitDetectedAt ?? null,
+      exitSnapshotObservedAt: tracker.exitSnapshotObservedAt ?? null,
+      exitDetectionLatencyMs: finite(tracker.exitDetectionLatencyMs),
       completedAt: clean(proof.completedAt) || null,
     },
     reconciliation: {

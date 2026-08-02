@@ -76,7 +76,11 @@ export function defaultPaperManualRoundTripEvidence(now = new Date()) {
     evidenceId: null,
     baselineObservedAt: null,
     enterDetectedAt: null,
+    enterSnapshotObservedAt: null,
+    enterDetectionLatencyMs: null,
     exitDetectedAt: null,
+    exitSnapshotObservedAt: null,
+    exitDetectionLatencyMs: null,
     completedAt: null,
     updatedAt: now.toISOString(),
     readOnly: true,
@@ -141,6 +145,10 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
         state.enterReconciled = true;
         state.monitoringStarted = true;
         state.enterDetectedAt = state.enterDetectedAt ?? now.toISOString();
+        state.enterSnapshotObservedAt = state.enterSnapshotObservedAt ?? (clean(snapshot?.observedAt) || null);
+        state.enterDetectionLatencyMs = state.enterDetectionLatencyMs ?? (
+          Number.isFinite(observedAtMs) && now.getTime() >= observedAtMs ? now.getTime() - observedAtMs : null
+        );
         state.status = "monitoring_manual_position";
       } else if (positions.length > 0) {
         issues.push("manual_enter_must_be_exactly_one_long_share");
@@ -155,6 +163,10 @@ export function evaluatePaperManualRoundTripEvidence(previous = {}, snapshot = {
         state.exitReconciled = true;
         state.roundTripClosed = true;
         state.exitDetectedAt = state.exitDetectedAt ?? now.toISOString();
+        state.exitSnapshotObservedAt = state.exitSnapshotObservedAt ?? (clean(snapshot?.observedAt) || null);
+        state.exitDetectionLatencyMs = state.exitDetectionLatencyMs ?? (
+          Number.isFinite(observedAtMs) && now.getTime() >= observedAtMs ? now.getTime() - observedAtMs : null
+        );
         state.status = "awaiting_recovery_checks";
       } else if (!held && openOrders.length > 0) {
         issues.push("manual_exit_requires_zero_open_orders");

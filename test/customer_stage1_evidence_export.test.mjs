@@ -23,7 +23,11 @@ const status = {
     mechanicalSuccess: true,
     baselineObservedAt: "2026-08-03T13:30:00.000Z",
     enterDetectedAt: "2026-08-03T13:31:00.000Z",
+    enterSnapshotObservedAt: "2026-08-03T13:30:59.000Z",
+    enterDetectionLatencyMs: 1000,
     exitDetectedAt: "2026-08-03T14:00:00.000Z",
+    exitSnapshotObservedAt: "2026-08-03T13:59:58.500Z",
+    exitDetectionLatencyMs: 1500,
     baselineAccount: { cash: 1000, buyingPower: 2000, equity: 1000, portfolioValue: 1000 },
     entryAccount: { cash: 990, buyingPower: 1980, equity: 1000, portfolioValue: 1000 },
     exitAccount: { cash: 1002, buyingPower: 2004, equity: 1002, portfolioValue: 1002 },
@@ -50,6 +54,8 @@ test("builds deterministic promotion-grade closeout export", () => {
   assert.equal(first.exportReady, true);
   assert.equal(first.fingerprint, second.fingerprint);
   assert.equal(first.reconciliation.exitVsBaseline.cash, 2);
+  assert.equal(first.timestamps.entryDetectionLatencyMs, 1000);
+  assert.equal(first.timestamps.exitDetectionLatencyMs, 1500);
   assert.equal(first.checks.zeroPositions, true);
   assert.equal(first.checks.zeroOpenOrders, true);
   assert.equal(first.safety.orderPlacementAllowed, false);
