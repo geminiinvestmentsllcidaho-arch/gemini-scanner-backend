@@ -4565,6 +4565,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
     const stage1ExitAlertMod = await import('./scanner/customer_stage1_exit_alert_panel.mjs');
     const stage1CompletionRecordMod = await import('./scanner/customer_stage1_completion_record_panel.mjs');
+    const stage1PostTradeReviewMod = await import('./scanner/customer_stage1_post_trade_review_panel.mjs');
     const stage1EvidenceExportMod = await import('./scanner/customer_stage1_evidence_export.mjs');
     const stage1EvidenceDownloadMod = await import('./scanner/customer_stage1_evidence_download_panel.mjs');
 
@@ -4593,6 +4594,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
     const stage1ExitAlert = stage1ExitAlertMod.buildCustomerStage1ExitAlertPanel({ status: stage1Status });
     const stage1CompletionRecord = stage1CompletionRecordMod.buildCustomerStage1CompletionRecordPanel({ status: stage1Status });
+    const stage1PostTradeReview = stage1PostTradeReviewMod.buildCustomerStage1PostTradeReviewPanel({ tracker: stage1Status?.tracker, proof: stage1Status?.promotionProof });
     const stage1EvidenceGeneratedAt = stage1Status?.promotionProof?.completedAt ?? stage1Status?.generatedAt ?? stage1Status?.updatedAt ?? now.toISOString();
     const stage1EvidenceExport = stage1EvidenceExportMod.buildCustomerStage1EvidenceExport({ status: stage1Status, snapshot: fetchedPaperAccount, generatedAt: stage1EvidenceGeneratedAt });
     const stage1EvidenceDownload = stage1EvidenceDownloadMod.buildCustomerStage1EvidenceDownloadPanel({ record: stage1EvidenceExport });
@@ -4610,6 +4612,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
       stage1ExitAlertHtml: stage1ExitAlertMod.renderCustomerStage1ExitAlertPanelHtml(stage1ExitAlert),
       stage1CompletionRecordHtml: stage1CompletionRecordMod.renderCustomerStage1CompletionRecordPanelHtml(stage1CompletionRecord),
+      stage1PostTradeReviewHtml: stage1PostTradeReviewMod.renderCustomerStage1PostTradeReviewPanelHtml(stage1PostTradeReview, req.customerAccount?.locale ?? 'en-US'),
       stage1EvidenceDownloadHtml: stage1EvidenceDownloadMod.renderCustomerStage1EvidenceDownloadPanelHtml(stage1EvidenceDownload),
     });
 

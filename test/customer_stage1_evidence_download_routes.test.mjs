@@ -18,5 +18,8 @@ test("wires authenticated GET-only Stage 1 evidence downloads", () => {
 test("portfolio route renders current read-only evidence panel", () => {
   assert.match(source, /buildCustomerStage1EvidenceExport\(\{ status: stage1Status, snapshot: fetchedPaperAccount/);
   assert.match(source, /buildCustomerStage1EvidenceDownloadPanel\(\{ record: stage1EvidenceExport \}\)/);
+  assert.match(source, /stage1PostTradeReviewMod = await import/);
+  assert.match(source, /buildCustomerStage1PostTradeReviewPanel/);
+  assert.match(source, /stage1PostTradeReviewHtml:/);
   assert.match(source, /stage1EvidenceDownloadHtml:/);
 });

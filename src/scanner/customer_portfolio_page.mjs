@@ -73,6 +73,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     stage1ReconciliationHtml: options.stage1ReconciliationHtml ?? "",
     stage1ExitAlertHtml: options.stage1ExitAlertHtml ?? "",
     stage1CompletionRecordHtml: options.stage1CompletionRecordHtml ?? "",
+    stage1PostTradeReviewHtml: options.stage1PostTradeReviewHtml ?? "",
     stage1EvidenceDownloadHtml: options.stage1EvidenceDownloadHtml ?? "",
   });
 }
@@ -188,6 +189,7 @@ ${page.stage1PanelHtml ?? ""}
 ${page.stage1ReconciliationHtml ?? ""}
 ${page.stage1ExitAlertHtml ?? ""}
 ${page.stage1CompletionRecordHtml ?? ""}
+${page.stage1PostTradeReviewHtml ?? ""}
 ${page.stage1EvidenceDownloadHtml ?? ""}
 
 <section class="card panel">
