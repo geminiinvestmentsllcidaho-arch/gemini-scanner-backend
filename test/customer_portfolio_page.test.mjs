@@ -5,6 +5,31 @@ import {
   renderCustomerPortfolioPageHtml,
 } from "../src/scanner/customer_portfolio_page.mjs";
 
+test("renders the isolated Stage 1 notification self-test after the Monday checklist", () => {
+  const page = buildCustomerPortfolioPage({
+    model: {},
+    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Monday checklist</section>',
+    stage1NotificationSelfTestHtml: '<section data-stage1-notification-self-test>Notification self-test</section>',
+    stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>',
+  });
+  const html = renderCustomerPortfolioPageHtml(page);
+  assert.match(html, /data-stage1-notification-self-test/);
+  assert.match(html, /customer-stage1-notification-self-test\.js/);
+  assert.ok(html.indexOf("<section data-stage1-monday-checklist") < html.indexOf("<section data-stage1-notification-self-test"));
+  assert.ok(html.indexOf("data-stage1-notification-self-test") < html.indexOf("data-stage1-operator-console"));
+});
+
+test("renders the Stage 1 Monday checklist before existing Stage 1 panels", () => {
+  const page = buildCustomerPortfolioPage({
+    model: {},
+    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Monday checklist</section>',
+    stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>',
+  });
+  const html = renderCustomerPortfolioPageHtml(page);
+  assert.match(html, /data-stage1-monday-checklist/);
+  assert.ok(html.indexOf("data-stage1-monday-checklist") < html.indexOf("data-stage1-operator-console"));
+});
+
 test("renders customer portfolio page with friendly labels and safety locks", () => {
   const page = buildCustomerPortfolioPage({
     account: {locale: "en-US"},

@@ -50,7 +50,7 @@ import { formatCustomerDate, formatCustomerDateTime } from './scanner/customer_t
 import { startMarketDataStream } from './market_data_stream.js';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
-import { health, readiness } from './utils/health.js';
+import { buildRuntimeHealthState, health, readiness } from './utils/health.js';
 import { getAlpacaRequestAudit } from "./utils/alpaca_request_audit.mjs";
 import { getStreamTelemetry } from './utils/stream_telemetry.js';
 import { nextStep } from './next-step.js';
@@ -217,6 +217,12 @@ app.get('/assets/customer-stage1-state-refresh.js', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.type('application/javascript');
   return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-state-refresh.js');
+});
+
+app.get('/assets/customer-stage1-notification-self-test.js', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-notification-self-test.js');
 });
 
 app.get('/assets/global-theme.js', (_req, res) => {
@@ -4566,6 +4572,8 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
+    const stage1MondayChecklistMod = await import('./scanner/customer_stage1_monday_checklist_panel.mjs');
+    const stage1NotificationSelfTestMod = await import('./scanner/customer_stage1_notification_self_test_panel.mjs');
     const stage1OperatorConsoleMod = await import('./scanner/customer_stage1_operator_console.mjs');
     const stage1PanelMod = await import('./scanner/customer_stage1_manual_trade_panel.mjs');
     const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
@@ -4594,7 +4602,18 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1StatusPath = process.env.PAPER_MANUAL_WATCH_STATUS_PATH ?? path.join(process.cwd(), 'runs', 'paper_manual_round_trip_status.json');
     let stage1Status = null;
     try { stage1Status = JSON.parse(fs.readFileSync(stage1StatusPath, 'utf8')); } catch {}
-    const stage1MarketOpen = getStreamTelemetry()?.marketOpen === true;
+    const stage1RuntimeHealth = buildRuntimeHealthState();
+    const stage1MarketOpen = stage1RuntimeHealth.stream?.marketOpen === true;
+    const stage1NotificationSelfTest = stage1NotificationSelfTestMod.buildCustomerStage1NotificationSelfTestPanel();
+    const stage1MondayChecklist = stage1MondayChecklistMod.buildCustomerStage1MondayChecklistPanel({
+      status: stage1Status,
+      snapshot: fetchedPaperAccount,
+      health: { status: 'ok', ...stage1RuntimeHealth },
+      readiness: { ready: stage1RuntimeHealth.degraded !== true, ...stage1RuntimeHealth },
+      watcherOnline: stage1Status?.ok === true,
+      marketOpen: stage1MarketOpen,
+      nowMs: now.getTime(),
+    });
     const stage1OperatorConsole = stage1OperatorConsoleMod.buildCustomerStage1OperatorConsole({ status: stage1Status, snapshot: fetchedPaperAccount, marketOpen: stage1MarketOpen, nowMs: now.getTime() });
     const stage1Panel = stage1PanelMod.buildCustomerStage1ManualTradePanel({ status: stage1Status, marketOpen: stage1MarketOpen, nowMs: now.getTime() });
     const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
@@ -4623,6 +4642,8 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       windDown,
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
+      stage1MondayChecklistHtml: stage1MondayChecklistMod.renderCustomerStage1MondayChecklistPanelHtml(stage1MondayChecklist),
+      stage1NotificationSelfTestHtml: stage1NotificationSelfTestMod.renderCustomerStage1NotificationSelfTestPanelHtml(stage1NotificationSelfTest),
       stage1OperatorConsoleHtml: stage1OperatorConsoleMod.renderCustomerStage1OperatorConsoleHtml(stage1OperatorConsole),
       stage1PanelHtml: stage1PanelMod.renderCustomerStage1ManualTradePanelHtml(stage1Panel),
       stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
