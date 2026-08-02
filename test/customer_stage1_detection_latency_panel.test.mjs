@@ -38,6 +38,9 @@ test("fails closed for missing or reversed protected baseline timestamps", () =>
   assert.equal(missing.baseline.status, "unavailable");
   assert.equal(missing.baseline.latencyMs, null);
   assert.equal(missing.baseline.reason, "timestamp_missing_or_invalid");
+  const missingHtml = renderCustomerStage1DetectionLatencyPanelHtml(missing);
+  assert.match(missingHtml, /one or both timestamps are missing or invalid/i);
+  assert.doesNotMatch(missingHtml, /timestamp_missing_or_invalid/);
 
   const reversed = buildCustomerStage1DetectionLatencyPanel({
     status: {
@@ -53,7 +56,8 @@ test("fails closed for missing or reversed protected baseline timestamps", () =>
   assert.equal(reversed.baseline.reason, "timestamp_order_invalid");
   const html = renderCustomerStage1DetectionLatencyPanelHtml(reversed);
   assert.match(html, /Unavailable/);
-  assert.match(html, /timestamp_order_invalid/);
+  assert.match(html, /snapshot timestamp is later than the baseline record/i);
+  assert.doesNotMatch(html, /timestamp_order_invalid/);
   assert.doesNotMatch(html, /-\d+ ms/);
 });
 

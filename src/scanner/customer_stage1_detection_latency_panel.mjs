@@ -31,6 +31,15 @@ const duration = (value) => {
   if (milliseconds < 1000) return `${milliseconds} ms`;
   return `${(milliseconds / 1000).toFixed(milliseconds < 10000 ? 2 : 1)} s`;
 };
+const baselineReasonLabel = (reason) => {
+  if (reason === "timestamp_missing_or_invalid") {
+    return "Baseline timing is unavailable because one or both timestamps are missing or invalid.";
+  }
+  if (reason === "timestamp_order_invalid") {
+    return "Baseline timing is unavailable because the snapshot timestamp is later than the baseline record.";
+  }
+  return reason ? "Baseline timing is unavailable." : "None";
+};
 
 export function buildCustomerStage1DetectionLatencyPanel(options = {}) {
   const status = options.status ?? {};
@@ -91,7 +100,7 @@ export function renderCustomerStage1DetectionLatencyPanelHtml(panel = {}) {
 <h2>${esc(panel.headline)}</h2>
 <p>Watcher observation: <strong>${esc(panel.watcherObservedAt)}</strong></p>
 <div class="stage1-review-grid">
-<article><h3>Protected baseline capture</h3><ul><li>Status: ${panel.baseline?.status === "available" ? "Available" : "Unavailable"}</li><li>Snapshot observed: ${esc(panel.baseline?.snapshotObservedAt)}</li><li>Baseline recorded: ${esc(panel.baseline?.recordedAt)}</li><li>Capture latency: <strong>${esc(duration(panel.baseline?.latencyMs))}</strong></li><li>Reason: ${esc(panel.baseline?.reason ?? "None")}</li></ul></article>
+<article><h3>Protected baseline capture</h3><ul><li>Status: ${panel.baseline?.status === "available" ? "Available" : "Unavailable"}</li><li>Snapshot observed: ${esc(panel.baseline?.snapshotObservedAt)}</li><li>Baseline recorded: ${esc(panel.baseline?.recordedAt)}</li><li>Capture latency: <strong>${esc(duration(panel.baseline?.latencyMs))}</strong></li><li>Explanation: ${esc(baselineReasonLabel(panel.baseline?.reason))}</li></ul></article>
 <article><h3>Manual entry detection</h3><ul><li>Status: ${panel.entry?.detected === true ? "Detected" : "Waiting"}</li><li>Snapshot observed: ${esc(panel.entry?.snapshotObservedAt)}</li><li>Tracker detected: ${esc(panel.entry?.detectedAt)}</li><li>Detection latency: <strong>${esc(duration(panel.entry?.latencyMs))}</strong></li></ul></article>
 <article><h3>Manual exit detection</h3><ul><li>Status: ${panel.exit?.detected === true ? "Detected" : "Waiting"}</li><li>Snapshot observed: ${esc(panel.exit?.snapshotObservedAt)}</li><li>Tracker detected: ${esc(panel.exit?.detectedAt)}</li><li>Detection latency: <strong>${esc(duration(panel.exit?.latencyMs))}</strong></li></ul></article>
 </div>
