@@ -4573,6 +4573,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
     const stage1MondayChecklistMod = await import('./scanner/customer_stage1_monday_checklist_panel.mjs');
+    const stage1MondayLiveControlMod = await import('./scanner/customer_stage1_monday_live_control_panel.mjs');
     const stage1NotificationSelfTestMod = await import('./scanner/customer_stage1_notification_self_test_panel.mjs');
     const stage1OperatorConsoleMod = await import('./scanner/customer_stage1_operator_console.mjs');
     const stage1DetectionLatencyMod = await import('./scanner/customer_stage1_detection_latency_panel.mjs');
@@ -4605,6 +4606,14 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     try { stage1Status = JSON.parse(fs.readFileSync(stage1StatusPath, 'utf8')); } catch {}
     const stage1RuntimeHealth = buildRuntimeHealthState();
     const stage1MarketOpen = stage1RuntimeHealth.stream?.marketOpen === true;
+    const stage1MondayLiveControl = stage1MondayLiveControlMod.buildCustomerStage1MondayLiveControlPanel({
+      status: stage1Status,
+      snapshot: fetchedPaperAccount,
+      health: { status: 'ok', ...stage1RuntimeHealth },
+      readiness: { ready: stage1RuntimeHealth.degraded !== true, ...stage1RuntimeHealth },
+      marketOpen: stage1MarketOpen,
+      nowMs: now.getTime(),
+    });
     const stage1NotificationSelfTest = stage1NotificationSelfTestMod.buildCustomerStage1NotificationSelfTestPanel();
     const stage1MondayChecklist = stage1MondayChecklistMod.buildCustomerStage1MondayChecklistPanel({
       status: stage1Status,
@@ -4644,6 +4653,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       windDown,
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
+      stage1MondayLiveControlHtml: stage1MondayLiveControlMod.renderCustomerStage1MondayLiveControlPanelHtml(stage1MondayLiveControl),
       stage1MondayChecklistHtml: stage1MondayChecklistMod.renderCustomerStage1MondayChecklistPanelHtml(stage1MondayChecklist),
       stage1NotificationSelfTestHtml: stage1NotificationSelfTestMod.renderCustomerStage1NotificationSelfTestPanelHtml(stage1NotificationSelfTest),
       stage1OperatorConsoleHtml: stage1OperatorConsoleMod.renderCustomerStage1OperatorConsoleHtml(stage1OperatorConsole),

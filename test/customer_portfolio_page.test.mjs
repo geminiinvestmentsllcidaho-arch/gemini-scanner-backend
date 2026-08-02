@@ -5,6 +5,15 @@ import {
   renderCustomerPortfolioPageHtml,
 } from "../src/scanner/customer_portfolio_page.mjs";
 
+test("renders the Stage 1 Monday live control before the Monday checklist", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    stage1MondayLiveControlHtml: '<section data-stage1-live-control>Live control</section>',
+    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Checklist</section>',
+  }));
+  assert.ok(html.indexOf("data-stage1-live-control") < html.indexOf("data-stage1-monday-checklist"));
+});
+
 test("renders the isolated Stage 1 notification self-test after the Monday checklist", () => {
   const page = buildCustomerPortfolioPage({
     model: {},
