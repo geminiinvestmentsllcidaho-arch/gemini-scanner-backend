@@ -12,6 +12,51 @@ test("stays hidden until the protected baseline is armed", () => {
   assert.equal(panel.safety.orderPlacementAllowed, false);
 });
 
+test("reports valid protected baseline capture latency", () => {
+  const panel = buildCustomerStage1DetectionLatencyPanel({
+    status: {
+      observedAt: "2026-08-03T13:30:02.000Z",
+      tracker: {
+        baselineObserved: true,
+        baselineObservedAt: "2026-08-03T13:30:01.500Z",
+        baselineAccount: { observedAt: "2026-08-03T13:30:00.000Z" },
+      },
+    },
+  });
+  assert.equal(panel.baseline.status, "available");
+  assert.equal(panel.baseline.latencyMs, 1500);
+  assert.equal(panel.baseline.reason, null);
+  const html = renderCustomerStage1DetectionLatencyPanelHtml(panel);
+  assert.match(html, /Protected baseline capture/);
+  assert.match(html, /1\.50 s/);
+});
+
+test("fails closed for missing or reversed protected baseline timestamps", () => {
+  const missing = buildCustomerStage1DetectionLatencyPanel({
+    status: { tracker: { baselineObserved: true, baselineObservedAt: null, baselineAccount: null } },
+  });
+  assert.equal(missing.baseline.status, "unavailable");
+  assert.equal(missing.baseline.latencyMs, null);
+  assert.equal(missing.baseline.reason, "timestamp_missing_or_invalid");
+
+  const reversed = buildCustomerStage1DetectionLatencyPanel({
+    status: {
+      tracker: {
+        baselineObserved: true,
+        baselineObservedAt: "2026-08-03T13:29:59.000Z",
+        baselineAccount: { observedAt: "2026-08-03T13:30:00.000Z" },
+      },
+    },
+  });
+  assert.equal(reversed.baseline.status, "unavailable");
+  assert.equal(reversed.baseline.latencyMs, null);
+  assert.equal(reversed.baseline.reason, "timestamp_order_invalid");
+  const html = renderCustomerStage1DetectionLatencyPanelHtml(reversed);
+  assert.match(html, /Unavailable/);
+  assert.match(html, /timestamp_order_invalid/);
+  assert.doesNotMatch(html, /-\d+ ms/);
+});
+
 test("renders live waiting state before manual entry", () => {
   const panel = buildCustomerStage1DetectionLatencyPanel({
     status: {

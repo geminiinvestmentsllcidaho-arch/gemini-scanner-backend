@@ -7,6 +7,17 @@ const finite = (value) => {
   return Number.isFinite(number) && number >= 0 ? number : null;
 };
 const freeze = (value) => Object.freeze(value);
+const timestampDelta = (later, earlier) => {
+  const laterMs = Date.parse(later ?? "");
+  const earlierMs = Date.parse(earlier ?? "");
+  if (!Number.isFinite(laterMs) || !Number.isFinite(earlierMs)) {
+    return freeze({ latencyMs: null, status: "unavailable", reason: "timestamp_missing_or_invalid" });
+  }
+  if (laterMs < earlierMs) {
+    return freeze({ latencyMs: null, status: "unavailable", reason: "timestamp_order_invalid" });
+  }
+  return freeze({ latencyMs: laterMs - earlierMs, status: "available", reason: null });
+};
 const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (character) => ({
   "&": "&amp;",
   "<": "&lt;",
@@ -29,6 +40,7 @@ export function buildCustomerStage1DetectionLatencyPanel(options = {}) {
   const exitDetected = tracker.exitDetected === true;
   const mechanicalSuccess = tracker.mechanicalSuccess === true;
   const visible = tracker.baselineObserved === true;
+  const baseline = timestampDelta(tracker.baselineObservedAt, tracker.baselineAccount?.observedAt);
 
   return freeze({
     version: VERSION,
@@ -41,6 +53,13 @@ export function buildCustomerStage1DetectionLatencyPanel(options = {}) {
         : "Stage 1 detection timing armed",
     symbol: clean(tracker.symbol).toUpperCase() || null,
     watcherObservedAt: watcherObservedAt || null,
+    baseline: freeze({
+      snapshotObservedAt: clean(tracker.baselineAccount?.observedAt) || null,
+      recordedAt: clean(tracker.baselineObservedAt) || null,
+      latencyMs: baseline.latencyMs,
+      status: baseline.status,
+      reason: baseline.reason,
+    }),
     entry: freeze({
       detected: entryDetected,
       snapshotObservedAt: clean(tracker.enterSnapshotObservedAt) || null,
@@ -72,6 +91,7 @@ export function renderCustomerStage1DetectionLatencyPanelHtml(panel = {}) {
 <h2>${esc(panel.headline)}</h2>
 <p>Watcher observation: <strong>${esc(panel.watcherObservedAt)}</strong></p>
 <div class="stage1-review-grid">
+<article><h3>Protected baseline capture</h3><ul><li>Status: ${panel.baseline?.status === "available" ? "Available" : "Unavailable"}</li><li>Snapshot observed: ${esc(panel.baseline?.snapshotObservedAt)}</li><li>Baseline recorded: ${esc(panel.baseline?.recordedAt)}</li><li>Capture latency: <strong>${esc(duration(panel.baseline?.latencyMs))}</strong></li><li>Reason: ${esc(panel.baseline?.reason ?? "None")}</li></ul></article>
 <article><h3>Manual entry detection</h3><ul><li>Status: ${panel.entry?.detected === true ? "Detected" : "Waiting"}</li><li>Snapshot observed: ${esc(panel.entry?.snapshotObservedAt)}</li><li>Tracker detected: ${esc(panel.entry?.detectedAt)}</li><li>Detection latency: <strong>${esc(duration(panel.entry?.latencyMs))}</strong></li></ul></article>
 <article><h3>Manual exit detection</h3><ul><li>Status: ${panel.exit?.detected === true ? "Detected" : "Waiting"}</li><li>Snapshot observed: ${esc(panel.exit?.snapshotObservedAt)}</li><li>Tracker detected: ${esc(panel.exit?.detectedAt)}</li><li>Detection latency: <strong>${esc(duration(panel.exit?.latencyMs))}</strong></li></ul></article>
 </div>
