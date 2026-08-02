@@ -71,6 +71,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     stage1MondayChecklistHtml: options.stage1MondayChecklistHtml ?? "",
     stage1NotificationSelfTestHtml: options.stage1NotificationSelfTestHtml ?? "",
     stage1OperatorConsoleHtml: options.stage1OperatorConsoleHtml ?? "",
+    stage1DetectionLatencyHtml: options.stage1DetectionLatencyHtml ?? "",
     stage1PanelHtml: options.stage1PanelHtml ?? "",
     stage1ReconciliationHtml: options.stage1ReconciliationHtml ?? "",
     stage1ExitAlertHtml: options.stage1ExitAlertHtml ?? "",
@@ -190,6 +191,7 @@ ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 ${page.stage1MondayChecklistHtml ?? ""}
 ${page.stage1NotificationSelfTestHtml ?? ""}
 ${page.stage1OperatorConsoleHtml ?? ""}
+${page.stage1DetectionLatencyHtml ?? ""}
 ${page.stage1PanelHtml ?? ""}
 ${page.stage1ReconciliationHtml ?? ""}
 ${page.stage1ExitAlertHtml ?? ""}

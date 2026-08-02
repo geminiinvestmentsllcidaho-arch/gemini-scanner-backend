@@ -4575,6 +4575,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1MondayChecklistMod = await import('./scanner/customer_stage1_monday_checklist_panel.mjs');
     const stage1NotificationSelfTestMod = await import('./scanner/customer_stage1_notification_self_test_panel.mjs');
     const stage1OperatorConsoleMod = await import('./scanner/customer_stage1_operator_console.mjs');
+    const stage1DetectionLatencyMod = await import('./scanner/customer_stage1_detection_latency_panel.mjs');
     const stage1PanelMod = await import('./scanner/customer_stage1_manual_trade_panel.mjs');
     const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
     const stage1ExitAlertMod = await import('./scanner/customer_stage1_exit_alert_panel.mjs');
@@ -4615,6 +4616,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       nowMs: now.getTime(),
     });
     const stage1OperatorConsole = stage1OperatorConsoleMod.buildCustomerStage1OperatorConsole({ status: stage1Status, snapshot: fetchedPaperAccount, marketOpen: stage1MarketOpen, nowMs: now.getTime() });
+    const stage1DetectionLatency = stage1DetectionLatencyMod.buildCustomerStage1DetectionLatencyPanel({ status: stage1Status });
     const stage1Panel = stage1PanelMod.buildCustomerStage1ManualTradePanel({ status: stage1Status, marketOpen: stage1MarketOpen, nowMs: now.getTime() });
     const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
     const stage1ExitAlert = stage1ExitAlertMod.buildCustomerStage1ExitAlertPanel({ status: stage1Status });
@@ -4645,6 +4647,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       stage1MondayChecklistHtml: stage1MondayChecklistMod.renderCustomerStage1MondayChecklistPanelHtml(stage1MondayChecklist),
       stage1NotificationSelfTestHtml: stage1NotificationSelfTestMod.renderCustomerStage1NotificationSelfTestPanelHtml(stage1NotificationSelfTest),
       stage1OperatorConsoleHtml: stage1OperatorConsoleMod.renderCustomerStage1OperatorConsoleHtml(stage1OperatorConsole),
+      stage1DetectionLatencyHtml: stage1DetectionLatencyMod.renderCustomerStage1DetectionLatencyPanelHtml(stage1DetectionLatency),
       stage1PanelHtml: stage1PanelMod.renderCustomerStage1ManualTradePanelHtml(stage1Panel),
       stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
       stage1ExitAlertHtml: stage1ExitAlertMod.renderCustomerStage1ExitAlertPanelHtml(stage1ExitAlert),

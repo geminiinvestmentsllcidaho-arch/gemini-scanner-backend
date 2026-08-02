@@ -30,6 +30,19 @@ test("renders the Stage 1 Monday checklist before existing Stage 1 panels", () =
   assert.ok(html.indexOf("data-stage1-monday-checklist") < html.indexOf("data-stage1-operator-console"));
 });
 
+
+test("renders live Stage 1 detection latency after the operator console", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: {},
+    stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>',
+    stage1DetectionLatencyHtml: '<section data-stage1-detection-latency>Latency</section>',
+    stage1PanelHtml: '<section data-stage1-manual-trade>Manual trade</section>',
+  }));
+  assert.match(html, /data-stage1-detection-latency/);
+  assert.ok(html.indexOf("data-stage1-operator-console") < html.indexOf("data-stage1-detection-latency"));
+  assert.ok(html.indexOf("data-stage1-detection-latency") < html.indexOf("data-stage1-manual-trade"));
+});
+
 test("renders customer portfolio page with friendly labels and safety locks", () => {
   const page = buildCustomerPortfolioPage({
     account: {locale: "en-US"},
