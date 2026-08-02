@@ -213,6 +213,12 @@ app.get('/assets/customer-stage1-exit-alerts.js', (_req, res) => {
   return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-exit-alerts.js');
 });
 
+app.get('/assets/customer-stage1-state-refresh.js', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-state-refresh.js');
+});
+
 app.get('/assets/global-theme.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.type('application/javascript').send(`(() => {
@@ -4598,6 +4604,16 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1EvidenceGeneratedAt = stage1Status?.promotionProof?.completedAt ?? stage1Status?.generatedAt ?? stage1Status?.updatedAt ?? now.toISOString();
     const stage1EvidenceExport = stage1EvidenceExportMod.buildCustomerStage1EvidenceExport({ status: stage1Status, snapshot: fetchedPaperAccount, generatedAt: stage1EvidenceGeneratedAt });
     const stage1EvidenceDownload = stage1EvidenceDownloadMod.buildCustomerStage1EvidenceDownloadPanel({ record: stage1EvidenceExport });
+    const stage1StateKey = JSON.stringify({
+      status: stage1Status?.tracker?.status ?? null,
+      symbol: stage1Status?.tracker?.symbol ?? null,
+      enterDetected: stage1Status?.tracker?.enterDetected === true,
+      enterReconciled: stage1Status?.tracker?.enterReconciled === true,
+      exitDetected: stage1Status?.tracker?.exitDetected === true,
+      exitReconciled: stage1Status?.tracker?.exitReconciled === true,
+      mechanicalSuccess: stage1Status?.tracker?.mechanicalSuccess === true,
+      evidenceId: stage1Status?.promotionProof?.evidenceId ?? null,
+    });
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -4614,6 +4630,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       stage1CompletionRecordHtml: stage1CompletionRecordMod.renderCustomerStage1CompletionRecordPanelHtml(stage1CompletionRecord),
       stage1PostTradeReviewHtml: stage1PostTradeReviewMod.renderCustomerStage1PostTradeReviewPanelHtml(stage1PostTradeReview, req.customerAccount?.locale ?? 'en-US'),
       stage1EvidenceDownloadHtml: stage1EvidenceDownloadMod.renderCustomerStage1EvidenceDownloadPanelHtml(stage1EvidenceDownload),
+      stage1StateKey,
     });
 
     res.set('Cache-Control', 'no-store');

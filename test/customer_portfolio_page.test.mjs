@@ -223,3 +223,12 @@ test("renders Stage 1 Monday operator console supplied by the route", () => {
   assert.match(html, /data-stage1-operator-console/);
   assert.match(html, /Operator console/);
 });
+
+test("renders Stage 1 state-change refresh metadata and asset", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    stage1StateKey: '{"status":"awaiting_manual_enter"}',
+  }));
+  assert.match(html, /data-stage1-state-key=/);
+  assert.match(html, /customer-stage1-state-refresh\.js/);
+});

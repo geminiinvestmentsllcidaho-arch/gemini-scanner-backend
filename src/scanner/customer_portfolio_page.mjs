@@ -75,6 +75,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     stage1CompletionRecordHtml: options.stage1CompletionRecordHtml ?? "",
     stage1PostTradeReviewHtml: options.stage1PostTradeReviewHtml ?? "",
     stage1EvidenceDownloadHtml: options.stage1EvidenceDownloadHtml ?? "",
+    stage1StateKey: options.stage1StateKey ?? "",
   });
 }
 
@@ -169,7 +170,7 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 @media(max-width:760px){.position-row{grid-template-columns:1fr 1fr}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
 </style>
 </head>
-<body data-gs-page="customer-portfolio">
+<body data-gs-page="customer-portfolio" data-stage1-state-key="${esc(page.stage1StateKey)}">
 
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
@@ -278,6 +279,7 @@ ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 </main>
 ${renderGlobalFooter()}
 <script src="/customer-portfolio-owned-assets.js" defer></script>
+<script src="/assets/customer-stage1-state-refresh.js" defer></script>
 ${page.stage1ExitAlertHtml ? '<script src="/assets/customer-stage1-exit-alerts.js" defer></script>' : ""}
 </body>
 </html>`;
