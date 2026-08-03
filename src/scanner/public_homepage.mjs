@@ -73,7 +73,7 @@ export function renderPublicHomepageHtml(source = buildPublicHomepage()) {
 ${renderGlobalThemeCss({ surface: "public" })}
 <style>
 :root{color-scheme:dark;--bg:#070b12;--panel:#0e1623;--line:#26364d;--text:#f4f7fb;--muted:#a8b6ca;--accent:#8aa4ff;--soft:#dbe4ff}
-*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at top right,#14213a 0,#070b12 42%);color:var(--text)}
+*{box-sizing:border-box}body{margin:0;font-family:var(--gs-font-interface,"Space Grotesk",ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif);background:radial-gradient(circle at top right,#14213a 0,#070b12 42%);color:var(--text)}
 a{color:inherit}.wrap{max-width:1120px;margin:auto;padding:0 22px}.topbar-actions{display:flex;gap:16px;align-items:center;justify-content:flex-end;padding:18px 0}
 .nav-link{color:var(--muted);text-decoration:none;font-weight:750}.nav-link:hover{color:var(--text)}
 .hero{padding:70px 0 50px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:46px;align-items:center}

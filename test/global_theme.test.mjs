@@ -9,7 +9,7 @@ import {
 test("renders black neon public and customer theme foundations", () => {
   for (const surface of ["public", "customer"]) {
     const css = renderGlobalThemeCss({ surface });
-    assert.match(css, /data-gs-global-theme="geminiscanner_global_theme_v2"/);
+    assert.match(css, /data-gs-global-theme="geminiscanner_global_theme_v3"/);
     assert.match(css, /--gs-bg:#020607/);
     assert.match(css, /--gs-accent:#18d7ff/);
     assert.match(css, /--gs-positive:#39ff14/);
@@ -59,4 +59,15 @@ test("saved theme and density selections visibly override legacy page styles whi
   assert.match(css, /pointer-events:none/);
   assert.match(layer, /class="gs-background-logo"/);
   assert.match(layer, /\/assets\/GeminiScanner-Logo\.jpg/);
+});
+
+
+test("uses Oxanium for display text and Space Grotesk for interface text", () => {
+  const css = renderGlobalThemeCss({ surface: "customer" });
+  assert.match(css, /family=Oxanium/);
+  assert.match(css, /family=Space\+Grotesk/);
+  assert.match(css, /--gs-font-display:"Oxanium"/);
+  assert.match(css, /--gs-font-interface:"Space Grotesk"/);
+  assert.match(css, /body\{[^}]*font-family:var\(--gs-font-interface\)/);
+  assert.match(css, /h1,h2,h3,h4,h5,h6,[^\{]*\{font-family:var\(--gs-font-display\)/);
 });
