@@ -54,7 +54,7 @@ test("customer reports contains strict opportunity audit failures before realtim
   assert.ok(providerIndex > strictReadIndex);
   assert.ok(catchIndex > providerIndex);
   assert.match(block, /return res\.status\(500\)\.type\('html'\)\.send\(/);
-  assert.match(block, /<h1>Reports unavailable<\/h1>/);
+  assert.match(block, /renderThemedStatusPage\(\{ surface: 'customer', title: 'Reports unavailable'/);
   assert.match(block, /Read-only\. No order placement, broker contact, or account mutation\./);
 });
 

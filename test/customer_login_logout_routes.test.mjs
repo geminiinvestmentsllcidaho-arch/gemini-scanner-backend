@@ -65,7 +65,7 @@ test('customer routes require signed customer sessions', () => {
 
 test('verification and duplicate signup send customers to login', () => {
   assert.match(source, /href="\/login">Continue to sign in/);
-  assert.match(source, /href="\/login">Sign in/);
+  assert.match(source, /href: '\/login', linkLabel: 'Sign in'/);
 });
 
 test('settings page exposes logout form', () => {

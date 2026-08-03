@@ -5,6 +5,26 @@ import {
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from './scanner/global_theme.mjs';
+
+function escapeThemedStatusHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderThemedStatusPage({
+  surface = "public",
+  title,
+  message,
+  href = "/",
+  linkLabel = "Return home",
+}) {
+  const homeHref = surface === "customer" ? "/customer" : "/";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeThemedStatusHtml(title)} · GeminiScanner</title>${renderGlobalThemeCss({ surface })}<style>main.gs-status-page{width:min(680px,calc(100% - 32px));margin:clamp(36px,10vh,110px) auto;padding:clamp(22px,5vw,38px)}main.gs-status-page p{line-height:1.65;color:var(--gs-muted)}main.gs-status-page a{display:inline-block;margin-top:8px;font-family:var(--gs-font-display);font-weight:700;text-decoration:none}</style></head><body>${renderBackgroundLogoLayer()}${renderGlobalHeader({ surface, homeHref, label: "GeminiScanner" })}<main class="gs-status-page card"><h1>${escapeThemedStatusHtml(title)}</h1><p>${escapeThemedStatusHtml(message)}</p><p><a href="${escapeThemedStatusHtml(href)}">${escapeThemedStatusHtml(linkLabel)}</a></p></main>${renderGlobalFooter()}</body></html>`;
+}
 import {
   renderCustomerPrimaryNavigation,
   renderCustomerPrimaryNavigationCss,
@@ -651,7 +671,7 @@ app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
     if (existingAccount) {
       recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'account_already_exists', existingAccount.id);
       return res.status(409).type('html').send(
-        '<!doctype html><html><body><main><h1>Account already exists</h1><p>Use the sign-in or password-recovery flow for this email.</p><p><a href="/login">Sign in</a></p></main></body></html>',
+        renderThemedStatusPage({ title: 'Account already exists', message: 'Use the sign-in or password-recovery flow for this email.', href: '/login', linkLabel: 'Sign in' }),
       );
     }
 
@@ -669,19 +689,19 @@ app.post('/signup', requireCustomerSameOrigin, async (req, res) => {
     if (!delivery.ok) {
       recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'verification_delivery_failed', record.id);
       return res.status(503).type('html').send(
-        '<!doctype html><html><body><main><h1>Verification email delayed</h1><p>Your account is pending verification, but the email could not be delivered. Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
+        renderThemedStatusPage({ title: 'Verification email delayed', message: 'Your account is pending verification, but the email could not be delivered. Please contact GeminiScanner support.' }),
       );
     }
 
     recordCustomerSecurityAudit(req, 'signup_created', 'success', undefined, record.id);
     return res.status(201).type('html').send(
-      '<!doctype html><html><body><main><h1>Check your email</h1><p>Your GeminiScanner customer account was created. Open the verification link sent to your email address.</p><p><a href="/">Return home</a></p></main></body></html>',
+      renderThemedStatusPage({ title: 'Check your email', message: 'Your GeminiScanner customer account was created. Open the verification link sent to your email address.' }),
     );
   } catch (error) {
     recordCustomerSecurityAudit(req, 'signup_attempt', 'failure', 'invalid_signup');
     const codes = Array.isArray(error?.codes) ? error.codes.join(', ') : 'invalid_signup';
     return res.status(400).type('html').send(
-      `<!doctype html><html><body><main><h1>Signup needs attention</h1><p>${codes}</p><p><a href="/signup">Return to signup</a></p></main></body></html>`,
+      renderThemedStatusPage({ title: 'Signup needs attention', message: codes, href: '/signup', linkLabel: 'Return to signup' }),
     );
   }
 });
@@ -697,7 +717,7 @@ app.get('/verify-email', (req, res) => {
   if (!result.ok) {
     recordCustomerSecurityAudit(req, 'email_verification', 'failure', 'invalid_or_expired_token');
     return res.status(400).type('html').send(
-      '<!doctype html><html><body><main><h1>Verification link unavailable</h1><p>This email verification link is invalid, expired, or already used.</p><p><a href="/signup">Return to signup</a></p></main></body></html>',
+      renderThemedStatusPage({ title: 'Verification link unavailable', message: 'This email verification link is invalid, expired, or already used.', href: '/signup', linkLabel: 'Return to signup' }),
     );
   }
 
@@ -712,7 +732,7 @@ app.get('/verify-email', (req, res) => {
   if (!accountResult.ok) {
     recordCustomerSecurityAudit(req, 'email_verification', 'failure', 'account_update_failed', result.accountId);
     return res.status(400).type('html').send(
-      '<!doctype html><html><body><main><h1>Verification could not be completed</h1><p>Please contact GeminiScanner support.</p><p><a href="/">Return home</a></p></main></body></html>',
+      renderThemedStatusPage({ title: 'Verification could not be completed', message: 'Please contact GeminiScanner support.' }),
     );
   }
 
@@ -727,7 +747,7 @@ app.get('/verify-email', (req, res) => {
 
   return res.status(200).type('html').send(
     isEmailChange
-      ? '<!doctype html><html><body><main><h1>Email address changed</h1><p>Your new email address is verified. Sign in again with the new address.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>'
+      ? renderThemedStatusPage({ title: 'Email address changed', message: 'Your new email address is verified. Sign in again with the new address.', href: '/login', linkLabel: 'Continue to sign in' })
       : '<!doctype html><html><body><main><h1>Email verified</h1><p>Your GeminiScanner customer account is now active.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
   );
 });
@@ -4680,7 +4700,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
   } catch (_error) {
     res.set('Cache-Control', 'no-store');
     return res.status(500).type('html').send(
-      '<!doctype html><html><body><main><h1>Portfolio unavailable</h1><p>Paper account balances and positions could not be loaded.</p><p>Read-only. No live trading, order placement, broker contact, or broker account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
+      renderThemedStatusPage({ surface: 'customer', title: 'Portfolio unavailable', message: 'Paper account balances and positions could not be loaded. Read-only. No live trading, order placement, broker contact, or broker account mutation.', href: '/customer' }),
     );
   }
 });
@@ -4846,7 +4866,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
   } catch (_error) {
     res.set('Cache-Control', 'no-store');
     return res.status(500).type('html').send(
-      '<!doctype html><html><body><main><h1>Reports unavailable</h1><p>Paper analytics could not be loaded.</p><p>Read-only. No order placement, broker contact, or account mutation.</p><p><a href="/customer">Return home</a></p></main></body></html>',
+      renderThemedStatusPage({ surface: 'customer', title: 'Reports unavailable', message: 'Paper analytics could not be loaded. Read-only. No order placement, broker contact, or account mutation.', href: '/customer' }),
     );
   }
 });
