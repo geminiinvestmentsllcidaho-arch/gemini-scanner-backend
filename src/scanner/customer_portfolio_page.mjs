@@ -70,6 +70,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     windDownUpdated: options.windDownUpdated === true,
     stage1MondayLiveControlHtml: options.stage1MondayLiveControlHtml ?? "",
     stage1EventTimelineHtml: options.stage1EventTimelineHtml ?? "",
+    stage1LiveIncidentHtml: options.stage1LiveIncidentHtml ?? "",
     stage1MondayChecklistHtml: options.stage1MondayChecklistHtml ?? "",
     stage1NotificationSelfTestHtml: options.stage1NotificationSelfTestHtml ?? "",
     stage1OperatorConsoleHtml: options.stage1OperatorConsoleHtml ?? "",
@@ -192,6 +193,7 @@ ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 
 ${page.stage1MondayLiveControlHtml ?? ""}
 ${page.stage1EventTimelineHtml ?? ""}
+${page.stage1LiveIncidentHtml ?? ""}
 ${page.stage1MondayChecklistHtml ?? ""}
 ${page.stage1NotificationSelfTestHtml ?? ""}
 ${page.stage1OperatorConsoleHtml ?? ""}
