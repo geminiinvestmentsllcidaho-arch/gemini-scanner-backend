@@ -5,6 +5,17 @@ import {
   renderCustomerPortfolioPageHtml,
 } from "../src/scanner/customer_portfolio_page.mjs";
 
+test("renders the Stage 1 event timeline after live control and before the Monday checklist", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    stage1MondayLiveControlHtml: '<section data-stage1-live-control>Live control</section>',
+    stage1EventTimelineHtml: '<section data-stage1-event-timeline>Timeline</section>',
+    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Checklist</section>',
+  }));
+  assert.ok(html.indexOf("data-stage1-live-control") < html.indexOf("data-stage1-event-timeline"));
+  assert.ok(html.indexOf("data-stage1-event-timeline") < html.indexOf("data-stage1-monday-checklist"));
+});
+
 test("renders the Stage 1 Monday live control before the Monday checklist", () => {
   const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
     model: { account: {}, summary: {}, positions: [], warnings: [] },

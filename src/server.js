@@ -4574,6 +4574,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
     const stage1MondayChecklistMod = await import('./scanner/customer_stage1_monday_checklist_panel.mjs');
     const stage1MondayLiveControlMod = await import('./scanner/customer_stage1_monday_live_control_panel.mjs');
+    const stage1EventTimelineMod = await import('./scanner/customer_stage1_event_timeline_panel.mjs');
     const stage1NotificationSelfTestMod = await import('./scanner/customer_stage1_notification_self_test_panel.mjs');
     const stage1OperatorConsoleMod = await import('./scanner/customer_stage1_operator_console.mjs');
     const stage1DetectionLatencyMod = await import('./scanner/customer_stage1_detection_latency_panel.mjs');
@@ -4614,6 +4615,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       marketOpen: stage1MarketOpen,
       nowMs: now.getTime(),
     });
+    const stage1EventTimeline = stage1EventTimelineMod.buildCustomerStage1EventTimelinePanel({ status: stage1Status });
     const stage1NotificationSelfTest = stage1NotificationSelfTestMod.buildCustomerStage1NotificationSelfTestPanel();
     const stage1MondayChecklist = stage1MondayChecklistMod.buildCustomerStage1MondayChecklistPanel({
       status: stage1Status,
@@ -4654,6 +4656,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
       stage1MondayLiveControlHtml: stage1MondayLiveControlMod.renderCustomerStage1MondayLiveControlPanelHtml(stage1MondayLiveControl),
+      stage1EventTimelineHtml: stage1EventTimelineMod.renderCustomerStage1EventTimelinePanelHtml(stage1EventTimeline),
       stage1MondayChecklistHtml: stage1MondayChecklistMod.renderCustomerStage1MondayChecklistPanelHtml(stage1MondayChecklist),
       stage1NotificationSelfTestHtml: stage1NotificationSelfTestMod.renderCustomerStage1NotificationSelfTestPanelHtml(stage1NotificationSelfTest),
       stage1OperatorConsoleHtml: stage1OperatorConsoleMod.renderCustomerStage1OperatorConsoleHtml(stage1OperatorConsole),
