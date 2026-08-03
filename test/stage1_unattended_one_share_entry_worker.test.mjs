@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createStage1UnattendedOneShareEntryWorker } from "../src/scanner/stage1_unattended_one_share_entry_worker.mjs";
 
 const nowMs = Date.parse("2026-08-03T20:00:00.000Z");
+const latchFile = () => join(mkdtempSync(join(tmpdir(), "gs-stage1-worker-")), "attempt.json");
 const snapshot = {
   ok: true,
   marketClock: { isOpen: true, timestamp: "2026-08-03T19:59:30.000Z" },
@@ -26,6 +30,7 @@ test("worker is disabled by default and never invokes adapter", async () => {
     fetchAccountSnapshot: async () => account,
     adapter: async () => { calls += 1; },
     now: () => nowMs,
+    attemptLatchPath: latchFile(),
     env: {},
   });
   const result = await worker.runOnce();
@@ -48,6 +53,7 @@ test("enabled worker selects strongest ENTER and submits exactly once", async ()
       return { networkAttempted: true, orderSubmitAttempted: true, orderSubmitted: true };
     },
     now: () => nowMs,
+    attemptLatchPath: latchFile(),
     env: {
       STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED: "1",
       STAGE1_UNATTENDED_IDEMPOTENCY_KEY: "stage1-proof-1",
@@ -70,6 +76,7 @@ test("worker blocks when account baseline is not empty", async () => {
     fetchAccountSnapshot: async () => ({ ...account, positions: [{ symbol: "OLD", qty: 1 }] }),
     adapter: async () => { calls += 1; },
     now: () => nowMs,
+    attemptLatchPath: latchFile(),
     env: {
       STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED: "1",
       STAGE1_UNATTENDED_IDEMPOTENCY_KEY: "stage1-proof-2",
@@ -92,6 +99,7 @@ test("worker consumes one-shot after adapter attempt even when broker rejects", 
       return { networkAttempted: true, orderSubmitAttempted: true, orderSubmitted: false };
     },
     now: () => nowMs,
+    attemptLatchPath: latchFile(),
     env: {
       STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED: "1",
       STAGE1_UNATTENDED_IDEMPOTENCY_KEY: "stage1-proof-3",
@@ -103,4 +111,51 @@ test("worker consumes one-shot after adapter attempt even when broker rejects", 
   assert.equal(calls, 1);
   assert.equal(first.attemptConsumed, true);
   assert.equal(first.lastResult.status, "ONE_UNATTENDED_PAPER_SHARE_ATTEMPT_COMPLETED");
+});
+
+
+test("worker blocks enabled execution when durable latch path is missing", async () => {
+  let calls = 0;
+  const worker = createStage1UnattendedOneShareEntryWorker({
+    getScanSnapshot: async () => snapshot,
+    fetchAccountSnapshot: async () => account,
+    adapter: async () => { calls += 1; },
+    now: () => nowMs,
+    env: {
+      STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED: "1",
+      STAGE1_UNATTENDED_IDEMPOTENCY_KEY: "stage1-proof-4",
+      STAGE1_UNATTENDED_KILL_SWITCH_HEALTHY: "1",
+    },
+  });
+  const result = await worker.runOnce();
+  assert.equal(calls, 0);
+  assert.equal(result.lastResult.status, "BLOCKED_DURABLE_LATCH_REQUIRED");
+  assert.equal(result.inFlight, false);
+});
+
+test("durable latch prevents a second worker instance from attempting", async () => {
+  let calls = 0;
+  const file = latchFile();
+  const build = () => createStage1UnattendedOneShareEntryWorker({
+    getScanSnapshot: async () => snapshot,
+    fetchAccountSnapshot: async () => account,
+    adapter: async () => {
+      calls += 1;
+      return { networkAttempted: true, orderSubmitAttempted: true, orderSubmitted: false };
+    },
+    now: () => nowMs,
+    attemptLatchPath: file,
+    env: {
+      STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED: "1",
+      STAGE1_UNATTENDED_IDEMPOTENCY_KEY: "stage1-proof-5",
+      STAGE1_UNATTENDED_KILL_SWITCH_HEALTHY: "1",
+    },
+  });
+  const first = await build().runOnce();
+  const second = await build().runOnce();
+  assert.equal(calls, 1);
+  assert.equal(first.attemptConsumed, true);
+  assert.equal(first.inFlight, false);
+  assert.equal(second.attemptConsumed, true);
+  assert.equal(second.lastResult.status, "ONE_SHOT_ALREADY_CONSUMED");
 });

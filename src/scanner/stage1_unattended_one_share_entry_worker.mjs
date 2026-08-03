@@ -1,4 +1,5 @@
 import { runStage1UnattendedEntry } from "./stage1_unattended_one_share_entry_controller.mjs";
+import { readStage1UnattendedAttemptLatch, writeStage1UnattendedAttemptLatch } from "./stage1_unattended_one_share_attempt_latch.mjs";
 
 export const VERSION = "stage1_unattended_one_share_entry_worker_v1";
 
@@ -41,6 +42,9 @@ export function createStage1UnattendedOneShareEntryWorker({
   intervalMs = 15000,
   setIntervalImpl = globalThis.setInterval,
   clearIntervalImpl = globalThis.clearInterval,
+  readAttemptLatch = readStage1UnattendedAttemptLatch,
+  writeAttemptLatch = writeStage1UnattendedAttemptLatch,
+  attemptLatchPath,
   env = process.env,
 } = {}) {
   let timer = null;
@@ -53,6 +57,7 @@ export function createStage1UnattendedOneShareEntryWorker({
 
   const enabled = () => String(env.STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED ?? "").trim() === "1";
   const idempotencyKey = () => clean(env.STAGE1_UNATTENDED_IDEMPOTENCY_KEY);
+  const latchPath = () => clean(attemptLatchPath ?? env.STAGE1_UNATTENDED_ATTEMPT_LATCH_PATH);
 
   const diagnostics = () => Object.freeze({
     version: VERSION,
@@ -82,6 +87,16 @@ export function createStage1UnattendedOneShareEntryWorker({
     }
     if (attemptConsumed) {
       lastResult = Object.freeze({ status: "ONE_SHOT_ALREADY_CONSUMED", ready: false, orderSubmitted: false });
+      return diagnostics();
+    }
+    if (!latchPath() || typeof readAttemptLatch !== "function" || typeof writeAttemptLatch !== "function") {
+      lastResult = Object.freeze({ status: "BLOCKED_DURABLE_LATCH_REQUIRED", ready: false, orderSubmitted: false });
+      return diagnostics();
+    }
+    const persistedLatch = readAttemptLatch(latchPath());
+    if (persistedLatch?.consumed === true || persistedLatch?.ok !== true) {
+      attemptConsumed = true;
+      lastResult = Object.freeze({ status: persistedLatch?.blocker ?? "ONE_SHOT_ALREADY_CONSUMED", ready: false, orderSubmitted: false });
       return diagnostics();
     }
     if (typeof getScanSnapshot !== "function" || typeof fetchAccountSnapshot !== "function") {
@@ -128,15 +143,25 @@ export function createStage1UnattendedOneShareEntryWorker({
 
       const result = await runStage1UnattendedEntry(input, { adapter });
       lastResult = result;
-      if (result.adapterInvoked === true) attemptConsumed = true;
-      return diagnostics();
+      if (result.adapterInvoked === true) {
+        writeAttemptLatch(latchPath(), {
+          idempotencyKey: idempotencyKey(),
+          symbol: result.order?.symbol,
+          attemptedAt: new Date(Number(now())).toISOString(),
+          adapterInvoked: true,
+          networkAttempted: result.networkAttempted === true,
+          orderSubmitAttempted: result.orderSubmitAttempted === true,
+          orderSubmitted: result.orderSubmitted === true,
+        });
+        attemptConsumed = true;
+      }
     } catch (error) {
       lastError = error?.message ?? String(error);
       lastResult = Object.freeze({ status: "WORKER_ERROR", ready: false, orderSubmitted: false });
-      return diagnostics();
     } finally {
       inFlight = false;
     }
+    return diagnostics();
   };
 
   const start = () => {
