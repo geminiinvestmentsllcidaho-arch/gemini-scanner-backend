@@ -79,7 +79,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       resultState: sourceCandidate?.resultState
         ?? normalizeCustomerZeroResultState(candidate).state,
       allocationPreview: buildCustomerZeroReadonlyAllocationPreview(sourceCandidate, {
-        equity: options.equity ?? options.paperAccount?.account?.equity,
+        paperEquity: options.equity ?? options.paperAccount?.account?.equity,
         buyingPower: options.buyingPower ?? options.paperAccount?.account?.buyingPower,
         availableFundsPct: options.availableFundsPct,
         maxDollarsPerStock: options.maxDollarsPerStock,
