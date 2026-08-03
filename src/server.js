@@ -215,6 +215,10 @@ function attachStage2ToCoachingOutput(out, stage2Payload) {
 const app = express();
 app.set('trust proxy', 'loopback');
 app.use(applyCustomerSecurityHeaders);
+app.use((req, res, next) => {
+  if (String(req.hostname ?? '').toLowerCase() !== 'www.geminiscanner.net') return next();
+  return res.redirect(301, `https://geminiscanner.net${req.originalUrl || '/'}`);
+});
 
 app.get('/assets/GeminiScanner-Logo.jpg', (_req, res) => {
   res.type('image/jpeg');
