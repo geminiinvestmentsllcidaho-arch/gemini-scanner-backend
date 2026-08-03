@@ -418,9 +418,10 @@ function readUnderFiveLiveRankings(source = {}) {
 async function getUnderFiveSharedSource({ refresh = false } = {}) {
   const cache = await underFiveSharedCachePromise;
   if (!cache) throw new Error('under_five_shared_cache_unavailable');
-  cache.noteDemand?.();
   const current = cache.getLatest();
-  const source = refresh || !current || current?.idleNoDemand === true
+  const wakeRefreshRequired = refresh || !current || current?.idleNoDemand === true;
+  cache.noteDemand?.();
+  const source = wakeRefreshRequired
     ? await cache.refreshNow()
     : current;
   return bridgeCustomerZeroFreshRankings(source, readUnderFiveLiveRankings(source), getStreamTelemetry());

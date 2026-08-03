@@ -116,3 +116,22 @@ test("shared under-five source passes authoritative stream telemetry into custom
   const block = server.slice(start, end);
   assert.match(block, /bridgeCustomerZeroFreshRankings\(source,\s*readUnderFiveLiveRankings\(source\),\s*getStreamTelemetry\(\)\)/);
 });
+
+test("shared source captures idle state before noteDemand clears the wake-refresh signal", () => {
+  const start = server.indexOf("async function getUnderFiveSharedSource(");
+  const end = server.indexOf("async function getPremarketSharedSource", start);
+  const block = server.slice(start, end);
+
+  const currentIndex = block.indexOf("const current = cache.getLatest();");
+  const wakeIndex = block.indexOf("const wakeRefreshRequired = refresh || !current || current?.idleNoDemand === true;");
+  const demandIndex = block.indexOf("cache.noteDemand?.();");
+  const refreshIndex = block.indexOf("const source = wakeRefreshRequired");
+
+  assert.notEqual(currentIndex, -1);
+  assert.notEqual(wakeIndex, -1);
+  assert.notEqual(demandIndex, -1);
+  assert.notEqual(refreshIndex, -1);
+  assert.ok(currentIndex < wakeIndex);
+  assert.ok(wakeIndex < demandIndex);
+  assert.ok(demandIndex < refreshIndex);
+});
