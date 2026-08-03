@@ -4613,7 +4613,13 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1EvidenceDownloadMod = await import('./scanner/customer_stage1_evidence_download_panel.mjs');
 
     const now = new Date();
-    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const rawFetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const fetchedPaperAccount = rawFetchedPaperAccount?.status === 'connected_readonly'
+      && Array.isArray(rawFetchedPaperAccount?.positions)
+      && Array.isArray(rawFetchedPaperAccount?.openOrders)
+      && !rawFetchedPaperAccount?.observedAt
+        ? { ...rawFetchedPaperAccount, observedAt: now.toISOString() }
+        : rawFetchedPaperAccount;
     const brokerPaperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const ownedAssets = ownedAssetStore.getCustomerOwnedAssets(req.customerAccount?.id);
     const paperAccount = brokerPaperAccount?.positions?.length
