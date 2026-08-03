@@ -4612,8 +4612,8 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const stage1EvidenceExportMod = await import('./scanner/customer_stage1_evidence_export.mjs');
     const stage1EvidenceDownloadMod = await import('./scanner/customer_stage1_evidence_download_panel.mjs');
 
-    const now = new Date();
     const rawFetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const now = new Date();
     const fetchedPaperAccount = rawFetchedPaperAccount?.status === 'connected_readonly'
       && Array.isArray(rawFetchedPaperAccount?.positions)
       && Array.isArray(rawFetchedPaperAccount?.openOrders)
