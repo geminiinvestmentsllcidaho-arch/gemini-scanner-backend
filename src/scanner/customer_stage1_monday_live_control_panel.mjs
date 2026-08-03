@@ -5,14 +5,20 @@ export function buildCustomerStage1MondayLiveControlPanel(options = {}) {
   const tracker = status.tracker ?? {};
   const snapshot = options.snapshot ?? {};
   const positions = Array.isArray(snapshot.positions) ? snapshot.positions : null;
-  const orders = Array.isArray(snapshot.orders) ? snapshot.orders : null;
+  const orders = Array.isArray(snapshot.openOrders)
+    ? snapshot.openOrders
+    : Array.isArray(snapshot.orders)
+      ? snapshot.orders
+      : null;
   const observedAt = String(status.observedAt ?? "");
   const ageMs = observedAt ? Math.max(0, Number(options.nowMs ?? Date.now()) - Date.parse(observedAt)) : null;
   const checks = {
     marketOpen: options.marketOpen === true,
     runtimeReady: options.health?.degraded !== true && options.readiness?.ready === true,
     watcherFresh: Number.isFinite(ageMs) && ageMs <= 120000,
-    paperConnected: snapshot.connected === true || snapshot.connectionStatus === "connected_readonly",
+    paperConnected: snapshot.status === "connected_readonly"
+      || snapshot.connected === true
+      || snapshot.connectionStatus === "connected_readonly",
     accountKnown: positions !== null && orders !== null,
     baselineArmed: tracker.baselineObserved === true,
     stage2Locked: status.safety?.stage2Locked !== false,

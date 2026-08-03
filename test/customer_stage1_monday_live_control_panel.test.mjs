@@ -35,3 +35,30 @@ test("prevents duplicate entry after the manual share is detected", () => {
   assert.equal(panel.state, "monitoring_exit");
   assert.match(panel.headline, /do not enter another/i);
 });
+
+
+test("accepts canonical readonly fetch snapshot shape", () => {
+  const panel = buildCustomerStage1MondayLiveControlPanel({
+    status: {
+      observedAt: "2026-08-03T15:44:13.998Z",
+      tracker: { baselineObserved: true, enterDetected: false, exitDetected: false, mechanicalSuccess: false },
+      safety: { stage2Locked: true, stage3Locked: true },
+    },
+    snapshot: {
+      status: "connected_readonly",
+      positions: [],
+      openOrders: [],
+    },
+    health: { degraded: false },
+    readiness: { ready: true },
+    marketOpen: true,
+    nowMs: Date.parse("2026-08-03T15:44:14.998Z"),
+  });
+  assert.equal(panel.state, "ready");
+  assert.equal(panel.positions, 0);
+  assert.equal(panel.openOrders, 0);
+  assert.deepEqual(panel.checks.slice(3, 5), [
+    ["Paper account connected read-only", true],
+    ["Positions and open orders known", true],
+  ]);
+});
