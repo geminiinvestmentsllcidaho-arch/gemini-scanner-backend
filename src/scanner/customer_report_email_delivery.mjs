@@ -1,4 +1,6 @@
-export const VERSION = "customer_report_email_delivery_v1";
+import { buildCustomerReportPdf } from "./customer_report_pdf.mjs";
+
+export const VERSION = "customer_report_email_delivery_v2";
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -55,6 +57,7 @@ export function buildCustomerReportEmail(input = {}) {
 
 export async function deliverCustomerReportEmail(input = {}, options = {}) {
   const message = buildCustomerReportEmail(input);
+  const pdf = input.report ? buildCustomerReportPdf({ period: input.period, report: input.report, generatedAt: input.generatedAt }) : null;
   const provider = clean(options.provider || process.env.CUSTOMER_EMAIL_PROVIDER).toLowerCase();
 
   if (!provider) {
@@ -92,6 +95,7 @@ export async function deliverCustomerReportEmail(input = {}, options = {}) {
         to: [message.to],
         subject: message.subject,
         text: message.text,
+        ...(pdf ? { attachments: [{ filename: pdf.filename, content: pdf.buffer.toString("base64"), content_type: pdf.contentType }] } : {}),
       }),
     });
 

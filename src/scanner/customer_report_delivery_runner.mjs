@@ -81,6 +81,7 @@ export async function runCustomerReportDeliveryForAccount(account = {}, options 
       reportUrl,
       generatedAt: now.toISOString(),
       summary: summaryFromReport(report),
+      report,
     }, options.emailOptions ?? {});
 
     if (delivery?.delivered === true) {

@@ -71,3 +71,12 @@ test("delivers through resend with text-only report content", async () => {
   assert.equal(body.subject, "Weekly GeminiScanner report");
   assert.match(body.text, /No order placement, broker contact, or account mutation\./);
 });
+
+test("attaches generated PDF to Resend delivery", async () => {
+  let request;
+  const result = await deliverCustomerReportEmail({email:"customer@example.com",period:"daily",reportUrl:"https://geminiscanner.net/customer/reports?period=daily",generatedAt:"2026-08-03T06:00:00.000Z",report:{status:"current_readonly",performance:{totalPl:4.25}}},{provider:"resend",apiKey:"test-key",from:"GeminiScanner <reports@geminiscanner.net>",fetchImpl:async(url,options)=>{request={url,options};return {ok:true,status:200,json:async()=>({id:"pdf-delivery-1"})};}});
+  assert.equal(result.delivered,true);
+  const body=JSON.parse(request.options.body);
+  assert.equal(body.attachments[0].filename,"GeminiScanner-Daily-Report.pdf");
+  assert.equal(Buffer.from(body.attachments[0].content,"base64").subarray(0,8).toString(),"%PDF-1.4");
+});
