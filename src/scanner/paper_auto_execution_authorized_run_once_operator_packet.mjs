@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import {
   buildPaperAutoExecutionAuthorizedRunOnceRunbook,
 } from './paper_auto_execution_authorized_run_once_runbook.mjs'
@@ -49,4 +51,20 @@ export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {
   })
 }
 
-export default { VERSION, buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket }
+
+export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, runsDir = 'runs') {
+  mkdirSync(runsDir, { recursive: true })
+  const suffix = packet.readyForSeparateExplicitExecutionReview ? 'ready' : 'blocked'
+  const file = path.join(
+    runsDir,
+    `paper_auto_execution_authorized_run_once_operator_packet_${suffix}.json`,
+  )
+  writeFileSync(file, `${JSON.stringify(packet, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
+  return file
+}
+
+export default {
+  VERSION,
+  buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+}

@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import {
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 } from '../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs'
 
 const readyInput = Object.freeze({
@@ -69,4 +72,22 @@ test('source contains no execution scheduling network broker or PM2 implementati
     source,
     /runPaperAutoExecutionAuthorizedRunOnceCommand|createPaperAutoExecutionAuthorizedRunOnceCoordinator|setInterval|setTimeout|fetch\s*\(|api\.alpaca|\/v2\/orders|https?:\/\/|pm2\s+(start|restart|reload)/,
   )
+})
+
+
+test('writer creates private ready and blocked operator packet artifacts', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-'))
+  try {
+    const ready = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
+    const readyFile = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(ready, dir)
+    assert.equal(path.basename(readyFile), 'paper_auto_execution_authorized_run_once_operator_packet_ready.json')
+    assert.equal(fs.statSync(readyFile).mode & 0o777, 0o600)
+
+    const blocked = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({})
+    const blockedFile = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(blocked, dir)
+    assert.equal(path.basename(blockedFile), 'paper_auto_execution_authorized_run_once_operator_packet_blocked.json')
+    assert.equal(fs.statSync(blockedFile).mode & 0o777, 0o600)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })

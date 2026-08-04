@@ -1,5 +1,6 @@
 import {
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 } from '../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs'
 
 const boolArg = (value) => ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase())
@@ -26,5 +27,6 @@ const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
   killSwitchReady: boolArg(args['kill-switch-ready']),
 })
 
-console.log(JSON.stringify(packet, null, 2))
+const reportFile = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
+console.log(JSON.stringify({ ...packet, reportFile }, null, 2))
 process.exit(packet.readyForSeparateExplicitExecutionReview ? 0 : 1)
