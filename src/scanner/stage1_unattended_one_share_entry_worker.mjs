@@ -141,20 +141,22 @@ export function createStage1UnattendedOneShareEntryWorker({
         candidate,
       };
 
-      const result = await runStage1UnattendedEntry(input, { adapter });
-      lastResult = result;
-      if (result.adapterInvoked === true) {
+      const guardedAdapter = async (order, context) => {
         writeAttemptLatch(latchPath(), {
           idempotencyKey: idempotencyKey(),
-          symbol: result.order?.symbol,
+          symbol: order?.symbol,
           attemptedAt: new Date(Number(now())).toISOString(),
           adapterInvoked: true,
-          networkAttempted: result.networkAttempted === true,
-          orderSubmitAttempted: result.orderSubmitAttempted === true,
-          orderSubmitted: result.orderSubmitted === true,
+          networkAttempted: false,
+          orderSubmitAttempted: false,
+          orderSubmitted: false,
         });
         attemptConsumed = true;
-      }
+        return adapter(order, context);
+      };
+
+      const result = await runStage1UnattendedEntry(input, { adapter: guardedAdapter });
+      lastResult = result;
     } catch (error) {
       lastError = error?.message ?? String(error);
       lastResult = Object.freeze({ status: "WORKER_ERROR", ready: false, orderSubmitted: false });

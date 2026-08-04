@@ -159,3 +159,62 @@ test("durable latch prevents a second worker instance from attempting", async ()
   assert.equal(second.attemptConsumed, true);
   assert.equal(second.lastResult.status, "ONE_SHOT_ALREADY_CONSUMED");
 });
+
+
+const enabledEnv = {
+  STAGE1_UNATTENDED_PAPER_ENTRY_ENABLED: "1",
+  STAGE1_UNATTENDED_IDEMPOTENCY_KEY: "stage1-worker-throw-proof",
+  STAGE1_UNATTENDED_KILL_SWITCH_HEALTHY: "1",
+};
+
+test("worker consumes durable one-shot before adapter throws", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "stage1-worker-throw-"));
+  const latchPath = join(dir, "attempt.json");
+  let calls = 0;
+  const worker = createStage1UnattendedOneShareEntryWorker({
+    getScanSnapshot: async () => snapshot,
+    fetchAccountSnapshot: async () => account,
+    adapter: async () => {
+      calls += 1;
+      throw new Error("ambiguous network failure");
+    },
+    now: () => nowMs,
+    attemptLatchPath: latchPath,
+    env: enabledEnv,
+  });
+
+  const first = await worker.runOnce();
+  assert.equal(calls, 1);
+  assert.equal(first.inFlight, false);
+  assert.equal(first.attemptConsumed, true);
+  assert.equal(first.lastResult.status, "WORKER_ERROR");
+
+  const second = await worker.runOnce();
+  assert.equal(calls, 1);
+  assert.equal(second.attemptConsumed, true);
+  assert.equal(second.lastResult.status, "ONE_SHOT_ALREADY_CONSUMED");
+});
+
+test("durable latch blocks restart after adapter throws", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "stage1-worker-throw-restart-"));
+  const latchPath = join(dir, "attempt.json");
+  let calls = 0;
+  const options = {
+    getScanSnapshot: async () => snapshot,
+    fetchAccountSnapshot: async () => account,
+    adapter: async () => {
+      calls += 1;
+      throw new Error("timeout after dispatch boundary");
+    },
+    now: () => nowMs,
+    attemptLatchPath: latchPath,
+    env: enabledEnv,
+  };
+
+  await createStage1UnattendedOneShareEntryWorker(options).runOnce();
+  const restarted = await createStage1UnattendedOneShareEntryWorker(options).runOnce();
+
+  assert.equal(calls, 1);
+  assert.equal(restarted.attemptConsumed, true);
+  assert.notEqual(restarted.lastResult.status, "WORKER_ERROR");
+});
