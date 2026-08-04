@@ -8,6 +8,10 @@ test('package exposes only an explicit standalone paper-auto authorized run-once
     pkg.scripts['run:paper-auto-authorized-once'],
     'node scripts/paper_auto_execution_alpaca_paper_authorized_command.mjs',
   )
+  assert.equal(
+    pkg.scripts['preflight:paper-auto-authorized-once'],
+    'node scripts/preflight_paper_auto_execution_authorized_run_once.mjs',
+  )
   assert.doesNotMatch(pkg.scripts.start, /paper_auto|authorized|alpaca_paper_authorized/)
 })
 
