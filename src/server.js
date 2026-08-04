@@ -324,7 +324,8 @@ app.use((_req, res, next) => {
 });
 
 const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_scan_cache.mjs')
-  .then((mod) => mod.createAlpacaUnderFiveSharedScanCache({
+  .then(async (mod) => {
+    const cache = mod.createAlpacaUnderFiveSharedScanCache({
     scanOptions: { minPrice: 0, maxPrice: 1000 },
     onScanComplete(snapshot) {
       appendOpportunityFunnelAuditRecord({
@@ -341,7 +342,10 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
         maxCandidates: 50,
       });
     },
-  }))
+  });
+    await cache.start();
+    return cache;
+  })
   .catch((error) => {
     console.error('[under-five-shared-cache] init failed', error?.message ?? String(error));
     return null;
