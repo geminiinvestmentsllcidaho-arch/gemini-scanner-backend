@@ -159,6 +159,8 @@ test('artifact verifier re-reads private valid packets and fails closed otherwis
     const valid = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file)
     assert.equal(valid.ok, true)
     assert.equal(valid.privateModeVerified, true)
+    assert.equal(valid.ownerVerified, true)
+    assert.equal(valid.sizeVerified, true)
     assert.equal(valid.integrityVerified, true)
     assert.equal(valid.mode, 0o600)
 
@@ -180,6 +182,26 @@ test('artifact verifier re-reads private valid packets and fails closed otherwis
       verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(path.join(dir, 'missing.json')).ok,
       false,
     )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+
+
+
+test('artifact verifier rejects oversized files before parsing', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-oversized-'))
+  try {
+    const file = path.join(dir, 'oversized.json')
+    fs.writeFileSync(file, 'x'.repeat((1024 * 1024) + 1), { mode: 0o600 })
+    const verification = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file)
+    assert.equal(verification.ok, false)
+    assert.equal(verification.regularFileVerified, true)
+    assert.equal(verification.ownerVerified, true)
+    assert.equal(verification.sizeVerified, false)
+    assert.equal(verification.integrityVerified, false)
+    assert.equal(verification.packet, null)
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -286,4 +308,18 @@ test('verifier source binds no-follow validation and reading to one file descrip
     ),
     /lstatSync\(file\)|readFileSync\(file,/,
   )
+})
+
+
+test('writer source enforces size and post-rename peristence verification', () => {
+  const source = fs.readFileSync(
+    new URL('../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs', import.meta.url),
+    'utf8',
+  )
+  assert.match(source, /MAX_OPERATOR_PACKET_FILE_BYTES = 1024 \* 1024/)
+  assert.match(source, /fileStat\.uid === process\.getuid\(\)/)
+  assert.match(source, /fileStat\.size > 0 && fileStat\.size <= MAX_OPERATOR_PACKET_FILE_BYTES/)
+  assert.match(source, /Buffer\.byteLength\(serialized, 'utf8'\) > MAX_OPERATOR_PACKET_FILE_BYTES/)
+  assert.match(source, /verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile\(file\)/)
+  assert.match(source, /operator_packet_post_rename_verification_failed/)
 })

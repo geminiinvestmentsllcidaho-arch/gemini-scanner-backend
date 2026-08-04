@@ -10,6 +10,7 @@ import {
 
 export const VERSION = 'paper_auto_execution_authorized_run_once_operator_packet_v1'
 
+const MAX_OPERATOR_PACKET_FILE_BYTES = 1024 * 1024
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable)
   if (value && typeof value === 'object') {
@@ -42,13 +43,20 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file
     const fileStat = fstatSync(fd)
     const regularFileVerified = fileStat.isFile()
     const mode = fileStat.mode & 0o777
-    if (!regularFileVerified) {
+    const ownerVerified =
+      typeof process.getuid !== 'function' || fileStat.uid === process.getuid()
+    const sizeVerified =
+      fileStat.size > 0 && fileStat.size <= MAX_OPERATOR_PACKET_FILE_BYTES
+    if (!regularFileVerified || !ownerVerified || !sizeVerified) {
       return Object.freeze({
         ok: false,
         file,
         mode,
-        regularFileVerified: false,
+        regularFileVerified,
         privateModeVerified: mode === 0o600,
+        ownerVerified,
+        sizeVerified,
+        fileSizeBytes: fileStat.size,
         integrityVerified: false,
         packet: null,
       })
@@ -56,11 +64,19 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file
     const packet = JSON.parse(readFileSync(fd, 'utf8'))
     const integrityVerified = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
     return Object.freeze({
-      ok: mode === 0o600 && integrityVerified,
+      ok:
+        mode === 0o600 &&
+        regularFileVerified &&
+        ownerVerified &&
+        sizeVerified &&
+        integrityVerified,
       file,
       mode,
       regularFileVerified: true,
       privateModeVerified: mode === 0o600,
+      ownerVerified,
+      sizeVerified,
+      fileSizeBytes: fileStat.size,
       integrityVerified,
       packet,
     })
@@ -71,6 +87,9 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file
       mode: null,
       regularFileVerified: false,
       privateModeVerified: false,
+      ownerVerified: false,
+      sizeVerified: false,
+      fileSizeBytes: null,
       integrityVerified: false,
       packet: null,
     })
@@ -150,9 +169,13 @@ export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, r
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error
   }
+  const serialized = `${JSON.stringify(packet, null, 2)}\n`
+  if (Buffer.byteLength(serialized, 'utf8') > MAX_OPERATOR_PACKET_FILE_BYTES) {
+    throw new Error('operator_packet_file_too_large')
+  }
   const temp = `${file}.${process.pid}.${Date.now()}.tmp`
   try {
-    writeFileSync(temp, `${JSON.stringify(packet, null, 2)}\n`, {
+    writeFileSync(temp, serialized, {
       encoding: 'utf8',
       mode: 0o600,
       flag: 'wx',
@@ -166,6 +189,11 @@ export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, r
     }
     renameSync(temp, file)
     chmodSync(file, 0o600)
+    const persisted = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file)
+    if (!persisted.ok) {
+      try { rmSync(file, { force: true }) } catch {}
+      throw new Error('operator_packet_post_rename_verification_failed')
+    }
     const directoryFd = openSync(runsDir, 'r')
     try {
       fsyncSync(directoryFd)
