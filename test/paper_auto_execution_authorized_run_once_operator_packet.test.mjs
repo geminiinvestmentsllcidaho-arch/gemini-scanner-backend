@@ -184,3 +184,29 @@ test('artifact verifier re-reads private valid packets and fails closed otherwis
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+
+test('writer atomically replaces artifacts and leaves no temporary files', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-atomic-'))
+  try {
+    const first = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({})
+    const file = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(first, dir)
+    fs.chmodSync(file, 0o644)
+
+    const second = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
+      authorizationId: 'replacement-blocked-packet',
+    })
+    const replaced = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(second, dir)
+    const saved = JSON.parse(fs.readFileSync(replaced, 'utf8'))
+
+    assert.equal(replaced, file)
+    assert.equal(saved.status, second.status)
+    assert.equal(fs.statSync(replaced).mode & 0o777, 0o600)
+    assert.deepEqual(
+      fs.readdirSync(dir).filter((name) => name.endsWith('.tmp')),
+      [],
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})

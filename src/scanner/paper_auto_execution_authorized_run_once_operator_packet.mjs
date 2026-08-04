@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
@@ -117,8 +117,21 @@ export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, r
     runsDir,
     `paper_auto_execution_authorized_run_once_operator_packet_${suffix}.json`,
   )
-  writeFileSync(file, `${JSON.stringify(packet, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
-  return file
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`
+  try {
+    writeFileSync(temp, `${JSON.stringify(packet, null, 2)}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+      flag: 'wx',
+    })
+    chmodSync(temp, 0o600)
+    renameSync(temp, file)
+    chmodSync(file, 0o600)
+    return file
+  } catch (error) {
+    try { rmSync(temp, { force: true }) } catch {}
+    throw error
+  }
 }
 
 export default {
