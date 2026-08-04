@@ -267,3 +267,23 @@ test('artifact verifier rejects symlinks and writer rejects symlink paths', () =
     fs.rmSync(root, { recursive: true, force: true })
   }
 })
+
+
+test('verifier source binds no-follow validation and reading to one file descriptor', () => {
+  const source = fs.readFileSync(
+    new URL('../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs', import.meta.url),
+    'utf8',
+  )
+  assert.match(source, /openSync\(file, constants\.O_RDONLY \| constants\.O_NOFOLLOW\)/)
+  assert.match(source, /const fileStat = fstatSync\(fd\)/)
+  assert.match(source, /JSON\.parse\(readFileSync\(fd, 'utf8'\)\)/)
+  assert.match(source, /if \(fd !== null\)/)
+  assert.match(source, /closeSync\(fd\)/)
+  assert.doesNotMatch(
+    source.slice(
+      source.indexOf('export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile'),
+      source.indexOf('export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket'),
+    ),
+    /lstatSync\(file\)|readFileSync\(file,/,
+  )
+})

@@ -1,4 +1,4 @@
-import { chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, constants, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
@@ -36,9 +36,11 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet) 
 }
 
 export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file) {
+  let fd = null
   try {
-    const fileStat = lstatSync(file)
-    const regularFileVerified = fileStat.isFile() && !fileStat.isSymbolicLink()
+    fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const fileStat = fstatSync(fd)
+    const regularFileVerified = fileStat.isFile()
     const mode = fileStat.mode & 0o777
     if (!regularFileVerified) {
       return Object.freeze({
@@ -51,7 +53,7 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file
         packet: null,
       })
     }
-    const packet = JSON.parse(readFileSync(file, 'utf8'))
+    const packet = JSON.parse(readFileSync(fd, 'utf8'))
     const integrityVerified = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
     return Object.freeze({
       ok: mode === 0o600 && integrityVerified,
@@ -72,6 +74,10 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file
       integrityVerified: false,
       packet: null,
     })
+  } finally {
+    if (fd !== null) {
+      try { closeSync(fd) } catch {}
+    }
   }
 }
 
