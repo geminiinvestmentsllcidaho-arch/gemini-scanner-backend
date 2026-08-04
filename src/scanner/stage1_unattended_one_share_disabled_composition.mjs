@@ -1,5 +1,6 @@
 import { createStage1UnattendedOneShareRuntimeBridge } from "./stage1_unattended_one_share_runtime_bridge.mjs";
 import { createStage1UnattendedOneSharePaperAdapter } from "./stage1_unattended_one_share_paper_adapter.mjs";
+import { createStage1UnattendedOneShareExecutorWrapper } from "./stage1_unattended_one_share_executor_wrapper.mjs";
 
 export const VERSION = "stage1_unattended_one_share_disabled_composition_v1";
 const enabled = (env, name) => String(env?.[name] ?? "").trim() === "1";
@@ -8,13 +9,30 @@ export function createStage1UnattendedOneShareDisabledComposition({
   sharedScanCache,
   fetchAccountSnapshot,
   executePaperOrder,
+  requestFn,
+  runsDir = "runs",
+  runExecutor,
   env = process.env,
   now = () => Date.now(),
   setIntervalImpl = globalThis.setInterval,
   clearIntervalImpl = globalThis.clearInterval,
 } = {}) {
   const compositionEnabled = enabled(env, "STAGE1_UNATTENDED_COMPOSITION_ENABLED");
-  const paperAdapter = createStage1UnattendedOneSharePaperAdapter({ executePaperOrder, env });
+  const executorWrapper = createStage1UnattendedOneShareExecutorWrapper({
+    env,
+    runsDir,
+    requestFn,
+    now: () => new Date(Number(now())),
+    runExecutor,
+  });
+  const resolvedExecutePaperOrder =
+    typeof executePaperOrder === "function"
+      ? executePaperOrder
+      : executorWrapper.executePaperOrder;
+  const paperAdapter = createStage1UnattendedOneSharePaperAdapter({
+    executePaperOrder: resolvedExecutePaperOrder,
+    env,
+  });
   const bridge = createStage1UnattendedOneShareRuntimeBridge({
     sharedScanCache,
     fetchAccountSnapshot,
@@ -30,13 +48,15 @@ export function createStage1UnattendedOneShareDisabledComposition({
     compositionEnabled,
     bridge: bridge.diagnostics(),
     paperAdapter: paperAdapter.diagnostics(),
+    executorWrapper: executorWrapper.diagnostics(),
     safety: Object.freeze({
       paperOnly: true,
       liveTradingAllowed: false,
       disabledByDefault: true,
       serverIntegrated: false,
       automaticStartAllowed: false,
-      executorInjectedOnly: true,
+      executorInjectedOnly: typeof executePaperOrder === "function",
+      executorWrapperAvailable: true,
     }),
   });
 
