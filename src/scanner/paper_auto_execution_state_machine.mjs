@@ -24,5 +24,5 @@ const allowed=new Map([
  [S.ROUND_TRIP_COMPLETED,[S.IDLE]], [S.FAILED_NEEDS_REVIEW,[S.IDLE]]
 ])
 export function canTransition(from,to){return Boolean(allowed.get(from)?.includes(to))}
-export function assertTransition(from,to){if(!Object.values(S).includes(from)||!Object.values(S).includes(to))throw new Error(`paper_auto_unknown_state:$${from}->${to}`);if(!canTransition(from,to))throw new Error(`paper_auto_invalid_transition:${from}->${to}`);return true}
+export function assertTransition(from,to){if(!Object.values(S).includes(from)||!Object.values(S).includes(to))throw new Error(`paper_auto_unknown_state:${from}->${to}`);if(!canTransition(from,to))throw new Error(`paper_auto_invalid_transition:${from}->${to}`);return true}
 export const terminalStates=new Set([S.ROUND_TRIP_COMPLETED,S.FAILED_NEEDS_REVIEW])
