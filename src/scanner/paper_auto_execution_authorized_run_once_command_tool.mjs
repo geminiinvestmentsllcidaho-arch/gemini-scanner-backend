@@ -48,12 +48,19 @@ export async function runPaperAutoExecutionAuthorizedRunOnceCommand(options = {}
 
   let coordinatorResult = null
   if (blockers.length === 0) {
-    const coordinator = createPaperAutoExecutionAuthorizedRunOnceCoordinator({
+    const createCoordinator =
+      typeof options.createCoordinator === 'function'
+        ? options.createCoordinator
+        : createPaperAutoExecutionAuthorizedRunOnceCoordinator
+    const coordinator = createCoordinator({
       ...options,
       env,
       authorization,
       now: () => nowMs,
     })
+    if (!coordinator || typeof coordinator.runOnce !== 'function') {
+      throw new Error('paper_auto_command_coordinator_factory_invalid')
+    }
     coordinatorResult = await coordinator.runOnce()
   }
 
