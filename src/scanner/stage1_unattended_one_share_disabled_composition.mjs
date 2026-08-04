@@ -1,6 +1,6 @@
 import { createStage1UnattendedOneShareRuntimeBridge } from "./stage1_unattended_one_share_runtime_bridge.mjs";
 import { createStage1UnattendedOneSharePaperAdapter } from "./stage1_unattended_one_share_paper_adapter.mjs";
-import { createStage1UnattendedOneShareExecutorWrapper } from "./stage1_unattended_one_share_executor_wrapper.mjs";
+import { createStage1UnattendedOneShareExecutorContract } from "./stage1_unattended_one_share_executor_contract.mjs";
 
 export const VERSION = "stage1_unattended_one_share_disabled_composition_v1";
 const enabled = (env, name) => String(env?.[name] ?? "").trim() === "1";
@@ -9,26 +9,21 @@ export function createStage1UnattendedOneShareDisabledComposition({
   sharedScanCache,
   fetchAccountSnapshot,
   executePaperOrder,
-  requestFn,
-  runsDir = "runs",
-  runExecutor,
+  unattendedTransport,
   env = process.env,
   now = () => Date.now(),
   setIntervalImpl = globalThis.setInterval,
   clearIntervalImpl = globalThis.clearInterval,
 } = {}) {
   const compositionEnabled = enabled(env, "STAGE1_UNATTENDED_COMPOSITION_ENABLED");
-  const executorWrapper = createStage1UnattendedOneShareExecutorWrapper({
+  const executorContract = createStage1UnattendedOneShareExecutorContract({
     env,
-    runsDir,
-    requestFn,
-    now: () => new Date(Number(now())),
-    runExecutor,
+    transport: unattendedTransport,
   });
   const resolvedExecutePaperOrder =
     typeof executePaperOrder === "function"
       ? executePaperOrder
-      : executorWrapper.executePaperOrder;
+      : executorContract.executePaperOrder;
   const paperAdapter = createStage1UnattendedOneSharePaperAdapter({
     executePaperOrder: resolvedExecutePaperOrder,
     env,
@@ -48,7 +43,7 @@ export function createStage1UnattendedOneShareDisabledComposition({
     compositionEnabled,
     bridge: bridge.diagnostics(),
     paperAdapter: paperAdapter.diagnostics(),
-    executorWrapper: executorWrapper.diagnostics(),
+    executorContract: executorContract.diagnostics(),
     safety: Object.freeze({
       paperOnly: true,
       liveTradingAllowed: false,
@@ -56,7 +51,8 @@ export function createStage1UnattendedOneShareDisabledComposition({
       serverIntegrated: false,
       automaticStartAllowed: false,
       executorInjectedOnly: typeof executePaperOrder === "function",
-      executorWrapperAvailable: true,
+      executorContractAvailable: true,
+      unattendedTransportInjected: typeof unattendedTransport === "function",
     }),
   });
 

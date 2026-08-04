@@ -23,7 +23,7 @@ test("composition is disabled by default", async () => {
   assert.equal(run.bridge.started, false);
   assert.equal(calls, 0);
   assert.equal(run.safety.serverIntegrated, false);
-  assert.equal(run.executorWrapper.enabled, false);
+  assert.equal(run.executorContract.enabled, false);
 });
 
 test("composition enable alone cannot bypass inner gates", async () => {
@@ -43,7 +43,7 @@ test("composition exposes injected executor only and no server integration", () 
   assert.equal(d.safety.automaticStartAllowed, false);
 });
 
-test("composition uses disabled executor wrapper when no executor is injected", async () => {
+test("composition uses disabled executor contract when no executor is injected", async () => {
   const c = createStage1UnattendedOneShareDisabledComposition({
     sharedScanCache: { getLatest: () => null },
     fetchAccountSnapshot: async () => null,
@@ -53,8 +53,8 @@ test("composition uses disabled executor wrapper when no executor is injected", 
     clearIntervalImpl: () => {},
   });
   const d = c.diagnostics();
-  assert.equal(d.executorWrapper.enabled, false);
-  assert.equal(d.executorWrapper.safety.serverIntegrated, false);
+  assert.equal(d.executorContract.enabled, false);
+  assert.equal(d.executorContract.safety.serverIntegrated, false);
   assert.equal(d.safety.executorInjectedOnly, false);
-  assert.equal(d.safety.executorWrapperAvailable, true);
+  assert.equal(d.safety.executorContractAvailable, true);
 });
