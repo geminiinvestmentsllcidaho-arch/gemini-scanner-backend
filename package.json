@@ -167,7 +167,8 @@
     "activate:paper-manual-round-trip-watcher": "node scripts/activate_paper_manual_round_trip_watcher.mjs",
     "preview:paper-user-approved-disabled-chain": "node scripts/preview_paper_user_approved_disabled_chain.mjs",
     "preview:paper-automatic-disabled-chain": "node scripts/preview_paper_automatic_disabled_chain.mjs",
-    "test:resource-safe": "node scripts/run_test_files_isolated.mjs"
+    "test:resource-safe": "node scripts/run_test_files_isolated.mjs",
+    "preview:paper-auto-authorized-run-once-runbook": "node scripts/preview_paper_auto_execution_authorized_run_once_runbook.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
