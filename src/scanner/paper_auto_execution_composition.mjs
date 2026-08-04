@@ -38,6 +38,11 @@ export function createPaperAutoExecutionComposition(options = {}) {
     }
 
     const orchestration = await orchestrator.runOnce()
+    const orchestratorSubmission = orchestration.lastResult?.submission ?? null
+    if (orchestratorSubmission) {
+      lastResult = Object.freeze({ status: `COMPOSITION_${orchestratorSubmission.status}`, adapterInvoked: orchestratorSubmission.adapterInvoked === true, phase: orchestratorSubmission.identity?.phase ?? null, orchestration, submission: orchestratorSubmission })
+      return diagnostics()
+    }
     const lifecycle = lifecycleStore.load()
     let phase = null
     let quantity

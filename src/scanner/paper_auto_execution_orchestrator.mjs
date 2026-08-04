@@ -2,6 +2,7 @@ import { PAPER_EXECUTION_STAGES, evaluatePaperExecutionStageAccess } from './pap
 import { STATES as S } from './paper_auto_execution_state_machine.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
+import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
 
 export const VERSION = 'paper_auto_execution_orchestrator_v1'
 
@@ -47,6 +48,7 @@ export function createPaperAutoExecutionOrchestrator({
   getScanSnapshot,
   getAccountSnapshot,
   getHistoricalOrders = async () => [],
+  submitPaperOrder,
   readStageState,
   env = process.env,
   now = () => Date.now(),
@@ -128,13 +130,27 @@ export function createPaperAutoExecutionOrchestrator({
           quantity: 1,
           side: 'buy',
         })
+        const enterSubmissionEnabled =
+          enabled(env, 'PAPER_AUTO_SUBMISSION_BOUNDARY_ENABLED') &&
+          enabled(env, 'PAPER_AUTO_ENTER_SUBMISSION_ENABLED') &&
+          typeof submitPaperOrder === 'function'
+        const submission = enterSubmissionEnabled
+          ? await submitPaperAutoOrder({ lifecycleStore, phase: 'enter', quantity: 1, submitPaperOrder, env })
+          : null
         lastResult = Object.freeze({
-          status: 'LIFECYCLE_CREATED_ORDER_SUBMISSION_LOCKED',
+          status: submission?.status ?? 'LIFECYCLE_CREATED_ORDER_SUBMISSION_LOCKED',
           changed: true,
-          lifecycle,
+          lifecycle: submission?.lifecycle ?? lifecycle,
           enterIdentity,
-          blockers: Object.freeze(['broker_submission_not_implemented', 'paper_auto_execution_remains_locked']),
-          safety: safety({ deterministicIdentityPrepared: true }),
+          submission,
+          blockers: Object.freeze(submission ? [...(submission.blockers ?? [])] : ['broker_submission_not_implemented', 'paper_auto_execution_remains_locked']),
+          safety: safety({
+            deterministicIdentityPrepared: true,
+            brokerContactAllowed: submission?.safety?.brokerContactAllowed === true,
+            orderPlacementAllowed: submission?.safety?.orderPlacementAllowed === true,
+            accountMutationAllowed: submission?.safety?.accountMutationAllowed === true,
+            reconciliationRequired: submission?.safety?.reconciliationRequired === true,
+          }),
         })
         return diagnostics()
       }
@@ -172,14 +188,35 @@ export function createPaperAutoExecutionOrchestrator({
         })
       }
 
+      const exitSubmissionEnabled = Boolean(exitIdentity) && enabled(env, 'PAPER_AUTO_SUBMISSION_BOUNDARY_ENABLED') && enabled(env, 'PAPER_AUTO_EXIT_SUBMISSION_ENABLED') && typeof submitPaperOrder === 'function'
+      let exitSubmission = null
+      if (exitSubmissionEnabled) {
+        exitSubmission = await submitPaperAutoOrder({
+          lifecycleStore,
+          phase: 'exit',
+          quantity: lifecycle.filledQuantity,
+          submitPaperOrder,
+          env,
+        })
+        lifecycle = exitSubmission.lifecycle
+      }
+
       lastResult = Object.freeze({
-        status: exitIdentity ? 'MONITORING_EXIT_IDENTITY_PREPARED_SUBMISSION_LOCKED' : reconciliation.status,
-        changed: reconciliation.changed || lifecycle?.state === S.MONITORING,
+        status: exitSubmission?.status ?? (exitIdentity ? 'MONITORING_EXIT_IDENTITY_PREPARED_SUBMISSION_LOCKED' : reconciliation.status),
+        changed: reconciliation.changed || lifecycle?.state === S.MONITORING || Boolean(exitSubmission),
         lifecycle,
         reconciliation,
         exitIdentity,
-        blockers: Object.freeze(exitIdentity ? ['broker_submission_not_implemented', 'paper_auto_execution_remains_locked'] : [...(reconciliation.blockers ?? [])]),
-        safety: safety({ deterministicExitIdentityPrepared: Boolean(exitIdentity), readOnlyReconciliationOnly: true }),
+        submission: exitSubmission,
+        blockers: Object.freeze(exitSubmission ? [...(exitSubmission.blockers ?? [])] : exitIdentity ? ['broker_submission_not_implemented', 'paper_auto_execution_remains_locked'] : [...(reconciliation.blockers ?? [])]),
+        safety: safety({
+          deterministicExitIdentityPrepared: Boolean(exitIdentity),
+          readOnlyReconciliationOnly: !exitSubmission,
+          brokerContactAllowed: exitSubmission?.safety?.brokerContactAllowed === true,
+          orderPlacementAllowed: exitSubmission?.safety?.orderPlacementAllowed === true,
+          accountMutationAllowed: exitSubmission?.safety?.accountMutationAllowed === true,
+          reconciliationRequired: exitSubmission?.safety?.reconciliationRequired === true,
+        }),
       })
     } catch (error) {
       lastError = error?.message ?? String(error)

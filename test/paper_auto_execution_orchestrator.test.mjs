@@ -124,3 +124,15 @@ test('reconciles confirmed position to monitoring and prepares exact exit identi
     assert.equal(result.lastResult.safety.orderPlacementAllowed, false)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
+
+test('uses the gated injected submission boundary for ENTER and exact-position EXIT', () => {
+  const source = fs.readFileSync(
+    new URL('../src/scanner/paper_auto_execution_orchestrator.mjs', import.meta.url),
+    'utf8',
+  )
+  assert.match(source, /import \{ submitPaperAutoOrder \} from '.\/paper_auto_execution_submission_boundary\.mjs'/)
+  assert.match(source, /submitPaperAutoOrder\(\{[\s\S]*?phase: 'enter'/)
+  assert.match(source, /submitPaperAutoOrder\(\{[\s\S]*?phase: 'exit'/)
+  assert.match(source, /quantity: lifecycle\.filledQuantity/)
+  assert.doesNotMatch(source, /fetch\(|https?:\/\/|setInterval\(|setTimeout\(|axios|alpaca/i)
+})
