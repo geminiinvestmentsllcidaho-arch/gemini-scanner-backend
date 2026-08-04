@@ -39,36 +39,23 @@ test("executor wrapper rejects invalid locked envelope", async () => {
   assert.ok(result.blockers.includes("quantity_must_equal_one"));
 });
 
-test("enabled wrapper maps locked order to executor options once", async () => {
+test("enabled wrapper fails closed because the available executor is manual-only", async () => {
   let calls = 0;
-  let captured = null;
-  const requestFn = async () => ({});
   const wrapper = createStage1UnattendedOneShareExecutorWrapper({
     env: enabledEnv,
     runsDir: "/tmp/stage1-wrapper-test",
-    requestFn,
+    requestFn: async () => ({}),
     now: () => new Date("2026-08-03T18:00:00.000Z"),
-    runExecutor: async (options) => {
+    runExecutor: async () => {
       calls += 1;
-      captured = options;
-      return {
-        ok: true,
-        runStatus: "network_attempt_completed",
-        brokerContactAttempted: true,
-        orderSubmitAttempted: true,
-        orderSubmitted: false,
-        blockers: [],
-      };
+      return {};
     },
   });
   const result = await wrapper.executePaperOrder(order, context);
-  assert.equal(calls, 1);
-  assert.equal(captured.requestFn, requestFn);
-  assert.equal(captured.runsDir, "/tmp/stage1-wrapper-test");
-  assert.ok(captured.argv.includes("--symbol=AAPL"));
-  assert.ok(captured.argv.includes("--qty=1"));
-  assert.ok(captured.argv.includes(`--runtime-approval=${REQUIRED_PAPER_BROKER_NETWORK_RUNTIME_APPROVAL_PHRASE}`));
-  assert.equal(result.networkAttempted, true);
-  assert.equal(result.orderSubmitAttempted, true);
+  assert.equal(calls, 0);
+  assert.equal(result.status, "BLOCKED");
+  assert.ok(result.blockers.includes("manual_only_executor_incompatible_with_unattended_mode"));
+  assert.equal(result.networkAttempted, false);
+  assert.equal(result.orderSubmitAttempted, false);
   assert.equal(result.orderSubmitted, false);
 });

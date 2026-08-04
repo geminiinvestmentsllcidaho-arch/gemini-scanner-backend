@@ -53,6 +53,7 @@ export function createStage1UnattendedOneShareExecutorWrapper({
     if (context.stopAfterSingleAttempt !== true) blockers.push("single_attempt_stop_required");
     if (runtimeApproval !== REQUIRED_PAPER_BROKER_NETWORK_RUNTIME_APPROVAL_PHRASE) blockers.push("exact_runtime_approval_required");
     if (reason.length < 40) blockers.push("runtime_reason_required");
+    blockers.push("manual_only_executor_incompatible_with_unattended_mode");
     if (typeof runExecutor !== "function") blockers.push("network_executor_required");
     if (typeof requestFn !== "function") blockers.push("injected_request_function_required");
 
