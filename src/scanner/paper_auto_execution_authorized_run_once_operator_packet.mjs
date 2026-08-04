@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
@@ -33,6 +33,31 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet) 
   if (typeof packet.integrity?.digest !== 'string') return false
   const { integrity, ...core } = packet
   return integrity.digest === digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket(core)
+}
+
+export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file) {
+  try {
+    const mode = statSync(file).mode & 0o777
+    const packet = JSON.parse(readFileSync(file, 'utf8'))
+    const integrityVerified = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
+    return Object.freeze({
+      ok: mode === 0o600 && integrityVerified,
+      file,
+      mode,
+      privateModeVerified: mode === 0o600,
+      integrityVerified,
+      packet,
+    })
+  } catch {
+    return Object.freeze({
+      ok: false,
+      file,
+      mode: null,
+      privateModeVerified: false,
+      integrityVerified: false,
+      packet: null,
+    })
+  }
 }
 
 export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {}) {
@@ -102,4 +127,5 @@ export default {
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile,
 }

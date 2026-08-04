@@ -8,6 +8,7 @@ import {
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile,
 } from '../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs'
 
 const readyInput = Object.freeze({
@@ -147,4 +148,39 @@ test('integrity verifier accepts valid packets and rejects tampering', () => {
     }),
     false,
   )
+})
+
+
+test('artifact verifier re-reads private valid packets and fails closed otherwise', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-file-verify-'))
+  try {
+    const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
+    const file = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, dir)
+    const valid = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file)
+    assert.equal(valid.ok, true)
+    assert.equal(valid.privateModeVerified, true)
+    assert.equal(valid.integrityVerified, true)
+    assert.equal(valid.mode, 0o600)
+
+    const tampered = { ...packet, status: 'TAMPERED' }
+    fs.writeFileSync(file, `${JSON.stringify(tampered, null, 2)}\n`, { mode: 0o600 })
+    assert.equal(verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file).ok, false)
+
+    fs.writeFileSync(file, '{bad\n', { mode: 0o600 })
+    assert.equal(verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file).ok, false)
+
+    fs.writeFileSync(file, `${JSON.stringify(packet, null, 2)}\n`, { mode: 0o644 })
+    fs.chmodSync(file, 0o644)
+    const publicFile = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file)
+    assert.equal(publicFile.ok, false)
+    assert.equal(publicFile.privateModeVerified, false)
+    assert.equal(publicFile.integrityVerified, true)
+
+    assert.equal(
+      verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(path.join(dir, 'missing.json')).ok,
+      false,
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })
