@@ -210,3 +210,18 @@ test('writer atomically replaces artifacts and leaves no temporary files', () =>
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+
+test('atomic writer source syncs file data and containing directory', () => {
+  const source = fs.readFileSync(
+    new URL('../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs', import.meta.url),
+    'utf8',
+  )
+  assert.match(source, /const tempFd = openSync\(temp, 'r'\)/)
+  assert.match(source, /fsyncSync\(tempFd\)/)
+  assert.match(source, /closeSync\(tempFd\)/)
+  assert.match(source, /renameSync\(temp, file\)/)
+  assert.match(source, /const directoryFd = openSync\(runsDir, 'r'\)/)
+  assert.match(source, /fsyncSync\(directoryFd\)/)
+  assert.match(source, /closeSync\(directoryFd\)/)
+})

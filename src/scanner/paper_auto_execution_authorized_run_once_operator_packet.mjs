@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
@@ -125,8 +125,20 @@ export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, r
       flag: 'wx',
     })
     chmodSync(temp, 0o600)
+    const tempFd = openSync(temp, 'r')
+    try {
+      fsyncSync(tempFd)
+    } finally {
+      closeSync(tempFd)
+    }
     renameSync(temp, file)
     chmodSync(file, 0o600)
+    const directoryFd = openSync(runsDir, 'r')
+    try {
+      fsyncSync(directoryFd)
+    } finally {
+      closeSync(directoryFd)
+    }
     return file
   } catch (error) {
     try { rmSync(temp, { force: true }) } catch {}
