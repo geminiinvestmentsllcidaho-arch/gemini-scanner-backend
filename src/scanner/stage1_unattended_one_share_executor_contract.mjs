@@ -1,4 +1,6 @@
-export const VERSION = "stage1_unattended_one_share_executor_contract_v1";
+export const VERSION = "stage1_unattended_one_share_executor_contract_v2";
+export const REQUIRED_TRANSPORT_AUTHORIZATION_PHRASE =
+  "AUTHORIZE EXECUTOR CONTRACT TO CALL EXACTLY ONE LOCKED UNATTENDED PAPER TRANSPORT";
 
 const clean = (value) => String(value ?? "").trim();
 
@@ -7,10 +9,14 @@ export function createStage1UnattendedOneShareExecutorContract({
   transport,
 } = {}) {
   const enabled = clean(env.STAGE1_UNATTENDED_EXECUTOR_CONTRACT_ENABLED) === "1";
+  const transportAuthorized =
+    clean(env.STAGE1_UNATTENDED_EXECUTOR_TRANSPORT_APPROVAL) ===
+    REQUIRED_TRANSPORT_AUTHORIZATION_PHRASE;
 
   const diagnostics = () => Object.freeze({
     version: VERSION,
     enabled,
+    transportAuthorized,
     transportPresent: typeof transport === "function",
     safety: Object.freeze({
       paperOnly: true,
@@ -24,6 +30,7 @@ export function createStage1UnattendedOneShareExecutorContract({
       serverIntegrated: false,
       automaticStartAllowed: false,
       manualExecutorReuseAllowed: false,
+      exactTransportAuthorizationRequired: true,
     }),
   });
 
@@ -46,6 +53,7 @@ export function createStage1UnattendedOneShareExecutorContract({
     if (context.mode !== "stage1_unattended_mechanical_proof") blockers.push("stage1_unattended_mode_required");
     if (context.stopAfterSingleAttempt !== true) blockers.push("single_attempt_stop_required");
     if (typeof transport !== "function") blockers.push("unattended_paper_transport_not_implemented");
+    if (!transportAuthorized) blockers.push("unattended_paper_transport_activation_not_authorized");
 
     if (blockers.length) return Object.freeze({
       ok: true,
@@ -57,18 +65,24 @@ export function createStage1UnattendedOneShareExecutorContract({
       orderSubmitted: false,
     });
 
+    const result = await transport(order, context);
     return Object.freeze({
-      ok: true,
+      ok: result?.ok !== false,
       version: VERSION,
-      status: "BLOCKED",
-      blockers: Object.freeze(["unattended_paper_transport_activation_not_authorized"]),
-      networkAttempted: false,
-      orderSubmitAttempted: false,
-      orderSubmitted: false,
+      status: result?.status ?? "UNKNOWN",
+      blockers: Object.freeze([...(result?.blockers ?? [])]),
+      networkAttempted: result?.networkAttempted === true,
+      orderSubmitAttempted: result?.orderSubmitAttempted === true,
+      orderSubmitted: result?.orderSubmitted === true,
+      result: result ?? null,
     });
   };
 
   return Object.freeze({ executePaperOrder, diagnostics });
 }
 
-export default { VERSION, createStage1UnattendedOneShareExecutorContract };
+export default {
+  VERSION,
+  REQUIRED_TRANSPORT_AUTHORIZATION_PHRASE,
+  createStage1UnattendedOneShareExecutorContract,
+};

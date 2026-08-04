@@ -53,3 +53,34 @@ test("enabled contract cannot activate an injected transport without separate au
   assert.equal(result.orderSubmitted, false);
   assert.equal(contract.diagnostics().safety.manualExecutorReuseAllowed, false);
 });
+
+test("exact transport authorization permits one locked transport call", async () => {
+  let calls = 0;
+  const contract = createStage1UnattendedOneShareExecutorContract({
+    env: {
+      STAGE1_UNATTENDED_EXECUTOR_CONTRACT_ENABLED: "1",
+      STAGE1_UNATTENDED_EXECUTOR_TRANSPORT_APPROVAL:
+        "AUTHORIZE EXECUTOR CONTRACT TO CALL EXACTLY ONE LOCKED UNATTENDED PAPER TRANSPORT",
+    },
+    transport: async (submittedOrder, submittedContext) => {
+      calls += 1;
+      assert.deepEqual(submittedOrder, order);
+      assert.deepEqual(submittedContext, context);
+      return {
+        ok: true,
+        status: "PAPER_ORDER_SUBMITTED",
+        blockers: [],
+        networkAttempted: true,
+        orderSubmitAttempted: true,
+        orderSubmitted: true,
+      };
+    },
+  });
+  const result = await contract.executePaperOrder(order, context);
+  assert.equal(calls, 1);
+  assert.equal(result.status, "PAPER_ORDER_SUBMITTED");
+  assert.equal(result.networkAttempted, true);
+  assert.equal(result.orderSubmitAttempted, true);
+  assert.equal(result.orderSubmitted, true);
+  assert.equal(contract.diagnostics().transportAuthorized, true);
+});

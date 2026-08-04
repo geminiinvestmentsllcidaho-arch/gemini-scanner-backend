@@ -1,6 +1,7 @@
 import { createStage1UnattendedOneShareRuntimeBridge } from "./stage1_unattended_one_share_runtime_bridge.mjs";
 import { createStage1UnattendedOneSharePaperAdapter } from "./stage1_unattended_one_share_paper_adapter.mjs";
 import { createStage1UnattendedOneShareExecutorContract } from "./stage1_unattended_one_share_executor_contract.mjs";
+import { createStage1UnattendedOneSharePaperTransport } from "./stage1_unattended_one_share_paper_transport.mjs";
 
 export const VERSION = "stage1_unattended_one_share_disabled_composition_v1";
 const enabled = (env, name) => String(env?.[name] ?? "").trim() === "1";
@@ -16,9 +17,13 @@ export function createStage1UnattendedOneShareDisabledComposition({
   clearIntervalImpl = globalThis.clearInterval,
 } = {}) {
   const compositionEnabled = enabled(env, "STAGE1_UNATTENDED_COMPOSITION_ENABLED");
+  const paperTransport = createStage1UnattendedOneSharePaperTransport({
+    env,
+    fetchImpl: unattendedTransport,
+  });
   const executorContract = createStage1UnattendedOneShareExecutorContract({
     env,
-    transport: unattendedTransport,
+    transport: paperTransport.transport,
   });
   const resolvedExecutePaperOrder =
     typeof executePaperOrder === "function"
@@ -44,6 +49,7 @@ export function createStage1UnattendedOneShareDisabledComposition({
     bridge: bridge.diagnostics(),
     paperAdapter: paperAdapter.diagnostics(),
     executorContract: executorContract.diagnostics(),
+    paperTransport: paperTransport.diagnostics(),
     safety: Object.freeze({
       paperOnly: true,
       liveTradingAllowed: false,
@@ -52,6 +58,7 @@ export function createStage1UnattendedOneShareDisabledComposition({
       automaticStartAllowed: false,
       executorInjectedOnly: typeof executePaperOrder === "function",
       executorContractAvailable: true,
+      paperTransportAvailable: true,
       unattendedTransportInjected: typeof unattendedTransport === "function",
     }),
   });

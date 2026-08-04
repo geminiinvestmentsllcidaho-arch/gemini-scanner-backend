@@ -58,3 +58,43 @@ test("composition uses disabled executor contract when no executor is injected",
   assert.equal(d.safety.executorInjectedOnly, false);
   assert.equal(d.safety.executorContractAvailable, true);
 });
+
+test("composition includes the disabled paper transport behind the executor contract", () => {
+  const d = make().diagnostics();
+  assert.equal(d.paperTransport.enabled, false);
+  assert.equal(d.paperTransport.safety.paperOnly, true);
+  assert.equal(d.paperTransport.safety.liveTradingAllowed, false);
+  assert.equal(d.paperTransport.safety.retryAllowed, false);
+  assert.equal(d.executorContract.transportPresent, true);
+  assert.equal(d.safety.paperTransportAvailable, true);
+});
+
+test("transport enable alone cannot bypass executor contract authorization", async () => {
+  let requests = 0;
+  const c = createStage1UnattendedOneShareDisabledComposition({
+    sharedScanCache: { getLatest: () => null },
+    fetchAccountSnapshot: async () => null,
+    unattendedTransport: async () => {
+      requests += 1;
+      return new Response("{}", { status: 200 });
+    },
+    env: {
+      STAGE1_UNATTENDED_PAPER_TRANSPORT_ENABLED: "1",
+      STAGE1_UNATTENDED_PAPER_TRANSPORT_APPROVAL:
+        "AUTHORIZE EXACTLY ONE UNATTENDED ALPACA PAPER SHARE FOR STAGE 1 MECHANICAL PROOF",
+      APCA_API_BASE_URL: "https://paper-api.alpaca.markets",
+      APCA_API_KEY_ID: "paper-key",
+      APCA_API_SECRET_KEY: "paper-secret",
+      STAGE1_UNATTENDED_EXECUTOR_CONTRACT_ENABLED: "1",
+    },
+    setIntervalImpl: () => {
+      throw new Error("interval must not start");
+    },
+    clearIntervalImpl: () => {},
+  });
+  const result = await c.runOnce();
+  assert.equal(requests, 0);
+  assert.equal(result.compositionEnabled, false);
+  assert.equal(result.executorContract.enabled, true);
+  assert.equal(result.paperTransport.enabled, true);
+});
