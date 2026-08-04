@@ -6,6 +6,7 @@ import path from 'node:path'
 import {
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 } from '../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs'
 
 const readyInput = Object.freeze({
@@ -87,6 +88,40 @@ test('writer creates private ready and blocked operator packet artifacts', () =>
     const blockedFile = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(blocked, dir)
     assert.equal(path.basename(blockedFile), 'paper_auto_execution_authorized_run_once_operator_packet_blocked.json')
     assert.equal(fs.statSync(blockedFile).mode & 0o777, 0o600)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+
+test('packet integrity digest is deterministic and mutation sensitive', () => {
+  const first = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
+  const second = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
+  assert.equal(first.integrity.algorithm, 'sha256')
+  assert.match(first.integrity.digest, /^[a-f0-9]{64}$/)
+  assert.equal(first.integrity.digest, second.integrity.digest)
+
+  const changed = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
+    ...readyInput,
+    killSwitchReady: false,
+  })
+  assert.notEqual(first.integrity.digest, changed.integrity.digest)
+
+  const { integrity, ...core } = first
+  assert.equal(
+    integrity.digest,
+    digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket(core),
+  )
+})
+
+test('private writer preserves packet integrity metadata', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-integrity-'))
+  try {
+    const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
+    const file = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, dir)
+    const saved = JSON.parse(fs.readFileSync(file, 'utf8'))
+    assert.deepEqual(saved.integrity, packet.integrity)
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600)
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }

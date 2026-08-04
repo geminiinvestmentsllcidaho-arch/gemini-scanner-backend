@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
   buildPaperAutoExecutionAuthorizedRunOnceRunbook,
@@ -8,6 +9,23 @@ import {
 } from './paper_auto_execution_authorized_run_once_operator_checklist.mjs'
 
 export const VERSION = 'paper_auto_execution_authorized_run_once_operator_packet_v1'
+
+function stable(value) {
+  if (Array.isArray(value)) return value.map(stable)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .filter((key) => key !== 'ts')
+        .sort()
+        .map((key) => [key, stable(value[key])]),
+    )
+  }
+  return value
+}
+
+export function digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet) {
+  return createHash('sha256').update(JSON.stringify(stable(packet))).digest('hex')
+}
 
 export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {}) {
   const runbook = buildPaperAutoExecutionAuthorizedRunOnceRunbook(input)
@@ -22,7 +40,7 @@ export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {
     checklist.readyForSeparateExplicitExecutionReview === true &&
     blockers.length === 0
 
-  return Object.freeze({
+  const core = {
     ok: true,
     version: VERSION,
     status: readyForSeparateExplicitExecutionReview
@@ -48,6 +66,13 @@ export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {
       liveCredentialsAllowed: false,
       liveTradingAllowed: false,
     }),
+  }
+  return Object.freeze({
+    ...core,
+    integrity: Object.freeze({
+      algorithm: 'sha256',
+      digest: digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket(core),
+    }),
   })
 }
 
@@ -67,4 +92,5 @@ export default {
   VERSION,
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 }
