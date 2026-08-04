@@ -1,6 +1,7 @@
 import {
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 } from '../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs'
 
 const boolArg = (value) => ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase())
@@ -28,5 +29,6 @@ const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
 })
 
 const reportFile = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
-console.log(JSON.stringify({ ...packet, reportFile }, null, 2))
+const integrityVerified = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
+console.log(JSON.stringify({ ...packet, reportFile, integrityVerified }, null, 2))
 process.exit(packet.readyForSeparateExplicitExecutionReview ? 0 : 1)

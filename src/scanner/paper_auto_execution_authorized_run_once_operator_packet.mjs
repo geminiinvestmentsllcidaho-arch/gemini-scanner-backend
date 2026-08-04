@@ -27,6 +27,14 @@ export function digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet) 
   return createHash('sha256').update(JSON.stringify(stable(packet))).digest('hex')
 }
 
+export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet) {
+  if (!packet || typeof packet !== 'object') return false
+  if (packet.integrity?.algorithm !== 'sha256') return false
+  if (typeof packet.integrity?.digest !== 'string') return false
+  const { integrity, ...core } = packet
+  return integrity.digest === digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket(core)
+}
+
 export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {}) {
   const runbook = buildPaperAutoExecutionAuthorizedRunOnceRunbook(input)
   const checklist = buildPaperAutoExecutionAuthorizedRunOnceOperatorChecklist(input)
@@ -93,4 +101,5 @@ export default {
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 }

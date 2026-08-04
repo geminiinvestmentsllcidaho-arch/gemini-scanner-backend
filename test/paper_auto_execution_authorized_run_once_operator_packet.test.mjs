@@ -7,6 +7,7 @@ import {
   buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   writePaperAutoExecutionAuthorizedRunOnceOperatorPacket,
   digestPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
+  verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket,
 } from '../src/scanner/paper_auto_execution_authorized_run_once_operator_packet.mjs'
 
 const readyInput = Object.freeze({
@@ -125,4 +126,25 @@ test('private writer preserves packet integrity metadata', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
+})
+
+
+test('integrity verifier accepts valid packets and rejects tampering', () => {
+  const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
+  assert.equal(verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet), true)
+  assert.equal(verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(null), false)
+  assert.equal(
+    verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
+      ...packet,
+      status: 'TAMPERED',
+    }),
+    false,
+  )
+  assert.equal(
+    verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
+      ...packet,
+      integrity: { algorithm: 'sha1', digest: packet.integrity.digest },
+    }),
+    false,
+  )
 })
