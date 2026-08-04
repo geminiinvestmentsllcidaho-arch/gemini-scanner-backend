@@ -17,7 +17,7 @@ export function buildPaperAutoExecutionAuthorizedRunOnceRunbook(options = {}) {
   if (!latchFile) blockers.push('authorization_latch_path_required')
   const previewReady = blockers.length === 0
   const commandPreview = previewReady ? [
-    'node scripts/paper_auto_execution_alpaca_paper_authorized_command.mjs',
+    'npm run run:paper-auto-authorized-once --',
     '--execute=true',
     `--authorization-id=${quote(authorizationId)}`,
     '--operator=Borac',

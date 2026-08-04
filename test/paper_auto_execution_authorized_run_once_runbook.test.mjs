@@ -25,8 +25,9 @@ test('complete inputs render exact disabled run-once command preview only', () =
     now: new Date('2026-08-04T07:00:00.000Z'),
   })
   assert.equal(report.previewReady, true)
-  assert.match(report.commandPreview, /^node scripts\/paper_auto_execution_alpaca_paper_authorized_command\.mjs /)
+  assert.match(report.commandPreview, /^npm run run:paper-auto-authorized-once -- /)
   assert.doesNotMatch(report.commandPreview, /paper_auto_execution_authorized_run_once_command\.mjs/)
+  assert.doesNotMatch(report.commandPreview, /^node scripts\//)
   assert.match(report.commandPreview, /--execute=true/)
   assert.match(report.commandPreview, /--authorization-id='auth-1'/)
   assert.match(report.commandPreview, new RegExp(REQUIRED_PHRASE))

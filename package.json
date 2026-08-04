@@ -170,7 +170,8 @@
     "test:resource-safe": "node scripts/run_test_files_isolated.mjs",
     "preview:paper-auto-authorized-run-once-runbook": "node scripts/preview_paper_auto_execution_authorized_run_once_runbook.mjs",
     "preview:paper-auto-authorized-run-once-operator-checklist": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_checklist.mjs",
-    "preview:paper-auto-authorized-run-once-operator-packet": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_packet.mjs"
+    "preview:paper-auto-authorized-run-once-operator-packet": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_packet.mjs",
+    "run:paper-auto-authorized-once": "node scripts/paper_auto_execution_alpaca_paper_authorized_command.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
