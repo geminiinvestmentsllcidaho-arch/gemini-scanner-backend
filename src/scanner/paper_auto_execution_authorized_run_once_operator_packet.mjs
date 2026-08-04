@@ -1,4 +1,4 @@
-import { chmodSync, closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {
@@ -37,13 +37,27 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet) 
 
 export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file) {
   try {
-    const mode = statSync(file).mode & 0o777
+    const fileStat = lstatSync(file)
+    const regularFileVerified = fileStat.isFile() && !fileStat.isSymbolicLink()
+    const mode = fileStat.mode & 0o777
+    if (!regularFileVerified) {
+      return Object.freeze({
+        ok: false,
+        file,
+        mode,
+        regularFileVerified: false,
+        privateModeVerified: mode === 0o600,
+        integrityVerified: false,
+        packet: null,
+      })
+    }
     const packet = JSON.parse(readFileSync(file, 'utf8'))
     const integrityVerified = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet)
     return Object.freeze({
       ok: mode === 0o600 && integrityVerified,
       file,
       mode,
+      regularFileVerified: true,
       privateModeVerified: mode === 0o600,
       integrityVerified,
       packet,
@@ -53,6 +67,7 @@ export function verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file
       ok: false,
       file,
       mode: null,
+      regularFileVerified: false,
       privateModeVerified: false,
       integrityVerified: false,
       packet: null,
@@ -112,11 +127,23 @@ export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {
 
 export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, runsDir = 'runs') {
   mkdirSync(runsDir, { recursive: true })
+  const runsDirStat = lstatSync(runsDir)
+  if (!runsDirStat.isDirectory() || runsDirStat.isSymbolicLink()) {
+    throw new Error('operator_packet_runs_dir_must_be_real_directory')
+  }
   const suffix = packet.readyForSeparateExplicitExecutionReview ? 'ready' : 'blocked'
   const file = path.join(
     runsDir,
     `paper_auto_execution_authorized_run_once_operator_packet_${suffix}.json`,
   )
+  try {
+    const existing = lstatSync(file)
+    if (!existing.isFile() || existing.isSymbolicLink()) {
+      throw new Error('operator_packet_target_must_be_regular_file')
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
   const temp = `${file}.${process.pid}.${Date.now()}.tmp`
   try {
     writeFileSync(temp, `${JSON.stringify(packet, null, 2)}\n`, {

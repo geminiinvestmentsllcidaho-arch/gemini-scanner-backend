@@ -225,3 +225,45 @@ test('atomic writer source syncs file data and containing directory', () => {
   assert.match(source, /fsyncSync\(directoryFd\)/)
   assert.match(source, /closeSync\(directoryFd\)/)
 })
+
+
+test('artifact verifier rejects symlinks and writer rejects symlink paths', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-symlink-'))
+  try {
+    const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({})
+    const realDir = path.join(root, 'real')
+    fs.mkdirSync(realDir)
+    const file = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, realDir)
+    const link = path.join(root, 'packet-link.json')
+    fs.symlinkSync(file, link)
+
+    const verification = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(link)
+    assert.equal(verification.ok, false)
+    assert.equal(verification.regularFileVerified, false)
+    assert.equal(verification.integrityVerified, false)
+    assert.equal(verification.packet, null)
+
+    const linkedDir = path.join(root, 'linked')
+    fs.symlinkSync(realDir, linkedDir)
+    assert.throws(
+      () => writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, linkedDir),
+      /operator_packet_runs_dir_must_be_real_directory/,
+    )
+
+    const target = path.join(
+      realDir,
+      'paper_auto_execution_authorized_run_once_operator_packet_blocked.json',
+    )
+    fs.rmSync(target)
+    const external = path.join(root, 'external.json')
+    fs.writeFileSync(external, '{}\n', { mode: 0o600 })
+    fs.symlinkSync(external, target)
+    assert.throws(
+      () => writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, realDir),
+      /operator_packet_target_must_be_regular_file/,
+    )
+    assert.equal(fs.readFileSync(external, 'utf8'), '{}\n')
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
