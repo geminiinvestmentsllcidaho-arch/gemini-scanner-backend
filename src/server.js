@@ -275,6 +275,11 @@ app.get('/assets/global-theme.js', (_req, res) => {
 })();`);
 });
 
+app.get('/assets/customer-market-countdown.js', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.type('application/javascript').sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-market-countdown.js');
+});
+
 app.get('/assets/customer-scanner-countdown.js', (_req, res) => {
   res.type('application/javascript');
   res.send(`(() => {
@@ -844,15 +849,19 @@ ${renderGlobalFooter()}
 </html>`;
 }
 
-async function buildAuthenticatedCustomerLifetimeEarningsBanner(account) {
+async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath = '') {
   try {
     const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
     const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
     const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
+    const clockMod = await import('./scanner/alpaca_market_clock_readonly.mjs');
     const now = new Date();
-    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const [fetchedPaperAccount, marketClockResult] = await Promise.all([
+      accountData.fetchAlpacaPaperAccountReadonly(),
+      clockMod.fetchAlpacaMarketClockReadonly(),
+    ]);
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
@@ -885,7 +894,7 @@ async function requireCustomerSession(req, res, next) {
   req.customerAccount = result.account;
 
   const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
-  const bannerHtml = await buildAuthenticatedCustomerLifetimeEarningsBanner(result.account);
+  const bannerHtml = await buildAuthenticatedCustomerLifetimeEarningsBanner(result.account, req.path);
   const originalSend = res.send.bind(res);
   res.send = (body) => {
     const contentType = String(res.getHeader('Content-Type') ?? '');
