@@ -23,16 +23,51 @@ export function parsePaperAutoMechanicalRoundTripArgs(argv = []) {
   }))
 }
 
-function normalizeCandidates(payload = {}) {
+export function normalizeCandidates(payload = {}) {
   const rows = Array.isArray(payload) ? payload : Array.isArray(payload.rankings) ? payload.rankings : []
+  const envelope = Array.isArray(payload) ? {} : payload
+  const stale = envelope.stale === true || clean(envelope.scannerHealth).toLowerCase() === 'stale'
+  const denied = [
+    envelope.decisionPermission,
+    envelope.decisionAssistPermission,
+    envelope.decisionContractPermission,
+    envelope.finalGatePermission,
+    envelope.manualExecutionPermission,
+    envelope.stage2FinalPermission,
+    envelope.userDecisionPermission,
+  ].some((value) => clean(value).toLowerCase() === 'denied')
+  const blocked =
+    clean(envelope.scannerReadiness).toLowerCase() === 'blocked' ||
+    clean(envelope.executionReadiness).toLowerCase() === 'blocked'
+  const doNotTrade = ['do_not_enter', 'do_not_trade'].includes(clean(envelope.decisionDirective).toLowerCase()) ||
+    clean(envelope.decisionAssistCommand).toUpperCase() === 'DO_NOT_TRADE' ||
+    clean(envelope.stage2FinalCommand).toUpperCase() === 'DO_NOT_TRADE'
+  const envelopeIssues = Array.isArray(envelope.issues) ? envelope.issues : []
+  const globalAllowed = !stale && !denied && !blocked && !doNotTrade && envelopeIssues.length === 0
+
   return rows.map((row) => {
-    const state = clean(row.state ?? row.resultState ?? row.decision).toUpperCase()
+    const explicitState = clean(row.state ?? row.resultState ?? row.decision).toUpperCase()
+    const confidence = Number(row.compositeConfidence ?? row.confidence)
+    const quality = Number(row.qualityOverall)
+    const rowEligible =
+      globalAllowed &&
+      row.p3GateOk === true &&
+      Number.isFinite(confidence) &&
+      confidence >= 0.6 &&
+      Number.isFinite(quality) &&
+      quality >= 0.8
+    const state = explicitState || (rowEligible ? 'ENTER' : 'DO_NOT_ENTER')
+    const blockers = Array.isArray(row.blockers) ? [...row.blockers] : []
+    if (!globalAllowed) blockers.push('scanner_decision_envelope_blocked')
+    if (row.p3GateOk !== true) blockers.push('p3_gate_not_passed')
+    if (!Number.isFinite(confidence) || confidence < 0.6) blockers.push('candidate_confidence_below_minimum')
+    if (!Number.isFinite(quality) || quality < 0.8) blockers.push('candidate_quality_below_minimum')
     return {
       ...row,
       symbol: clean(row.symbol).toUpperCase(),
       state,
       buyRecommendation: row.buyRecommendation === true || state === 'ENTER',
-      blockers: Array.isArray(row.blockers) ? row.blockers : [],
+      blockers: [...new Set(blockers)],
       score: Number(row.score ?? row.normalizedScore ?? row.readonlyPotentialScore),
     }
   })
