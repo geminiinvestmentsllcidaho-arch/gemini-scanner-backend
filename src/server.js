@@ -251,6 +251,11 @@ app.get('/assets/customer-stage1-notification-self-test.js', (_req, res) => {
   return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-notification-self-test.js');
 });
 
+app.get('/assets/eastern-market-time.js', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.type('application/javascript').sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/eastern-market-time.js');
+});
+
 app.get('/assets/global-theme.js', (_req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   res.type('application/javascript').send(`(() => {
@@ -316,8 +321,15 @@ app.use((_req, res, next) => {
         || body.includes('data-gs-global-theme=')
       );
 
-    if (isHtml && !alreadyUsesGlobalTheme) {
-      return originalSend(injectGeminiScannerBrandHeader(body));
+    if (isHtml) {
+      let html = alreadyUsesGlobalTheme ? body : injectGeminiScannerBrandHeader(body);
+      if (!html.includes('/assets/eastern-market-time.js')) {
+        const script = '<script src="/assets/eastern-market-time.js" defer></script>';
+        html = /<\/body>/i.test(html)
+          ? html.replace(/<\/body>/i, `${script}</body>`)
+          : `${html}${script}`;
+      }
+      return originalSend(html);
     }
     return originalSend(body);
   };
