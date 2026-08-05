@@ -173,7 +173,8 @@
     "preview:paper-auto-authorized-run-once-operator-packet": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_packet.mjs",
     "run:paper-auto-authorized-once": "node scripts/paper_auto_execution_alpaca_paper_authorized_command.mjs",
     "preflight:paper-auto-authorized-once": "node scripts/preflight_paper_auto_execution_authorized_run_once.mjs",
-    "preview:paper-auto-authorized-run-once-history": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_packet_history.mjs"
+    "preview:paper-auto-authorized-run-once-history": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_packet_history.mjs",
+    "preview:paper-auto-authorized-run-once-history-retention": "node scripts/preview_paper_auto_execution_authorized_run_once_operator_packet_history_retention.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
