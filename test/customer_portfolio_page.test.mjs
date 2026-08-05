@@ -290,3 +290,34 @@ test("renders Stage 1 state-change refresh metadata and asset", () => {
   assert.match(html, /data-stage1-state-key=/);
   assert.match(html, /customer-stage1-state-refresh\.js/);
 });
+
+
+test("renders Lifetime Earnings at the top of the portfolio page", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    lifetimePerformance: {
+      realizedPl: 12.5,
+      unrealizedPl: 2.5,
+      totalPl: 15,
+      netAfterCosts: 14.75,
+      totalReturnPct: 1.5,
+    },
+  }));
+  assert.match(html, /data-lifetime-earnings/);
+  assert.match(html, /Lifetime Earnings/);
+  assert.match(html, /\$14\.75/);
+  assert.match(html, /Realized/);
+  assert.match(html, /\$12\.50/);
+  assert.match(html, /Unrealized/);
+  assert.match(html, /\$2\.50/);
+  assert.ok(html.indexOf('data-lifetime-earnings') < html.indexOf('<h1>Portfolio<\/h1>'));
+});
+
+test("renders a fail-closed Lifetime Earnings state when performance is unavailable", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+  }));
+  assert.match(html, /Lifetime Earnings/);
+  assert.match(html, /No data yet/);
+  assert.match(html, /Lifetime performance data is not available yet/);
+});

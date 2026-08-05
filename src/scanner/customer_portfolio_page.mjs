@@ -58,6 +58,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     route: "/customer/portfolio",
     model: options.model ?? {},
     account: options.account ?? {},
+    lifetimePerformance: options.lifetimePerformance ?? null,
     locale: options.locale ?? options.account?.locale ?? "en-US",
     readOnly: true,
     paperOnly: true,
@@ -88,6 +89,9 @@ export function buildCustomerPortfolioPage(options = {}) {
 export function renderCustomerPortfolioPageHtml(page = {}) {
   const model = page.model ?? {};
   const summary = model.summary ?? {};
+  const lifetimePerformance = page.lifetimePerformance ?? null;
+  const lifetimeTotal = finite(lifetimePerformance?.netAfterCosts ?? lifetimePerformance?.totalPl);
+  const lifetimeTone = lifetimeTotal > 0 ? "positive" : lifetimeTotal < 0 ? "negative" : "";
   const locale = page.locale ?? "en-US";
   const positions = Array.isArray(model.positions) ? model.positions : [];
   const warnings = Array.isArray(model.warnings) ? model.warnings : [];
@@ -143,6 +147,19 @@ ${renderCustomerPrimaryNavigationCss()}
 .metric{padding:15px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.48)}
 .metric span{display:block;color:var(--gs-muted);font-size:13px}
 .metric strong{display:block;margin-top:8px;font-size:21px;overflow-wrap:anywhere}
+.lifetime-earnings{padding:22px;margin-bottom:18px;border:2px solid rgba(57,255,32,.55);background:linear-gradient(135deg,rgba(57,255,32,.13),rgba(24,215,255,.08));box-shadow:0 0 24px rgba(57,255,32,.12)}
+.lifetime-earnings-head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.lifetime-earnings .eyebrow{margin:0 0 6px;color:var(--gs-muted);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.lifetime-earnings h2{margin:0}
+.lifetime-total{font-size:clamp(30px,6vw,50px);line-height:1;font-weight:950;overflow-wrap:anywhere}
+.lifetime-total.positive{color:var(--gs-accent)}
+.lifetime-total.negative{color:#ff6b6b}
+.lifetime-breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+.lifetime-breakdown div{padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.34)}
+.lifetime-breakdown span,.lifetime-breakdown strong{display:block}
+.lifetime-breakdown span{color:var(--gs-muted);font-size:12px}
+.lifetime-breakdown strong{margin-top:6px;font-size:18px}
+.lifetime-note{margin:14px 0 0;color:var(--gs-muted);font-size:13px}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:920px}
@@ -182,6 +199,20 @@ ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
 <main class="wrap">
 ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
+
+<section class="card lifetime-earnings" data-lifetime-earnings>
+<div class="lifetime-earnings-head">
+<div><p class="eyebrow">All recorded paper activity</p><h2>Lifetime Earnings</h2></div>
+<strong class="lifetime-total ${lifetimeTone}">${esc(money(lifetimePerformance?.netAfterCosts ?? lifetimePerformance?.totalPl, locale))}</strong>
+</div>
+<div class="lifetime-breakdown">
+<div><span>Realized</span><strong>${esc(money(lifetimePerformance?.realizedPl, locale))}</strong></div>
+<div><span>Unrealized</span><strong>${esc(money(lifetimePerformance?.unrealizedPl, locale))}</strong></div>
+<div><span>Combined</span><strong>${esc(money(lifetimePerformance?.totalPl, locale))}</strong></div>
+<div><span>Return</span><strong>${esc(amount(lifetimePerformance?.totalReturnPct, locale, "%"))}</strong></div>
+</div>
+<p class="lifetime-note">${lifetimePerformance ? "Read-only lifetime paper performance from GeminiScanner's recorded position ledger and current paper-account marks." : "Lifetime performance data is not available yet."}</p>
+</section>
 
 <section class="card panel">
 <p>Paper portfolio • Read only</p>

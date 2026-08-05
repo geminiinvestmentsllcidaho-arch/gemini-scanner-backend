@@ -4624,6 +4624,8 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const portfolioPageMod = await import('./scanner/customer_portfolio_page.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+    const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
     const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
     const stage1MondayChecklistMod = await import('./scanner/customer_stage1_monday_checklist_panel.mjs');
@@ -4661,6 +4663,16 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const model = portfolioModelMod.buildCustomerPortfolioModel({
       paperAccount,
       sourceTs: now.toISOString(),
+      now,
+    });
+    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
+    const paperLedger = paperPositionLedger.latestRecord ?? {};
+    const lifetimePerformance = performanceMod.buildCustomerZeroPerformanceReport({
+      period: 'lifetime',
+      sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+      paperAccount,
+      paperLedger,
+      paperLedgerHistory: paperPositionLedger.records,
       now,
     });
     const stage1StatusPath = process.env.PAPER_MANUAL_WATCH_STATUS_PATH ?? path.join(process.cwd(), 'runs', 'paper_manual_round_trip_status.json');
@@ -4711,6 +4723,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
+      lifetimePerformance,
       ownedAssets,
       connectedPositions: brokerPaperAccount.positions,
       brokerConnected: brokerPaperAccount.connected === true,
