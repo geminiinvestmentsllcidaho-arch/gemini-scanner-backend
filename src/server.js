@@ -832,7 +832,38 @@ ${renderGlobalFooter()}
 </html>`;
 }
 
-function requireCustomerSession(req, res, next) {
+async function buildAuthenticatedCustomerLifetimeEarningsBanner(account) {
+  try {
+    const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
+    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
+    const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
+    const now = new Date();
+    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
+    const paperLedger = paperPositionLedger.latestRecord ?? {};
+    const lifetimePerformance = performanceMod.buildCustomerZeroPerformanceReport({
+      period: 'lifetime',
+      sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+      paperAccount,
+      paperLedger,
+      paperLedgerHistory: paperPositionLedger.records,
+      now,
+    });
+    return bannerMod.renderCustomerLifetimeEarningsBanner(lifetimePerformance, {
+      locale: account?.locale ?? 'en-US',
+    });
+  } catch {
+    const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
+    return bannerMod.renderCustomerLifetimeEarningsBanner(null, {
+      locale: account?.locale ?? 'en-US',
+    });
+  }
+}
+
+async function requireCustomerSession(req, res, next) {
   const secret = CUSTOMER_SESSION_SECRET
   const result = verifyCustomerSessionToken(customerCookieValue(req), {
     secret,
@@ -840,6 +871,18 @@ function requireCustomerSession(req, res, next) {
   });
   if (!result.ok) return res.redirect(303, '/login');
   req.customerAccount = result.account;
+
+  const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
+  const bannerHtml = await buildAuthenticatedCustomerLifetimeEarningsBanner(result.account);
+  const originalSend = res.send.bind(res);
+  res.send = (body) => {
+    const contentType = String(res.getHeader('Content-Type') ?? '');
+    const htmlResponse = typeof body === 'string'
+      && (contentType.includes('text/html') || /<!doctype html|<html\qb||<body\b/i.test(body));
+    return originalSend(htmlResponse
+      ? bannerMod.injectCustomerLifetimeEarningsBanner(body, bannerHtml)
+      : body);
+  };
   return next();
 }
 
