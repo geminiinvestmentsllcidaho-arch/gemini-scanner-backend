@@ -5,62 +5,14 @@ import {
   renderCustomerPortfolioPageHtml,
 } from "../src/scanner/customer_portfolio_page.mjs";
 
-test("renders the Stage 1 event timeline after live control and before the Monday checklist", () => {
+
+test("keeps obsolete Stage 1 project panels and assets off the portfolio page", () => {
   const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
     model: { account: {}, summary: {}, positions: [], warnings: [] },
-    stage1MondayLiveControlHtml: '<section data-stage1-live-control>Live control</section>',
-    stage1EventTimelineHtml: '<section data-stage1-event-timeline>Timeline</section>',
-    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Checklist</section>',
   }));
-  assert.ok(html.indexOf("data-stage1-live-control") < html.indexOf("data-stage1-event-timeline"));
-  assert.ok(html.indexOf("data-stage1-event-timeline") < html.indexOf("data-stage1-monday-checklist"));
-});
 
-test("renders the Stage 1 Monday live control before the Monday checklist", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
-    model: { account: {}, summary: {}, positions: [], warnings: [] },
-    stage1MondayLiveControlHtml: '<section data-stage1-live-control>Live control</section>',
-    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Checklist</section>',
-  }));
-  assert.ok(html.indexOf("data-stage1-live-control") < html.indexOf("data-stage1-monday-checklist"));
-});
-
-test("renders the isolated Stage 1 notification self-test after the Monday checklist", () => {
-  const page = buildCustomerPortfolioPage({
-    model: {},
-    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Monday checklist</section>',
-    stage1NotificationSelfTestHtml: '<section data-stage1-notification-self-test>Notification self-test</section>',
-    stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>',
-  });
-  const html = renderCustomerPortfolioPageHtml(page);
-  assert.match(html, /data-stage1-notification-self-test/);
-  assert.match(html, /customer-stage1-notification-self-test\.js/);
-  assert.ok(html.indexOf("<section data-stage1-monday-checklist") < html.indexOf("<section data-stage1-notification-self-test"));
-  assert.ok(html.indexOf("data-stage1-notification-self-test") < html.indexOf("data-stage1-operator-console"));
-});
-
-test("renders the Stage 1 Monday checklist before existing Stage 1 panels", () => {
-  const page = buildCustomerPortfolioPage({
-    model: {},
-    stage1MondayChecklistHtml: '<section data-stage1-monday-checklist>Monday checklist</section>',
-    stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>',
-  });
-  const html = renderCustomerPortfolioPageHtml(page);
-  assert.match(html, /data-stage1-monday-checklist/);
-  assert.ok(html.indexOf("data-stage1-monday-checklist") < html.indexOf("data-stage1-operator-console"));
-});
-
-
-test("renders live Stage 1 detection latency after the operator console", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
-    model: {},
-    stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>',
-    stage1DetectionLatencyHtml: '<section data-stage1-detection-latency>Latency</section>',
-    stage1PanelHtml: '<section data-stage1-manual-trade>Manual trade</section>',
-  }));
-  assert.match(html, /data-stage1-detection-latency/);
-  assert.ok(html.indexOf("data-stage1-operator-console") < html.indexOf("data-stage1-detection-latency"));
-  assert.ok(html.indexOf("data-stage1-detection-latency") < html.indexOf("data-stage1-manual-trade"));
+  assert.doesNotMatch(html, /data-stage1-|customer-stage1-/);
+  assert.doesNotMatch(html, /Monday checklist|Operator console|manual proof|reconciliation proof/i);
 });
 
 test("renders customer portfolio page with friendly labels and safety locks", () => {
@@ -235,61 +187,6 @@ test("renders an additional blank row after saved manual positions", () => {
   assert.match(html, /name="symbol" value=""/);
 });
 
-test("renders the Stage 1 manual trade panel supplied by the route", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1PanelHtml: '<section data-stage1-manual-panel>Stage 1 manual proof</section>' }));
-  assert.match(html, /data-stage1-manual-panel/);
-  assert.match(html, /Stage 1 manual proof/);
-});
-
-test("renders Stage 1 reconciliation evidence supplied by the route", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
-    model: { account: {}, summary: {}, positions: [], warnings: [] },
-    stage1ReconciliationHtml: '<section data-stage1-reconciliation>Stage 1 reconciliation proof</section>',
-  }));
-  assert.match(html, /data-stage1-reconciliation/);
-  assert.match(html, /Stage 1 reconciliation proof/);
-});
-
-test("renders Stage 1 EXIT alert asset only when alert HTML is supplied", () => {
-  const withAlert = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
-    model: { account: {}, summary: {}, positions: [], warnings: [] },
-    stage1ExitAlertHtml: '<section data-stage1-exit-alert>EXIT alert</section>',
-  }));
-  assert.match(withAlert, /data-stage1-exit-alert/);
-  assert.match(withAlert, /customer-stage1-exit-alerts\.js/);
-  const withoutAlert = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
-    model: { account: {}, summary: {}, positions: [], warnings: [] },
-  }));
-  assert.doesNotMatch(withoutAlert, /customer-stage1-exit-alerts\.js/);
-});
-
-test("renders Stage 1 post-trade review supplied by the route", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1PostTradeReviewHtml: '<section data-stage1-post-trade-review>Stage 1 review</section>' }));
-  assert.match(html, /data-stage1-post-trade-review/);
-  assert.match(html, /Stage 1 review/);
-});
-
-test("renders Stage 1 completion record supplied by the route", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1CompletionRecordHtml: '<section data-stage1-completion-record>Stage 1 complete</section>' }));
-  assert.match(html, /data-stage1-completion-record/);
-  assert.match(html, /Stage 1 complete/);
-});
-
-
-test("renders Stage 1 Monday operator console supplied by the route", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] }, stage1OperatorConsoleHtml: '<section data-stage1-operator-console>Operator console</section>' }));
-  assert.match(html, /data-stage1-operator-console/);
-  assert.match(html, /Operator console/);
-});
-
-test("renders Stage 1 state-change refresh metadata and asset", () => {
-  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
-    model: { account: {}, summary: {}, positions: [], warnings: [] },
-    stage1StateKey: '{"status":"awaiting_manual_enter"}',
-  }));
-  assert.match(html, /data-stage1-state-key=/);
-  assert.match(html, /customer-stage1-state-refresh\.js/);
-});
 
 
 test("renders Lifetime Earnings at the top of the portfolio page", () => {

@@ -4671,20 +4671,6 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
     const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
-    const stage1MondayChecklistMod = await import('./scanner/customer_stage1_monday_checklist_panel.mjs');
-    const stage1MondayLiveControlMod = await import('./scanner/customer_stage1_monday_live_control_panel.mjs');
-    const stage1EventTimelineMod = await import('./scanner/customer_stage1_event_timeline_panel.mjs');
-    const stage1LiveIncidentMod = await import('./scanner/customer_stage1_live_incident_panel.mjs');
-    const stage1NotificationSelfTestMod = await import('./scanner/customer_stage1_notification_self_test_panel.mjs');
-    const stage1OperatorConsoleMod = await import('./scanner/customer_stage1_operator_console.mjs');
-    const stage1DetectionLatencyMod = await import('./scanner/customer_stage1_detection_latency_panel.mjs');
-    const stage1PanelMod = await import('./scanner/customer_stage1_manual_trade_panel.mjs');
-    const stage1ReconciliationMod = await import('./scanner/customer_stage1_reconciliation_panel.mjs');
-    const stage1ExitAlertMod = await import('./scanner/customer_stage1_exit_alert_panel.mjs');
-    const stage1CompletionRecordMod = await import('./scanner/customer_stage1_completion_record_panel.mjs');
-    const stage1PostTradeReviewMod = await import('./scanner/customer_stage1_post_trade_review_panel.mjs');
-    const stage1EvidenceExportMod = await import('./scanner/customer_stage1_evidence_export.mjs');
-    const stage1EvidenceDownloadMod = await import('./scanner/customer_stage1_evidence_download_panel.mjs');
 
     const rawFetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
     const now = new Date();
@@ -4718,51 +4704,6 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       paperLedgerHistory: paperPositionLedger.records,
       now,
     });
-    const stage1StatusPath = process.env.PAPER_MANUAL_WATCH_STATUS_PATH ?? path.join(process.cwd(), 'runs', 'paper_manual_round_trip_status.json');
-    let stage1Status = null;
-    try { stage1Status = JSON.parse(fs.readFileSync(stage1StatusPath, 'utf8')); } catch {}
-    const stage1RuntimeHealth = buildRuntimeHealthState();
-    const stage1MarketOpen = stage1RuntimeHealth.stream?.marketOpen === true;
-    const stage1MondayLiveControl = stage1MondayLiveControlMod.buildCustomerStage1MondayLiveControlPanel({
-      status: stage1Status,
-      snapshot: fetchedPaperAccount,
-      health: { status: 'ok', ...stage1RuntimeHealth },
-      readiness: { ready: stage1RuntimeHealth.degraded !== true, ...stage1RuntimeHealth },
-      marketOpen: stage1MarketOpen,
-      nowMs: now.getTime(),
-    });
-    const stage1EventTimeline = stage1EventTimelineMod.buildCustomerStage1EventTimelinePanel({ status: stage1Status });
-    const stage1NotificationSelfTest = stage1NotificationSelfTestMod.buildCustomerStage1NotificationSelfTestPanel();
-    const stage1MondayChecklist = stage1MondayChecklistMod.buildCustomerStage1MondayChecklistPanel({
-      status: stage1Status,
-      snapshot: fetchedPaperAccount,
-      health: { status: 'ok', ...stage1RuntimeHealth },
-      readiness: { ready: stage1RuntimeHealth.degraded !== true, ...stage1RuntimeHealth },
-      watcherOnline: stage1Status?.ok === true,
-      marketOpen: stage1MarketOpen,
-      nowMs: now.getTime(),
-    });
-    const stage1OperatorConsole = stage1OperatorConsoleMod.buildCustomerStage1OperatorConsole({ status: stage1Status, snapshot: fetchedPaperAccount, marketOpen: stage1MarketOpen, nowMs: now.getTime() });
-    const stage1LiveIncident = stage1LiveIncidentMod.buildCustomerStage1LiveIncidentPanel({ status: stage1Status, timeline: stage1EventTimeline, checklist: stage1MondayChecklist, operatorConsole: stage1OperatorConsole, capturedAt: now.toISOString() });
-    const stage1DetectionLatency = stage1DetectionLatencyMod.buildCustomerStage1DetectionLatencyPanel({ status: stage1Status });
-    const stage1Panel = stage1PanelMod.buildCustomerStage1ManualTradePanel({ status: stage1Status, marketOpen: stage1MarketOpen, nowMs: now.getTime() });
-    const stage1Reconciliation = stage1ReconciliationMod.buildCustomerStage1ReconciliationPanel({ status: stage1Status });
-    const stage1ExitAlert = stage1ExitAlertMod.buildCustomerStage1ExitAlertPanel({ status: stage1Status });
-    const stage1CompletionRecord = stage1CompletionRecordMod.buildCustomerStage1CompletionRecordPanel({ status: stage1Status });
-    const stage1PostTradeReview = stage1PostTradeReviewMod.buildCustomerStage1PostTradeReviewPanel({ tracker: stage1Status?.tracker, proof: stage1Status?.promotionProof });
-    const stage1EvidenceGeneratedAt = stage1Status?.promotionProof?.completedAt ?? stage1Status?.generatedAt ?? stage1Status?.updatedAt ?? now.toISOString();
-    const stage1EvidenceExport = stage1EvidenceExportMod.buildCustomerStage1EvidenceExport({ status: stage1Status, snapshot: fetchedPaperAccount, generatedAt: stage1EvidenceGeneratedAt });
-    const stage1EvidenceDownload = stage1EvidenceDownloadMod.buildCustomerStage1EvidenceDownloadPanel({ record: stage1EvidenceExport });
-    const stage1StateKey = JSON.stringify({
-      status: stage1Status?.tracker?.status ?? null,
-      symbol: stage1Status?.tracker?.symbol ?? null,
-      enterDetected: stage1Status?.tracker?.enterDetected === true,
-      enterReconciled: stage1Status?.tracker?.enterReconciled === true,
-      exitDetected: stage1Status?.tracker?.exitDetected === true,
-      exitReconciled: stage1Status?.tracker?.exitReconciled === true,
-      mechanicalSuccess: stage1Status?.tracker?.mechanicalSuccess === true,
-      evidenceId: stage1Status?.promotionProof?.evidenceId ?? null,
-    });
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -4773,20 +4714,6 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       windDown,
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
-      stage1MondayLiveControlHtml: stage1MondayLiveControlMod.renderCustomerStage1MondayLiveControlPanelHtml(stage1MondayLiveControl),
-      stage1EventTimelineHtml: stage1EventTimelineMod.renderCustomerStage1EventTimelinePanelHtml(stage1EventTimeline),
-      stage1LiveIncidentHtml: stage1LiveIncidentMod.renderCustomerStage1LiveIncidentPanelHtml(stage1LiveIncident),
-      stage1MondayChecklistHtml: stage1MondayChecklistMod.renderCustomerStage1MondayChecklistPanelHtml(stage1MondayChecklist),
-      stage1NotificationSelfTestHtml: stage1NotificationSelfTestMod.renderCustomerStage1NotificationSelfTestPanelHtml(stage1NotificationSelfTest),
-      stage1OperatorConsoleHtml: stage1OperatorConsoleMod.renderCustomerStage1OperatorConsoleHtml(stage1OperatorConsole),
-      stage1DetectionLatencyHtml: stage1DetectionLatencyMod.renderCustomerStage1DetectionLatencyPanelHtml(stage1DetectionLatency),
-      stage1PanelHtml: stage1PanelMod.renderCustomerStage1ManualTradePanelHtml(stage1Panel),
-      stage1ReconciliationHtml: stage1ReconciliationMod.renderCustomerStage1ReconciliationPanelHtml(stage1Reconciliation, req.customerAccount?.locale ?? 'en-US'),
-      stage1ExitAlertHtml: stage1ExitAlertMod.renderCustomerStage1ExitAlertPanelHtml(stage1ExitAlert),
-      stage1CompletionRecordHtml: stage1CompletionRecordMod.renderCustomerStage1CompletionRecordPanelHtml(stage1CompletionRecord),
-      stage1PostTradeReviewHtml: stage1PostTradeReviewMod.renderCustomerStage1PostTradeReviewPanelHtml(stage1PostTradeReview, req.customerAccount?.locale ?? 'en-US'),
-      stage1EvidenceDownloadHtml: stage1EvidenceDownloadMod.renderCustomerStage1EvidenceDownloadPanelHtml(stage1EvidenceDownload),
-      stage1StateKey,
     });
 
     res.set('Cache-Control', 'no-store');

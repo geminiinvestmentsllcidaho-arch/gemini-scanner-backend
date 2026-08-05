@@ -15,11 +15,10 @@ test("wires authenticated GET-only Stage 1 evidence downloads", () => {
   assert.doesNotMatch(source, /app\.post\('\/customer\/stage1\/evidence\./);
 });
 
-test("portfolio route renders current read-only evidence panel", () => {
-  assert.match(source, /buildCustomerStage1EvidenceExport\(\{ status: stage1Status, snapshot: fetchedPaperAccount/);
-  assert.match(source, /buildCustomerStage1EvidenceDownloadPanel\(\{ record: stage1EvidenceExport \}\)/);
-  assert.match(source, /stage1PostTradeReviewMod = await import/);
-  assert.match(source, /buildCustomerStage1PostTradeReviewPanel/);
-  assert.match(source, /stage1PostTradeReviewHtml:/);
-  assert.match(source, /stage1EvidenceDownloadHtml:/);
+test("portfolio route keeps archived Stage 1 evidence panels off the Portfolio page", () => {
+  const start = source.indexOf("app.get('/customer/portfolio'");
+  const end = source.indexOf("app.post('/customer/portfolio/owned-assets'", start);
+  const block = source.slice(start, end);
+  assert.doesNotMatch(block, /buildCustomerStage1EvidenceExport|buildCustomerStage1EvidenceDownloadPanel/);
+  assert.doesNotMatch(block, /stage1PostTradeReviewHtml:|stage1EvidenceDownloadHtml:/);
 });

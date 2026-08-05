@@ -16,11 +16,12 @@ test("reloads only after a read-only Stage 1 state change", () => {
   assert.doesNotMatch(asset, /method: "POST"|method: "DELETE"|\/v2\/orders/);
 });
 
-test("serves refresh asset and derives a non-secret Stage 1 state key", () => {
+test("serves the archived refresh asset but keeps it disconnected from the Portfolio page", () => {
   assert.match(server, /app\.get\('\/assets\/customer-stage1-state-refresh\.js'/);
-  assert.match(server, /const stage1StateKey = JSON\.stringify/);
-  assert.match(server, /enterDetected:/);
-  assert.match(server, /exitDetected:/);
-  assert.match(server, /mechanicalSuccess:/);
-  assert.match(server, /stage1StateKey,/);
+  const start = server.indexOf("app.get('/customer/portfolio'");
+  const end = server.indexOf("app.post('/customer/portfolio/owned-assets'", start);
+  const block = server.slice(start, end);
+  assert.doesNotMatch(block, /const stage1StateKey = JSON\.stringify|stage1StateKey,/);
+  const page = fs.readFileSync("src/scanner/customer_portfolio_page.mjs", "utf8");
+  assert.doesNotMatch(page, /customer-stage1-state-refresh\.js|data-stage1-state-key/);
 });

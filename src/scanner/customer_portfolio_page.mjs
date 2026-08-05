@@ -69,20 +69,6 @@ export function buildCustomerPortfolioPage(options = {}) {
     windDown: options.windDown ?? { status: "inactive", steps: [] },
     saved: options.saved === true,
     windDownUpdated: options.windDownUpdated === true,
-    stage1MondayLiveControlHtml: options.stage1MondayLiveControlHtml ?? "",
-    stage1EventTimelineHtml: options.stage1EventTimelineHtml ?? "",
-    stage1LiveIncidentHtml: options.stage1LiveIncidentHtml ?? "",
-    stage1MondayChecklistHtml: options.stage1MondayChecklistHtml ?? "",
-    stage1NotificationSelfTestHtml: options.stage1NotificationSelfTestHtml ?? "",
-    stage1OperatorConsoleHtml: options.stage1OperatorConsoleHtml ?? "",
-    stage1DetectionLatencyHtml: options.stage1DetectionLatencyHtml ?? "",
-    stage1PanelHtml: options.stage1PanelHtml ?? "",
-    stage1ReconciliationHtml: options.stage1ReconciliationHtml ?? "",
-    stage1ExitAlertHtml: options.stage1ExitAlertHtml ?? "",
-    stage1CompletionRecordHtml: options.stage1CompletionRecordHtml ?? "",
-    stage1PostTradeReviewHtml: options.stage1PostTradeReviewHtml ?? "",
-    stage1EvidenceDownloadHtml: options.stage1EvidenceDownloadHtml ?? "",
-    stage1StateKey: options.stage1StateKey ?? "",
   });
 }
 
@@ -185,15 +171,10 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
 .wind-actions{margin:14px 0 10px}
 .wind-actions button{width:100%;max-width:620px}
-.stage1-event-timeline{border:2px solid #18d7ff}.stage1-event-list{list-style:none;padding:0;display:grid;gap:8px}.stage1-event-list li{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:6px 12px;padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.3)}.stage1-event-list li.pass{border-color:rgba(57,255,32,.45)}.stage1-event-list li.hold{border-color:rgba(255,209,102,.55)}.stage1-event-list small{grid-column:1/-1;color:var(--gs-muted);overflow-wrap:anywhere}.stage1-event-stop{border-color:#ff1f1f;background:rgba(70,0,0,.42)}..stage1-live-control{border:3px solid #ffd166}.stage1-live-ready{border-color:#39ff20;box-shadow:0 0 22px rgba(57,255,32,.32)}.stage1-live-hold{border-color:#ff1f1f;background:rgba(70,0,0,.42)}.stage1-live-monitoring_exit{border-color:#18d7ff}.stage1-live-reconciling{border-color:#ffd166}.stage1-live-complete{border-color:#39ff20}.stage1-notification-self-test{border:2px solid #18d7ff}.stage1-notification-self-test [data-stage1-notification-self-test-status]{padding:10px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(24,215,255,.08)}.stage1-monday-checklist{border:3px solid #ffd166}.stage1-checks .stop{border-color:rgba(255,31,31,.75);background:rgba(255,31,31,.08)}.stage1-operator-console{border:3px solid #18d7ff}.stage1-operator-stop{border-color:#ff1f1f;background:rgba(70,0,0,.72);box-shadow:0 0 22px rgba(255,31,31,.45)}.stage1-anomaly-banner{margin-top:12px;padding:14px;border:2px solid #ff1f1f;border-radius:12px;background:rgba(255,31,31,.12)}.stage1-panel{border:2px solid #ffd166}.stage1-ready{border-color:#39ff20}.stage1-monitoring{border-color:#18d7ff}.stage1-complete{border-color:#39ff20}.stage1-kicker{font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--gs-muted)}.stage1-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;padding:0;list-style:none}.stage1-checks li,.stage1-grid p{padding:10px;border-radius:10px;border:1px solid var(--gs-line)}.stage1-checks .pass{border-color:rgba(57,255,32,.45)}.stage1-checks .hold{border-color:rgba(255,209,102,.55)}.stage1-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.stage1-grid p{background:rgba(0,0,0,.3)}.stage1-grid span,.stage1-grid strong{display:block}.stage1-grid span{color:var(--gs-muted);font-size:12px}.stage1-grid strong{margin-top:5px}.stage1-issues{color:#ff8f8f}
-.stage1-reconciliation{border:2px solid #18d7ff}.stage1-recon-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.stage1-recon-columns article{padding:12px;border:1px solid var(--gs-line);border-radius:12px;background:rgba(0,0,0,.28)}.stage1-recon-columns ul{padding-left:18px}.stage1-recon-columns li.pass{color:#7dff9b}.stage1-recon-columns li.pending{color:#ffd166}.stage1-recon-columns article p span,.stage1-recon-columns article p strong{display:block}.stage1-recon-columns article p span{color:var(--gs-muted);font-size:12px}.stage1-alert-readiness{margin-top:12px;padding:12px;border-radius:10px;border:1px solid rgba(24,215,255,.45);background:rgba(24,215,255,.08)}
-.stage1-completion-record{border:3px solid #39ff20;box-shadow:0 0 20px rgba(57,255,32,.28)}.stage1-completion-times{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}.stage1-completion-times p{padding:10px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.3)}.stage1-completion-times span,.stage1-completion-times strong{display:block}.stage1-completion-times span{color:var(--gs-muted);font-size:12px}.stage1-completion-times strong{margin-top:5px;overflow-wrap:anywhere}.stage1-completion-record code{overflow-wrap:anywhere}
-.stage1-evidence-download{border:2px solid #39ff20}.stage1-evidence-download code{overflow-wrap:anywhere}.stage1-evidence-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.stage1-evidence-actions a{display:inline-block;padding:11px 15px;border-radius:10px;font-weight:850;text-decoration:none}.stage1-evidence-pending{padding:12px;border:1px solid rgba(255,209,102,.55);border-radius:10px;background:rgba(255,209,102,.08)}
-.stage1-exit-alert{border:3px solid #ff1f1f;background:rgba(49,0,0,.78);box-shadow:0 0 24px rgba(255,31,31,.65);animation:stage1-exit-flash .9s steps(2,end) infinite}.stage1-exit-actions{display:flex;gap:10px;flex-wrap:wrap}.stage1-exit-actions button{flex:1;min-width:220px}.stage1-exit-alert[data-acknowledged="true"]{animation:none;box-shadow:none}@keyframes stage1-exit-flash{0%,48%{filter:brightness(1.25)}49%,100%{filter:brightness(.75)}}@media(prefers-reduced-motion:reduce){.stage1-exit-alert{animation:none}}
 @media(max-width:760px){.position-row{grid-template-columns:1fr 1fr}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
 </style>
 </head>
-<body data-gs-page="customer-portfolio" data-stage1-state-key="${esc(page.stage1StateKey)}">
+<body data-gs-page="customer-portfolio">
 
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "GeminiScanner" })}
@@ -222,19 +203,6 @@ ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 <p><strong>Last updated:</strong> ${esc(model.sourceTs ?? "No timestamp available")}</p>
 </section>
 
-${page.stage1MondayLiveControlHtml ?? ""}
-${page.stage1EventTimelineHtml ?? ""}
-${page.stage1LiveIncidentHtml ?? ""}
-${page.stage1MondayChecklistHtml ?? ""}
-${page.stage1NotificationSelfTestHtml ?? ""}
-${page.stage1OperatorConsoleHtml ?? ""}
-${page.stage1DetectionLatencyHtml ?? ""}
-${page.stage1PanelHtml ?? ""}
-${page.stage1ReconciliationHtml ?? ""}
-${page.stage1ExitAlertHtml ?? ""}
-${page.stage1CompletionRecordHtml ?? ""}
-${page.stage1PostTradeReviewHtml ?? ""}
-${page.stage1EvidenceDownloadHtml ?? ""}
 
 <section class="card panel">
 <h2>Account overview</h2>
@@ -322,9 +290,6 @@ ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 </main>
 ${renderGlobalFooter()}
 <script src="/customer-portfolio-owned-assets.js" defer></script>
-<script src="/assets/customer-stage1-state-refresh.js" defer></script>
-<script src="/assets/customer-stage1-notification-self-test.js" defer></script>
-${page.stage1ExitAlertHtml ? '<script src="/assets/customer-stage1-exit-alerts.js" defer></script>' : ""}
 </body>
 </html>`;
 }
