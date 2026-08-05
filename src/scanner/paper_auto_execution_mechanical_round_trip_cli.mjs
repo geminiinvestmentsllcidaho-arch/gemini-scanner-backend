@@ -12,7 +12,7 @@ import {
 } from './paper_auto_execution_run_once_authorization.mjs'
 import { PAPER_EXECUTION_STAGES } from './paper_execution_stage_promotion_lock.mjs'
 
-export const VERSION = 'paper_auto_execution_mechanical_round_trip_cli_v1'
+export const VERSION = 'paper_auto_execution_mechanical_round_trip_cli_v2'
 const clean = (value) => String(value ?? '').trim()
 const yes = (value) => ['1', 'true', 'yes', 'on'].includes(clean(value).toLowerCase())
 
@@ -21,6 +21,82 @@ export function parsePaperAutoMechanicalRoundTripArgs(argv = []) {
     const [key, ...rest] = value.slice(2).split('=')
     return [key, rest.length ? rest.join('=') : 'true']
   }))
+}
+
+export function mapLiveUnderFiveUniverseToRankingEnvelope(payload = {}, nowMs = Date.now()) {
+  const rows = Array.isArray(payload?.candidates) ? payload.candidates : []
+  const runtime = payload?.runtime ?? {}
+  const marketOpen = payload?.marketClock?.isOpen === true
+  const connected = clean(payload?.status).toLowerCase() === 'connected_readonly'
+  const safeRuntime =
+    runtime.paperOnly === true &&
+    runtime.readOnly === true &&
+    runtime.orderSubmitAllowed === false &&
+    runtime.orderPlacementAllowed === false &&
+    runtime.accountMutationAllowed === false
+  const sourceBlocked = !connected || !marketOpen || !safeRuntime
+  const issues = []
+  if (!connected) issues.push('LIVE_UNDER_FIVE_SOURCE_NOT_CONNECTED')
+  if (!marketOpen) issues.push('LIVE_UNDER_FIVE_MARKET_CLOSED')
+  if (!safeRuntime) issues.push('LIVE_UNDER_FIVE_RUNTIME_UNSAFE')
+  return {
+    stale: sourceBlocked,
+    scannerHealth: sourceBlocked ? 'stale' : 'healthy',
+    scannerReadiness: sourceBlocked ? 'blocked' : 'ready',
+    executionReadiness: sourceBlocked ? 'blocked' : 'ready',
+    decisionPermission: sourceBlocked ? 'denied' : 'approved',
+    decisionDirective: sourceBlocked ? 'do_not_enter' : 'enter',
+    issues,
+    rankings: rows.map((row) => {
+      const score = Number(row?.readonlyPotentialScore)
+      const sourceAgeSec = Number(row?.sourceAgeSec)
+      const maxSourceAgeSec = Number(row?.maxSourceAgeSec)
+      const blockingFlags = Array.isArray(row?.blockingFlags) ? row.blockingFlags : []
+      const readonlyPotentialFlags = Array.isArray(row?.readonlyPotentialFlags) ? row.readonlyPotentialFlags : []
+      const sourceFresh =
+        row?.sourceStale === false &&
+        Number.isFinite(sourceAgeSec) &&
+        Number.isFinite(maxSourceAgeSec) &&
+        sourceAgeSec <= maxSourceAgeSec &&
+        Number.isFinite(Date.parse(row?.sourceTs ?? '')) &&
+        Date.parse(row.sourceTs) <= nowMs + 30000
+      const candidateSafe =
+        clean(row?.decision).toUpperCase() === 'ENTER' &&
+        row?.decisionReviewAllowed === true &&
+        row?.tradable === true &&
+        clean(row?.status).toLowerCase() === 'active' &&
+        sourceFresh &&
+        blockingFlags.length === 0 &&
+        readonlyPotentialFlags.length === 0 &&
+        Number.isFinite(score)
+      return {
+        ...row,
+        state: candidateSafe ? 'ENTER' : 'DO_NOT_ENTER',
+        p3GateOk: candidateSafe,
+        compositeConfidence: Number.isFinite(score) ? score / 100 : null,
+        qualityOverall: Number.isFinite(score) ? score / 100 : null,
+        score,
+        blockers: [...new Set([
+          ...blockingFlags,
+          ...readonlyPotentialFlags,
+          ...(sourceFresh ? [] : ['live_candidate_source_stale']),
+          ...(row?.decisionReviewAllowed === true ? [] : ['decision_review_not_allowed']),
+          ...(row?.tradable === true ? [] : ['candidate_not_tradable']),
+          ...(clean(row?.status).toLowerCase() === 'active' ? [] : ['candidate_not_active']),
+        ])],
+      }
+    }),
+  }
+}
+
+export async function fetchLiveUnderFiveRankingEnvelope({ fetchImpl = globalThis.fetch, nowMs = Date.now(), url = 'http://127.0.0.1:3000/diagnostics/alpaca-under-five-universe-readonly' } = {}) {
+  if (typeof fetchImpl !== 'function') throw new Error('live_under_five_fetch_required')
+  const parsed = new URL(url)
+  if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(parsed.hostname)) throw new Error('live_under_five_localhost_required')
+  const response = await fetchImpl(parsed.toString(), { method: 'GET', headers: { Accept: 'application/json' } })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok || !payload || payload.ok !== true) throw new Error(`live_under_five_source_failed:${response.status}`)
+  return mapLiveUnderFiveUniverseToRankingEnvelope(payload, nowMs)
 }
 
 export function normalizeCandidates(payload = {}) {
@@ -56,7 +132,7 @@ export function normalizeCandidates(payload = {}) {
       confidence >= 0.6 &&
       Number.isFinite(quality) &&
       quality >= 0.8
-    const state = explicitState || (rowEligible ? 'ENTER' : 'DO_NOT_ENTER')
+    const state = rowEligible ? (explicitState || 'ENTER') : 'DO_NOT_ENTER'
     const blockers = Array.isArray(row.blockers) ? [...row.blockers] : []
     if (!globalAllowed) blockers.push('scanner_decision_envelope_blocked')
     if (row.p3GateOk !== true) blockers.push('p3_gate_not_passed')
@@ -193,7 +269,12 @@ export async function runPaperAutoExecutionMechanicalRoundTripCli(options = {}) 
       PAPER_AUTO_ENTER_SUBMISSION_ENABLED: '1',
       PAPER_AUTO_EXIT_SUBMISSION_ENABLED: '1',
     },
-    getScanSnapshot: async () => ({ observedAt: new Date().toISOString(), candidates: normalizeCandidates(await readScannerRankings()) }),
+    getScanSnapshot: async () => {
+      const envelope = options.getScanEnvelope
+        ? await options.getScanEnvelope()
+        : await fetchLiveUnderFiveRankingEnvelope({ fetchImpl, nowMs: Date.now() })
+      return { observedAt: new Date().toISOString(), candidates: normalizeCandidates(envelope) }
+    },
     getAccountSnapshot: async () => fetchAlpacaPaperAccountReadonly({ env, fetchImpl }),
     getHistoricalOrders: async () => fetchHistoricalOrders({ env, fetchImpl }),
     submitPaperOrder: adapter.submitPaperOrder,
@@ -219,4 +300,4 @@ export async function runPaperAutoExecutionMechanicalRoundTripCli(options = {}) 
   }
 }
 
-export default { VERSION, parsePaperAutoMechanicalRoundTripArgs, runPaperAutoExecutionMechanicalRoundTripCli }
+export default { VERSION, parsePaperAutoMechanicalRoundTripArgs, mapLiveUnderFiveUniverseToRankingEnvelope, fetchLiveUnderFiveRankingEnvelope, normalizeCandidates, runPaperAutoExecutionMechanicalRoundTripCli }

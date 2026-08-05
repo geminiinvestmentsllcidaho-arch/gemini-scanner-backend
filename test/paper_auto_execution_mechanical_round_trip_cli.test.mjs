@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { runPaperAutoExecutionMechanicalRoundTripCli } from '../src/scanner/paper_auto_execution_mechanical_round_trip_cli.mjs'
+import { mapLiveUnderFiveUniverseToRankingEnvelope, normalizeCandidates, runPaperAutoExecutionMechanicalRoundTripCli } from '../src/scanner/paper_auto_execution_mechanical_round_trip_cli.mjs'
 import { REQUIRED_PHRASE } from '../src/scanner/paper_auto_execution_run_once_authorization.mjs'
 
 test('blocks before any network call without explicit execution and override', async () => {
@@ -102,4 +102,57 @@ test('stale or denied ranking envelope cannot synthesize ENTER candidates', asyn
   assert.equal(rows[0].state, 'DO_NOT_ENTER')
   assert.equal(rows[0].buyRecommendation, false)
   assert.ok(rows[0].blockers.includes('scanner_decision_envelope_blocked'))
+})
+
+
+test('maps safe fresh connected under-five candidates into fail-closed ranking rows', () => {
+  const nowMs = Date.parse('2026-08-05T17:14:31.000Z')
+  const envelope = mapLiveUnderFiveUniverseToRankingEnvelope({
+    ok: true,
+    status: 'connected_readonly',
+    marketClock: { isOpen: true },
+    runtime: { paperOnly: true, readOnly: true, orderSubmitAllowed: false, orderPlacementAllowed: false, accountMutationAllowed: false },
+    candidates: [
+      { symbol: 'USAS', decision: 'ENTER', decisionReviewAllowed: true, sourceStale: false, sourceAgeSec: 1, maxSourceAgeSec: 120, sourceTs: '2026-08-05T17:14:30.000Z', blockingFlags: [], readonlyPotentialFlags: [], readonlyPotentialScore: 95, tradable: true, status: 'active' },
+      { symbol: 'LOWQ', decision: 'ENTER', decisionReviewAllowed: true, sourceStale: false, sourceAgeSec: 1, maxSourceAgeSec: 120, sourceTs: '2026-08-05T17:14:30.000Z', blockingFlags: [], readonlyPotentialFlags: [], readonlyPotentialScore: 75, tradable: true, status: 'active' },
+    ],
+  }, nowMs)
+  const rows = normalizeCandidates(envelope)
+  assert.equal(rows[0].state, 'ENTER')
+  assert.equal(rows[0].buyRecommendation, true)
+  assert.deepEqual(rows[0].blockers, [])
+  assert.equal(rows[1].state, 'DO_NOT_ENTER')
+  assert.equal(rows[1].buyRecommendation, false)
+  assert.ok(rows[1].blockers.includes('candidate_quality_below_minimum'))
+})
+
+test('blocks live candidates when market or runtime source contract is unsafe', () => {
+  const envelope = mapLiveUnderFiveUniverseToRankingEnvelope({
+    ok: true,
+    status: 'connected_readonly',
+    marketClock: { isOpen: false },
+    runtime: { paperOnly: true, readOnly: true, orderSubmitAllowed: false, orderPlacementAllowed: false, accountMutationAllowed: false },
+    candidates: [{ symbol: 'USAS', decision: 'ENTER', decisionReviewAllowed: true, sourceStale: false, sourceAgeSec: 0, maxSourceAgeSec: 120, sourceTs: new Date().toISOString(), blockingFlags: [], readonlyPotentialFlags: [], readonlyPotentialScore: 99, tradable: true, status: 'active' }],
+  })
+  const rows = normalizeCandidates(envelope)
+  assert.equal(envelope.scannerReadiness, 'blocked')
+  assert.ok(envelope.issues.includes('LIVE_UNDER_FIVE_MARKET_CLOSED'))
+  assert.equal(rows[0].state, 'DO_NOT_ENTER')
+  assert.equal(rows[0].buyRecommendation, false)
+  assert.ok(rows[0].blockers.includes('scanner_decision_envelope_blocked'))
+})
+
+test('explicit ENTER cannot bypass missing candidate safety gates', () => {
+  const rows = normalizeCandidates({
+    stale: false,
+    scannerHealth: 'healthy',
+    scannerReadiness: 'ready',
+    decisionPermission: 'approved',
+    decisionDirective: 'enter',
+    issues: [],
+    rankings: [{ symbol: 'UNSAFE', state: 'ENTER', p3GateOk: false, compositeConfidence: 0.99, qualityOverall: 0.99 }],
+  })
+  assert.equal(rows[0].state, 'DO_NOT_ENTER')
+  assert.equal(rows[0].buyRecommendation, false)
+  assert.ok(rows[0].blockers.includes('p3_gate_not_passed'))
 })
