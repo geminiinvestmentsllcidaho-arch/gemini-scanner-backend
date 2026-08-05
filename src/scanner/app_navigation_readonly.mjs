@@ -561,6 +561,18 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
+    id: "paper_auto_preflight_history",
+    title: "Paper Auto Preflight History",
+    subtitle: "Read-only verified preflight history and retention summary.",
+    description: "Verified immutable paper-auto preflight history with retention-pressure preview and no execution or deletion controls.",
+    category: "paper_attempt",
+    href: "/app/paper-auto-preflight-history",
+    diagnosticHref: "/diagnostics/paper-auto-preflight-history",
+    routeHref: "/app/paper-auto-preflight-history",
+    displayState: "PAPER_AUTO_PREFLIGHT_HISTORY_READONLY",
+    refreshFriendly: false,
+  }),
+  Object.freeze({
     id: "paper_attempt_control_center",
     title: "Paper Attempt Control Center",
     subtitle: "Main paper-attempt safety center.",
