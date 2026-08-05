@@ -66,9 +66,9 @@ export function createPaperAutoExecutionAlpacaPaperAdapter({
     if (!clientOrderId) blockers.push('client_order_id_required')
     if (typeof fetchImpl !== 'function') blockers.push('fetch_required')
 
-    const baseUrl = pick(env, ['PAPER_AUTO_ALPACA_PAPER_BASE_URL', 'ALPACA_PAPER_TRADING_BASE_URL'])
-    const apiKey = pick(env, ['PAPER_AUTO_ALPACA_PAPER_KEY', 'ALPACA_API_KEY_ID', 'APCA_API_KEY_ID'])
-    const apiSecret = pick(env, ['PAPER_AUTO_ALPACA_PAPER_SECRET', 'ALPACA_API_SECRET_KEY', 'APCA_API_SECRET_KEY'])
+    const baseUrl = pick(env, ['PAPER_AUTO_ALPACA_PAPER_BASE_URL', 'ALPACA_PAPER_TRADING_BASE_URL', 'APCA_API_BASE_URL', 'ALPACA_PAPER_BASE_URL'])
+    const apiKey = pick(env, ['PAPER_AUTO_ALPACA_PAPER_KEY', 'ALPACA_KEY', 'ALPACA_API_KEY_ID', 'ALPACA_KEY_ID', 'APCA_API_KEY_ID'])
+    const apiSecret = pick(env, ['PAPER_AUTO_ALPACA_PAPER_SECRET', 'ALPACA_SECRET', 'ALPACA_API_SECRET_KEY', 'ALPACA_SECRET_KEY', 'APCA_API_SECRET_KEY'])
 
     let parsedBase = null
     try {
@@ -126,6 +126,7 @@ export function createPaperAutoExecutionAlpacaPaperAdapter({
       networkAttempted: true,
       orderSubmitAttempted: true,
       orderSubmitted: submitted,
+      rejected: response.ok !== true,
       brokerOrderId,
       orderId: brokerOrderId,
       clientOrderId,

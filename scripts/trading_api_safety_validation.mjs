@@ -17,6 +17,8 @@ function walk(dir) {
 
 for (const root of ROOTS) walk(root);
 
+const SELF_FILE = "scripts/trading_api_safety_validation.mjs";
+
 const riskyPatterns = [
   { code: "ORDER_ENDPOINT", re: /\/v2\/orders\b/i },
   { code: "ORDER_SUBMIT_FUNCTION", re: /\bsubmitOrder\b|\bcreateOrder\b|\bplaceOrder\b/i },
@@ -27,6 +29,12 @@ const riskyPatterns = [
 
 const hits = [];
 const READONLY_OPEN_ORDERS_FILE = "src/scanner/alpaca_paper_account_readonly_fetch.mjs";
+const APPROVED_ISOLATED_PAPER_ORDER_FILES = new Map([
+  ["src/scanner/paper_auto_execution_alpaca_paper_adapter.mjs", { method: "POST", exactEndpoint: "/v2/orders" }],
+  ["src/scanner/stage1_unattended_one_share_paper_transport.mjs", { method: "POST", exactEndpoint: "/v2/orders" }],
+  ["src/scanner/paper_auto_execution_mechanical_enter_only_cli.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
+  ["src/scanner/paper_auto_execution_mechanical_round_trip_cli.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
+]);
 
 function allowedReadonlyOpenOrdersEndpoint(file, text, pattern) {
   if (pattern.code !== "ORDER_ENDPOINT" || file !== READONLY_OPEN_ORDERS_FILE) return false;
@@ -37,10 +45,36 @@ function allowedReadonlyOpenOrdersEndpoint(file, text, pattern) {
   return exactEndpointCount === 1 && getOnlyRuntime && getCall && !mutationMethod;
 }
 
+function allowedIsolatedPaperOrderEndpoint(file, text, pattern) {
+  if (pattern.code !== "ORDER_ENDPOINT") return false;
+  const rule = APPROVED_ISOLATED_PAPER_ORDER_FILES.get(file);
+  if (!rule) return false;
+
+  const endpointCount = text.split(rule.exactEndpoint).length - 1;
+  const exactPaperHostRequired =
+    /hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text) ||
+    /parsedBase\.hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text);
+  const methodPattern = new RegExp(`method\\s*:\\s*['"]${rule.method}['"]`, "i");
+  const expectedMethodPresent = methodPattern.test(text);
+  const liveHostPresent = /api\.alpaca\.markets/.test(text.replace(/paper-api\.alpaca\.markets/g, ""));
+  const schedulerOrStartupWiring = /pm2|setInterval\s*\(|node-cron|cron\.schedule|server\.listen|app\.listen/i.test(text);
+
+  return endpointCount === 1 &&
+    exactPaperHostRequired &&
+    expectedMethodPresent &&
+    !liveHostPresent &&
+    !schedulerOrStartupWiring;
+}
+
 for (const file of files) {
+  if (file === SELF_FILE) continue;
   const text = fs.readFileSync(file, "utf8");
   for (const pattern of riskyPatterns) {
-    if (pattern.re.test(text) && !allowedReadonlyOpenOrdersEndpoint(file, text, pattern)) hits.push({ file, code: pattern.code });
+    if (
+      pattern.re.test(text) &&
+      !allowedReadonlyOpenOrdersEndpoint(file, text, pattern) &&
+      !allowedIsolatedPaperOrderEndpoint(file, text, pattern)
+    ) hits.push({ file, code: pattern.code });
   }
 }
 
@@ -60,8 +94,8 @@ const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([name]) => na
 
 console.log(JSON.stringify({
   ok: failed.length === 0,
-  mode: "decision-assist-only",
-  tradingExecution: "blocked/not implemented",
+  mode: "decision-assist-plus-explicit-isolated-paper-execution",
+  tradingExecution: "paper-only, exact isolated files only, live disabled",
   scannedFiles: files.length,
   hits,
   checks,
