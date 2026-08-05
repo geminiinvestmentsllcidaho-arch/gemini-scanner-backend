@@ -96,6 +96,60 @@ test('writer creates private ready and blocked operator packet artifacts', () =>
 })
 
 
+test('writer preserves immutable private history while latest ready and blocked filenames remain unchanged', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-history-'))
+  try {
+    const first = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
+      now: new Date('2026-08-04T22:00:00.000Z'),
+      authorizationId: 'auth-history-1',
+      expiresAtMs: 1785881400000,
+      latchFile: 'runs/private/history-1.json',
+    })
+    const firstLatest = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(first, dir)
+    const second = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({
+      now: new Date('2026-08-04T22:01:00.000Z'),
+      authorizationId: 'auth-history-2',
+      expiresAtMs: 1785881460000,
+      latchFile: 'runs/private/history-2.json',
+    })
+    const secondLatest = writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(second, dir)
+    assert.equal(path.basename(firstLatest), 'paper_auto_execution_authorized_run_once_operator_packet_blocked.json')
+    assert.equal(secondLatest, firstLatest)
+    const historyDir = path.join(dir, 'paper_auto_execution_authorized_run_once_operator_packet_history')
+    assert.equal(fs.statSync(historyDir).mode & 0o777, 0o700)
+    const files = fs.readdirSync(historyDir).sort()
+    assert.equal(files.length, 2)
+    assert.notEqual(files[0], files[1])
+    for (const name of files) {
+      const file = path.join(historyDir, name)
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600)
+      assert.equal(verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(file).ok, true)
+    }
+    const latest = verifyPaperAutoExecutionAuthorizedRunOnceOperatorPacketFile(secondLatest)
+    assert.equal(latest.ok, true)
+    assert.equal(latest.packet.runbook.commandPreview, second.runbook.commandPreview)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('history writer rejects a symlink history directory', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-history-link-'))
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-operator-packet-history-external-'))
+  try {
+    fs.symlinkSync(external, path.join(root, 'paper_auto_execution_authorized_run_once_operator_packet_history'))
+    const packet = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket({})
+    assert.throws(
+      () => writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, root),
+      /operator_packet_history_dir_must_be_real_directory/,
+    )
+    assert.equal(fs.readdirSync(external).length, 0)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+    fs.rmSync(external, { recursive: true, force: true })
+  }
+})
+
 test('packet integrity digest is deterministic and mutation sensitive', () => {
   const first = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)
   const second = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(readyInput)

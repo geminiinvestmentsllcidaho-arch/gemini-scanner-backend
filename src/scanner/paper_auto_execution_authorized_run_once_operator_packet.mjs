@@ -150,29 +150,7 @@ export function buildPaperAutoExecutionAuthorizedRunOnceOperatorPacket(input = {
 }
 
 
-export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, runsDir = 'runs') {
-  mkdirSync(runsDir, { recursive: true })
-  const runsDirStat = lstatSync(runsDir)
-  if (!runsDirStat.isDirectory() || runsDirStat.isSymbolicLink()) {
-    throw new Error('operator_packet_runs_dir_must_be_real_directory')
-  }
-  const suffix = packet.readyForSeparateExplicitExecutionReview ? 'ready' : 'blocked'
-  const file = path.join(
-    runsDir,
-    `paper_auto_execution_authorized_run_once_operator_packet_${suffix}.json`,
-  )
-  try {
-    const existing = lstatSync(file)
-    if (!existing.isFile() || existing.isSymbolicLink()) {
-      throw new Error('operator_packet_target_must_be_regular_file')
-    }
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error
-  }
-  const serialized = `${JSON.stringify(packet, null, 2)}\n`
-  if (Buffer.byteLength(serialized, 'utf8') > MAX_OPERATOR_PACKET_FILE_BYTES) {
-    throw new Error('operator_packet_file_too_large')
-  }
+function privatePacketWrite(file, serialized) {
   const temp = `${file}.${process.pid}.${Date.now()}.tmp`
   try {
     writeFileSync(temp, serialized, {
@@ -194,17 +172,79 @@ export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, r
       try { rmSync(file, { force: true }) } catch {}
       throw new Error('operator_packet_post_rename_verification_failed')
     }
-    const directoryFd = openSync(runsDir, 'r')
-    try {
-      fsyncSync(directoryFd)
-    } finally {
-      closeSync(directoryFd)
-    }
-    return file
   } catch (error) {
     try { rmSync(temp, { force: true }) } catch {}
     throw error
   }
+}
+
+export function writePaperAutoExecutionAuthorizedRunOnceOperatorPacket(packet, runsDir = 'runs') {
+  mkdirSync(runsDir, { recursive: true })
+  const runsDirStat = lstatSync(runsDir)
+  if (!runsDirStat.isDirectory() || runsDirStat.isSymbolicLink()) {
+    throw new Error('operator_packet_runs_dir_must_be_real_directory')
+  }
+  const suffix = packet.readyForSeparateExplicitExecutionReview ? 'ready' : 'blocked'
+  const file = path.join(
+    runsDir,
+    `paper_auto_execution_authorized_run_once_operator_packet_${suffix}.json`,
+  )
+  try {
+    const existing = lstatSync(file)
+    if (!existing.isFile() || existing.isSymbolicLink()) {
+      throw new Error('operator_packet_target_must_be_regular_file')
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+  const serialized = `${JSON.stringify(packet, null, 2)}
+`
+  if (Buffer.byteLength(serialized, 'utf8') > MAX_OPERATOR_PACKET_FILE_BYTES) {
+    throw new Error('operator_packet_file_too_large')
+  }
+  const historyDir = path.join(runsDir, 'paper_auto_execution_authorized_run_once_operator_packet_history')
+  mkdirSync(historyDir, { recursive: true, mode: 0o700 })
+  chmodSync(historyDir, 0o700)
+  const historyDirStat = lstatSync(historyDir)
+  if (!historyDirStat.isDirectory() || historyDirStat.isSymbolicLink()) {
+    throw new Error('operator_packet_history_dir_must_be_real_directory')
+  }
+  const stamp = String(packet.runbook?.ts ?? new Date().toISOString()).replace(/[:.]/g, '-')
+  const digest = String(packet.integrity?.digest ?? '').slice(0, 16)
+  let historyFile = path.join(
+    historyDir,
+    `paper_auto_execution_authorized_run_once_operator_packet_${suffix}_${stamp}_${digest}.json`,
+  )
+  let collision = 0
+  while (true) {
+    try {
+      lstatSync(historyFile)
+      collision += 1
+      historyFile = path.join(
+        historyDir,
+        `paper_auto_execution_authorized_run_once_operator_packet_${suffix}_${stamp}_${digest}_${collision}.json`,
+      )
+    } catch (error) {
+      if (error?.code === 'ENOENT') break
+      throw error
+    }
+  }
+  privatePacketWrite(historyFile, serialized)
+  privatePacketWrite(file, serialized)
+  const directoryFd = openSync(runsDir, 'r')
+  try {
+    fsyncSync(directoryFd)
+  } finally {
+    closeSync(directoryFd)
+  }
+  const historyDirectoryFd = openSync(historyDir, 'r')
+  try {
+    fsyncSync(historyDirectoryFd)
+  } finally {
+    closeSync(historyDirectoryFd)
+  }
+  return file
+
 }
 
 export default {
