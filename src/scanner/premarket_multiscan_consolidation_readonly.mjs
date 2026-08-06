@@ -22,6 +22,7 @@ function normalizeDecision(value) {
 function candidateTimestamp(scan, candidate) {
   const value = candidate?.generatedAt
     ?? candidate?.observedAt
+    ?? scan?.eventAt
     ?? scan?.sharedCache?.generatedAt
     ?? scan?.generatedAt
     ?? null;

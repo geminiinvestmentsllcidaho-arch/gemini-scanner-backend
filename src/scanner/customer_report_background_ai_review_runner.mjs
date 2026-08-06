@@ -9,6 +9,8 @@ import {
 } from "./opportunity_funnel_audit_store.mjs";
 import { listStrategyObservationRecords } from "./strategy_observation_store.mjs";
 import { buildBoundedStrategyObservationAiEvidence } from "./strategy_observation_ai_evidence.mjs";
+import { buildOpportunityOutcomeTrackingReport } from "./opportunity_outcome_tracking.mjs";
+import { buildPremarketOutcomeValidationFromHistoryReadonly } from "./premarket_outcome_validation_adapter_readonly.mjs";
 import { requestCustomerReportRealtimeAiReview } from "./customer_report_realtime_ai_client.mjs";
 import {
   appendCustomerReportBackgroundAiReviewRecord,
@@ -20,6 +22,60 @@ import {
 } from "./ai_manual_adjustment_recommendation_store.mjs";
 
 export const VERSION = "customer_report_background_ai_review_runner_v1";
+
+const finiteOrNull = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+export function buildBoundedPremarketOutcomeAiEvidence(report = {}) {
+  const linked = Array.isArray(report?.linkedCandidates) ? report.linkedCandidates : [];
+  return Object.freeze({
+    generatedAt: report?.generatedAt ?? null,
+    evidenceState: String(report?.evidenceState ?? "UNAVAILABLE").slice(0, 64),
+    sufficientSample: report?.sufficientSample === true,
+    minimumObservedSample: Number(report?.minimumObservedSample ?? 0),
+    confirmedSummary: Object.freeze({
+      candidateCount: Number(report?.confirmedSummary?.candidateCount ?? 0),
+      observedCount: Number(report?.confirmedSummary?.observedCount ?? 0),
+      favorableRatePct: finiteOrNull(report?.confirmedSummary?.favorableRatePct),
+      averageLatestReturnPct: finiteOrNull(report?.confirmedSummary?.averageLatestReturnPct),
+    }),
+    baselineSummary: Object.freeze({
+      candidateCount: Number(report?.baselineSummary?.candidateCount ?? 0),
+      observedCount: Number(report?.baselineSummary?.observedCount ?? 0),
+      favorableRatePct: finiteOrNull(report?.baselineSummary?.favorableRatePct),
+      averageLatestReturnPct: finiteOrNull(report?.baselineSummary?.averageLatestReturnPct),
+    }),
+    comparison: Object.freeze({
+      returnLiftPctPoints: finiteOrNull(report?.comparison?.returnLiftPctPoints),
+      favorableRateLiftPctPoints: finiteOrNull(report?.comparison?.favorableRateLiftPctPoints),
+    }),
+    candidates: Object.freeze(linked.slice(0, 25).map((row) => Object.freeze({
+      symbol: String(row?.symbol ?? "").trim().toUpperCase().slice(0, 24) || null,
+      consolidationStatus: String(row?.consolidationStatus ?? "").slice(0, 64) || null,
+      confirmed: row?.confirmed === true,
+      observations: Number(row?.observations ?? 0),
+      spanMinutes: finiteOrNull(row?.spanMinutes),
+      latestScore: finiteOrNull(row?.latestScore),
+      outcomeClassification: String(row?.outcomeClassification ?? "").slice(0, 64) || null,
+      latestReturnPct: finiteOrNull(row?.sessionObservation?.latestReturnPct),
+      maxFavorablePct: finiteOrNull(row?.sessionObservation?.maxFavorablePct),
+      maxAdversePct: finiteOrNull(row?.sessionObservation?.maxAdversePct),
+      sourceFresh: row?.sessionObservation?.sourceFresh === true,
+    }))),
+    readOnly: true,
+    paperOnly: true,
+    historicalMeasurementOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  });
+}
 
 export function buildBoundedPostMarketAiEvidence(result = {}) {
   const qualityReview = result?.qualityReview && typeof result.qualityReview === "object"
@@ -73,6 +129,22 @@ export function buildBoundedPostMarketAiEvidence(result = {}) {
   });
 }
 
+export function buildPremarketOutcomeValidationRuntimeEvidence({ premarketScans = [], regularSessionScans = [], generatedAt = new Date().toISOString(), minimumObservedSample = 20 } = {}) {
+  const easternDate = (value) => {
+    const date = new Date(value ?? NaN);
+    if (!Number.isFinite(date.getTime())) return null;
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+    const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${fields.year}-${fields.month}-${fields.day}`;
+  };
+  const orderedPremarket = (Array.isArray(premarketScans) ? premarketScans : []).filter(Boolean).slice().sort((a, b) => String(a?.eventAt ?? a?.generatedAt ?? "").localeCompare(String(b?.eventAt ?? b?.generatedAt ?? "")));
+  const sessionDate = orderedPremarket.map((scan) => easternDate(scan?.eventAt ?? scan?.generatedAt)).filter(Boolean).at(-1) ?? null;
+  const sessionPremarketScans = sessionDate ? orderedPremarket.filter((scan) => easternDate(scan?.eventAt ?? scan?.generatedAt) === sessionDate) : [];
+  const sessionRegularScans = sessionDate ? (Array.isArray(regularSessionScans) ? regularSessionScans : []).filter((scan) => scan?.marketOpen === true && easternDate(scan?.eventAt ?? scan?.generatedAt) === sessionDate) : [];
+  const opportunityOutcomeReport = buildOpportunityOutcomeTrackingReport(sessionRegularScans, { now: generatedAt, horizonScans: 240 });
+  return Object.freeze({ ...buildPremarketOutcomeValidationFromHistoryReadonly({ premarketScans: sessionPremarketScans, opportunityOutcomeReport, generatedAt, minimumObservedSample }), sessionDate, sessionPremarketScanCount: sessionPremarketScans.length, sessionRegularScanCount: sessionRegularScans.length, crossSessionLinkingAllowed: false });
+}
+
 export function flattenOpportunityFunnelScans(scans = []) {
   return (Array.isArray(scans) ? scans : []).flatMap(scan => {
     const eventAt = scan?.eventAt ?? null;
@@ -111,6 +183,8 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     options.persistManualAdjustmentRecommendation
     ?? appendAiManualAdjustmentRecommendationRecord;
   const getPostMarketResult = options.getPostMarketResult ?? (() => null);
+  const getPremarketOutcomeValidation = options.getPremarketOutcomeValidation ?? null;
+  const buildPremarketRuntimeEvidence = options.buildPremarketRuntimeEvidence ?? buildPremarketOutcomeValidationRuntimeEvidence;
   const listStrategyObservations = options.listStrategyObservations ?? listStrategyObservationRecords;
 
   const recentScans = listScans({
@@ -167,6 +241,10 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   });
 
   const postMarketEvidence = buildBoundedPostMarketAiEvidence(getPostMarketResult() ?? {});
+  const premarketOutcomeValidation = typeof getPremarketOutcomeValidation === "function"
+    ? getPremarketOutcomeValidation() ?? {}
+    : buildPremarketRuntimeEvidence({ premarketScans: dedicatedPremarketScans, regularSessionScans: scans, generatedAt: now.toISOString(), minimumObservedSample: Number(options.minimumPremarketOutcomeObservedSample ?? 20) });
+  const premarketOutcomeEvidence = buildBoundedPremarketOutcomeAiEvidence(premarketOutcomeValidation);
   const strategyObservationEvidence = buildBoundedStrategyObservationAiEvidence(
     listStrategyObservations({
       maxRecords: Number(options.maxStrategyObservationRecords ?? 300),
@@ -177,6 +255,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     input: Object.freeze({
       ...(report.aiReview?.input ?? {}),
       postMarketEvidence,
+      premarketOutcomeEvidence,
       strategyObservationEvidence,
     }),
     timeoutMs: Number(
@@ -286,6 +365,9 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     includedPremarketEvidence: premarketScanRecordCount > 0,
     includedPostMarketEvidence: postMarketEvidence.status === "completed_readonly"
       && postMarketEvidence.sourceRecordCount > 0,
+    includedPremarketOutcomeEvidence: premarketOutcomeEvidence.confirmedSummary.candidateCount > 0,
+    premarketOutcomeEvidenceState: premarketOutcomeEvidence.evidenceState,
+    premarketOutcomeSufficientSample: premarketOutcomeEvidence.sufficientSample,
     postMarketStatus: postMarketEvidence.status,
     postMarketSourceRecordCount: postMarketEvidence.sourceRecordCount,
     postMarketProposalCount: postMarketEvidence.proposalCount,
@@ -319,6 +401,8 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
 export default {
   VERSION,
   buildBoundedPostMarketAiEvidence,
+  buildBoundedPremarketOutcomeAiEvidence,
+  buildPremarketOutcomeValidationRuntimeEvidence,
   buildBoundedStrategyObservationAiEvidence,
   flattenOpportunityFunnelScans,
   runCustomerReportBackgroundAiReview,
