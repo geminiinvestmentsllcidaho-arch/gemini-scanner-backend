@@ -9,7 +9,7 @@ import {
 test("renders black neon public and customer theme foundations", () => {
   for (const surface of ["public", "customer"]) {
     const css = renderGlobalThemeCss({ surface });
-    assert.match(css, /data-gs-global-theme="geminiscanner_global_theme_v3"/);
+    assert.match(css, /data-gs-global-theme="geminiscanner_global_theme_v4"/);
     assert.match(css, /--gs-bg:#020607/);
     assert.match(css, /--gs-accent:#18d7ff/);
     assert.match(css, /--gs-positive:#39ff14/);

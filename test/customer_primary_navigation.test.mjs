@@ -25,8 +25,8 @@ test("renders one active customer route without admin diagnostic or under-five l
   const html = renderCustomerPrimaryNavigation({ active: "watchlist" });
 
   assert.match(html, /aria-label="Customer navigation"/);
-  assert.match(html, /href="\/customer">Overview<\/a>/);
-  assert.match(html, /href="\/customer\/watchlist" aria-current="page">Watchlist<\/a>/);
+  assert.match(html, /href="\/customer">[\s\S]*?<span>Overview<\/span><\/a>/);
+  assert.match(html, /href="\/customer\/watchlist" aria-current="page">[\s\S]*?<span>Watchlist<\/span><\/a>/);
   assert.doesNotMatch(html, /\/admin\b|\/diagnostics\b|\/app\b|\/customer\/scanner\/under-five/);
 });
 
@@ -35,3 +35,6 @@ test("renders responsive shared customer navigation CSS", () => {
   assert.match(css, /customer-primary-nav/);
   assert.match(css, /@media\(max-width:640px\)/);
 });
+
+
+test("renders shared SVG navigation icons",()=>{const html=renderCustomerPrimaryNavigation({active:"overview"});assert.match(html,/gs-icon-overview/);assert.match(html,/aria-hidden="true"/);assert.match(html,/<span>Overview<\/span>/);});

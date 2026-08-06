@@ -38,7 +38,7 @@ test("renders customer watchlist with shared global neon theme and fixed backgro
     buildCustomerWatchlistPage({ symbols: ["AAPL"] }),
     { email: "customer@example.com" },
   );
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v3"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v4"/);
   assert.match(html, /data-gs-surface="customer"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /class="gs-global-header"/);
@@ -52,9 +52,9 @@ test("customer watchlist uses shared primary navigation and a clear empty state"
   const page = buildCustomerWatchlistPage({ symbols: [] });
   const html = renderCustomerWatchlistPageHtml(page);
 
-  assert.match(html, /href="\/customer">Overview<\/a>/);
-  assert.match(html, /href="\/customer\/watchlist" aria-current="page">Watchlist<\/a>/);
-  assert.match(html, /href="\/customer\/reports">Reports<\/a>/);
+  assert.match(html, /href="\/customer"[^>]*>[\s\S]*?Overview[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/watchlist"[^>]*aria-current="page"[^>]*>[\s\S]*?Watchlist[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/reports"[^>]*>[\s\S]*?Reports[\s\S]*?<\/a>/);
   assert.match(html, /No symbols saved yet/);
   assert.match(html, /Saving symbols does not run a scan/);
   assert.doesNotMatch(html, /href="\/customer\/scanner\/under-five"/);

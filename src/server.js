@@ -47,6 +47,7 @@ import path from "node:path";
 import dotenv from 'dotenv';
 import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
+import { renderCustomerIcon } from './scanner/customer_icons.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
 import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, getCustomerScannerSelections, updateCustomerScannerSelections, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
@@ -249,6 +250,12 @@ app.get('/assets/customer-stage1-notification-self-test.js', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.type('application/javascript');
   return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-notification-self-test.js');
+});
+
+app.get('/assets/customer-exit-notification-settings.js', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-exit-notification-settings.js');
 });
 
 app.get('/assets/eastern-market-time.js', (_req, res) => {
@@ -5311,8 +5318,20 @@ ${account?.authenticatorEnabled ? `
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Notifications</h2>
-<form method="post" action="/customer/settings/notifications">
+<h2><span class="gs-icon-heading">${renderCustomerIcon('bell', { size: 22 })}<span>EXIT notifications</span></span></h2>
+<form method="post" action="/customer/settings/notifications" data-exit-notification-settings>
+<p style="color:#9fb6bf">Notify me only when GeminiScanner has a valid EXIT state for a specifically identified paper position. Stale data, identity ambiguity, missing position data, or failed reconciliation remain separate blocked or error states.</p>
+<fieldset style="margin:16px 0;padding:14px;border:0;border-radius:12px;background:rgba(2,9,12,.42)">
+<legend><b>${renderCustomerIcon('exit', { size: 18 })} EXIT alert channels</b></legend>
+<p><label><input name="exitWebsiteEnabled" type="checkbox"${account?.notificationPreferences?.exitWebsiteEnabled ? ' checked' : ''}> Website EXIT notification</label></p>
+<p><label><input name="exitSoundEnabled" type="checkbox"${account?.notificationPreferences?.exitSoundEnabled ? ' checked' : ''}> Sound and vibration for EXIT</label></p>
+<p><label><input name="exitEmailEnabled" type="checkbox"${account?.notificationPreferences?.exitEmailEnabled ? ' checked' : ''}> Email EXIT notification</label></p>
+<p><label for="exitNotificationEmail">${renderCustomerIcon('mail', { size: 18 })} Destination email</label><br>
+<input id="exitNotificationEmail" name="exitNotificationEmail" type="email" autocomplete="email" value="${esc(account?.notificationPreferences?.exitNotificationEmail || account?.email || '')}" placeholder="you@example.com"></p>
+<p style="color:#9fb6bf">A valid alert identifies the symbol, exact owned quantity, current price when available, EXIT reason, timestamp, and freshness or reconciliation status. No order is placed automatically.</p>
+<p><button type="button" data-test-exit-notification>${renderCustomerIcon('test', { size: 18 })} Test EXIT notification</button></p>
+<p data-exit-notification-test-status style="color:#9fb6bf">Test not run on this device.</p>
+</fieldset>
 <p><label><input name="scannerAlerts" type="checkbox"${account?.notificationPreferences?.scannerAlerts ? ' checked' : ''}> Scanner alerts</label></p>
 <p><label><input name="accountSecurityEmails" type="checkbox" checked disabled> Account security emails</label><br>
 <span style="color:#9eb0c9">Required security notices cannot be disabled.</span></p>
@@ -5409,6 +5428,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 <script src="/assets/global-theme.js"></script>
 <script src="/customer/assets/password-visibility.js" defer></script>
 <script src="/assets/customer-settings.js" defer></script>
+<script src="/assets/customer-exit-notification-settings.js" defer></script>
 </section>
 </main>
 ${renderGlobalFooter()}
@@ -5637,6 +5657,10 @@ app.post('/customer/settings/notifications', requireCustomerSession, requireCust
   const result = updateCustomerNotificationPreferences(
     req.customerAccount.id,
     {
+      exitWebsiteEnabled: req.body?.exitWebsiteEnabled,
+      exitSoundEnabled: req.body?.exitSoundEnabled,
+      exitEmailEnabled: req.body?.exitEmailEnabled,
+      exitNotificationEmail: req.body?.exitNotificationEmail,
       scannerAlerts: req.body?.scannerAlerts,
       productUpdates: req.body?.productUpdates,
       reportEmailEnabled: req.body?.reportEmailEnabled,

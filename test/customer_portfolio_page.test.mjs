@@ -116,10 +116,10 @@ test("customer portfolio uses the shared primary navigation", () => {
     buildCustomerPortfolioPage({ model: { account: {}, summary: {}, positions: [], warnings: [] } }),
   );
 
-  assert.match(html, /href="\/customer">Overview<\/a>/);
-  assert.match(html, /href="\/customer\/portfolio" aria-current="page">Portfolio<\/a>/);
-  assert.match(html, /href="\/customer\/watchlist">Watchlist<\/a>/);
-  assert.match(html, /href="\/customer\/settings">Settings<\/a>/);
+  assert.match(html, /href="\/customer"[^>]*>[\s\S]*?Overview[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/portfolio"[^>]*aria-current="page"[^>]*>[\s\S]*?Portfolio[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/watchlist"[^>]*>[\s\S]*?Watchlist[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/settings"[^>]*>[\s\S]*?Settings[\s\S]*?<\/a>/);
   assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);
 });
 

@@ -57,7 +57,7 @@ test("renders customer security activity with shared global neon theme and fixed
       }],
     }),
   );
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v3"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v4"/);
   assert.match(html, /data-gs-surface="customer"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /class="gs-global-header"/);
@@ -71,8 +71,8 @@ test("security activity remains secondary under shared Settings navigation", () 
     buildCustomerSecurityActivityPage({ activity: [] }),
   );
 
-  assert.match(html, /href="\/customer">Overview<\/a>/);
-  assert.match(html, /href="\/customer\/settings" aria-current="page">Settings<\/a>/);
+  assert.match(html, /href="\/customer"[^>]*>[\s\S]*?Overview[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/settings"[^>]*aria-current="page"[^>]*>[\s\S]*?Settings[\s\S]*?<\/a>/);
   assert.match(html, /href="\/customer\/settings">Back to Settings<\/a>/);
   assert.match(html, /<span aria-current="page">Security activity<\/span>/);
   assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);

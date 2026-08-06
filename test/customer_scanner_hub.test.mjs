@@ -104,7 +104,7 @@ test("renders customer scanner hub with shared global neon theme and fixed backg
     buildCustomerScannerHub(),
     { email: "customer@example.com" },
   );
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v3"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v4"/);
   assert.match(html, /data-gs-surface="customer"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /class="gs-global-header"/);
@@ -250,10 +250,10 @@ test("customer overview and scanner routes use shared primary navigation with co
     buildCustomerScannerHub({ route: "/customer/scanner" }),
   );
 
-  assert.match(overview, /href="\/customer" aria-current="page">Overview<\/a>/);
-  assert.match(overview, /href="\/customer\/scanner">Scanner<\/a>/);
-  assert.match(scanner, /href="\/customer">Overview<\/a>/);
-  assert.match(scanner, /href="\/customer\/scanner" aria-current="page">Scanner<\/a>/);
+  assert.match(overview, /href="\/customer"[^>]*aria-current="page"[^>]*>[\s\S]*?Overview[\s\S]*?<\/a>/);
+  assert.match(overview, /href="\/customer\/scanner"[^>]*>[\s\S]*?Scanner[\s\S]*?<\/a>/);
+  assert.match(scanner, /href="\/customer"[^>]*>[\s\S]*?Overview[\s\S]*?<\/a>/);
+  assert.match(scanner, /href="\/customer\/scanner"[^>]*aria-current="page"[^>]*>[\s\S]*?Scanner[\s\S]*?<\/a>/);
   assert.doesNotMatch(overview, />Home<\/a>|\/customer\/scanner\/under-five/);
   assert.doesNotMatch(scanner, />Home<\/a>|\/customer\/scanner\/under-five/);
 });

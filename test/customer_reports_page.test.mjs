@@ -271,9 +271,9 @@ test("customer reports uses the shared primary navigation and accurate AI limits
     report: { period: "lifetime", performance: {}, trades: {}, scanner: {}, activity: [] },
   }));
 
-  assert.match(html, /href="\/customer">Overview<\/a>/);
-  assert.match(html, /href="\/customer\/reports" aria-current="page">Reports<\/a>/);
-  assert.match(html, /href="\/customer\/watchlist">Watchlist<\/a>/);
+  assert.match(html, /href="\/customer"[^>]*>[\s\S]*?Overview[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/reports"[^>]*aria-current="page"[^>]*>[\s\S]*?Reports[\s\S]*?<\/a>/);
+  assert.match(html, /href="\/customer\/watchlist"[^>]*>[\s\S]*?Watchlist[\s\S]*?<\/a>/);
   assert.doesNotMatch(html, />Home<\/a>|\/customer\/scanner\/under-five/);
   assert.match(html, /AI reviews scanner evidence/);
   assert.match(html, /cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades/);

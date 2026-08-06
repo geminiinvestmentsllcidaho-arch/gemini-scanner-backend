@@ -146,6 +146,12 @@ test('settings page exposes authenticated profile update controls', () => {
 
 test('settings page exposes authenticated notification preference controls', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/notifications"/);
+  assert.match(source, /name="exitWebsiteEnabled"/);
+  assert.match(source, /name="exitSoundEnabled"/);
+  assert.match(source, /name="exitEmailEnabled"/);
+  assert.match(source, /name="exitNotificationEmail"/);
+  assert.match(source, /data-test-exit-notification/);
+  assert.match(source, /customer-exit-notification-settings\.js/);
   assert.match(source, /name="scannerAlerts"/);
   assert.match(source, /name="reportEmailEnabled"/);
   assert.match(source, /name="reportSmsEnabled"/);

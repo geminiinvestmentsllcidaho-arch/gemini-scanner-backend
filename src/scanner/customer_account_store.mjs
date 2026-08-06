@@ -532,7 +532,12 @@ export function updateCustomerNotificationPreferences(accountId, input = {}, opt
   const reportDeliveryPeriods = ["daily", "weekly", "monthly", "yearly", "ytd", "lifetime"]
     .filter((period) => input.reportDeliveryPeriods?.includes?.(period) || input[`reportDelivery_${period}`] === true || input[`reportDelivery_${period}`] === "on");
 
+  const exitNotificationEmail = normalizeCustomerEmail(input.exitNotificationEmail);
   const preferences = Object.freeze({
+    exitWebsiteEnabled: input.exitWebsiteEnabled === true || input.exitWebsiteEnabled === "on",
+    exitSoundEnabled: input.exitSoundEnabled === true || input.exitSoundEnabled === "on",
+    exitEmailEnabled: input.exitEmailEnabled === true || input.exitEmailEnabled === "on",
+    exitNotificationEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(exitNotificationEmail) ? exitNotificationEmail : "",
     scannerAlerts: input.scannerAlerts === true || input.scannerAlerts === "on",
     accountSecurityEmails: true,
     productUpdates: input.productUpdates === true || input.productUpdates === "on",

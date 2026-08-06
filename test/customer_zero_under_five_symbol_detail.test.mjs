@@ -76,7 +76,7 @@ test("renders customer symbol detail with shared neon theme and fixed background
     },
   );
   const html = renderCustomerZeroUnderFiveSymbolDetailHtml(detail);
-  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v3"/);
+  assert.match(html, /data-gs-global-theme="geminiscanner_global_theme_v4"/);
   assert.match(html, /data-gs-surface="customer"/);
   assert.match(html, /class="gs-background-logo"/);
   assert.match(html, /class="gs-global-header"/);
