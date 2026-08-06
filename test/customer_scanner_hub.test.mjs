@@ -221,6 +221,7 @@ test("customer hub excludes automatic premarket from manual scanner modes", () =
 
 test("renders automatic premarket scheduler status evidence", () => {
   const html = renderCustomerScannerHubHtml(buildCustomerScannerHub({
+    route: "/customer/scanner",
     premarketAutoStatus: {
       running: true,
       schedulerState: "sleeping",

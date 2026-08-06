@@ -216,7 +216,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 </div>
 </details>`
     : "";
-
+  const isScannerRoute = hub.route === "/customer/scanner";
   const premarket = hub.premarketAutoStatus;
   const premarketState = premarket?.schedulerState ?? "unavailable";
   const premarketMultiscan = premarket?.multiscanConsolidation ?? null;
@@ -249,7 +249,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <p class="premarket-auto-safety">Confirmation requires repeated observations across a meaningful time window. Read only · No buy recommendation · No threshold changes.</p>
 </div>`
     : "";
-  const premarketPanel = premarket
+  const premarketDetailedPanel = premarket
     ? `<section class="card premarket-auto-panel premarket-${esc(premarketState)}">
 <div class="premarket-auto-head">
 <div><div class="eyebrow">Automatic premarket scanner</div><h2>${premarket.running ? "Scheduler engaged" : "Scheduler stopped"}</h2></div>
@@ -270,11 +270,14 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 ${premarketMultiscanPanel}
 </section>`
     : `<section class="card premarket-auto-panel premarket-unavailable"><div class="eyebrow">Automatic premarket scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
+  const premarketPanel = isScannerRoute
+    ? premarketDetailedPanel
+    : `<section class="card premarket-auto-panel premarket-overview-status"><div class="eyebrow">Automatic premarket scanner</div><h2>${premarket?.running ? "Active" : "Inactive"}</h2></section>`;
 
   const postMarket = hub.postMarketAutoStatus;
   const postMarketState = postMarket?.schedulerState ?? postMarket?.lastPlan?.schedulerState ?? postMarket?.lastStatus ?? "unavailable";
   const postMarketLastResult = postMarket?.lastResult ?? null;
-  const postMarketPanel = postMarket
+  const postMarketDetailedPanel = postMarket
     ? `<section class="card postmarket-auto-panel postmarket-${esc(postMarketState)}">
 <div class="postmarket-auto-head">
 <div><div class="eyebrow">Automatic post-market scanner</div><h2>${postMarket.running ? "Scheduler engaged" : "Scheduler stopped"}</h2></div>
@@ -296,8 +299,10 @@ ${premarketMultiscanPanel}
 <p class="postmarket-auto-safety">Read only · Paper only · Decision assist · AI review may be triggered by new observations · No order placement or scanner-logic mutation.</p>
 </section>`
     : `<section class="card postmarket-auto-panel postmarket-unavailable"><div class="eyebrow">Automatic post-market scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
+  const postMarketPanel = isScannerRoute
+    ? postMarketDetailedPanel
+    : `<section class="card postmarket-auto-panel postmarket-overview-status"><div class="eyebrow">Automatic post-market scanner</div><h2>${postMarket?.running ? "Active" : "Inactive"}</h2></section>`;
 
-  const isScannerRoute = hub.route === "/customer/scanner";
   const overviewQuickActions = !isScannerRoute
     ? `<section class="card overview-actions">
 <div class="overview-actions-head">
