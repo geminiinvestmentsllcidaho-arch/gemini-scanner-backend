@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import { createWatchdogEmailAdapter, runOpsAiScannerWatchdogOnce } from "../src/scanner/ops_ai_scanner_watchdog_runtime.mjs";
 const sendAuthorized=String(process.env.GS_WATCHDOG_EMAIL_SEND_AUTHORIZED??"").trim().toLowerCase()==="true";
 const raw=Number(process.env.GS_WATCHDOG_INTERVAL_MS??60000);
