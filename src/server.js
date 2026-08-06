@@ -875,6 +875,8 @@ async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath
     });
     return bannerMod.renderCustomerLifetimeEarningsBanner(lifetimePerformance, {
       locale: account?.locale ?? 'en-US',
+      detailed: reqPath === '/customer/portfolio' || reqPath === '/customer/reports',
+      marketClock: marketClockResult?.marketClock ?? null,
     });
   } catch {
     const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');

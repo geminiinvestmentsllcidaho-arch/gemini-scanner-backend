@@ -14,6 +14,9 @@ test("customer-session middleware builds and injects lifetime earnings into auth
   assert.match(block, /buildCustomerZeroPerformanceReport/);
   assert.match(block, /injectCustomerLifetimeEarningsBanner/);
   assert.match(block, /renderCustomerLifetimeEarningsBanner\(null/);
+  assert.match(block, /marketClockResult\?\.marketClock/);
+  assert.ok(block.includes("reqPath === '/customer/portfolio'"));
+  assert.ok(block.includes("reqPath === '/customer/reports'"));
   assert.match(block, /async function requireCustomerSession/);
 });
 
