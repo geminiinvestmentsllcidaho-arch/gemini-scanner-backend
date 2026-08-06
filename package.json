@@ -178,7 +178,9 @@
     "test:paper-auto-mechanical-round-trip": "node --test test/paper_auto_execution_mechanical_round_trip_runner.test.mjs",
     "run:paper-auto-mechanical-round-trip": "node scripts/run_paper_auto_execution_mechanical_round_trip.mjs",
     "test:paper-auto-mechanical-enter-only": "node --test test/paper_auto_execution_enter_only_run_once_authorization.test.mjs test/paper_auto_execution_mechanical_enter_only_runner.test.mjs",
-    "run:paper-auto-mechanical-enter-only": "node scripts/run_paper_auto_execution_mechanical_enter_only.mjs"
+    "run:paper-auto-mechanical-enter-only": "node scripts/run_paper_auto_execution_mechanical_enter_only.mjs",
+    "watchdog:ops-ai:once": "node scripts/run_ops_ai_scanner_watchdog.mjs",
+    "test:watchdog:ops-ai": "node --test test/ops_ai_scanner_watchdog.test.mjs test/ops_ai_scanner_watchdog_runtime.test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
