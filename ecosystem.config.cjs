@@ -11,6 +11,21 @@ module.exports = {
       },
     },
     {
+      name: "gemini-ops-ai-watchdog",
+      cwd: "/home/gemini/apps/gemini-scanner-backend",
+      script: "./scripts/run_ops_ai_scanner_watchdog.mjs",
+      interpreter: "/usr/bin/node",
+      exec_mode: "fork",
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 20,
+      env: {
+        NODE_ENV: "production",
+        GS_WATCHDOG_INTERVAL_MS: "60000",
+        GS_WATCHDOG_EMAIL_SEND_AUTHORIZED: "true",
+      },
+    },
+    {
       name: "gemini-paper-manual-watcher",
       cwd: "/home/gemini/apps/gemini-scanner-backend",
       script: "./scripts/run_paper_manual_round_trip_watcher_pm2_safe.sh",
