@@ -4647,7 +4647,15 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
     paperLedgerHistory: paperPositionLedger.records,
     now: new Date(),
   });
-  const hub = mod.buildCustomerScannerHub({ performanceReport });
+  const premarketCache = await premarketSharedCachePromise;
+  const premarketAutoStatus = premarketCache?.getDiagnostics?.() ?? null;
+  const postMarketAutoStatus = postMarketRuntimeWorker.getStatus();
+  const hub = mod.buildCustomerScannerHub({
+    route: "/customer",
+    performanceReport,
+    premarketAutoStatus,
+    postMarketAutoStatus,
+  });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderCustomerScannerHubHtml(hub, req.customerAccount));
 });
