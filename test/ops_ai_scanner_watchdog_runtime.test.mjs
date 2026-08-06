@@ -7,6 +7,7 @@ import {
   buildOpsAiScannerWatchdogAlert,
   createWatchdogFilesystemAdapter,
   runOpsAiScannerWatchdogOnce,
+  collectOpsAiScannerWatchdogInput
 } from "../src/scanner/ops_ai_scanner_watchdog_runtime.mjs";
 
 const NOW = new Date("2026-08-06T15:00:00.000Z");
@@ -138,4 +139,30 @@ test("filesystem adapter creates local ledgers at 0600", () => {
   assert.equal(state.available, true);
   assert.equal(state.writable, true);
   assert.equal(state.mode, 0o600);
+});
+
+test("collector uses dedicated JSON diagnostics instead of customer HTML", async () => {
+  const routes = [];
+  const bodies = {
+    "/health": { status: "ok", degraded: false, issues: [] },
+    "/readiness": { ready: true, degraded: false, issues: [] },
+    "/diagnostics/premarket-runtime": { status: { running: true, session: { active: false } } },
+    "/diagnostics/post-market-runtime": { enabled: true, running: true, lastPlan: { postMarketEvidenceExpected: false } },
+    "/diagnostics/customer-report-background-ai-review": { worker: { enabled: true, running: true } },
+  };
+  const input = await collectOpsAiScannerWatchdogInput({
+    http: { async getJson(route) { routes.push(route); return { ok: true, body: bodies[route] }; } },
+    pm2: { async list() { return []; } },
+    filesystem: { inspectFile(filePath) { return { path: filePath, available: true, writable: true, mode: 0o600 }; } },
+  });
+  assert.deepEqual(routes, [
+    "/health",
+    "/readiness",
+    "/diagnostics/premarket-runtime",
+    "/diagnostics/post-market-runtime",
+    "/diagnostics/customer-report-background-ai-review",
+  ]);
+  assert.equal(input.premarket.running, true);
+  assert.equal(input.postMarket.enabled, true);
+  assert.equal(input.backgroundAi.enabled, true);
 });

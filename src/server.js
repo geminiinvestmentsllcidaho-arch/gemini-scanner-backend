@@ -3875,6 +3875,23 @@ app.get("/app/internal-owner", requireInternalOwnerAuth, requireInternalOwnerAut
   })));
 });
 
+app.get("/diagnostics/premarket-runtime", async (_req, res) => {
+  const premarketCache = await premarketSharedCachePromise;
+  res.set("Cache-Control", "no-store");
+  res.json({
+    status: premarketCache?.getDiagnostics?.() ?? null,
+    readOnly: true,
+    paperOnly: true,
+    decisionAssistOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  });
+});
+
 app.get("/diagnostics/post-market-runtime", (_req, res) => {
   res.set("Cache-Control", "no-store");
   res.json(postMarketRuntimeWorker.getStatus());
