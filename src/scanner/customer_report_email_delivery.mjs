@@ -20,11 +20,10 @@ function periodLabel(period) {
 export function buildCustomerReportEmail(input = {}) {
   const email = clean(input.email).toLowerCase();
   const period = clean(input.period).toLowerCase();
-  const reportUrl = clean(input.reportUrl);
   const generatedAt = clean(input.generatedAt);
   const summary = clean(input.summary);
 
-  if (!email || !period || !reportUrl) {
+  if (!email || !period) {
     throw new Error("customer_report_email_input_required");
   }
 
@@ -32,9 +31,9 @@ export function buildCustomerReportEmail(input = {}) {
   const lines = [
     `${label} GeminiScanner report`,
     "",
-    summary || "Your read-only GeminiScanner customer report is ready.",
+    "PDF report attached.",
     "",
-    reportUrl,
+    summary || "Your read-only GeminiScanner customer report is ready.",
   ];
 
   if (generatedAt) {
@@ -51,7 +50,6 @@ export function buildCustomerReportEmail(input = {}) {
     subject: `${label} GeminiScanner report`,
     text: lines.join("\n"),
     period,
-    reportUrl,
   });
 }
 
