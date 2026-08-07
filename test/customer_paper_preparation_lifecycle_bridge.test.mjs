@@ -205,3 +205,41 @@ test('different customer account may create its own pending ENTER lifecycle', ()
   })
   assert.equal(second.lifecycleState, 'CANDIDATE_SELECTED')
 })
+
+
+test('simultaneous ENTER preparation fails closed on account-scoped lock contention', () => {
+  const runsDir = tmp()
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true })
+  fs.writeFileSync(path.join(lockDir, 'customer-zero.lock'), 'held\n', { mode: 0o600 })
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true,
+    preparationId: 'prep-lock-contention',
+    mode: 'ENTER',
+    symbol: 'ABC',
+    quantity: 1,
+  }, {
+    runsDir,
+    accountId: 'customer-zero',
+    nowMs: 1786128800000,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  }), /paper_enter_customer_preparation_in_progress/)
+  assert.equal(fs.existsSync(path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json')), false)
+})
+
+test('ENTER preparation lock is removed after successful lifecycle creation', () => {
+  const runsDir = tmp()
+  bridgePaperPreparationToLifecycle({
+    ok: true,
+    preparationId: 'prep-lock-cleanup',
+    mode: 'ENTER',
+    symbol: 'ABC',
+    quantity: 1,
+  }, {
+    runsDir,
+    accountId: 'customer-zero',
+    nowMs: 1786128800000,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  })
+  assert.equal(fs.existsSync(path.join(runsDir, 'customer_paper_user_enter_locks', 'customer-zero.lock')), false)
+})

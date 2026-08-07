@@ -24,6 +24,25 @@ const ACTIVE_ENTER_STATES = new Set([
   'UNRESOLVED_NEEDS_RECONCILIATION',
 ])
 
+function withCustomerEnterPreparationLock(runsDir, accountId, fn) {
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true, mode: 0o700 })
+  const lockFile = path.join(lockDir, `${safe(accountId)}.lock`)
+  let fd
+  try {
+    fd = fs.openSync(lockFile, 'wx', 0o600)
+  } catch (error) {
+    if (error?.code === 'EEXIST') throw new Error('paper_enter_customer_preparation_in_progress')
+    throw error
+  }
+  try {
+    return fn()
+  } finally {
+    try { if (fd !== undefined) fs.closeSync(fd) } catch {}
+    try { fs.rmSync(lockFile, { force: true }) } catch {}
+  }
+}
+
 function findActiveCustomerEnter(runsDir, accountId) {
   const accountKey = safe(accountId)
   const prefix = `customer_paper_user_lifecycle_${accountKey}`
@@ -72,20 +91,25 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
   let lifecycle
 
   if (mode === 'ENTER') {
-    const activeCustomerEnter = findActiveCustomerEnter(runsDir, options.accountId)
-    if (activeCustomerEnter.length) throw new Error('paper_enter_active_customer_lifecycle_exists')
-    lifecycleFile = path.join(runsDir, `customer_paper_user_lifecycle_${safe(options.accountId)}.json`)
-    const store = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
-    lifecycle = store.create({
-      selectedSymbol: symbol,
-      scannerEvidence: {
-        source: 'customer_paper_user_preparation',
-        preparationId: preparation.preparationId,
-        quantity,
-        paperOnly: true,
-        userInitiated: true,
-      },
+    const created = withCustomerEnterPreparationLock(runsDir, options.accountId, () => {
+      const activeCustomerEnter = findActiveCustomerEnter(runsDir, options.accountId)
+      if (activeCustomerEnter.length) throw new Error('paper_enter_active_customer_lifecycle_exists')
+      const file = path.join(runsDir, `customer_paper_user_lifecycle_${safe(options.accountId)}.json`)
+      const store = new PaperAutoExecutionLifecycleStore({ filePath: file })
+      const state = store.create({
+        selectedSymbol: symbol,
+        scannerEvidence: {
+          source: 'customer_paper_user_preparation',
+          preparationId: preparation.preparationId,
+          quantity,
+          paperOnly: true,
+          userInitiated: true,
+        },
+      })
+      return { file, state }
     })
+    lifecycleFile = created.file
+    lifecycle = created.state
   } else {
     const matches = findMonitoring(runsDir, symbol, quantity)
     if (matches.length !== 1) throw new Error(matches.length ? 'paper_exit_multiple_matching_lifecycles' : 'paper_exit_matching_lifecycle_not_found')
