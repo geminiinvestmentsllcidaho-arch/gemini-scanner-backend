@@ -136,3 +136,32 @@ test("returns immutable empty history when observation file is missing", () => {
     f.cleanup();
   }
 });
+
+test("lists only the newest requested records without loading a large prefix", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-observation-tail-"));
+  const observationPath = path.join(dir, "strategy_observations.jsonl");
+  const filler = `${"x".repeat(1024)}\n`;
+  const handle = fs.openSync(observationPath, "w");
+  try {
+    for (let index = 0; index < 4096; index += 1) {
+      fs.writeSync(handle, filler);
+    }
+    for (let index = 1; index <= 5; index += 1) {
+      fs.writeSync(handle, `${JSON.stringify({ key: `record-${index}`, observedAt: `2026-08-06T00:00:0${index}.000Z` })}\n`);
+    }
+  } finally {
+    fs.closeSync(handle);
+  }
+
+  const records = listStrategyObservationRecords({
+    observationPath,
+    maxRecords: 3,
+    readChunkBytes: 4096,
+  });
+
+  assert.deepEqual(records.map((record) => record.key), [
+    "record-5",
+    "record-4",
+    "record-3",
+  ]);
+});

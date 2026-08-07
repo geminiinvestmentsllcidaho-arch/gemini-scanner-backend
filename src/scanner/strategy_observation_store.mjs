@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { StringDecoder } from "node:string_decoder";
 
 export const VERSION = "strategy_observation_store_v1";
 export const DEFAULT_STRATEGY_OBSERVATION_PATH =
@@ -150,21 +151,54 @@ export function appendStrategyObservationReport(report = {}, options = {}) {
   });
 }
 
+function readNewestJsonlLines(observationPath, maxRecords, options = {}) {
+  const chunkSize = Math.max(
+    4096,
+    Math.min(1024 * 1024, Number(options.readChunkBytes) || 64 * 1024),
+  );
+  const handle = fs.openSync(observationPath, "r");
+  try {
+    const size = fs.fstatSync(handle).size;
+    let position = size;
+    let pending = "";
+    const newest = [];
+
+    while (position > 0 && newest.length < maxRecords) {
+      const readSize = Math.min(chunkSize, position);
+      position -= readSize;
+      const buffer = Buffer.allocUnsafe(readSize);
+      const bytesRead = fs.readSync(handle, buffer, 0, readSize, position);
+      if (bytesRead <= 0) break;
+
+      const decoder = new StringDecoder("utf8");
+      const chunk = decoder.write(buffer.subarray(0, bytesRead)) + decoder.end();
+      const parts = `${chunk}${pending}`.split(/\r?\n/);
+      pending = parts.shift() ?? "";
+
+      for (let index = parts.length - 1; index >= 0 && newest.length < maxRecords; index -= 1) {
+        const line = parts[index].trim();
+        if (line) newest.push(line);
+      }
+    }
+
+    if (newest.length < maxRecords && pending.trim()) newest.push(pending.trim());
+    return newest.slice(0, maxRecords);
+  } finally {
+    fs.closeSync(handle);
+  }
+}
+
 export function listStrategyObservationRecords(options = {}) {
   const observationPath =
     clean(options.observationPath, 4096) || DEFAULT_STRATEGY_OBSERVATION_PATH;
   if (!fs.existsSync(observationPath)) return Object.freeze([]);
 
   const maxRecords = Math.max(1, Math.min(5000, Number(options.maxRecords) || 500));
-  const lines = fs.readFileSync(observationPath, "utf8")
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .slice(-maxRecords)
+  const records = readNewestJsonlLines(observationPath, maxRecords, options)
     .map((line) => JSON.parse(line))
-    .reverse()
     .map((record) => Object.freeze(record));
 
-  return Object.freeze(lines);
+  return Object.freeze(records);
 }
 
 export default Object.freeze({

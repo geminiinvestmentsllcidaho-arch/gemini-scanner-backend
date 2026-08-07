@@ -26,8 +26,12 @@ test('public customer authentication mutations require same-origin verification'
 
 test("background AI review diagnostic route is read-only", () => {
   assert.match(source, /app\.get\(["']\/diagnostics\/customer-report-background-ai-review["']/);
-  assert.match(source, /customerReportBackgroundAiReviewWorker\.getStatus\(\)/);
-  assert.match(source, /listCustomerReportBackgroundAiReviewRecords\(\{ maxRecords: 20 \}\)/);
+  assert.match(source, /const worker = customerReportBackgroundAiReviewWorker\.getStatus\(\)/);
+  assert.match(source, /const history = listCustomerReportBackgroundAiReviewRecords\(\{ maxRecords: 20 \}\)/);
+  assert.match(source, /const latestRecord = history\.records\?\.\[0\] \?\? null/);
+  assert.match(source, /version:\s*worker\?\.version \?\? history\.version \?\? null/);
+  assert.match(source, /latestRecord,/);
+  assert.match(source, /decisionAssistOnly:\s*true/);
   assert.match(source, /automaticLearningAllowed:\s*false/);
   assert.match(source, /scannerLogicMutationAllowed:\s*false/);
   assert.match(source, /thresholdMutationAllowed:\s*false/);

@@ -3899,11 +3899,24 @@ app.get("/diagnostics/post-market-runtime", (_req, res) => {
 
 app.get("/diagnostics/customer-report-background-ai-review", (_req, res) => {
   res.set("Cache-Control", "no-store");
+  const worker = customerReportBackgroundAiReviewWorker.getStatus();
+  const history = listCustomerReportBackgroundAiReviewRecords({ maxRecords: 20 });
+  const latestRecord = history.records?.[0] ?? null;
   res.json({
-    worker: customerReportBackgroundAiReviewWorker.getStatus(),
-    history: listCustomerReportBackgroundAiReviewRecords({ maxRecords: 20 }),
+    version: worker?.version ?? history.version ?? null,
+    enabled: worker?.enabled ?? null,
+    running: worker?.running ?? null,
+    runCount: worker?.runCount ?? null,
+    lastRunAt: worker?.lastRunAt ?? null,
+    lastCompletedAt: worker?.lastCompletedAt ?? null,
+    lastStatus: worker?.lastStatus ?? worker?.status ?? null,
+    lastError: worker?.lastError ?? null,
+    latestRecord,
+    worker,
+    history,
     readOnly: true,
     paperOnly: true,
+    decisionAssistOnly: true,
     automaticLearningAllowed: false,
     scannerLogicMutationAllowed: false,
     thresholdMutationAllowed: false,
