@@ -139,6 +139,19 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const periodLinks = PERIODS.map(([value, label]) =>
     `<a href="/customer/reports?period=${value}"${value === activePeriod ? ' aria-current="page" class="active"' : ""}>${label}</a>`
   ).join("");
+  const reportSectionIcons = {
+    "performance-summary": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19.5h18M5 17l4-4 3 2.5 6-7M16.5 8.5H19v2.5"/></svg>',
+    "current-broker-holdings": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h14.5a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 17.5v-11A2.5 2.5 0 0 1 5.5 4H17v3.5M15.5 11.5H21v4h-5.5a2 2 0 1 1 0-4Z"/></svg>',
+    "trade-statistics": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18V6m0 0L4.5 8.5M7 6l2.5 2.5M17 6v12m0 0-2.5-2.5M17 18l2.5-2.5"/></svg>',
+    "scanner-accuracy": '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M12 12l5-5"/></svg>',
+    "winners-losers": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 17v-5h3v5M11 17V8h3v9M16 17v-7h3v7M7.5 9V4m0 0L5.5 6M7.5 4l2 2M17.5 5v5m0 0-2-2m2 2 2-2"/></svg>',
+    "ai-review": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5A3 3 0 0 0 4.5 8a3 3 0 0 0 .5 5.8A3.2 3.2 0 0 0 9 18.5M9 5.5v13M9 8h2M9 12h2M9 16h2"/><path d="M13 5h5l3 3v9.5A1.5 1.5 0 0 1 19.5 19H13V5Z"/><path d="m15 14 1.5 1.5L19 12.5"/></svg>',
+    "decision-quality": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h8M9 3h6v4H9zM6 5H5a2 2 0 0 0-2 2v13h18V7a2 2 0 0 0-2-2h-1M7 11l1.5 1.5L11 10M13 11h4M7 16l1.5 1.5L11 15M13 16h4"/></svg>',
+    "calibration": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M12 4v16M18 4v16M3.5 9H8.5M9.5 14H14.5M15.5 8H20.5"/><circle cx="6" cy="9" r="1.5"/><circle cx="12" cy="14" r="1.5"/><circle cx="18" cy="8" r="1.5"/></svg>',
+    "calibration-history": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7H2v-3M3 6.5A9 9 0 1 1 4.5 18M12 7v5l3 2"/></svg>',
+    "realtime-ai-review": '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 12h2l1-3 2 6 1-3h2M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/><circle cx="18.5" cy="5.5" r="2.5"/><path d="m17.5 5.5.7.7 1.4-1.5"/></svg>',
+    "detailed-activity": '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="16" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="7" r="2"/><path d="m6.8 15 3.4-2M13.8 10.7l3.4-2.4M3 20h18"/></svg>',
+  };
   const reportSectionLinks = [
     ["performance-summary", "Performance"],
     ["current-broker-holdings", "Current Holdings"],
@@ -151,7 +164,7 @@ export function renderCustomerReportsPageHtml(page = {}) {
     ["calibration-history", "History"],
     ["realtime-ai-review", "Real-Time AI"],
     ["detailed-activity", "Historical Activity"],
-  ].map(([id, label]) => `<a href="#${esc(id)}">${esc(label)}</a>`).join("");
+  ].map(([id, label]) => `<a href="#${esc(id)}"><span class="report-section-icon">${reportSectionIcons[id]}</span><span>${esc(label)}</span></a>`).join("");
 
   const currentBrokerPositionRows = currentBrokerPositions.length
     ? currentBrokerPositions.map((position) => `<tr><td>${esc(position.symbol ?? "—")}</td><td>${esc(number(position.qty, locale))}</td><td>${esc(position.side ?? "—")}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td>${esc(money(position.marketValue, locale))}</td><td>${esc(money(position.unrealizedPl, locale))}</td></tr>`).join("")
@@ -211,6 +224,11 @@ ${renderCustomerPrimaryNavigationCss()}
 .periods a{color:var(--gs-accent);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:9px 12px;background:rgba(0,0,0,.58)}
 .periods{margin:18px 0 24px}
 .periods a.active{box-shadow:0 0 18px rgba(57,255,32,.38);border-color:var(--gs-accent)}
+.report-section-nav{display:flex;flex-wrap:wrap;gap:14px}
+.report-section-nav a{display:inline-flex;align-items:center;gap:9px;min-height:48px;padding:9px 14px;border:1px solid rgba(32,220,255,.14);border-radius:999px;background:rgba(0,0,0,.62);color:var(--gs-text);text-decoration:none;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.report-section-nav a:hover,.report-section-nav a:focus-visible{border-color:rgba(57,220,255,.62);box-shadow:0 0 20px rgba(0,220,255,.16);transform:translateY(-1px);outline:none}
+.report-section-icon{width:27px;height:27px;display:inline-grid;place-items:center;flex:0 0 27px;color:#39dcff;filter:drop-shadow(0 0 5px rgba(57,220,255,.48))}
+.report-section-icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
 .report-section-nav{display:flex;flex-wrap:wrap;gap:9px;padding:14px;margin-bottom:18px}
 .report-section-nav a{display:inline-flex;align-items:center;min-height:38px;color:var(--gs-text);text-decoration:none;border:1px solid var(--gs-line);border-radius:999px;padding:8px 12px;background:rgba(0,0,0,.5)}
 .report-section-nav a:hover,.report-section-nav a:focus-visible{color:var(--gs-accent);border-color:var(--gs-accent)}
@@ -231,7 +249,7 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .report-row h3{margin:0 0 8px}
 .safety-locks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .safety-locks span{border:1px solid var(--gs-line);border-radius:999px;padding:6px 9px;font-size:12px;color:var(--gs-muted)}
-@media(max-width:620px){.wrap{padding:24px 12px 56px}.metric strong{font-size:19px}}
+@media(max-width:620px){.wrap{padding:24px 12px 56px}.metric strong{font-size:19px}.report-section-nav{gap:10px}.report-section-nav a{min-height:46px;padding:8px 12px}.report-section-icon{width:25px;height:25px;flex-basis:25px}}
 </style>
 </head>
 <body data-gs-page="customer-reports">

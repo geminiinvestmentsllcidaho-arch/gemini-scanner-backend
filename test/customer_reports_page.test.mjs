@@ -306,16 +306,17 @@ test("customer reports exposes focused in-page section navigation", () => {
   }));
 
   assert.match(html, /aria-label="Report sections"/);
-  assert.match(html, /href="#performance-summary">Performance<\/a>/);
-  assert.match(html, /href="#trade-statistics">Trades<\/a>/);
-  assert.match(html, /href="#scanner-accuracy">Scanner<\/a>/);
-  assert.match(html, /href="#winners-losers">Winners &amp; Losers<\/a>/);
-  assert.match(html, /href="#ai-review">AI Review<\/a>/);
-  assert.match(html, /href="#decision-quality">Proposals<\/a>/);
-  assert.match(html, /href="#calibration">Calibration<\/a>/);
-  assert.match(html, /href="#calibration-history">History<\/a>/);
-  assert.match(html, /href="#realtime-ai-review">Real-Time AI<\/a>/);
-  assert.match(html, /href="#detailed-activity">Historical Activity<\/a>/);
+  assert.equal((html.match(/class="report-section-icon"/g) || []).length, 11);
+  assert.match(html, /href="#performance-summary"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Performance<\/span><\/a>/);
+  assert.match(html, /href="#trade-statistics"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Trades<\/span><\/a>/);
+  assert.match(html, /href="#scanner-accuracy"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Scanner<\/span><\/a>/);
+  assert.match(html, /href="#winners-losers"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Winners &amp; Losers<\/span><\/a>/);
+  assert.match(html, /href="#ai-review"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>AI Review<\/span><\/a>/);
+  assert.match(html, /href="#decision-quality"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Proposals<\/span><\/a>/);
+  assert.match(html, /href="#calibration"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Calibration<\/span><\/a>/);
+  assert.match(html, /href="#calibration-history"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>History<\/span><\/a>/);
+  assert.match(html, /href="#realtime-ai-review"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Real-Time AI<\/span><\/a>/);
+  assert.match(html, /href="#detailed-activity"><span class="report-section-icon"><svg[^>]*>.*?<\/svg><\/span><span>Historical Activity<\/span><\/a>/);
   assert.match(html, /id="performance-summary"/);
   assert.match(html, /id="trade-statistics"/);
   assert.match(html, /id="scanner-accuracy"/);
