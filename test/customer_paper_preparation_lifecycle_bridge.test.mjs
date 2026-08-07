@@ -103,3 +103,56 @@ test('EXIT handoff carries exact lifecycle-bound unconsumed one-shot authorizati
   assert.equal(out.authorization.quantity, 2)
   assert.equal(out.authorization.consumed, false)
 })
+
+test('ENTER authorization handoff has deterministic latch expiry and evaluates without consumption', () => {
+  const runsDir = tmp()
+  const nowMs = 1786128000000
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-eval-enter', mode: 'ENTER', symbol: 'ABC', quantity: 1,
+  }, {
+    runsDir,
+    accountId: 'customer-zero',
+    nowMs,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  })
+  assert.equal(out.authorization.expiresAtMs, nowMs + 15 * 60 * 1000)
+  assert.match(out.authorization.latchFile, /customer_paper_user_authorization_latches/)
+  assert.equal(out.authorizationEvaluation.ok, true)
+  assert.equal(out.authorizationEvaluation.authorizationId, out.authorization.authorizationId)
+  assert.equal(out.authorization.consumed, false)
+  assert.equal(fs.existsSync(out.authorization.latchFile), false)
+})
+
+test('EXIT authorization handoff evaluates exact lifecycle target without consumption', () => {
+  const runsDir = tmp()
+  const now = new Date().toISOString()
+  const lifecycleFile = path.join(runsDir, 'paper_auto_enter_only_mechanical_lifecycle_eval-exit.json')
+  fs.writeFileSync(lifecycleFile, JSON.stringify({
+    version: 'paper_auto_execution_lifecycle_v1',
+    lifecycleId: 'life-eval-exit',
+    state: 'MONITORING',
+    selectedSymbol: 'BTG',
+    enterClientOrderId: 'enter-1',
+    enterBrokerOrderId: 'broker-1',
+    exitClientOrderId: null,
+    exitBrokerOrderId: null,
+    filledQuantity: 2,
+    averageFillPrice: 4.5,
+    brokerPositionIdentity: 'BTG:2',
+    reconciliation: [],
+    createdAt: now,
+    updatedAt: now,
+  }))
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-eval-exit', mode: 'EXIT', symbol: 'BTG', quantity: 2,
+  }, {
+    runsDir,
+    nowMs: 1786128000000,
+    authorizationEnv: { PAPER_AUTO_EXIT_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  })
+  assert.equal(out.authorizationEvaluation.ok, true)
+  assert.equal(out.authorizationEvaluation.lifecycleId, 'life-eval-exit')
+  assert.equal(out.authorizationEvaluation.symbol, 'BTG')
+  assert.equal(out.authorizationEvaluation.quantity, 2)
+  assert.equal(fs.existsSync(out.authorization.latchFile), false)
+})

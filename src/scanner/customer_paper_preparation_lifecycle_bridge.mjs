@@ -2,8 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecycle_store.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
-import { REQUIRED_PHRASE as ENTER_PHRASE, REQUIRED_SCOPE as ENTER_SCOPE } from './paper_auto_execution_enter_only_run_once_authorization.mjs'
-import { REQUIRED_PHRASE as EXIT_PHRASE, REQUIRED_SCOPE as EXIT_SCOPE } from './paper_auto_execution_exit_only_run_once_authorization.mjs'
+import { REQUIRED_PHRASE as ENTER_PHRASE, REQUIRED_SCOPE as ENTER_SCOPE, evaluatePaperAutoEnterOnlyRunOnceAuthorization } from './paper_auto_execution_enter_only_run_once_authorization.mjs'
+import { REQUIRED_PHRASE as EXIT_PHRASE, REQUIRED_SCOPE as EXIT_SCOPE, evaluatePaperAutoExitOnlyRunOnceAuthorization } from './paper_auto_execution_exit_only_run_once_authorization.mjs'
 
 export const VERSION = 'customer_paper_preparation_lifecycle_bridge_v1'
 const clean = (v) => String(v ?? '').trim()
@@ -74,19 +74,31 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
     side,
   })
 
+  const authorizationId = `customer-paper-${phase}-${preparation.preparationId}`
+  const expiresAtMs = Number(options.nowMs ?? Date.now()) + 15 * 60 * 1000
+  const latchFile = path.join(runsDir, 'customer_paper_user_authorization_latches', `${safe(authorizationId)}.json`)
   const authorization = Object.freeze({
-    authorizationId: `customer-paper-${phase}-${preparation.preparationId}`,
+    authorizationId,
     operator: 'Borac',
     phrase: mode === 'ENTER' ? ENTER_PHRASE : EXIT_PHRASE,
     scope: mode === 'ENTER' ? ENTER_SCOPE : EXIT_SCOPE,
     lifecycleId: lifecycle.lifecycleId,
     symbol,
     quantity,
+    expiresAtMs,
+    latchFile,
     paperOnly: true,
     userInitiated: true,
     consumed: false,
     requiresExplicitConsumptionAtExecutionBoundary: true,
   })
+  const authorizationEvaluationInput = {
+    ...authorization,
+    env: options.authorizationEnv ?? process.env,
+  }
+  const authorizationEvaluation = mode === 'ENTER'
+    ? evaluatePaperAutoEnterOnlyRunOnceAuthorization(authorizationEvaluationInput, Number(options.nowMs ?? Date.now()))
+    : evaluatePaperAutoExitOnlyRunOnceAuthorization(authorizationEvaluationInput, Number(options.nowMs ?? Date.now()))
 
   return Object.freeze({
     ok: true,
@@ -108,6 +120,7 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
     }),
     deterministicIdentity: identity,
     authorization,
+    authorizationEvaluation,
     safety: Object.freeze({
       paperOnly: true,
       userInitiated: true,
