@@ -5241,8 +5241,6 @@ input,select{width:100%;max-width:520px;border:1px solid var(--gs-line);border-r
 input[type="checkbox"]{width:auto}
 button{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);font-weight:700;cursor:pointer}
 section[style]{border-top-color:var(--gs-line)!important}
-.settings-secondary-nav{display:flex;flex-wrap:wrap;gap:10px;margin:-4px 0 18px}
-.settings-secondary-nav a{color:var(--gs-muted);text-decoration:none;border:1px solid var(--gs-line);border-radius:10px;padding:8px 11px;background:rgba(0,0,0,.48)}
 .settings-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 22px;padding:12px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.5)}
 .settings-toolbar button{padding:8px 11px;background:rgba(24,215,255,.08)}
 .settings-group{margin-top:14px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(2,9,12,.72);overflow:hidden}
@@ -5265,10 +5263,6 @@ ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'GeminiScanner' })}
 <main class="wrap" data-role="customer" data-page="settings">
 ${renderCustomerPrimaryNavigation({ active: 'settings' })}
-<nav class="settings-secondary-nav" aria-label="Settings navigation">
-<a href="/customer/security-activity">Security activity</a>
-<a href="#about-ai">About AI</a>
-</nav>
 <section class="card">
 <h1>Settings</h1>
 <p style="color:var(--gs-muted)">Account, scanner, security, and privacy controls are grouped below. Open only the section you need.</p>

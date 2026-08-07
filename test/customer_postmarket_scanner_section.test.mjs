@@ -77,9 +77,10 @@ test("post-market next activation uses the authoritative schedule contract acros
       },
     }));
 
+    const expectedStatusLabel = item.schedulerState.replaceAll("_", " ");
     assert.match(
       html,
-      new RegExp(item.schedulerState.replaceAll("_", " ").toUpperCase()),
+      new RegExp(expectedStatusLabel.charAt(0).toUpperCase() + expectedStatusLabel.slice(1)),
     );
     assert.doesNotMatch(
       html,
@@ -104,7 +105,7 @@ test("post-market customer status uses the authoritative nested scheduler state"
     },
   }));
 
-  assert.match(html, /WEEKEND SLEEP/);
+  assert.match(html, /Weekend sleep/);
   assert.doesNotMatch(
     html,
     /<strong>SCHEDULED<\/strong>/,

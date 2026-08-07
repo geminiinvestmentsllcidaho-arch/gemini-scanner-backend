@@ -982,7 +982,7 @@ test('customer settings renders shared customer neon theme and fixed background 
   assert.match(source, /renderGlobalHeader\(\{ surface: 'customer', homeHref: '\/customer', label: 'GeminiScanner' \}\)/);
   assert.match(source, /renderGlobalFooter\(\)/);
   assert.match(source, /data-role="customer" data-page="settings"/);
-  assert.match(source, /href="#about-ai">About AI/);
+  assert.doesNotMatch(source, /href="#about-ai">About AI/);
   assert.match(source, /About GeminiScanner AI/);
   assert.match(source, /GeminiScanner uses AI in the background/);
   assert.match(source, /AI does not independently place trades/);

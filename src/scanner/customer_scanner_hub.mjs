@@ -441,9 +441,11 @@ p{color:var(--gs-muted)}
 .premarket-multiscan{margin-top:18px;padding-top:16px;border-top:1px solid var(--gs-line)}
 .premarket-multiscan h3{margin:0 0 12px;color:var(--gs-accent)}
 .premarket-multiscan-table-wrap{overflow-x:auto}
-.premarket-multiscan-table{width:100%;border-collapse:collapse;font-size:.82rem}
-.premarket-multiscan-table th,.premarket-multiscan-table td{padding:9px;border:1px solid var(--gs-line);text-align:left;vertical-align:top}
+.premarket-multiscan-table{width:100%;min-width:820px;border-collapse:collapse;font-size:.82rem;table-layout:auto}
+.premarket-multiscan-table th,.premarket-multiscan-table td{padding:9px;border:1px solid var(--gs-line);text-align:left;vertical-align:top;white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .premarket-multiscan-table th{color:var(--gs-accent);background:rgba(0,0,0,.82)}
+.premarket-multiscan-table th:nth-child(2),.premarket-multiscan-table td:nth-child(2){min-width:150px;white-space:normal}
+.premarket-multiscan-table th:nth-child(8),.premarket-multiscan-table td:nth-child(8){min-width:240px;white-space:normal;line-height:1.35}
 .postmarket-auto-panel{padding:18px;margin-bottom:16px;border-left:7px solid #737983}
 .postmarket-auto-panel.postmarket-running,.postmarket-auto-panel.postmarket-completed_readonly{border-left-color:#39ff20}
 .postmarket-auto-panel.postmarket-scheduled,.postmarket-auto-panel.postmarket-market_open_sleep,.postmarket-auto-panel.postmarket-weekend_sleep{border-left-color:#ffd43b}
