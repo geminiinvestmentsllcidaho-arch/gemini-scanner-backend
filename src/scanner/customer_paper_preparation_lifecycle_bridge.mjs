@@ -24,22 +24,40 @@ const ACTIVE_ENTER_STATES = new Set([
   'UNRESOLVED_NEEDS_RECONCILIATION',
 ])
 
-function withCustomerEnterPreparationLock(runsDir, accountId, fn) {
+const CUSTOMER_ENTER_LOCK_STALE_MS = 30_000
+
+function acquireCustomerEnterPreparationLock(lockFile, nowMs = Date.now()) {
+  try {
+    return fs.openSync(lockFile, 'wx', 0o600)
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error
+    let ageMs = 0
+    try { ageMs = Math.max(0, Number(nowMs) - fs.statSync(lockFile).mtimeMs) } catch {}
+    if (ageMs < CUSTOMER_ENTER_LOCK_STALE_MS) throw new Error('paper_enter_customer_preparation_in_progress')
+    try { fs.rmSync(lockFile) } catch {
+      throw new Error('paper_enter_customer_preparation_in_progress')
+    }
+    try {
+      return fs.openSync(lockFile, 'wx', 0o600)
+    } catch (retryError) {
+      if (retryError?.code === 'EEXIST') throw new Error('paper_enter_customer_preparation_in_progress')
+      throw retryError
+    }
+  }
+}
+
+function withCustomerEnterPreparationLock(runsDir, accountId, fn, nowMs = Date.now()) {
   const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
   fs.mkdirSync(lockDir, { recursive: true, mode: 0o700 })
   const lockFile = path.join(lockDir, `${safe(accountId)}.lock`)
   let fd
   try {
-    fd = fs.openSync(lockFile, 'wx', 0o600)
-  } catch (error) {
-    if (error?.code === 'EEXIST') throw new Error('paper_enter_customer_preparation_in_progress')
-    throw error
-  }
-  try {
+    fd = acquireCustomerEnterPreparationLock(lockFile, nowMs)
+    fs.writeFileSync(fd, `${JSON.stringify({ pid: process.pid, createdAtMs: Number(nowMs) })}\n`)
     return fn()
   } finally {
     try { if (fd !== undefined) fs.closeSync(fd) } catch {}
-    try { fs.rmSync(lockFile, { force: true }) } catch {}
+    try { if (fd !== undefined) fs.rmSync(lockFile, { force: true }) } catch {}
   }
 }
 
@@ -101,7 +119,7 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
         },
       })
       return { file, state }
-    })
+    }, Number(options.nowMs ?? Date.now()))
     lifecycleFile = created.file
     lifecycle = created.state
   } else {

@@ -304,3 +304,52 @@ test('bridge fails closed when preparation account does not match authenticated 
     ok: true, preparationId: 'prep-account-mismatch', mode: 'ENTER', symbol: 'ABC', quantity: 1, customerAccountId: 'customer-b',
   }, { runsDir, accountId: 'customer-a' }), /paper_preparation_account_mismatch/)
 })
+
+
+test('fresh ENTER preparation lock still fails closed', () => {
+  const runsDir = tmp()
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true })
+  const lockFile = path.join(lockDir, 'customer-zero.lock')
+  fs.writeFileSync(lockFile, '{"pid":999999,"createdAtMs":1786128999000}\n', { mode: 0o600 })
+  const now = new Date(1786129000000)
+  fs.utimesSync(lockFile, now, now)
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-fresh-lock', mode: 'ENTER', symbol: 'ABC', quantity: 1, customerAccountId: 'customer-zero',
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786129001000 }), /paper_enter_customer_preparation_in_progress/)
+})
+
+test('stale ENTER preparation lock is recovered after crash timeout', () => {
+  const runsDir = tmp()
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true })
+  const lockFile = path.join(lockDir, 'customer-zero.lock')
+  fs.writeFileSync(lockFile, '{"pid":999999,"createdAtMs":1786128900000}\n', { mode: 0o600 })
+  const old = new Date(1786128900000)
+  fs.utimesSync(lockFile, old, old)
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-stale-lock', mode: 'ENTER', symbol: 'ABC', quantity: 1, customerAccountId: 'customer-zero',
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786129000000 })
+  assert.equal(out.lifecycleState, 'CANDIDATE_SELECTED')
+  assert.equal(fs.existsSync(lockFile), false)
+})
+
+test('stale ENTER lock recovery still respects active lifecycle exclusion', () => {
+  const runsDir = tmp()
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true })
+  const lockFile = path.join(lockDir, 'customer-zero.lock')
+  fs.writeFileSync(lockFile, 'stale\n', { mode: 0o600 })
+  const old = new Date(1786128900000)
+  fs.utimesSync(lockFile, old, old)
+  fs.writeFileSync(path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json'), JSON.stringify({
+    lifecycleId: 'life-active',
+    state: 'CANDIDATE_SELECTED',
+    selectedSymbol: 'ABC',
+    scannerEvidence: { source: 'customer_paper_user_preparation', preparationId: 'prior', quantity: 1 },
+  }))
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-after-stale', mode: 'ENTER', symbol: 'XYZ', quantity: 1, customerAccountId: 'customer-zero',
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786129000000 }), /paper_enter_active_customer_lifecycle_exists/)
+  assert.equal(fs.existsSync(lockFile), false)
+})
