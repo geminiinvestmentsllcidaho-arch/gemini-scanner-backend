@@ -254,7 +254,12 @@ test('settings page exposes readable customer data export with optional technica
   assert.match(source, /app\.post\('\/customer\/settings\/data\/export', requireCustomerSession,/);
   assert.match(source, /buildCustomerDataExport\(req\.customerAccount\.id,/);
   assert.match(source, /Your GeminiScanner account data/);
-  assert.match(source, /Passwords and authenticator secrets are not included/);
+  assert.match(source, /simple summary of the customer information most useful to you/);
+  assert.match(source, /Technical metadata, internal IDs, device details, IP addresses, and system-only records are left out/);
+  assert.match(source, /Account information/);
+  assert.match(source, /Preferences/);
+  assert.match(source, /Security summary/);
+  assert.match(source, /Scanner preferences/);
   assert.match(source, /geminiscanner-my-data-/);
   assert.match(source, /type\('html'\)/);
   assert.match(source, /type\('application\/json'\)/);

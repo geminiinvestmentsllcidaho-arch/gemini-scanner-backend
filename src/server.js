@@ -5522,67 +5522,77 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-  const label = (value) => String(value ?? '')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (ch) => ch.toUpperCase())
-    .replace(/\bId\b/g, 'ID')
-    .replace(/\bIp\b/g, 'IP');
-  const friendlyValue = (value, key = '') => {
-    if (value === null || value === undefined || value === '') return 'Not available';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
-    if (typeof value === 'object') return 'See details below';
-    if (/At$|Date$|Time$/i.test(key)) {
-      const d = new Date(value);
-      if (!Number.isNaN(d.getTime())) {
-        return formatCustomerDateTime(d.toISOString(), req.customerAccount, { fallback: String(value) });
-      }
-    }
-    return String(value);
+  const yesNo = (value) => value === true ? 'Yes' : value === false ? 'No' : 'Not available';
+  const text = (value, fallback = 'Not available') => {
+    const cleaned = String(value ?? '').trim();
+    return cleaned || fallback;
   };
-  const renderRows = (object) => Object.entries(object ?? {})
-    .filter(([, value]) => value === null || typeof value !== 'object')
-    .map(([key, value]) => `<div class="data-row"><div class="data-label">${escapeHtml(label(key))}</div><div class="data-value">${escapeHtml(friendlyValue(value, key))}</div></div>`)
-    .join('');
-  const renderObject = (title, object, depth = 0) => {
-    if (!object || typeof object !== 'object' || Array.isArray(object)) return '';
-    const primitiveRows = renderRows(object);
-    const nested = Object.entries(object)
-      .filter(([, value]) => value && typeof value === 'object')
-      .map(([key, value]) => {
-        if (Array.isArray(value)) {
-          if (!value.length) return `<section class="subsection"><h3>${escapeHtml(label(key))}</h3><p class="muted">No records.</p></section>`;
-          const items = value.map((item, index) => {
-            if (item && typeof item === 'object') {
-              return `<article class="list-item"><h4>${escapeHtml(label(key).replace(/s$/, ''))} ${index + 1}</h4>${renderRows(item)}${Object.entries(item).filter(([, v]) => v && typeof v === 'object').map(([nestedKey, nestedValue]) => renderObject(label(nestedKey), nestedValue, depth + 1)).join('')}</article>`;
-            }
-            return `<div class="list-item">${escapeHtml(friendlyValue(item))}</div>`;
-          }).join('');
-          return `<section class="subsection"><h3>${escapeHtml(label(key))}</h3><div class="list">${items}</div></section>`;
-        }
-        return renderObject(label(key), value, depth + 1);
-      }).join('');
-    return `<section class="${depth ? 'subsection' : 'report-section'}"><h${depth ? '3' : '2'}>${escapeHtml(title)}</h${depth ? '3' : '2'}>${primitiveRows || '<p class="muted">No simple values in this section.</p>'}${nested}</section>`;
-  };
+  const customerDateTime = (value) => value
+    ? formatCustomerDateTime(value, req.customerAccount, { fallback: text(value) })
+    : 'Not available';
+  const customerDate = (value) => value
+    ? formatCustomerDate(value, req.customerAccount, { fallback: text(value) })
+    : 'Not available';
+  const row = (label, value) => `<div class="data-row"><div class="data-label">${escapeHtml(label)}</div><div class="data-value">${escapeHtml(value)}</div></div>`;
+  const section = (title, intro, rows) => `<section class="report-section"><h2>${escapeHtml(title)}</h2>${intro ? `<p class="muted">${escapeHtml(intro)}</p>` : ''}${rows.join('')}</section>`;
 
-  const exportData = result.export ?? {};
-  const reportSections = Object.entries(exportData)
-    .filter(([key]) => !['version', 'generatedAt'].includes(key))
-    .map(([key, value]) => {
-      if (Array.isArray(value)) {
-        const items = value.length
-          ? value.map((item, index) => item && typeof item === 'object'
-            ? `<article class="list-item"><h3>${escapeHtml(label(key).replace(/s$/, ''))} ${index + 1}</h3>${renderRows(item)}</article>`
-            : `<div class="list-item">${escapeHtml(friendlyValue(item))}</div>`).join('')
-          : '<p class="muted">No records.</p>';
-        return `<section class="report-section"><h2>${escapeHtml(label(key))}</h2><div class="list">${items}</div></section>`;
-      }
-      if (value && typeof value === 'object') return renderObject(label(key), value);
-      return `<section class="report-section"><h2>${escapeHtml(label(key))}</h2><p>${escapeHtml(friendlyValue(value, key))}</p></section>`;
-    }).join('');
+  const accountData = result.export?.account ?? {};
+  const display = accountData.displayPreferences ?? {};
+  const notifications = accountData.notificationPreferences ?? {};
+  const scannerSelections = accountData.scannerSelections ?? {};
+  const customerZeroFilters = accountData.customerZeroResultFilters ?? {};
 
-  const generatedAt = friendlyValue(exportData.generatedAt, 'generatedAt');
+  const fullName = [accountData.firstName, accountData.lastName]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+    .join(' ') || 'Not available';
+  const enabledNotifications = [
+    notifications.scannerAlerts ? 'Scanner alerts' : null,
+    notifications.exitWebsiteEnabled ? 'Website EXIT alerts' : null,
+    notifications.exitSoundEnabled ? 'Sound/vibration EXIT alerts' : null,
+    notifications.exitEmailEnabled ? 'Email EXIT alerts' : null,
+    notifications.reportEmailEnabled ? 'Email reports' : null,
+    notifications.reportSmsEnabled ? 'Text report notices' : null,
+  ].filter(Boolean);
+  const notificationSummary = enabledNotifications.length
+    ? enabledNotifications.join(', ')
+    : 'No optional notifications enabled';
+  const scannerModes = Array.isArray(scannerSelections.modes) && scannerSelections.modes.length ? scannerSelections.modes.join(', ') : 'Default';
+  const scannerAssets = Array.isArray(scannerSelections.assets) && scannerSelections.assets.length ? scannerSelections.assets.join(', ') : 'Default';
+  const priceRanges = Array.isArray(scannerSelections.priceRanges) && scannerSelections.priceRanges.length ? scannerSelections.priceRanges.join(', ') : 'Default';
+  const resultStates = Array.isArray(scannerSelections.states) && scannerSelections.states.length ? scannerSelections.states.join(', ') : 'Default';
+  const zeroStates = Array.isArray(customerZeroFilters.states) && customerZeroFilters.states.length ? customerZeroFilters.states.join(', ') : 'Show all';
+
+  const reportSections = [
+    section('Account information', '', [
+      row('Name', fullName),
+      row('Email', text(accountData.email)),
+      row('Account status', text(accountData.status, 'Unknown')),
+      row('Email verified', yesNo(accountData.emailVerified)),
+      row('Member since', customerDate(accountData.createdAt)),
+    ]),
+    section('Preferences', '', [
+      row('Theme', text(display.theme, 'Use device setting')),
+      row('Language and number format', text(display.locale, 'English (United States)')),
+      row('Time zone', text(display.timezone, 'Eastern Time')),
+      row('Layout', text(display.density, 'Comfortable')),
+      row('Reduce motion', yesNo(display.reducedMotion)),
+      row('Notifications', notificationSummary),
+    ]),
+    section('Security summary', 'Only basic security information is shown here. Device details, IP addresses, internal identifiers, and technical security records are intentionally omitted.', [
+      row('Authenticator enabled', yesNo(accountData.authenticatorEnabled)),
+      row('Last sign-in', customerDateTime(accountData.lastLoginAt)),
+    ]),
+    section('Scanner preferences', '', [
+      row('Scanner modes', scannerModes),
+      row('Asset types', scannerAssets),
+      row('Price ranges', priceRanges),
+      row('Result states', resultStates),
+      row('Customer Zero filters', zeroStates),
+    ]),
+  ].join('');
+
+  const generatedAt = customerDateTime(result.export?.generatedAt);
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -5590,12 +5600,12 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — My account data</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#061014;color:#eefcff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.wrap{max-width:920px;margin:auto;padding:28px 16px 56px}.hero,.report-section,.subsection,.list-item{border:1px solid #25424a;border-radius:14px;background:#09171c}.hero{padding:22px;margin-bottom:18px}.hero h1{margin:0 0 8px}.hero p,.muted{color:#a9c1c9}.badge{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #2cc9dc;border-radius:999px;color:#65eaff}.report-section{padding:18px;margin:14px 0}.report-section h2{margin:0 0 14px;color:#65eaff}.subsection{padding:14px;margin:14px 0;background:#071216}.subsection h3,.list-item h3,.list-item h4{margin:0 0 10px}.data-row{display:grid;grid-template-columns:minmax(150px,240px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid #173038}.data-row:last-child{border-bottom:0}.data-label{font-weight:700;color:#b9d2d8}.data-value{overflow-wrap:anywhere}.list{display:grid;gap:10px}.list-item{padding:14px;background:#071216}@media(max-width:640px){.data-row{grid-template-columns:1fr;gap:3px}}@media print{body{background:white;color:black}.hero,.report-section,.subsection,.list-item{background:white;border-color:#bbb}.report-section h2,.badge{color:black;border-color:#777}.hero p,.muted,.data-label{color:#444}}
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#061014;color:#eefcff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.wrap{max-width:820px;margin:auto;padding:28px 16px 56px}.hero,.report-section{border:1px solid #25424a;border-radius:14px;background:#09171c}.hero{padding:22px;margin-bottom:18px}.hero h1{margin:0 0 8px}.hero p,.muted{color:#a9c1c9}.badge{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #2cc9dc;border-radius:999px;color:#65eaff}.report-section{padding:18px;margin:14px 0}.report-section h2{margin:0 0 8px;color:#65eaff}.report-section>.muted{margin:0 0 12px}.data-row{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid #173038}.data-row:last-child{border-bottom:0}.data-label{font-weight:700;color:#b9d2d8}.data-value{overflow-wrap:anywhere}@media(max-width:640px){.data-row{grid-template-columns:1fr;gap:3px}}@media print{body{background:white;color:black}.hero,.report-section{background:white;border-color:#bbb}.report-section h2,.badge{color:black;border-color:#777}.hero p,.muted,.data-label{color:#444}}
 </style>
 </head>
 <body><main class="wrap">
-<section class="hero"><h1>Your GeminiScanner account data</h1><p>This is a readable copy of the customer information stored with your GeminiScanner account. Passwords and authenticator secrets are not included.</p><span class="badge">Generated ${escapeHtml(generatedAt)}</span></section>
-${reportSections || '<section class="report-section"><p>No customer data is available.</p></section>'}
+<section class="hero"><h1>Your GeminiScanner account data</h1><p>This is a simple summary of the customer information most useful to you. Technical metadata, internal IDs, device details, IP addresses, and system-only records are left out. The separate technical JSON export still contains the full protected export when needed.</p><span class="badge">Generated ${escapeHtml(generatedAt)}</span></section>
+${reportSections}
 </main></body></html>`;
 
   res.set('Content-Disposition', `attachment; filename="geminiscanner-my-data-${safeId}.html"`);
