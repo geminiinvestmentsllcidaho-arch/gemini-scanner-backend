@@ -5,6 +5,18 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 import { formatCustomerDateTime } from "./customer_time.mjs";
+
+const MARKET_TIME_ZONE = "America/New_York";
+
+function formatMarketDateTime(value, account = {}, options = {}) {
+  return formatCustomerDateTime(value, account, {
+    ...options,
+    format: {
+      ...(options.format ?? {}),
+      timeZone: MARKET_TIME_ZONE,
+    },
+  });
+}
 import {
   CUSTOMER_PRIMARY_NAVIGATION_ITEMS,
   renderCustomerPrimaryNavigation,
@@ -257,10 +269,10 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 </div>
 <div class="premarket-auto-grid">
 <div><span>Session</span><b>${premarket.session?.active ? "Premarket active" : "Outside premarket"}</b></div>
-<div><span>Next activation</span><b>${esc(formatCustomerDateTime(premarket.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
+<div><span>Next activation</span><b>${esc(formatMarketDateTime(premarket.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
 <div><span>Automatic scans</span><b>${esc(premarket.scanCount ?? 0)}</b></div>
 <div><span>Last candidates</span><b>${esc(premarket.lastCandidateCount ?? 0)}</b></div>
-<div><span>Last scan</span><b>${esc(formatCustomerDateTime(premarket.lastAutomaticScanAt, account, { fallback: "Not run yet" }))}</b></div>
+<div><span>Last scan</span><b>${esc(formatMarketDateTime(premarket.lastAutomaticScanAt, account, { fallback: "Not run yet" }))}</b></div>
 <div><span>Last error</span><b>${esc(premarket.lastError ?? "None")}</b></div>
 </div>
 <p>${premarket.session?.active
@@ -285,10 +297,10 @@ ${premarketMultiscanPanel}
 </div>
 <div class="postmarket-auto-grid">
 <div><span>Schedule</span><b>${postMarket.timerScheduled ? "Automatic timer active" : "Timer unavailable"}</b></div>
-<div><span>Next activation</span><b>${esc(formatCustomerDateTime(postMarket.nextWakeAt ?? postMarket.lastPlan?.nextCycleAt ?? postMarket.lastPlan?.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
+<div><span>Next activation</span><b>${esc(formatMarketDateTime(postMarket.nextWakeAt ?? postMarket.lastPlan?.nextCycleAt ?? postMarket.lastPlan?.nextWakeAt, account, { fallback: "Unavailable" }))}</b></div>
 <div><span>Completed cycles</span><b>${esc(postMarket.runCount ?? 0)}</b></div>
 <div><span>Skipped cycles</span><b>${esc(postMarket.skippedCount ?? 0)}</b></div>
-<div><span>Last cycle</span><b>${esc(formatCustomerDateTime(postMarket.lastCompletedAt, account, { fallback: "Not run yet" }))}</b></div>
+<div><span>Last cycle</span><b>${esc(formatMarketDateTime(postMarket.lastCompletedAt, account, { fallback: "Not run yet" }))}</b></div>
 <div><span>Last result</span><b>${esc(postMarketLastResult?.status ?? postMarket.lastStatus ?? "Waiting")}</b></div>
 </div>
 <p>${postMarket.inFlight

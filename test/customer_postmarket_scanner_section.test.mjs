@@ -135,6 +135,33 @@ test("post-market next activation preserves legacy wake timestamp compatibility"
   );
 });
 
+
+test("scanner scheduler timestamps render in Eastern market time regardless of customer timezone", () => {
+  const hub = buildCustomerScannerHub({
+    route: "/customer/scanner",
+    account: { displayPreferences: { locale: "en-US", timezone: "America/Denver" } },
+    premarketAutoStatus: {
+      running: true,
+      nextWakeAt: "2026-08-07T12:00:00.000Z",
+      lastAutomaticScanAt: "2026-08-07T11:45:00.000Z",
+    },
+    postMarketAutoStatus: {
+      running: true,
+      timerScheduled: true,
+      schedulerState: "final_cycle_complete_sleep",
+      nextWakeAt: "2026-08-07T20:15:00.000Z",
+      lastCompletedAt: "2026-08-06T23:45:00.000Z",
+      lastStatus: "final_cycle_complete_sleep",
+    },
+  });
+  const html = renderCustomerScannerHubHtml(hub);
+  assert.match(html, /Aug 7, 2026, 4:15 PM EDT/);
+  assert.match(html, /Aug 7, 2026, 8:00 AM EDT/);
+  assert.match(html, /Aug 7, 2026, 7:45 AM EDT/);
+  assert.match(html, /Aug 6, 2026, 7:45 PM EDT/);
+  assert.doesNotMatch(html, /2:15 PM MDT/);
+});
+
 test("public landing page identifies post-market scanner as automatic", () => {
   const html = renderPublicHomepageHtml(buildPublicHomepage());
   assert.match(html, /Post-market scanner/);
