@@ -15,7 +15,7 @@ export function buildCustomerZeroUnderFiveDashboard(source = {}, options = {}) {
     role: "customer_zero",
     roleLabel: "Customer Zero",
     title: "Customer Zero — Under $5 Scanner",
-    headline: "Live read-only under-$5 scanner for visual testing",
+    headline: "Live read-only scanner for stocks under $5",
     displayState: card.sourceStatus === "connected_readonly"
       ? "CUSTOMER_ZERO_UNDER_FIVE_SCANNER_CONNECTED_READONLY"
       : "CUSTOMER_ZERO_UNDER_FIVE_SCANNER_NOT_CONNECTED_READONLY",

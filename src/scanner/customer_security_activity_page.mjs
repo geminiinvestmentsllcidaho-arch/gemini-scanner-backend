@@ -44,7 +44,7 @@ export function renderCustomerSecurityActivityPageHtml(
   <div class="label">${esc(formatCustomerDateTime(entry?.eventAt, page.account, { fallback: "Unknown time" }))}</div>
   <div class="value">
     <strong>${esc(entry?.eventLabel || "Security activity")}</strong><br>
-    ${esc(entry?.outcome || "unknown")} | ${esc(entry?.ip || "unknown")} | ${esc(entry?.userAgent || "unknown")}
+    ${esc(entry?.outcome || "unknown")} · ${esc(entry?.ip || "unknown")} · ${esc(entry?.userAgent || "unknown")}
   </div>
 </div>`).join("")
     : '<p class="muted">No security activity is available yet.</p>';

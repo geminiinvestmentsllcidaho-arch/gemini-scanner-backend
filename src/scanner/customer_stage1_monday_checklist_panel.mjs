@@ -128,7 +128,7 @@ export function renderCustomerStage1MondayChecklistPanelHtml(panel = {}) {
   const stops = Array.isArray(panel.hardStops) ? panel.hardStops : [];
   return `<section class="card panel stage1-monday-checklist ${panel.state === "HARD_STOP" ? "stage1-operator-stop" : ""}" data-stage1-monday-checklist data-stage1-checklist-state="${esc(panel.state)}">
 <p class="stage1-kicker">Stage 1 • Monday operator checklist</p>
-<h2>${panel.state === "READY_FOR_MANUAL_ENTRY" ? "Ready for the manual one-share paper entry" : panel.state === "HARD_STOP" ? "HARD STOP — DO not place the paper order" : "Monday preparation hold"}</h2>
+<h2>${panel.state === "READY_FOR_MANUAL_ENTRY" ? "Ready for the manual one-share paper entry" : panel.state === "HARD_STOP" ? "HARD STOP — Do not place the paper order" : "Monday preparation hold"}</h2>
 <p><strong>Exact next operator action:</strong> ${esc(panel.exactNextOperatorAction)}</p>
 <ul class="stage1-checks">
 ${row("Regular market is open", panel.marketOpen)}
