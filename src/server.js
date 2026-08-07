@@ -4797,6 +4797,27 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
 });
 
 
+app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  try {
+    const mod = await import('./scanner/customer_paper_user_initiated_order_preparation.mjs');
+    const record = mod.buildCustomerPaperOrderPreparation({
+      mode: req.body?.mode,
+      symbol: req.body?.symbol,
+      quantity: req.body?.quantity,
+      paperOnly: String(req.body?.paperOnly ?? '').toLowerCase() === 'true',
+      userConfirmed: String(req.body?.userConfirmed ?? '').toLowerCase() === 'true',
+    });
+    if (!record.ok) {
+      return res.status(400).type('html').send(`<!doctype html><html><body><main><h1>Paper order preparation blocked</h1><p>${record.blockers.join(', ')}</p><p>No broker contact or order placement occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
+    }
+    const saved = mod.persistCustomerPaperOrderPreparation(record);
+    return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} prepared</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Local mechanical-test preparation only. No broker contact, order placement, or account mutation occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
+  } catch (error) {
+    console.error('[customer-paper-order-prepare]', error);
+    return res.status(500).type('html').send('<!doctype html><html><body><main><h1>Paper order preparation failed</h1><p>No broker contact or order placement occurred.</p></main></body></html>');
+  }
+});
+
 app.post('/customer/portfolio/owned-assets', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   const mod = await import('./scanner/customer_owned_asset_store.mjs');
   const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');

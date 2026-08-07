@@ -88,7 +88,7 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
   const manualRows = [...ownedAssets, {}];
   const windDown = page.windDown ?? {};
   const connectedRows = connectedPositions.length
-    ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span></td></tr>`).join("")
+    ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span><form method="post" action="/customer/paper-order/prepare" style="margin-top:8px"><input type="hidden" name="mode" value="EXIT"><input type="hidden" name="symbol" value="${esc(position.symbol)}"><input type="hidden" name="quantity" value="${esc(position.qty)}"><input type="hidden" name="paperOnly" value="true"><input type="hidden" name="userConfirmed" value="true"><button type="submit" class="danger-button">Prepare PAPER EXIT</button></form></td></tr>`).join("")
     : '<tr><td colspan="5">No positions are currently available from a connected paper account.</td></tr>';
   const manualInputRows = manualRows.map((position) => `<div class="position-row">
 <label>Symbol<input name="symbol" value="${esc(position.symbol ?? "")}" placeholder="AAPL" autocomplete="off"></label>
@@ -244,7 +244,7 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 <section class="card panel">
 <h2>Connected account positions</h2>
 <p>${page.brokerConnected ? "Automatically synchronized from Alpaca." : "Connect a supported paper account to synchronize positions automatically."}</p>
-<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average purchase price</th><th>Current price</th><th>Source</th></tr></thead><tbody>${connectedRows}</tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average purchase price</th><th>Current price</th><th>Source / Mechanical test</th></tr></thead><tbody>${connectedRows}</tbody></table></div>
 <p class="helper">Broker-synced positions are read-only here and refresh from the connected account. GeminiScanner does not place orders or modify the account.</p>
 </section>
 
