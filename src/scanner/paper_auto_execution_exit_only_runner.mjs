@@ -87,7 +87,13 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   const clock = await fetchPaperClock({ env, fetchImpl })
   if (clock.is_open !== true) throw new Error('paper_exit_only_market_open_required')
 
-  const accountBefore = await fetchAlpacaPaperAccountReadonly({ env, fetchImpl })
+  const accountBefore = await fetchAlpacaPaperAccountReadonly({
+    env,
+    fetchImpl,
+    ...(typeof options.accountCredentialResolver === 'function'
+      ? { credentialResolver: options.accountCredentialResolver }
+      : {}),
+  })
   if (accountBefore.ok !== true || accountBefore.status !== 'connected_readonly') throw new Error('paper_exit_only_fresh_account_snapshot_required')
   const observedAtMs = Date.parse(accountBefore.observedAt ?? '')
   if (!Number.isFinite(observedAtMs) || Math.abs(nowMs - observedAtMs) > 30000) throw new Error('paper_exit_only_account_snapshot_stale')
@@ -125,7 +131,13 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   })
 
   const historicalOrders = await fetchHistoricalOrders({ env, fetchImpl })
-  const accountAfter = await fetchAlpacaPaperAccountReadonly({ env, fetchImpl })
+  const accountAfter = await fetchAlpacaPaperAccountReadonly({
+    env,
+    fetchImpl,
+    ...(typeof options.accountCredentialResolver === 'function'
+      ? { credentialResolver: options.accountCredentialResolver }
+      : {}),
+  })
   const reconciliation = await runPaperAutoExecutionReconciliation({
     lifecycleStore: store,
     accountSnapshot: accountAfter,

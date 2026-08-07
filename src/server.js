@@ -2531,9 +2531,24 @@ const requireAdminAuthorization = createRequireAdminAuthorization();
 
 app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const mod = await import('./scanner/admin_surface.mjs');
-  const surface = mod.buildAdminSurface();
+  const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
+  const alpacaAccess = await accessMod.getAlpacaMasterAccessSwitchState();
+  const surface = mod.buildAdminSurface({ alpacaAccess });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderAdminSurfaceHtml(surface));
+});
+
+app.post('/admin/alpaca-access', requireAdminAuthorization, requireCustomerSameOrigin, async (req, res) => {
+  const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
+  const enabled = String(req.body?.enabled ?? '').trim() === '1';
+  await accessMod.setAlpacaMasterAccessSwitchState({
+    enabled,
+    updatedBy: 'admin',
+    reason: enabled
+      ? 'admin_enabled_alpaca_read_access'
+      : 'admin_disabled_alpaca_read_access',
+  });
+  res.redirect(303, '/admin');
 });
 
 

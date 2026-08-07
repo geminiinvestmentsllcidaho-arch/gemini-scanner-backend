@@ -106,13 +106,26 @@ export async function fetchAlpacaPaperAccountReadonly({
   let credentialSource = "runtime_env";
 
   if (typeof credentialResolver === "function") {
-    const resolved = credentialResolver({
+    const resolved = await credentialResolver({
       masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY,
       ...credentialOptions,
     });
     if (resolved?.readyForReadonlyBrokerRead === true) {
       effectiveEnv = { ...env, ...resolved.env };
       credentialSource = "encrypted_tenant_store";
+    } else if (resolved?.accessSwitchEnabled === false) {
+      effectiveEnv = {
+        ...env,
+        ALPACA_KEY: "",
+        ALPACA_SECRET: "",
+        ALPACA_API_KEY_ID: "",
+        ALPACA_API_SECRET_KEY: "",
+        ALPACA_KEY_ID: "",
+        ALPACA_SECRET_KEY: "",
+        APCA_API_KEY_ID: "",
+        APCA_API_SECRET_KEY: "",
+      };
+      credentialSource = "master_access_switch_off";
     }
   }
 

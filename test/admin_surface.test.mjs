@@ -7,7 +7,16 @@ import {
 } from "../src/scanner/admin_surface.mjs";
 
 test("builds isolated read-only admin surface", () => {
-  const surface = buildAdminSurface();
+  const surface = buildAdminSurface({
+    alpacaAccess: {
+      enabled: false,
+      accessMode: "ALPACA_ACCOUNT_ACCESS_OFF",
+      readAccessAllowed: false,
+      credentialResolutionAllowed: false,
+      brokerMutationAllowed: false,
+      orderPlacementAllowed: false,
+    },
+  });
 
   assert.equal(surface.route, "/admin");
   assert.equal(surface.role, "admin");
@@ -29,13 +38,33 @@ test("builds isolated read-only admin surface", () => {
 });
 
 test("renders admin-only navigation without customer interface links", () => {
-  const html = renderAdminSurfaceHtml(buildAdminSurface());
+  const html = renderAdminSurfaceHtml(buildAdminSurface({
+    alpacaAccess: {
+      enabled: true,
+      accessMode: "ALPACA_ACCOUNT_ACCESS_ON",
+      readAccessAllowed: true,
+      credentialResolutionAllowed: true,
+      brokerMutationAllowed: false,
+      orderPlacementAllowed: false,
+      orderCancellationAllowed: false,
+      liveTradingAllowed: false,
+      paperTradingSubmissionAllowed: false,
+      reason: "test",
+      updatedBy: "admin",
+      updatedAt: "2026-08-07T23:30:00.000Z",
+    },
+  }));
 
   assert.match(html, /data-role="admin"/);
   assert.match(html, /Protected admin operations/);
   assert.match(html, /\/admin\/shared-cache/);
   assert.match(html, /Decision assist only/);
+  assert.match(html, /Alpaca account access/);
+  assert.match(html, /Status: <strong>ON<\/strong>/);
+  assert.match(html, /form method="post" action="\/admin\/alpaca-access"/);
+  assert.match(html, /Turn OFF Alpaca read access/);
+  assert.match(html, /order placement, cancellation, replacement, live trading, and PAPER submission remain locked/i);
   assert.doesNotMatch(html, /href="\/customer(?:["/])/);
   assert.doesNotMatch(html, /\/customer-zero\b/);
-  assert.doesNotMatch(html, /\bPOST\b|\bDELETE\b|XMLHttpRequest|\bfetch\s*\(/);
+  assert.doesNotMatch(html, /\bDELETE\b|XMLHttpRequest|\bfetch\s*\(/);
 });

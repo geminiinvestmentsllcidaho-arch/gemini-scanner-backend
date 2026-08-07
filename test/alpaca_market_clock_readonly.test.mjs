@@ -62,3 +62,28 @@ test("fails closed without credentials and performs no network call", async () =
   assert.equal(result.marketClock.isOpen, false);
   assert.equal(result.runtime.brokerContactAllowed, false);
 });
+
+
+test("master switch OFF ignores runtime credentials for market clock", async () => {
+  let fetchCount = 0;
+  const result = await fetchAlpacaMarketClockReadonly({
+    env: {
+      ALPACA_KEY: "runtime-key",
+      ALPACA_SECRET: "runtime-secret",
+    },
+    credentialResolver: async () => ({
+      readyForReadonlyBrokerRead: false,
+      accessSwitchEnabled: false,
+      env: {},
+    }),
+    fetchImpl: async () => {
+      fetchCount += 1;
+      throw new Error("clock read must not occur while master switch is OFF");
+    },
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(result.status, "not_connected_readonly");
+  assert.equal(result.runtime.credentialSource, "master_access_switch_off");
+  assert.equal(result.runtime.brokerContactAllowed, false);
+});

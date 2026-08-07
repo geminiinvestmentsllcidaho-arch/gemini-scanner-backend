@@ -10,13 +10,18 @@ import {
 import {
   writeInternalOwnerTenantCredentialEnvelope,
 } from "../src/scanner/internal_owner_tenant_credential_store.mjs";
+import {
+  setAlpacaMasterAccessSwitchState,
+} from "../src/scanner/alpaca_master_access_switch.mjs";
 
 const TENANT_ID = "gemini-investments-internal";
 const MASTER_KEY = "0123456789abcdef0123456789abcdef";
 
-test("resolves encrypted alpaca paper credentials into read-only runtime env", () => {
+test("resolves encrypted alpaca paper credentials into read-only runtime env", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-alpaca-read-"));
   const storePath = path.join(dir, "credentials.enc.json");
+  const accessSwitchPath = path.join(dir, "alpaca-access-switch.json");
+  await setAlpacaMasterAccessSwitchState({ enabled: true, updatedBy: "test" }, { statePath: accessSwitchPath });
 
   writeInternalOwnerTenantCredentialEnvelope({
     tenantId: TENANT_ID,
@@ -29,10 +34,11 @@ test("resolves encrypted alpaca paper credentials into read-only runtime env", (
     },
   });
 
-  const resolved = resolveInternalOwnerAlpacaReadonlyCredentials({
+  const resolved = await resolveInternalOwnerAlpacaReadonlyCredentials({
     tenantId: TENANT_ID,
     masterKey: MASTER_KEY,
     storePath,
+    accessSwitchPath,
   });
 
   assert.equal(resolved.ok, true);
@@ -47,9 +53,11 @@ test("resolves encrypted alpaca paper credentials into read-only runtime env", (
   assert.equal(resolved.env.APCA_API_BASE_URL, "https://paper-api.alpaca.markets");
 });
 
-test("blocks malformed broker credentials without exposing secrets", () => {
+test("blocks malformed broker credentials without exposing secrets", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-alpaca-read-block-"));
   const storePath = path.join(dir, "credentials.enc.json");
+  const accessSwitchPath = path.join(dir, "alpaca-access-switch.json");
+  await setAlpacaMasterAccessSwitchState({ enabled: true, updatedBy: "test" }, { statePath: accessSwitchPath });
 
   writeInternalOwnerTenantCredentialEnvelope({
     tenantId: TENANT_ID,
@@ -62,10 +70,11 @@ test("blocks malformed broker credentials without exposing secrets", () => {
     },
   });
 
-  const resolved = resolveInternalOwnerAlpacaReadonlyCredentials({
+  const resolved = await resolveInternalOwnerAlpacaReadonlyCredentials({
     tenantId: TENANT_ID,
     masterKey: MASTER_KEY,
     storePath,
+    accessSwitchPath,
   });
 
   assert.equal(resolved.ok, true);
@@ -75,11 +84,16 @@ test("blocks malformed broker credentials without exposing secrets", () => {
   assert.equal(JSON.stringify(resolved).includes("test-secret"), false);
 });
 
-test("fails closed when encrypted credential store cannot be read", () => {
-  const resolved = resolveInternalOwnerAlpacaReadonlyCredentials({
+test("fails closed when encrypted credential store cannot be read", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-alpaca-read-missing-"));
+  const accessSwitchPath = path.join(dir, "alpaca-access-switch.json");
+  await setAlpacaMasterAccessSwitchState({ enabled: true, updatedBy: "test" }, { statePath: accessSwitchPath });
+
+  const resolved = await resolveInternalOwnerAlpacaReadonlyCredentials({
     tenantId: TENANT_ID,
     masterKey: MASTER_KEY,
-    storePath: "/tmp/does-not-exist-gemini-credentials.enc.json",
+    storePath: path.join(dir, "does-not-exist.enc.json"),
+    accessSwitchPath,
   });
 
   assert.equal(resolved.ok, false);
@@ -87,4 +101,38 @@ test("fails closed when encrypted credential store cannot be read", () => {
   assert.equal(resolved.brokerMutationAllowed, false);
   assert.equal(resolved.orderPlacementAllowed, false);
   assert.deepEqual(resolved.env, {});
+});
+
+
+test("master switch OFF blocks encrypted credential resolution", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-alpaca-read-off-"));
+  const storePath = path.join(dir, "credentials.enc.json");
+  const accessSwitchPath = path.join(dir, "alpaca-access-switch.json");
+
+  writeInternalOwnerTenantCredentialEnvelope({
+    tenantId: TENANT_ID,
+    masterKey: MASTER_KEY,
+    storePath,
+    credentials: {
+      broker: "alpaca-paper",
+      apiKeyId: "test-key-id",
+      apiSecret: "test-secret",
+    },
+  });
+
+  const resolved = await resolveInternalOwnerAlpacaReadonlyCredentials({
+    tenantId: TENANT_ID,
+    masterKey: MASTER_KEY,
+    storePath,
+    accessSwitchPath,
+  });
+
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.accessSwitchEnabled, false);
+  assert.equal(resolved.readyForReadonlyBrokerRead, false);
+  assert.equal(resolved.credentialStoreReadable, false);
+  assert.equal(resolved.apiKeyPresent, false);
+  assert.equal(resolved.apiSecretPresent, false);
+  assert.deepEqual(resolved.env, {});
+  assert.equal(JSON.stringify(resolved).includes("test-secret"), false);
 });

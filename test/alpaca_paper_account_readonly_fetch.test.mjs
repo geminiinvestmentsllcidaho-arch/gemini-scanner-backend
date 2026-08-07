@@ -163,3 +163,30 @@ test("readonly fetch fails closed on malformed open-order shape", async () => {
   assert.deepEqual(result.openOrders, []);
   assert.equal(result.observedAt, undefined);
 });
+
+
+test("master switch OFF ignores runtime Alpaca keys and performs no broker read", async () => {
+  let fetchCount = 0;
+  const result = await fetchAlpacaPaperAccountReadonly({
+    env: {
+      ALPACA_KEY: "runtime-key",
+      ALPACA_SECRET: "runtime-secret",
+      APCA_API_BASE_URL: "https://paper-api.alpaca.markets",
+    },
+    credentialResolver: async () => ({
+      readyForReadonlyBrokerRead: false,
+      accessSwitchEnabled: false,
+      accessMode: "ALPACA_ACCOUNT_ACCESS_OFF",
+      env: {},
+    }),
+    fetchImpl: async () => {
+      fetchCount += 1;
+      throw new Error("broker read must not occur while master switch is OFF");
+    },
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(result.status, "not_connected_readonly");
+  assert.equal(result.runtime.credentialSource, "master_access_switch_off");
+  assert.equal(result.runtime.hasRuntimeKeys, false);
+});

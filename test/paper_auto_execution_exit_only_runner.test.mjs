@@ -46,7 +46,12 @@ function fixture() {
     APCA_API_SECRET_KEY: 'paper-secret',
     ALPACA_PAPER_TRADING: 'true',
   }
-  return { dir, lifecycleFile, latch, reportFile, nowMs, args, env }
+  const accountCredentialResolver = async () => ({
+    readyForReadonlyBrokerRead: false,
+    accessSwitchEnabled: true,
+    env: {},
+  })
+  return { dir, lifecycleFile, latch, reportFile, nowMs, args, env, accountCredentialResolver }
 }
 
 test('fails closed before network when explicit execution is absent', async () => {
@@ -79,6 +84,7 @@ test('fails closed before submission when exact broker position is absent', asyn
         args: f.args,
         env: f.env,
         nowMs: f.nowMs,
+        accountCredentialResolver: f.accountCredentialResolver,
         fetchImpl: async (url, init = {}) => {
           if (init.method === 'POST') postCalls += 1
           if (String(url).includes('/v2/clock')) {
@@ -116,6 +122,7 @@ test('blocks a closed market before authorization consumption or submission', as
         args: f.args,
         env: f.env,
         nowMs: f.nowMs,
+        accountCredentialResolver: f.accountCredentialResolver,
         fetchImpl: async (url, init = {}) => {
           if (init.method === 'POST') postCalls += 1
           if (String(url).includes('/v2/clock')) return new Response(JSON.stringify({ is_open: false }), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -140,6 +147,7 @@ test('blocks a conflicting open order before authorization consumption or submis
         args: f.args,
         env: f.env,
         nowMs: f.nowMs,
+        accountCredentialResolver: f.accountCredentialResolver,
         fetchImpl: async (url, init = {}) => {
           const target = String(url)
           if (init.method === 'POST') postCalls += 1
@@ -171,6 +179,7 @@ test('blocks broker-position identity mismatch before authorization consumption 
         args: f.args,
         env: f.env,
         nowMs: f.nowMs,
+        accountCredentialResolver: f.accountCredentialResolver,
         fetchImpl: async (url, init = {}) => {
           const target = String(url)
           if (init.method === 'POST') postCalls += 1
@@ -199,6 +208,7 @@ test('submits one exact sell and reconciles the lifecycle closed', async () => {
       args: f.args,
       env: f.env,
       nowMs: f.nowMs,
+      accountCredentialResolver: f.accountCredentialResolver,
       reportFile: f.reportFile,
       fetchImpl: async (url, init = {}) => {
         const target = String(url)

@@ -15,3 +15,19 @@ test("server protects isolated admin route with admin authorization middleware",
   assert.match(route, /Cache-Control', 'no-store/);
   assert.doesNotMatch(route, /customer_scanner_hub|customer-zero/);
 });
+
+
+test("admin Alpaca access toggle is admin-authorized, same-origin, and only mutates the read-access switch", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  const start = server.indexOf("app.post('/admin/alpaca-access'");
+  assert.notEqual(start, -1);
+  const end = server.indexOf("\n});", start);
+  const route = server.slice(start, end + 4);
+
+  assert.match(route, /requireAdminAuthorization/);
+  assert.match(route, /requireCustomerSameOrigin/);
+  assert.match(route, /alpaca_master_access_switch\.mjs/);
+  assert.match(route, /setAlpacaMasterAccessSwitchState/);
+  assert.match(route, /res\.redirect\(303, '\/admin'\)/);
+  assert.doesNotMatch(route, /submitPaperOrder|\/v2\/orders|PAPER_AUTO_|cancelOrder|replaceOrder|fetch\s*\(/);
+});

@@ -442,6 +442,11 @@ test("derives bounded relative volume from current and previous daily bars", asy
       ALPACA_KEY: "key",
       ALPACA_SECRET: "secret",
     },
+    credentialResolver: async () => ({
+      readyForReadonlyBrokerRead: false,
+      accessSwitchEnabled: true,
+      env: {},
+    }),
     nowMs: Date.parse(now),
     maxAssets: 10,
     minPrice: 0,
@@ -475,6 +480,31 @@ test("derives bounded relative volume from current and previous daily bars", asy
   assert.equal(bySymbol.RVOL.relativeVolume, 3);
   assert.equal(bySymbol.MISS.relativeVolume, null);
   assert.equal(result.runtime.readOnly, true);
+  assert.equal(result.runtime.orderPlacementAllowed, false);
+  assert.equal(result.runtime.accountMutationAllowed, false);
+});
+
+
+test("master switch OFF ignores runtime credentials for under-five universe", async () => {
+  let fetchCount = 0;
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      ALPACA_KEY: "runtime-key",
+      ALPACA_SECRET: "runtime-secret",
+    },
+    credentialResolver: async () => ({
+      readyForReadonlyBrokerRead: false,
+      accessSwitchEnabled: false,
+      env: {},
+    }),
+    fetchImpl: async () => {
+      fetchCount += 1;
+      throw new Error("universe read must not occur while master switch is OFF");
+    },
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(result.runtime.credentialSource, "master_access_switch_off");
   assert.equal(result.runtime.orderPlacementAllowed, false);
   assert.equal(result.runtime.accountMutationAllowed, false);
 });
