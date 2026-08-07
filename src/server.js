@@ -5440,10 +5440,16 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Your data</h2>
-<p style="color:#9eb0c9">Download a JSON copy of your customer account data. Password and authenticator secrets are excluded.</p>
+<p style="color:#9eb0c9">Download a readable copy of the information stored with your GeminiScanner customer account. Passwords and authenticator secrets are excluded.</p>
 <form method="post" action="/customer/settings/data/export">
-<button type="submit" style="background:#3d72d9">Download my data</button>
+<button type="submit" style="background:#3d72d9">Download readable copy of my data</button>
 </form>
+<details class="signin-history"><summary>Technical export</summary>
+<p style="color:#9eb0c9">For data portability or technical support, you can also download the same protected account export as JSON.</p>
+<form method="post" action="/customer/settings/data/export?format=json">
+<button type="submit">Download technical JSON</button>
+</form>
+</details>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Sessions</h2>
@@ -5504,10 +5510,97 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
 
   recordCustomerSecurityAudit(req, 'data_exported', 'success');
   const safeId = String(req.customerAccount.id || 'customer').replace(/[^a-zA-Z0-9_-]/g, '');
-  res.set('Content-Disposition', `attachment; filename="geminiscanner-customer-data-${safeId}.json"`);
-  return res.status(200).type('application/json').send(`${JSON.stringify(result.export, null, 2)}\n`);
-});
 
+  if (String(req.query?.format ?? '').toLowerCase() === 'json') {
+    res.set('Content-Disposition', `attachment; filename="geminiscanner-customer-data-${safeId}.json"`);
+    return res.status(200).type('application/json').send(`${JSON.stringify(result.export, null, 2)}\n`);
+  }
+
+  const escapeHtml = (value) => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+  const label = (value) => String(value ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase())
+    .replace(/\bId\b/g, 'ID')
+    .replace(/\bIp\b/g, 'IP');
+  const friendlyValue = (value, key = '') => {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
+    if (typeof value === 'object') return 'See details below';
+    if (/At$|Date$|Time$/i.test(key)) {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) {
+        return formatCustomerDateTime(d.toISOString(), req.customerAccount, { fallback: String(value) });
+      }
+    }
+    return String(value);
+  };
+  const renderRows = (object) => Object.entries(object ?? {})
+    .filter(([, value]) => value === null || typeof value !== 'object')
+    .map(([key, value]) => `<div class="data-row"><div class="data-label">${escapeHtml(label(key))}</div><div class="data-value">${escapeHtml(friendlyValue(value, key))}</div></div>`)
+    .join('');
+  const renderObject = (title, object, depth = 0) => {
+    if (!object || typeof object !== 'object' || Array.isArray(object)) return '';
+    const primitiveRows = renderRows(object);
+    const nested = Object.entries(object)
+      .filter(([, value]) => value && typeof value === 'object')
+      .map(([key, value]) => {
+        if (Array.isArray(value)) {
+          if (!value.length) return `<section class="subsection"><h3>${escapeHtml(label(key))}</h3><p class="muted">No records.</p></section>`;
+          const items = value.map((item, index) => {
+            if (item && typeof item === 'object') {
+              return `<article class="list-item"><h4>${escapeHtml(label(key).replace(/s$/, ''))} ${index + 1}</h4>${renderRows(item)}${Object.entries(item).filter(([, v]) => v && typeof v === 'object').map(([nestedKey, nestedValue]) => renderObject(label(nestedKey), nestedValue, depth + 1)).join('')}</article>`;
+            }
+            return `<div class="list-item">${escapeHtml(friendlyValue(item))}</div>`;
+          }).join('');
+          return `<section class="subsection"><h3>${escapeHtml(label(key))}</h3><div class="list">${items}</div></section>`;
+        }
+        return renderObject(label(key), value, depth + 1);
+      }).join('');
+    return `<section class="${depth ? 'subsection' : 'report-section'}"><h${depth ? '3' : '2'}>${escapeHtml(title)}</h${depth ? '3' : '2'}>${primitiveRows || '<p class="muted">No simple values in this section.</p>'}${nested}</section>`;
+  };
+
+  const exportData = result.export ?? {};
+  const reportSections = Object.entries(exportData)
+    .filter(([key]) => !['version', 'generatedAt'].includes(key))
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        const items = value.length
+          ? value.map((item, index) => item && typeof item === 'object'
+            ? `<article class="list-item"><h3>${escapeHtml(label(key).replace(/s$/, ''))} ${index + 1}</h3>${renderRows(item)}</article>`
+            : `<div class="list-item">${escapeHtml(friendlyValue(item))}</div>`).join('')
+          : '<p class="muted">No records.</p>';
+        return `<section class="report-section"><h2>${escapeHtml(label(key))}</h2><div class="list">${items}</div></section>`;
+      }
+      if (value && typeof value === 'object') return renderObject(label(key), value);
+      return `<section class="report-section"><h2>${escapeHtml(label(key))}</h2><p>${escapeHtml(friendlyValue(value, key))}</p></section>`;
+    }).join('');
+
+  const generatedAt = friendlyValue(exportData.generatedAt, 'generatedAt');
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GeminiScanner — My account data</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#061014;color:#eefcff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.wrap{max-width:920px;margin:auto;padding:28px 16px 56px}.hero,.report-section,.subsection,.list-item{border:1px solid #25424a;border-radius:14px;background:#09171c}.hero{padding:22px;margin-bottom:18px}.hero h1{margin:0 0 8px}.hero p,.muted{color:#a9c1c9}.badge{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #2cc9dc;border-radius:999px;color:#65eaff}.report-section{padding:18px;margin:14px 0}.report-section h2{margin:0 0 14px;color:#65eaff}.subsection{padding:14px;margin:14px 0;background:#071216}.subsection h3,.list-item h3,.list-item h4{margin:0 0 10px}.data-row{display:grid;grid-template-columns:minmax(150px,240px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid #173038}.data-row:last-child{border-bottom:0}.data-label{font-weight:700;color:#b9d2d8}.data-value{overflow-wrap:anywhere}.list{display:grid;gap:10px}.list-item{padding:14px;background:#071216}@media(max-width:640px){.data-row{grid-template-columns:1fr;gap:3px}}@media print{body{background:white;color:black}.hero,.report-section,.subsection,.list-item{background:white;border-color:#bbb}.report-section h2,.badge{color:black;border-color:#777}.hero p,.muted,.data-label{color:#444}}
+</style>
+</head>
+<body><main class="wrap">
+<section class="hero"><h1>Your GeminiScanner account data</h1><p>This is a readable copy of the customer information stored with your GeminiScanner account. Passwords and authenticator secrets are not included.</p><span class="badge">Generated ${escapeHtml(generatedAt)}</span></section>
+${reportSections || '<section class="report-section"><p>No customer data is available.</p></section>'}
+</main></body></html>`;
+
+  res.set('Content-Disposition', `attachment; filename="geminiscanner-my-data-${safeId}.html"`);
+  return res.status(200).type('html').send(html);
+});
 
 app.post('/customer/settings/email', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   if (customerSensitiveSettingsRateLimiter.isLimited(req)) {

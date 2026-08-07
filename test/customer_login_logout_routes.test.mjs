@@ -246,12 +246,17 @@ test('customer password recovery routes are public, rate limited, and token prot
 });
 
 
-test('settings page exposes authenticated customer data export controls', () => {
+test('settings page exposes readable customer data export with optional technical JSON', () => {
   assert.match(source, /form method="post" action="\/customer\/settings\/data\/export"/);
-  assert.match(source, />Download my data<\/button>/);
+  assert.match(source, />Download readable copy of my data<\/button>/);
+  assert.match(source, /\/customer\/settings\/data\/export\?format=json/);
+  assert.match(source, />Download technical JSON<\/button>/);
   assert.match(source, /app\.post\('\/customer\/settings\/data\/export', requireCustomerSession,/);
   assert.match(source, /buildCustomerDataExport\(req\.customerAccount\.id,/);
-  assert.match(source, /Content-Disposition'/);
+  assert.match(source, /Your GeminiScanner account data/);
+  assert.match(source, /Passwords and authenticator secrets are not included/);
+  assert.match(source, /geminiscanner-my-data-/);
+  assert.match(source, /type\('html'\)/);
   assert.match(source, /type\('application\/json'\)/);
 });
 
