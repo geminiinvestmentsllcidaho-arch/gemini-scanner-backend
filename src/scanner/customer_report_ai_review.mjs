@@ -25,6 +25,18 @@ export function buildCustomerReportAiReviewInput(report = {}) {
       realizedPl: finite(report?.performance?.realizedPl),
       unrealizedPl: finite(report?.performance?.unrealizedPl),
     }),
+    currentBrokerPositions: Object.freeze(
+      (Array.isArray(report?.currentBrokerPositions) ? report.currentBrokerPositions : []).slice(0, 50).map((position) => Object.freeze({
+        symbol: String(position?.symbol ?? "").trim().toUpperCase() || null,
+        qty: finite(position?.qty),
+        side: position?.side ?? null,
+        averageEntryPrice: finite(position?.averageEntryPrice),
+        currentPrice: finite(position?.currentPrice),
+        marketValue: finite(position?.marketValue),
+        unrealizedPl: finite(position?.unrealizedPl),
+        unrealizedPlpc: finite(position?.unrealizedPlpc),
+      }))
+    ),
     trades: Object.freeze({
       totalTrades: finite(report?.trades?.totalTrades) ?? 0,
       completedRoundTrips: finite(report?.trades?.completedRoundTrips),
@@ -40,6 +52,16 @@ export function buildCustomerReportAiReviewInput(report = {}) {
       lifecycleSourceAvailable: report?.trades?.lifecycleSourceAvailable === true,
       sourceIntentReplayAuditAvailable:
         report?.trades?.sourceIntentReplayAuditAvailable === true,
+      historicalSimulatedOpenPositions: Object.freeze(
+        (Array.isArray(report?.trades?.openPositions) ? report.trades.openPositions : []).slice(0, 50).map((position) => Object.freeze({
+          symbol: String(position?.symbol ?? "").trim().toUpperCase() || null,
+          qty: finite(position?.qty),
+          avgEntryPrice: finite(position?.avgEntryPrice),
+          costBasis: finite(position?.costBasis),
+          openedAt: position?.openedAt ?? null,
+          entryFillCount: finite(position?.entryFillCount),
+        }))
+      ),
       sourceIntentReplayAudit: Object.freeze({
         hasPossibleReplay:
           report?.trades?.sourceIntentReplayAudit?.hasPossibleReplay === true,
@@ -130,6 +152,9 @@ export function buildCustomerReportAiReviewInput(report = {}) {
         .filter((row) => finite(row?.equity) !== null).length,
     }),
     dataSemantics: Object.freeze({
+      currentBrokerPositions: "Current holdings fetched read-only from the connected Alpaca paper account. This is the only report field that represents current broker positions.",
+      activity: "Historical local paper position-snapshot activity. These rows are not current broker holdings and may be stale or diverge from the connected Alpaca paper account.",
+      historicalSimulatedOpenPositions: "Positions reconstructed only from the local simulated fill ledger. They are historical/simulated evidence and must never be described as current Alpaca holdings.",
       lastFillPrice: "Execution price of the latest recorded fill; it is not a current market quote.",
       unrealizedPl: "Current paper-account mark-to-market P/L; it may differ from lastFillPrice without inconsistency.",
       totalTrades: report?.trades?.lifecycleSourceAvailable === true

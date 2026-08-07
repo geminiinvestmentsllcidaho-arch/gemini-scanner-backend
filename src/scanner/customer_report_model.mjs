@@ -228,6 +228,18 @@ export function buildCustomerReportModel(options = {}) {
       })
     : snapshotTrades;
   const performance = performanceSummary(paperRecords, baseline, options);
+  const currentBrokerPositions = Object.freeze(
+    list(options.paperAccount?.positions).map((position) => Object.freeze({
+      symbol: String(position?.symbol ?? "").trim().toUpperCase() || null,
+      qty: finite(position?.qty),
+      side: position?.side ?? null,
+      averageEntryPrice: round2(position?.averageEntryPrice),
+      currentPrice: round2(position?.currentPrice),
+      marketValue: round2(position?.marketValue),
+      unrealizedPl: round2(position?.unrealizedPl),
+      unrealizedPlpc: finite(position?.unrealizedPlpc),
+    }))
+  );
   const sourceTs = timestamp(latest);
   const sourceAgeSec = sourceTs
     ? Math.max(0, Math.floor((range.end.getTime() - Date.parse(sourceTs)) / 1000))
@@ -249,6 +261,7 @@ export function buildCustomerReportModel(options = {}) {
     maxAgeSec,
     paperRecordCount: paperRecords.length,
     performance,
+    currentBrokerPositions,
     trades: Object.freeze({
       ...trades,
       metricDefinition: lifecycleTrades?.metricDefinition

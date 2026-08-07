@@ -131,6 +131,7 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const calibrationHistoryRows = Array.isArray(proposalCalibrationHistory.records)
     ? proposalCalibrationHistory.records
     : [];
+  const currentBrokerPositions = Array.isArray(report.currentBrokerPositions) ? report.currentBrokerPositions : [];
   const activities = Array.isArray(report.activity) ? report.activity : [];
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
@@ -140,6 +141,7 @@ export function renderCustomerReportsPageHtml(page = {}) {
   ).join("");
   const reportSectionLinks = [
     ["performance-summary", "Performance"],
+    ["current-broker-holdings", "Current Holdings"],
     ["trade-statistics", "Trades"],
     ["scanner-accuracy", "Scanner"],
     ["winners-losers", "Winners & Losers"],
@@ -148,8 +150,12 @@ export function renderCustomerReportsPageHtml(page = {}) {
     ["calibration", "Calibration"],
     ["calibration-history", "History"],
     ["realtime-ai-review", "Real-Time AI"],
-    ["detailed-activity", "Activity"],
+    ["detailed-activity", "Historical Activity"],
   ].map(([id, label]) => `<a href="#${esc(id)}">${esc(label)}</a>`).join("");
+
+  const currentBrokerPositionRows = currentBrokerPositions.length
+    ? currentBrokerPositions.map((position) => `<tr><td>${esc(position.symbol ?? "—")}</td><td>${esc(number(position.qty, locale))}</td><td>${esc(position.side ?? "—")}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td>${esc(money(position.marketValue, locale))}</td><td>${esc(money(position.unrealizedPl, locale))}</td></tr>`).join("")
+    : '<tr><td colspan="7">No current broker positions are reported by the connected Alpaca paper account.</td></tr>';
 
   const activityRows = activities.length
     ? activities.map((row) => `<tr>
@@ -256,6 +262,12 @@ ${metric("Total return", number(performance.totalReturnPct, locale, "%"))}
 ${metric("Max drawdown", money(performance.maxDrawdown, locale))}
 ${metric("Capital used", money(performance.totalCapitalUsed, locale))}
 </div>
+</section>
+
+<section class="card panel" id="current-broker-holdings">
+<h2>Current broker holdings</h2>
+<p class="muted">Current positions fetched read-only from the connected Alpaca paper account. Historical simulated-ledger activity is shown separately below.</p>
+<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Qty</th><th>Side</th><th>Avg entry</th><th>Current price</th><th>Market value</th><th>Unrealized P/L</th></tr></thead><tbody>${currentBrokerPositionRows}</tbody></table></div>
 </section>
 
 <div class="two">
@@ -399,7 +411,8 @@ ${realtimeAiText
 </section>
 
 <section class="card panel" id="detailed-activity">
-<h2>Detailed activity</h2>
+<h2>Historical simulated-ledger activity</h2>
+<p class="muted">Historical local paper snapshots only. These rows are not current Alpaca holdings.</p>
 <div class="table-wrap">
 <table>
 <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>P/L</th><th>Status</th></tr></thead>
