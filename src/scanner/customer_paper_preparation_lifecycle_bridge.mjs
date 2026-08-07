@@ -13,6 +13,33 @@ function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null }
 }
 
+const ACTIVE_ENTER_STATES = new Set([
+  'CANDIDATE_SELECTED',
+  'ENTER_SUBMITTING',
+  'ENTER_UNKNOWN',
+  'ENTER_OPEN',
+  'ENTER_PARTIALLY_FILLED',
+  'POSITION_CONFIRMED',
+  'MONITORING',
+  'UNRESOLVED_NEEDS_RECONCILIATION',
+])
+
+function findActiveCustomerEnter(runsDir, accountId) {
+  const accountKey = safe(accountId)
+  const prefix = `customer_paper_user_lifecycle_${accountKey}`
+  const matches = []
+  if (!fs.existsSync(runsDir)) return matches
+  for (const name of fs.readdirSync(runsDir)) {
+    if (!name.endsWith('.json') || !name.startsWith(prefix)) continue
+    const file = path.join(runsDir, name)
+    const state = readJson(file)
+    if (!state || !ACTIVE_ENTER_STATES.has(clean(state.state))) continue
+    if (clean(state.scannerEvidence?.source) !== 'customer_paper_user_preparation') continue
+    matches.push({ file, state })
+  }
+  return matches
+}
+
 function findMonitoring(runsDir, symbol, quantity) {
   const matches = []
   if (!fs.existsSync(runsDir)) return matches
@@ -45,7 +72,9 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
   let lifecycle
 
   if (mode === 'ENTER') {
-    lifecycleFile = path.join(runsDir, `customer_paper_user_lifecycle_${safe(options.accountId)}_${safe(preparation.preparationId)}.json`)
+    const activeCustomerEnter = findActiveCustomerEnter(runsDir, options.accountId)
+    if (activeCustomerEnter.length) throw new Error('paper_enter_active_customer_lifecycle_exists')
+    lifecycleFile = path.join(runsDir, `customer_paper_user_lifecycle_${safe(options.accountId)}.json`)
     const store = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
     lifecycle = store.create({
       selectedSymbol: symbol,

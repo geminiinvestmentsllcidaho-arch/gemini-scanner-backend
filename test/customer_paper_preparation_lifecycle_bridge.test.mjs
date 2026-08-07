@@ -156,3 +156,52 @@ test('EXIT authorization handoff evaluates exact lifecycle target without consum
   assert.equal(out.authorizationEvaluation.quantity, 2)
   assert.equal(fs.existsSync(out.authorization.latchFile), false)
 })
+
+
+test('repeated ENTER preparation fails closed while customer lifecycle is active', () => {
+  const runsDir = tmp()
+  const first = bridgePaperPreparationToLifecycle({
+    ok: true,
+    preparationId: 'prep-first-enter',
+    mode: 'ENTER',
+    symbol: 'ABC',
+    quantity: 1,
+  }, {
+    runsDir,
+    accountId: 'customer-zero',
+    nowMs: 1786128600000,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  })
+  assert.equal(first.lifecycleState, 'CANDIDATE_SELECTED')
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true,
+    preparationId: 'prep-second-enter',
+    mode: 'ENTER',
+    symbol: 'XYZ',
+    quantity: 1,
+  }, {
+    runsDir,
+    accountId: 'customer-zero',
+    nowMs: 1786128601000,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  }), /paper_enter_active_customer_lifecycle_exists/)
+  const lifecycleFiles = fs.readdirSync(runsDir).filter((name) => name.startsWith('customer_paper_user_lifecycle_customer-zero') && name.endsWith('.json'))
+  assert.equal(lifecycleFiles.length, 1)
+})
+
+test('different customer account may create its own pending ENTER lifecycle', () => {
+  const runsDir = tmp()
+  bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-a', mode: 'ENTER', symbol: 'ABC', quantity: 1,
+  }, {
+    runsDir, accountId: 'customer-a', nowMs: 1786128600000,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  })
+  const second = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-b', mode: 'ENTER', symbol: 'XYZ', quantity: 1,
+  }, {
+    runsDir, accountId: 'customer-b', nowMs: 1786128600000,
+    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
+  })
+  assert.equal(second.lifecycleState, 'CANDIDATE_SELECTED')
+})
