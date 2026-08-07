@@ -57,3 +57,49 @@ test('EXIT fails closed without exactly one matching lifecycle', () => {
     ok: true, preparationId: 'prep-exit-missing', mode: 'EXIT', symbol: 'USAS', quantity: 1,
   }, { runsDir }), /matching_lifecycle_not_found/)
 })
+
+test('ENTER handoff carries exact unconsumed one-shot authorization metadata', () => {
+  const runsDir = tmp()
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-auth-enter', mode: 'ENTER', symbol: 'ABC', quantity: 1,
+  }, { runsDir, accountId: 'customer-zero' })
+  assert.equal(out.authorization.operator, 'Borac')
+  assert.equal(out.authorization.scope, 'paper_auto_enter_once_only')
+  assert.equal(out.authorization.phrase, 'I_APPROVE_ONE_DISABLED_PAPER_AUTO_ENTER_ONCE')
+  assert.equal(out.authorization.lifecycleId, out.lifecycleId)
+  assert.equal(out.authorization.symbol, 'ABC')
+  assert.equal(out.authorization.quantity, 1)
+  assert.equal(out.authorization.consumed, false)
+  assert.equal(out.authorization.requiresExplicitConsumptionAtExecutionBoundary, true)
+})
+
+test('EXIT handoff carries exact lifecycle-bound unconsumed one-shot authorization metadata', () => {
+  const runsDir = tmp()
+  const now = new Date().toISOString()
+  const file = path.join(runsDir, 'paper_auto_enter_only_mechanical_lifecycle_auth-exit.json')
+  fs.writeFileSync(file, JSON.stringify({
+    version: 'paper_auto_execution_lifecycle_v1',
+    lifecycleId: 'life-auth-exit',
+    state: 'MONITORING',
+    selectedSymbol: 'BTG',
+    enterClientOrderId: 'enter-1',
+    enterBrokerOrderId: 'broker-1',
+    exitClientOrderId: null,
+    exitBrokerOrderId: null,
+    filledQuantity: 2,
+    averageFillPrice: 4.5,
+    brokerPositionIdentity: 'BTG:2',
+    reconciliation: [],
+    createdAt: now,
+    updatedAt: now,
+  }))
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-auth-exit', mode: 'EXIT', symbol: 'BTG', quantity: 2,
+  }, { runsDir })
+  assert.equal(out.authorization.scope, 'paper_auto_exit_once_only')
+  assert.equal(out.authorization.phrase, 'I_APPROVE_ONE_EXACT_POSITION_PAPER_AUTO_EXIT_ONCE')
+  assert.equal(out.authorization.lifecycleId, 'life-auth-exit')
+  assert.equal(out.authorization.symbol, 'BTG')
+  assert.equal(out.authorization.quantity, 2)
+  assert.equal(out.authorization.consumed, false)
+})

@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecycle_store.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
+import { REQUIRED_PHRASE as ENTER_PHRASE, REQUIRED_SCOPE as ENTER_SCOPE } from './paper_auto_execution_enter_only_run_once_authorization.mjs'
+import { REQUIRED_PHRASE as EXIT_PHRASE, REQUIRED_SCOPE as EXIT_SCOPE } from './paper_auto_execution_exit_only_run_once_authorization.mjs'
 
 export const VERSION = 'customer_paper_preparation_lifecycle_bridge_v1'
 const clean = (v) => String(v ?? '').trim()
@@ -72,6 +74,20 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
     side,
   })
 
+  const authorization = Object.freeze({
+    authorizationId: `customer-paper-${phase}-${preparation.preparationId}`,
+    operator: 'Borac',
+    phrase: mode === 'ENTER' ? ENTER_PHRASE : EXIT_PHRASE,
+    scope: mode === 'ENTER' ? ENTER_SCOPE : EXIT_SCOPE,
+    lifecycleId: lifecycle.lifecycleId,
+    symbol,
+    quantity,
+    paperOnly: true,
+    userInitiated: true,
+    consumed: false,
+    requiresExplicitConsumptionAtExecutionBoundary: true,
+  })
+
   return Object.freeze({
     ok: true,
     version: VERSION,
@@ -91,6 +107,7 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
       paperOnly: true,
     }),
     deterministicIdentity: identity,
+    authorization,
     safety: Object.freeze({
       paperOnly: true,
       userInitiated: true,
