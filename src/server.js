@@ -5527,6 +5527,26 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
     const cleaned = String(value ?? '').trim();
     return cleaned || fallback;
   };
+  const themeLabel = (value) => ({
+    dark: 'Dark',
+    light: 'Light',
+    system: 'Use device setting',
+  }[String(value ?? '').trim().toLowerCase()] ?? text(value, 'Use device setting'));
+  const localeLabel = (value) => ({
+    'en-US': 'English (United States)',
+    'en-CA': 'English (Canada)',
+    'en-GB': 'English (United Kingdom)',
+  }[String(value ?? '').trim()] ?? text(value, 'English (United States)'));
+  const timeZoneLabel = (value) => ({
+    'America/New_York': 'Eastern Time',
+    'America/Chicago': 'Central Time',
+    'America/Denver': 'Mountain Time',
+    'America/Los_Angeles': 'Pacific Time',
+  }[String(value ?? '').trim()] ?? text(value, 'Eastern Time'));
+  const densityLabel = (value) => ({
+    compact: 'Compact',
+    comfortable: 'Comfortable',
+  }[String(value ?? '').trim().toLowerCase()] ?? text(value, 'Comfortable'));
   const customerDateTime = (value) => value
     ? formatCustomerDateTime(value, req.customerAccount, { fallback: text(value) })
     : 'Not available';
@@ -5572,10 +5592,10 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
       row('Member since', customerDate(accountData.createdAt)),
     ]),
     section('Preferences', '', [
-      row('Theme', text(display.theme, 'Use device setting')),
-      row('Language and number format', text(display.locale, 'English (United States)')),
-      row('Time zone', text(display.timezone, 'Eastern Time')),
-      row('Layout', text(display.density, 'Comfortable')),
+      row('Theme', themeLabel(display.theme)),
+      row('Language and number format', localeLabel(display.locale)),
+      row('Time zone', timeZoneLabel(display.timezone)),
+      row('Layout', densityLabel(display.density)),
       row('Reduce motion', yesNo(display.reducedMotion)),
       row('Notifications', notificationSummary),
     ]),

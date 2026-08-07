@@ -260,6 +260,14 @@ test('settings page exposes readable customer data export with optional technica
   assert.match(source, /Preferences/);
   assert.match(source, /Security summary/);
   assert.match(source, /Scanner preferences/);
+  assert.match(source, /dark: 'Dark'/);
+  assert.match(source, /'en-US': 'English \(United States\)'/);
+  assert.match(source, /'America\/New_York': 'Eastern Time'/);
+  assert.match(source, /compact: 'Compact'/);
+  assert.match(source, /row\('Theme', themeLabel\(display\.theme\)\)/);
+  assert.match(source, /row\('Language and number format', localeLabel\(display\.locale\)\)/);
+  assert.match(source, /row\('Time zone', timeZoneLabel\(display\.timezone\)\)/);
+  assert.match(source, /row\('Layout', densityLabel\(display\.density\)\)/);
   assert.match(source, /geminiscanner-my-data-/);
   assert.match(source, /type\('html'\)/);
   assert.match(source, /type\('application\/json'\)/);
