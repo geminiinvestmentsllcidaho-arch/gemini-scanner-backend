@@ -311,20 +311,35 @@ test('fresh ENTER preparation lock still fails closed', () => {
   const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
   fs.mkdirSync(lockDir, { recursive: true })
   const lockFile = path.join(lockDir, 'customer-zero.lock')
-  fs.writeFileSync(lockFile, '{"pid":999999,"createdAtMs":1786128999000}\n', { mode: 0o600 })
+  fs.writeFileSync(lockFile, `${JSON.stringify({ pid: process.pid, createdAtMs: 1786128999000, token: 'fresh-live' })}\n`, { mode: 0o600 })
   const now = new Date(1786129000000)
   fs.utimesSync(lockFile, now, now)
   assert.throws(() => bridgePaperPreparationToLifecycle({
     ok: true, preparationId: 'prep-fresh-lock', mode: 'ENTER', symbol: 'ABC', quantity: 1, customerAccountId: 'customer-zero',
   }, { runsDir, accountId: 'customer-zero', nowMs: 1786129001000 }), /paper_enter_customer_preparation_in_progress/)
+  assert.equal(fs.existsSync(lockFile), true)
 })
 
-test('stale ENTER preparation lock is recovered after crash timeout', () => {
+test('old ENTER preparation lock owned by a live pid is not stolen', () => {
   const runsDir = tmp()
   const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
   fs.mkdirSync(lockDir, { recursive: true })
   const lockFile = path.join(lockDir, 'customer-zero.lock')
-  fs.writeFileSync(lockFile, '{"pid":999999,"createdAtMs":1786128900000}\n', { mode: 0o600 })
+  fs.writeFileSync(lockFile, `${JSON.stringify({ pid: process.pid, createdAtMs: 1786128900000, token: 'old-live' })}\n`, { mode: 0o600 })
+  const old = new Date(1786128900000)
+  fs.utimesSync(lockFile, old, old)
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-old-live-lock', mode: 'ENTER', symbol: 'ABC', quantity: 1, customerAccountId: 'customer-zero',
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786129000000 }), /paper_enter_customer_preparation_in_progress/)
+  assert.equal(fs.existsSync(lockFile), true)
+})
+
+test('stale ENTER preparation lock is recovered only when owner pid is definitely dead', () => {
+  const runsDir = tmp()
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true })
+  const lockFile = path.join(lockDir, 'customer-zero.lock')
+  fs.writeFileSync(lockFile, `${JSON.stringify({ pid: 2147483647, createdAtMs: 1786128900000, token: 'dead-owner' })}\n`, { mode: 0o600 })
   const old = new Date(1786128900000)
   fs.utimesSync(lockFile, old, old)
   const out = bridgePaperPreparationToLifecycle({
@@ -334,12 +349,26 @@ test('stale ENTER preparation lock is recovered after crash timeout', () => {
   assert.equal(fs.existsSync(lockFile), false)
 })
 
-test('stale ENTER lock recovery still respects active lifecycle exclusion', () => {
+test('malformed stale ENTER preparation lock fails closed and is preserved', () => {
   const runsDir = tmp()
   const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
   fs.mkdirSync(lockDir, { recursive: true })
   const lockFile = path.join(lockDir, 'customer-zero.lock')
   fs.writeFileSync(lockFile, 'stale\n', { mode: 0o600 })
+  const old = new Date(1786128900000)
+  fs.utimesSync(lockFile, old, old)
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-malformed-lock', mode: 'ENTER', symbol: 'ABC', quantity: 1, customerAccountId: 'customer-zero',
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786129000000 }), /paper_enter_customer_preparation_in_progress/)
+  assert.equal(fs.existsSync(lockFile), true)
+})
+
+test('stale dead-owner ENTER preparation lock recovery still respects active lifecycle exclusion', () => {
+  const runsDir = tmp()
+  const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
+  fs.mkdirSync(lockDir, { recursive: true })
+  const lockFile = path.join(lockDir, 'customer-zero.lock')
+  fs.writeFileSync(lockFile, `${JSON.stringify({ pid: 2147483647, createdAtMs: 1786128900000, token: 'dead-owner-active-life' })}\n`, { mode: 0o600 })
   const old = new Date(1786128900000)
   fs.utimesSync(lockFile, old, old)
   fs.writeFileSync(path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json'), JSON.stringify({
@@ -352,4 +381,11 @@ test('stale ENTER lock recovery still respects active lifecycle exclusion', () =
     ok: true, preparationId: 'prep-after-stale', mode: 'ENTER', symbol: 'XYZ', quantity: 1, customerAccountId: 'customer-zero',
   }, { runsDir, accountId: 'customer-zero', nowMs: 1786129000000 }), /paper_enter_active_customer_lifecycle_exists/)
   assert.equal(fs.existsSync(lockFile), false)
+})
+
+test('ENTER preparation lock cleanup is token ownership aware', () => {
+  const source = fs.readFileSync('src/scanner/customer_paper_preparation_lifecycle_bridge.mjs', 'utf8')
+  assert.match(source, /acquired\?\.token/)
+  assert.match(source, /parseCustomerEnterPreparationLock\(lockFile\)\?\.token === acquired\.token/)
+  assert.doesNotMatch(source, /if \(fd !== undefined\) fs\.rmSync\(lockFile/)
 })

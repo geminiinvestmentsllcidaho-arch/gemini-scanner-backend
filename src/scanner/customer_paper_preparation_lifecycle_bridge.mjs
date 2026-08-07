@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecycle_store.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
@@ -26,38 +27,115 @@ const ACTIVE_ENTER_STATES = new Set([
 
 const CUSTOMER_ENTER_LOCK_STALE_MS = 30_000
 
-function acquireCustomerEnterPreparationLock(lockFile, nowMs = Date.now()) {
+function parseCustomerEnterPreparationLock(lockFile) {
   try {
-    return fs.openSync(lockFile, 'wx', 0o600)
+    const stat = fs.statSync(lockFile)
+    const value = JSON.parse(fs.readFileSync(lockFile, 'utf8'))
+    const pid = Number(value?.pid)
+    const createdAtMs = Number(value?.createdAtMs)
+    const token = clean(value?.token)
+    if (!Number.isInteger(pid) || pid <= 0 || !Number.isFinite(createdAtMs) || !token) return null
+    return { pid, createdAtMs, token, ino: stat.ino, dev: stat.dev, mtimeMs: stat.mtimeMs }
+  } catch {
+    return null
+  }
+}
+
+function customerEnterLockOwnerDefinitelyDead(pid) {
+  try {
+    process.kill(pid, 0)
+    return false
+  } catch (error) {
+    return error?.code === 'ESRCH'
+  }
+}
+
+function sameCustomerEnterLockIdentity(lockFile, observed) {
+  try {
+    const current = parseCustomerEnterPreparationLock(lockFile)
+    return current
+      && current.token === observed.token
+      && current.ino === observed.ino
+      && current.dev === observed.dev
+  } catch {
+    return false
+  }
+}
+
+function acquireCustomerEnterPreparationLock(lockFile, nowMs = Date.now()) {
+  const token = crypto.randomUUID()
+  const create = () => {
+    const fd = fs.openSync(lockFile, 'wx', 0o600)
+    fs.writeFileSync(fd, `${JSON.stringify({ pid: process.pid, createdAtMs: Number(nowMs), token })}\n`)
+    return { fd, token }
+  }
+
+  try {
+    return create()
   } catch (error) {
     if (error?.code !== 'EEXIST') throw error
-    let ageMs = 0
-    try { ageMs = Math.max(0, Number(nowMs) - fs.statSync(lockFile).mtimeMs) } catch {}
+    const observed = parseCustomerEnterPreparationLock(lockFile)
+    if (!observed) throw new Error('paper_enter_customer_preparation_in_progress')
+    const ageMs = Math.max(0, Number(nowMs) - observed.mtimeMs)
     if (ageMs < CUSTOMER_ENTER_LOCK_STALE_MS) throw new Error('paper_enter_customer_preparation_in_progress')
-    try { fs.rmSync(lockFile) } catch {
+    if (!customerEnterLockOwnerDefinitelyDead(observed.pid)) throw new Error('paper_enter_customer_preparation_in_progress')
+    if (!sameCustomerEnterLockIdentity(lockFile, observed)) throw new Error('paper_enter_customer_preparation_in_progress')
+
+    const quarantineFile = `${lockFile}.stale-${crypto.randomUUID()}`
+    try {
+      fs.renameSync(lockFile, quarantineFile)
+    } catch {
       throw new Error('paper_enter_customer_preparation_in_progress')
     }
+
+    const quarantined = parseCustomerEnterPreparationLock(quarantineFile)
+    const quarantineMatchesObserved = quarantined
+      && quarantined.token === observed.token
+      && quarantined.ino === observed.ino
+      && quarantined.dev === observed.dev
+
+    if (!quarantineMatchesObserved) {
+      try {
+        if (!fs.existsSync(lockFile) && fs.existsSync(quarantineFile)) fs.renameSync(quarantineFile, lockFile)
+      } catch {}
+      throw new Error('paper_enter_customer_preparation_in_progress')
+    }
+
     try {
-      return fs.openSync(lockFile, 'wx', 0o600)
+      const acquired = create()
+      try { fs.rmSync(quarantineFile, { force: true }) } catch {}
+      return acquired
     } catch (retryError) {
+      try {
+        if (!fs.existsSync(lockFile) && fs.existsSync(quarantineFile)) fs.renameSync(quarantineFile, lockFile)
+      } catch {}
       if (retryError?.code === 'EEXIST') throw new Error('paper_enter_customer_preparation_in_progress')
       throw retryError
     }
   }
 }
 
+function releaseCustomerEnterPreparationLock(lockFile, acquired) {
+  try {
+    if (acquired?.fd !== undefined) fs.closeSync(acquired.fd)
+  } catch {}
+  try {
+    if (acquired?.token && parseCustomerEnterPreparationLock(lockFile)?.token === acquired.token) {
+      fs.rmSync(lockFile, { force: true })
+    }
+  } catch {}
+}
+
 function withCustomerEnterPreparationLock(runsDir, accountId, fn, nowMs = Date.now()) {
   const lockDir = path.join(runsDir, 'customer_paper_user_enter_locks')
   fs.mkdirSync(lockDir, { recursive: true, mode: 0o700 })
   const lockFile = path.join(lockDir, `${safe(accountId)}.lock`)
-  let fd
+  let acquired
   try {
-    fd = acquireCustomerEnterPreparationLock(lockFile, nowMs)
-    fs.writeFileSync(fd, `${JSON.stringify({ pid: process.pid, createdAtMs: Number(nowMs) })}\n`)
+    acquired = acquireCustomerEnterPreparationLock(lockFile, nowMs)
     return fn()
   } finally {
-    try { if (fd !== undefined) fs.closeSync(fd) } catch {}
-    try { if (fd !== undefined) fs.rmSync(lockFile, { force: true }) } catch {}
+    releaseCustomerEnterPreparationLock(lockFile, acquired)
   }
 }
 
