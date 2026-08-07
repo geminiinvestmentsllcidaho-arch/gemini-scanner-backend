@@ -14,6 +14,39 @@ function walk(dir) {
   return out;
 }
 
+function stripTemplateInterpolations(value) {
+  const text = String(value ?? "");
+  let out = "";
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== "$" || text[i + 1] !== "{") {
+      out += text[i];
+      continue;
+    }
+    i += 1;
+    let depth = 1;
+    let quote = null;
+    let escaped = false;
+    for (i += 1; i < text.length && depth > 0; i += 1) {
+      const ch = text[i];
+      if (quote) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === "\"" || ch === "'" || ch === "`") {
+        quote = ch;
+        continue;
+      }
+      if (ch === "{") depth += 1;
+      else if (ch === "}") depth -= 1;
+    }
+    out += " ";
+    i -= 1;
+  }
+  return out;
+}
+
 function visibleFragments(source) {
   const fragments = [];
   const patterns = [
@@ -22,12 +55,11 @@ function visibleFragments(source) {
     /<button[^>]*>([\s\S]*?)<\/button>/gi,
     /<summary[^>]*>([\s\S]*?)<\/summary>/gi,
     /<option[^>]*>([\s\S]*?)<\/option>/gi,
-    /<p[^>]*>([\s\S]*?)<\/p>/gi,
+    /<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/gi,
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
-      const value = String(match[1] ?? "")
-        .replace(/\$\{[\s\S]*?\}/g, " ")
+      const value = stripTemplateInterpolations(match[1])
         .replace(/<[^>]+>/g, " ")
         .replace(/&nbsp;/gi, " ")
         .replace(/&amp;/gi, "&")
@@ -62,7 +94,8 @@ export function auditCustomerPresentation({ rootDir = "src" } = {}) {
       if (/\b[a-z][a-z0-9]*[A-Z][A-Za-z0-9]*\b/.test(fragment)) {
         addIssue(issues, "raw_camel_case", file, fragment, "Translate internal camelCase tokens before rendering them to customers.");
       }
-      if (/[A-Za-z0-9][—–][A-Za-z0-9]/.test(fragment)) {
+      const tightDash = fragment.match(/([A-Za-z0-9])([—–])([A-Za-z0-9])/);
+      if (tightDash && !(tightDash[2] === "–" && /\d/.test(tightDash[1]) && /\d/.test(tightDash[3]))) {
         addIssue(issues, "tight_dash", file, fragment, "Use spaces around a prose dash.");
       }
       if (/\s+[,;:!?]/.test(fragment)) {
