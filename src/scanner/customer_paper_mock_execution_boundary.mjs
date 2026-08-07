@@ -1,8 +1,9 @@
 import { consumePaperAutoEnterOnlyRunOnceAuthorization } from './paper_auto_execution_enter_only_run_once_authorization.mjs'
 import { consumePaperAutoExitOnlyRunOnceAuthorization } from './paper_auto_execution_exit_only_run_once_authorization.mjs'
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
+import { reconcilePaperAutoExecution } from './paper_auto_execution_reconciliation.mjs'
 
-export const VERSION = 'customer_paper_mock_execution_boundary_v1'
+export const VERSION = 'customer_paper_mock_execution_boundary_v2'
 
 export async function exerciseCustomerPaperMockExecutionBoundary({ handoff, lifecycleStore, nowMs = Date.now() } = {}) {
   if (!handoff?.ok || handoff.status !== 'READY_AT_FINAL_BROKER_SUBMISSION_BOUNDARY') throw new Error('mock_boundary_handoff_required')
@@ -37,14 +38,53 @@ export async function exerciseCustomerPaperMockExecutionBoundary({ handoff, life
       PAPER_AUTO_EXIT_SUBMISSION_ENABLED: mode === 'EXIT' ? '1' : '0',
     },
   })
+
+  const submittedLifecycle = lifecycleStore.load()
+  const orderId = mode === 'ENTER' ? submittedLifecycle.enterBrokerOrderId : submittedLifecycle.exitBrokerOrderId
+  const clientOrderId = mode === 'ENTER' ? submittedLifecycle.enterClientOrderId : submittedLifecycle.exitClientOrderId
+  const mockOrders = [Object.freeze({
+    id: orderId,
+    client_order_id: clientOrderId,
+    symbol: submittedLifecycle.selectedSymbol,
+    side: mode === 'ENTER' ? 'buy' : 'sell',
+    status: 'filled',
+    filled_qty: Number(handoff.order.qty),
+    filled_avg_price: Number(handoff.mockFillPrice ?? 1),
+  })]
+  const mockPositions = mode === 'ENTER'
+    ? [Object.freeze({
+        asset_id: `mock-position-${submittedLifecycle.selectedSymbol}`,
+        symbol: submittedLifecycle.selectedSymbol,
+        qty: Number(handoff.order.qty),
+        avg_entry_price: Number(handoff.mockFillPrice ?? 1),
+      })]
+    : []
+
+  const reconciliation = reconcilePaperAutoExecution({
+    lifecycle: submittedLifecycle,
+    orders: mockOrders,
+    positions: mockPositions,
+  })
+  let finalLifecycle = submittedLifecycle
+  if (reconciliation.nextState !== submittedLifecycle.state) {
+    finalLifecycle = lifecycleStore.transition(reconciliation.nextState, reconciliation.patch)
+  }
+  if (mode === 'ENTER' && finalLifecycle.state === 'POSITION_CONFIRMED') {
+    finalLifecycle = lifecycleStore.transition('MONITORING')
+  }
+  const expectedState = mode === 'ENTER' ? 'MONITORING' : 'ROUND_TRIP_COMPLETED'
+  if (finalLifecycle.state !== expectedState) throw new Error(`mock_boundary_reconciliation_incomplete:${finalLifecycle.state}`)
+
   return Object.freeze({
     ok: true,
     version: VERSION,
-    status: 'MOCK_EXECUTION_BOUNDARY_EXERCISED_NO_BROKER',
+    status: 'MOCK_FULL_LIFECYCLE_COMPLETED_NO_BROKER',
     authorization: consumed.record,
     submission,
-    lifecycle: lifecycleStore.load(),
-    safety: Object.freeze({ paperOnly: true, mockOnly: true, brokerContactAllowed: false, realOrderPlacementAllowed: false, accountMutationAllowed: false }),
+    reconciliation,
+    mockObservations: Object.freeze({ orders: Object.freeze(mockOrders), positions: Object.freeze(mockPositions) }),
+    lifecycle: finalLifecycle,
+    safety: Object.freeze({ paperOnly: true, mockOnly: true, syntheticReconciliationOnly: true, brokerContactAllowed: false, realOrderPlacementAllowed: false, accountMutationAllowed: false }),
   })
 }
 
