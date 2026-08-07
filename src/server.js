@@ -5547,6 +5547,26 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
     compact: 'Compact',
     comfortable: 'Comfortable',
   }[String(value ?? '').trim().toLowerCase()] ?? text(value, 'Comfortable'));
+  const scannerTokenLabel = (value) => ({
+    ENTER: 'Enter',
+    EXIT: 'Exit',
+    WAIT: 'Wait',
+    WATCH: 'Watch',
+    BLOCKED: 'Blocked',
+    DO_NOT_ENTER: 'Do not enter',
+    STALE_DATA: 'Stale data',
+    NO_SETUP: 'No setup',
+    intraday: 'Intraday',
+    watchlist: 'Watchlist',
+    stocks: 'Stocks',
+  }[String(value ?? '').trim()] ?? String(value ?? '').trim()
+    .replaceAll('_', ' ')
+    .replaceAll('-', ' ')
+    .toLowerCase()
+    .replace(/^./, (char) => char.toUpperCase()));
+  const scannerListLabel = (values, fallback) => Array.isArray(values) && values.length
+    ? values.map(scannerTokenLabel).filter(Boolean).join(', ')
+    : fallback;
   const customerDateTime = (value) => value
     ? formatCustomerDateTime(value, req.customerAccount, { fallback: text(value) })
     : 'Not available';
@@ -5577,11 +5597,11 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
   const notificationSummary = enabledNotifications.length
     ? enabledNotifications.join(', ')
     : 'No optional notifications enabled';
-  const scannerModes = Array.isArray(scannerSelections.modes) && scannerSelections.modes.length ? scannerSelections.modes.join(', ') : 'Default';
-  const scannerAssets = Array.isArray(scannerSelections.assets) && scannerSelections.assets.length ? scannerSelections.assets.join(', ') : 'Default';
-  const priceRanges = Array.isArray(scannerSelections.priceRanges) && scannerSelections.priceRanges.length ? scannerSelections.priceRanges.join(', ') : 'Default';
-  const resultStates = Array.isArray(scannerSelections.states) && scannerSelections.states.length ? scannerSelections.states.join(', ') : 'Default';
-  const zeroStates = Array.isArray(customerZeroFilters.states) && customerZeroFilters.states.length ? customerZeroFilters.states.join(', ') : 'Show all';
+  const scannerModes = scannerListLabel(scannerSelections.modes, 'Default');
+  const scannerAssets = scannerListLabel(scannerSelections.assets, 'Default');
+  const priceRanges = scannerListLabel(scannerSelections.priceRanges, 'Default');
+  const resultStates = scannerListLabel(scannerSelections.states, 'Default');
+  const zeroStates = scannerListLabel(customerZeroFilters.states, 'Show all');
 
   const reportSections = [
     section('Account information', '', [
@@ -5620,7 +5640,7 @@ app.post('/customer/settings/data/export', requireCustomerSession, requireCustom
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GeminiScanner — My account data</title>
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#061014;color:#eefcff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.wrap{max-width:820px;margin:auto;padding:28px 16px 56px}.hero,.report-section{border:1px solid #25424a;border-radius:14px;background:#09171c}.hero{padding:22px;margin-bottom:18px}.hero h1{margin:0 0 8px}.hero p,.muted{color:#a9c1c9}.badge{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #2cc9dc;border-radius:999px;color:#65eaff}.report-section{padding:18px;margin:14px 0}.report-section h2{margin:0 0 8px;color:#65eaff}.report-section>.muted{margin:0 0 12px}.data-row{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid #173038}.data-row:last-child{border-bottom:0}.data-label{font-weight:700;color:#b9d2d8}.data-value{overflow-wrap:anywhere}@media(max-width:640px){.data-row{grid-template-columns:1fr;gap:3px}}@media print{body{background:white;color:black}.hero,.report-section{background:white;border-color:#bbb}.report-section h2,.badge{color:black;border-color:#777}.hero p,.muted,.data-label{color:#444}}
+:root{color-scheme:dark}html{-webkit-text-size-adjust:100%;text-size-adjust:100%}*{box-sizing:border-box}body{margin:0;background:#061014;color:#eefcff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5;overflow-wrap:anywhere}.wrap{max-width:820px;margin:auto;padding:28px 16px 56px}.hero,.report-section{border:1px solid #25424a;border-radius:14px;background:#09171c}.hero{padding:22px;margin-bottom:18px}.hero h1{margin:0 0 8px;font-size:clamp(1.75rem,7vw,2.35rem);line-height:1.15;overflow-wrap:anywhere}.hero p,.muted{color:#a9c1c9}.badge{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #2cc9dc;border-radius:999px;color:#65eaff}.report-section{padding:18px;margin:14px 0}.report-section h2{margin:0 0 8px;color:#65eaff;font-size:clamp(1.25rem,5.6vw,1.55rem);line-height:1.2;overflow-wrap:anywhere}.report-section>.muted{margin:0 0 12px}.hero,.report-section,.data-row,.data-label,.data-value{min-width:0}.data-row{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid #173038}.data-row:last-child{border-bottom:0}.data-label{font-weight:700;color:#b9d2d8}.data-value{overflow-wrap:anywhere}@media(max-width:640px){.wrap{padding:18px 10px 40px}.hero{padding:16px}.report-section{padding:15px}.data-row{grid-template-columns:minmax(0,1fr);gap:3px}}@media print{body{background:white;color:black}.hero,.report-section{background:white;border-color:#bbb}.report-section h2,.badge{color:black;border-color:#777}.hero p,.muted,.data-label{color:#444}}
 </style>
 </head>
 <body><main class="wrap">

@@ -53,9 +53,22 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
         (noPriceCeiling || Number(candidate?.price) <= maxPrice)
       )
     : [];
+  const resultStateLabels = {
+    ENTER: "Enter",
+    EXIT: "Exit",
+    WAIT: "Wait",
+    WATCH: "Watch",
+    BLOCKED: "Blocked",
+    DO_NOT_ENTER: "Do not enter",
+    STALE_DATA: "Stale data",
+    NO_SETUP: "No setup",
+  };
   const selectedStateLabels = Array.isArray(resultFilters.states)
     ? resultFilters.states
-        .map((value) => String(value ?? "").replaceAll("_", " ").trim())
+        .map((value) => {
+          const token = String(value ?? "").trim();
+          return resultStateLabels[token] ?? token.replaceAll("_", " ").toLowerCase().replace(/^./, (char) => char.toUpperCase());
+        })
         .filter(Boolean)
     : [];
   const filteredCandidates = filterCustomerZeroResults(priceFilteredCandidates, resultFilters)

@@ -236,7 +236,7 @@ test("renders automatic premarket scheduler status evidence", () => {
 
   assert.match(html, /Automatic premarket scanner/);
   assert.match(html, /Scheduler engaged/);
-  assert.match(html, /SLEEPING/);
+  assert.match(html, /Sleeping/);
   assert.match(html, /Automatic scans/);
   assert.match(html, />4</);
   assert.match(html, /Last candidates/);
@@ -291,7 +291,7 @@ test("renders read-only premarket multiscan candidate consolidation", () => {
   const html = renderCustomerScannerHubHtml(hub);
   assert.match(html, /Multi-scan candidate confirmation/);
   assert.match(html, /ABCD/);
-  assert.match(html, /CONFIRMED WATCH CANDIDATE/);
+  assert.match(html, /Confirmed watch candidate/);
   assert.match(html, /Repeatedly met watch criteria/);
   assert.match(html, /No buy recommendation/);
 });

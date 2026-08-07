@@ -383,7 +383,7 @@ ${aiProposals.length
 </section>
 
 <section class="card panel" id="decision-quality">
-<h2>Historical Decision-Quality Proposals</h2>
+<h2>Historical decision-quality proposals</h2>
 <p>These are bounded review proposals generated from measured scanner outcomes. They do not change scanner logic, thresholds, accounts, or orders.</p>
 <div class="grid">
 ${metric("Proposals found", number(decisionQualityProposals.proposalCount, locale))}
@@ -401,7 +401,7 @@ ${proposalCards}
 </section>
 
 <section class="card panel" id="calibration">
-<h2>Proposal Evidence Calibration</h2>
+<h2>Proposal evidence calibration</h2>
 <p>This view groups historical proposals and identifies where high-confidence scanner decisions still produced review concerns.</p>
 <div class="grid">
 ${metric("Analyzed proposals", number(proposalCalibrationReview.analyzedProposalCount, locale))}
@@ -421,7 +421,7 @@ ${calibrationCards}
 </section>
 
 <section class="card panel" id="calibration-history">
-<h2>Calibration History</h2>
+<h2>Calibration history</h2>
 <p>This local read-only history tracks changes in proposal evidence over time. Duplicate snapshots are skipped automatically.</p>
 <div class="grid">
 ${metric("Saved snapshots", number(proposalCalibrationHistory.recordCount, locale))}
@@ -441,7 +441,7 @@ ${calibrationHistoryRows.length
 </section>
 
 <section class="card panel" id="realtime-ai-review">
-<h2>Real-Time AI Review</h2>
+<h2>Real-time AI review</h2>
 <p>AI reviews your current paper-trading report and highlights the most important takeaways. It can analyze information only — it cannot place trades or change your account.</p>
 <p><strong>Status:</strong> ${esc(({
   disabled: "Off",

@@ -7,6 +7,42 @@ import {
 import { formatCustomerDateTime } from "./customer_time.mjs";
 
 const MARKET_TIME_ZONE = "America/New_York";
+const CUSTOMER_TOKEN_LABELS = {
+  ENTER: "Enter",
+  EXIT: "Exit",
+  WAIT: "Wait",
+  WATCH: "Watch",
+  BLOCKED: "Blocked",
+  DO_NOT_ENTER: "Do not enter",
+  STALE_DATA: "Stale data",
+  NO_SETUP: "No setup",
+  confirmed_watch_candidate: "Confirmed watch candidate",
+  improving_watch_candidate: "Improving watch candidate",
+  unavailable: "Unavailable",
+  unknown: "Unknown",
+  sleeping: "Sleeping",
+  waiting: "Waiting",
+  waiting_for_postmarket: "Waiting for post-market",
+  waiting_for_premarket: "Waiting for premarket",
+  scheduled: "Scheduled",
+  active: "Active",
+  running: "Running",
+  stopped: "Stopped",
+  complete: "Complete",
+  completed: "Completed",
+  skipped: "Skipped",
+  improving: "Improving",
+  weakening: "Weakening",
+  stable: "Stable",
+  widening: "Widening",
+  narrowing: "Narrowing",
+};
+function customerTokenLabel(value, fallback = "Unavailable") {
+  const token = String(value ?? "").trim();
+  if (!token) return fallback;
+  if (CUSTOMER_TOKEN_LABELS[token] !== undefined) return CUSTOMER_TOKEN_LABELS[token];
+  return token.replaceAll("_", " ").replaceAll("-", " ").toLowerCase().replace(/^./, (char) => char.toUpperCase());
+}
 
 function formatMarketDateTime(value, account = {}, options = {}) {
   return formatCustomerDateTime(value, account, {
@@ -164,7 +200,7 @@ ${dropdown({
 <label class="select-all"><input type="checkbox" data-select-all="states"${selectedScannerStates.length === scannerStates.length ? " checked" : ""}> Select all that apply</label>
 <div class="option-list">${scannerStates.map((state) => {
   const className = `state-${state.toLowerCase().replaceAll("_", "-")}`;
-  return `<label class="option-row filter-choice ${className}"><input name="states" type="checkbox" value="${state}"${selectedScannerStates.includes(state) ? " checked" : ""}><span>${state.replaceAll("_", " ")}</span></label>`;
+  return `<label class="option-row filter-choice ${className}"><input name="states" type="checkbox" value="${state}"${selectedScannerStates.includes(state) ? " checked" : ""}><span>${esc(customerTokenLabel(state))}</span></label>`;
 }).join("")}</div>
 </div>
 </details>
@@ -237,12 +273,12 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
     : [];
   const premarketMultiscanRows = premarketMultiscanCandidates.map((candidate) => `<tr>
 <td>${esc(candidate.symbol ?? "—")}</td>
-<td>${esc(String(candidate.consolidationStatus ?? "unknown").replaceAll("_", " ").toUpperCase())}</td>
+<td>${esc(customerTokenLabel(candidate.consolidationStatus ?? "unknown"))}</td>
 <td>${esc(candidate.observationCount ?? 0)}</td>
 <td>${esc(candidate.windowMinutes ?? 0)} min</td>
 <td>${esc(candidate.latestScore ?? "—")}</td>
-<td>${esc(candidate.scoreTrend ?? "unknown")}</td>
-<td>${esc(candidate.spreadTrend ?? "unknown")}</td>
+<td>${esc(customerTokenLabel(candidate.scoreTrend ?? "unknown"))}</td>
+<td>${esc(customerTokenLabel(candidate.spreadTrend ?? "unknown"))}</td>
 <td>${esc(candidate.briefExplanation ?? "No explanation available.")}</td>
 </tr>`).join("");
   const premarketMultiscanPanel = premarketMultiscan
@@ -265,7 +301,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
     ? `<section class="card premarket-auto-panel premarket-${esc(premarketState)}">
 <div class="premarket-auto-head">
 <div><div class="eyebrow">Automatic premarket scanner</div><h2>${premarket.running ? "Scheduler engaged" : "Scheduler stopped"}</h2></div>
-<strong>${esc(premarketState.replaceAll("_", " ").toUpperCase())}</strong>
+<strong>${esc(customerTokenLabel(premarketState))}</strong>
 </div>
 <div class="premarket-auto-grid">
 <div><span>Session</span><b>${premarket.session?.active ? "Premarket active" : "Outside premarket"}</b></div>
@@ -293,7 +329,7 @@ ${premarketMultiscanPanel}
     ? `<section class="card postmarket-auto-panel postmarket-${esc(postMarketState)}">
 <div class="postmarket-auto-head">
 <div><div class="eyebrow">Automatic post-market scanner</div><h2>${postMarket.running ? "Scheduler engaged" : "Scheduler stopped"}</h2></div>
-<strong>${esc(String(postMarketState).replaceAll("_", " ").toUpperCase())}</strong>
+<strong>${esc(customerTokenLabel(postMarketState))}</strong>
 </div>
 <div class="postmarket-auto-grid">
 <div><span>Schedule</span><b>${postMarket.timerScheduled ? "Automatic timer active" : "Timer unavailable"}</b></div>
