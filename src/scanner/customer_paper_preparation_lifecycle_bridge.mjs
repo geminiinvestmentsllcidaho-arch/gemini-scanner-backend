@@ -43,37 +43,27 @@ function withCustomerEnterPreparationLock(runsDir, accountId, fn) {
   }
 }
 
-function findActiveCustomerEnter(runsDir, accountId) {
-  const accountKey = safe(accountId)
-  const prefix = `customer_paper_user_lifecycle_${accountKey}`
-  const matches = []
-  if (!fs.existsSync(runsDir)) return matches
-  for (const name of fs.readdirSync(runsDir)) {
-    if (!name.endsWith('.json') || !name.startsWith(prefix)) continue
-    const file = path.join(runsDir, name)
-    const state = readJson(file)
-    if (!state || !ACTIVE_ENTER_STATES.has(clean(state.state))) continue
-    if (clean(state.scannerEvidence?.source) !== 'customer_paper_user_preparation') continue
-    matches.push({ file, state })
-  }
-  return matches
+function customerLifecycleFile(runsDir, accountId) {
+  return path.join(runsDir, `customer_paper_user_lifecycle_${safe(accountId)}.json`)
 }
 
-function findMonitoring(runsDir, symbol, quantity) {
-  const matches = []
-  if (!fs.existsSync(runsDir)) return matches
-  for (const name of fs.readdirSync(runsDir)) {
-    if (!name.endsWith('.json')) continue
-    if (!name.includes('lifecycle')) continue
-    const file = path.join(runsDir, name)
-    const state = readJson(file)
-    if (!state) continue
-    if (clean(state.state) !== 'MONITORING') continue
-    if (clean(state.selectedSymbol).toUpperCase() !== symbol) continue
-    if (Number(state.filledQuantity) !== quantity) continue
-    matches.push({ file, state })
-  }
-  return matches
+function findActiveCustomerEnter(runsDir, accountId) {
+  const file = customerLifecycleFile(runsDir, accountId)
+  const state = readJson(file)
+  if (!state || !ACTIVE_ENTER_STATES.has(clean(state.state))) return []
+  if (clean(state.scannerEvidence?.source) !== 'customer_paper_user_preparation') return []
+  return [{ file, state }]
+}
+
+function findMonitoring(runsDir, accountId, symbol, quantity) {
+  const file = customerLifecycleFile(runsDir, accountId)
+  const state = readJson(file)
+  if (!state) return []
+  if (clean(state.state) !== 'MONITORING') return []
+  if (clean(state.scannerEvidence?.source) !== 'customer_paper_user_preparation') return []
+  if (clean(state.selectedSymbol).toUpperCase() !== symbol) return []
+  if (Number(state.filledQuantity) !== quantity) return []
+  return [{ file, state }]
 }
 
 export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
@@ -86,15 +76,19 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
   if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('paper_preparation_quantity_invalid')
   if (mode === 'ENTER' && quantity !== 1) throw new Error('paper_preparation_enter_quantity_must_be_one')
 
+  const accountId = clean(options.accountId)
+  if (!accountId) throw new Error('paper_preparation_account_required')
+  if (clean(preparation.customerAccountId) && clean(preparation.customerAccountId) !== accountId) throw new Error('paper_preparation_account_mismatch')
+
   const runsDir = options.runsDir ?? 'runs'
   let lifecycleFile
   let lifecycle
 
   if (mode === 'ENTER') {
-    const created = withCustomerEnterPreparationLock(runsDir, options.accountId, () => {
-      const activeCustomerEnter = findActiveCustomerEnter(runsDir, options.accountId)
+    const created = withCustomerEnterPreparationLock(runsDir, accountId, () => {
+      const activeCustomerEnter = findActiveCustomerEnter(runsDir, accountId)
       if (activeCustomerEnter.length) throw new Error('paper_enter_active_customer_lifecycle_exists')
-      const file = path.join(runsDir, `customer_paper_user_lifecycle_${safe(options.accountId)}.json`)
+      const file = customerLifecycleFile(runsDir, accountId)
       const store = new PaperAutoExecutionLifecycleStore({ filePath: file })
       const state = store.create({
         selectedSymbol: symbol,
@@ -111,7 +105,7 @@ export function bridgePaperPreparationToLifecycle(preparation, options = {}) {
     lifecycleFile = created.file
     lifecycle = created.state
   } else {
-    const matches = findMonitoring(runsDir, symbol, quantity)
+    const matches = findMonitoring(runsDir, accountId, symbol, quantity)
     if (matches.length !== 1) throw new Error(matches.length ? 'paper_exit_multiple_matching_lifecycles' : 'paper_exit_matching_lifecycle_not_found')
     lifecycleFile = matches[0].file
     lifecycle = matches[0].state
