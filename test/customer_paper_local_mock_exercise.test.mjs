@@ -12,7 +12,7 @@ test('ENTER local mock resolves only account lifecycle and reaches MONITORING', 
   const runsDir = tmp()
   fs.mkdirSync(path.join(runsDir, 'customer_paper_order_preparations'), { recursive:true })
   const preparationId = 'customer-paper-enter-20260807T140000_abcd1234'
-  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'ENTER', symbol:'ABC', quantity:1 }))
+  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'ENTER', symbol:'ABC', quantity:1, customerAccountId:'customer-zero' }))
   const store = new PaperAutoExecutionLifecycleStore({ filePath:path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json') })
   store.create({ selectedSymbol:'ABC', scannerEvidence:{ source:'customer_paper_user_preparation', preparationId, quantity:1 } })
   const out = await exerciseCustomerPaperLocalMock({ accountId:'customer-zero', preparationId, runsDir, nowMs:1786129200000 })
@@ -26,7 +26,7 @@ test('EXIT local mock resolves exact MONITORING lifecycle and reaches ROUND_TRIP
   const runsDir = tmp()
   fs.mkdirSync(path.join(runsDir, 'customer_paper_order_preparations'), { recursive:true })
   const preparationId = 'customer-paper-exit-20260807T140002_feedbeef'
-  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'EXIT', symbol:'BTG', quantity:2 }))
+  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'EXIT', symbol:'BTG', quantity:2, customerAccountId:'customer-zero' }))
   const store = new PaperAutoExecutionLifecycleStore({ filePath:path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json') })
   store.create({ selectedSymbol:'BTG', scannerEvidence:{ source:'customer_paper_user_preparation', preparationId:'customer-paper-enter-prior', quantity:2 } })
   store.transition('ENTER_SUBMITTING', { enterClientOrderId:'enter-local-mock' })
@@ -44,8 +44,22 @@ test('ENTER local mock rejects mismatched preparation', async () => {
   const runsDir = tmp()
   fs.mkdirSync(path.join(runsDir, 'customer_paper_order_preparations'), { recursive:true })
   const preparationId = 'customer-paper-enter-20260807T140001_deadbeef'
-  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'ENTER', symbol:'XYZ', quantity:1 }))
+  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'ENTER', symbol:'XYZ', quantity:1, customerAccountId:'customer-zero' }))
   const store = new PaperAutoExecutionLifecycleStore({ filePath:path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json') })
   store.create({ selectedSymbol:'ABC', scannerEvidence:{ source:'customer_paper_user_preparation', preparationId:'other-prep', quantity:1 } })
   await assert.rejects(exerciseCustomerPaperLocalMock({ accountId:'customer-zero', preparationId, runsDir, nowMs:1786129200000 }), /customer_paper_local_mock_enter_lifecycle_mismatch/)
+})
+
+
+test('LOCAL MOCK rejects preparation owned by a different authenticated customer account', async () => {
+  const runsDir = tmp()
+  fs.mkdirSync(path.join(runsDir, 'customer_paper_order_preparations'), { recursive:true })
+  const preparationId = 'customer-paper-enter-20260807T140003_cafebabe'
+  fs.writeFileSync(path.join(runsDir, 'customer_paper_order_preparations', `${preparationId}.json`), JSON.stringify({ ok:true, preparationId, mode:'ENTER', symbol:'ABC', quantity:1, customerAccountId:'customer-other' }))
+  const store = new PaperAutoExecutionLifecycleStore({ filePath:path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json') })
+  store.create({ selectedSymbol:'ABC', scannerEvidence:{ source:'customer_paper_user_preparation', preparationId, quantity:1 } })
+  await assert.rejects(
+    exerciseCustomerPaperLocalMock({ accountId:'customer-zero', preparationId, runsDir, nowMs:1786129200000 }),
+    /customer_paper_local_mock_preparation_account_mismatch/
+  )
 })

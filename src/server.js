@@ -4810,7 +4810,7 @@ app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustome
     if (!record.ok) {
       return res.status(400).type('html').send(`<!doctype html><html><body><main><h1>Paper order preparation blocked</h1><p>${record.blockers.join(', ')}</p><p>No broker contact or order placement occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
     }
-    const saved = mod.persistCustomerPaperOrderPreparation(record);
+    const saved = mod.persistCustomerPaperOrderPreparation(record, { accountId: req.customerAccount?.id });
     const bridgeMod = await import('./scanner/customer_paper_preparation_lifecycle_bridge.mjs');
     const handoff = bridgeMod.bridgePaperPreparationToLifecycle(saved, {
       accountId: req.customerAccount?.id,

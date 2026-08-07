@@ -20,3 +20,13 @@ test("scanner and portfolio expose preparation-only controls", () => {
   assert.match(cards, /Prepare 1-share PAPER ENTER/);
   assert.match(portfolio, /Prepare PAPER EXIT/);
 });
+
+
+test("preparation route binds persisted preparation to authenticated account", () => {
+  const source = fs.readFileSync("src/server.js", "utf8");
+  const start = source.indexOf("app.post('/customer/paper-order/prepare'");
+  const end = source.indexOf("app.post('/customer/paper-order/mock-exercise'", start);
+  assert.ok(start >= 0 && end > start);
+  const block = source.slice(start, end);
+  assert.match(block, /persistCustomerPaperOrderPreparation\(record,\s*\{\s*accountId:\s*req\.customerAccount\?\.id\s*\}\)/);
+});

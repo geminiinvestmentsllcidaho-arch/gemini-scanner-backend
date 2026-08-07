@@ -63,11 +63,14 @@ export function buildCustomerPaperOrderPreparation(input = {}, options = {}) {
 
 export function persistCustomerPaperOrderPreparation(record, options = {}) {
   if (record?.ok !== true || !record?.preparationId) throw new Error("valid_preparation_required");
+  const accountId = clean(options.accountId);
+  if (!accountId) throw new Error("customer_account_required");
   const dir = options.dir ?? "runs/customer_paper_order_preparations";
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${record.preparationId}.json`);
-  fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600, flag: "wx" });
-  return Object.freeze({ ...record, file });
+  const persisted = Object.freeze({ ...record, customerAccountId: accountId });
+  fs.writeFileSync(file, `${JSON.stringify(persisted, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+  return Object.freeze({ ...persisted, file });
 }
 
 export default { VERSION, buildCustomerPaperOrderPreparation, persistCustomerPaperOrderPreparation };

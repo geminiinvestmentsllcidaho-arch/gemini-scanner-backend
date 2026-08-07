@@ -21,6 +21,7 @@ export async function exerciseCustomerPaperLocalMock({ accountId, preparationId,
   const lifecycleFile = path.join(runsDir, `customer_paper_user_lifecycle_${safe(account)}.json`)
   const preparation = readJson(preparationFile)
   if (!preparation || preparation.ok !== true || preparation.preparationId !== prepId) throw new Error('customer_paper_local_mock_preparation_not_found')
+  if (clean(preparation.customerAccountId) !== account) throw new Error('customer_paper_local_mock_preparation_account_mismatch')
 
   const store = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
   const lifecycle = store.load()
