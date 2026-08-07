@@ -73,7 +73,7 @@ export function renderPublicHomepageHtml(source = buildPublicHomepage()) {
 ${renderGlobalThemeCss({ surface: "public" })}
 <style>
 :root{color-scheme:dark;--bg:#070b12;--panel:#0e1623;--line:#26364d;--text:#f4f7fb;--muted:#a8b6ca;--accent:#8aa4ff;--soft:#dbe4ff}
-*{box-sizing:border-box}body{margin:0;font-family:var(--gs-font-interface,"Space Grotesk",ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif);background:radial-gradient(circle at top right,#14213a 0,#070b12 42%);color:var(--text)}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%;text-size-adjust:100%}body{margin:0;overflow-wrap:anywhere;font-family:var(--gs-font-interface,"Space Grotesk",ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif);background:radial-gradient(circle at top right,#14213a 0,#070b12 42%);color:var(--text)}
 a{color:inherit}.wrap{max-width:1120px;margin:auto;padding:0 22px}.topbar-actions{display:flex;gap:16px;align-items:center;justify-content:flex-end;padding:18px 0}
 .nav-link{color:var(--muted);text-decoration:none;font-weight:750}.nav-link:hover{color:var(--text)}
 .hero{padding:70px 0 50px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:46px;align-items:center}
@@ -89,7 +89,7 @@ h1{font-size:clamp(42px,7vw,76px);line-height:.99;letter-spacing:-.045em;margin:
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:#0d1521;border:0;border-radius:18px;padding:22px}.mark{color:var(--accent)}.card h3{margin:16px 0 8px;font-size:20px}.card p{margin:0;color:var(--muted);line-height:1.62}
 .next{background:#0d1521;border:0;border-radius:20px;padding:28px}.next ul{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.9}
 footer{border-top:1px solid #1b283a;margin-top:24px;padding:26px 0 38px;color:#7f8da3;font-size:14px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-@media(max-width:820px){.hero{grid-template-columns:1fr;padding-top:46px}.cards{grid-template-columns:1fr}.preview{max-width:560px}}
+@media(max-width:820px){.hero{grid-template-columns:1fr;padding-top:46px;gap:30px}.cards{grid-template-columns:1fr}.preview{max-width:560px}h1{font-size:clamp(2.15rem,11vw,3.35rem);line-height:1.04}.section h2{font-size:clamp(1.75rem,8vw,2.45rem)}.wrap{padding:0 16px}}@media(max-width:420px){.hero{padding-top:34px}.preview,.card,.next{padding:18px}.preview-top,.metric{gap:12px}.metric{align-items:flex-start}.metric strong{font-size:17px}.lead{font-size:17px}.actions .btn{width:100%}}
 </style>
 </head>
 <body data-gs-page="public-homepage">
@@ -111,7 +111,7 @@ ${renderGlobalHeader({ surface: "public", homeHref: "/", label: source.product }
 <aside class="preview" aria-label="Product summary">
 <div class="preview-top"><strong>Scanner overview</strong><span class="status">READ ONLY</span></div>
 <div class="metric"><span>Intraday scanner</span><strong>Live</strong></div>
-<div class="metric"><span>Under-$5 scanner</span><strong>Live</strong></div>
+<div class="metric"><span>Under $5 scanner</span><strong>Live</strong></div>
 <div class="metric"><span>Pre-market scanner</span><strong>Automatic</strong></div>
 <div class="metric"><span>Post-market scanner</span><strong>Automatic</strong></div>
 <div class="metric"><span>AI-assisted analysis</span><strong>Active</strong></div>

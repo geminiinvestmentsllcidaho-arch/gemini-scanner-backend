@@ -462,7 +462,7 @@ p{color:var(--gs-muted)}
 .portfolio-positive{color:#8cff9e}
 .portfolio-negative{color:#ff8d98}
 .portfolio-neutral{color:#d4d9dd}
-.portfolio-safety{margin:12px 0 0;font-size:.84rem}
+.portfolio-safety{margin:12px 0 0;font-size:.84rem}.account-panel,.hero,.panel,.safety,.overview-actions,.portfolio-panel,.premarket-auto-panel,.postmarket-auto-panel,.choice,.overview-action-grid a,.portfolio-metrics div,.premarket-auto-grid div,.postmarket-auto-grid div{min-width:0}.account-panel strong,.portfolio-metrics b,.premarket-auto-grid b,.postmarket-auto-grid b,h1,h2,h3,p{overflow-wrap:anywhere}
 .earnings-overlay{position:relative;z-index:20;width:min(100%,620px);margin:0 auto 18px;border-radius:14px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden;color:#000}
 .earnings-overlay summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;cursor:pointer;list-style:none;font-weight:800}
 .earnings-overlay summary::-webkit-details-marker{display:none}
@@ -473,7 +473,7 @@ p{color:var(--gs-muted)}
 .performance-negative{background:rgba(255,36,36,.90);border:2px solid #ff2424}
 .performance-neutral{background:rgba(149,155,165,.92);border:2px solid #959ba5}
 .performance-periods{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
-.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}
+.performance-periods a{padding:8px 10px;border-radius:999px;background:#132844;color:#dbe8ff;text-decoration:none;font-weight:800}@media(max-width:640px){.wrap{padding:24px 12px 52px}.account-panel,.hero,.panel,.safety,.overview-actions,.portfolio-panel,.premarket-auto-panel,.postmarket-auto-panel{padding:15px}.grid,.overview-action-grid,.portfolio-metrics,.premarket-auto-grid,.postmarket-auto-grid{grid-template-columns:minmax(0,1fr)}.account-actions{width:100%}.account-actions a,.account-actions button{flex:1 1 100%;width:100%}.choice{min-height:78px;padding:13px}.overview-action-grid a{min-height:88px;padding:14px}.eyebrow{font-size:.72rem;letter-spacing:.08em}.premarket-multiscan-table,.portfolio-table{font-size:.78rem}}@media(max-width:420px){.wrap{padding-left:10px;padding-right:10px}.account-panel,.hero,.panel,.safety,.overview-actions,.portfolio-panel,.premarket-auto-panel,.postmarket-auto-panel{padding:13px}}
 .performance-periods a.active{background:#5b9cff;color:#08111f}
 .filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
 .filter-choice{display:flex;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--gs-line);border-left-width:6px;border-radius:12px;font-weight:800;background:rgba(0,0,0,.54)}

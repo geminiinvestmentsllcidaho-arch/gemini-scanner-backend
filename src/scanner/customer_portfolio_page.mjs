@@ -171,7 +171,7 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
 .wind-actions{margin:14px 0 10px}
 .wind-actions button{width:100%;max-width:620px}
-@media(max-width:760px){.position-row{grid-template-columns:1fr 1fr}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.metric strong{font-size:19px}.wind-actions button{max-width:none}}
+@media(max-width:760px){.position-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.grid,.two,.lifetime-breakdown{grid-template-columns:minmax(0,1fr)}.metric,.lifetime-earnings,.position-row{min-width:0}.metric strong{font-size:19px}.lifetime-total{font-size:clamp(28px,10vw,42px)}.wind-actions button{max-width:none}.table-wrap{-webkit-overflow-scrolling:touch}}@media(max-width:420px){.position-row{grid-template-columns:minmax(0,1fr)}.position-row label:nth-child(3),.position-row label:nth-child(4),.remove-row{grid-column:auto}.wrap{padding-left:10px;padding-right:10px}}
 </style>
 </head>
 <body data-gs-page="customer-portfolio">

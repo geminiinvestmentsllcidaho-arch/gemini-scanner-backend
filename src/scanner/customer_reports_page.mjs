@@ -279,7 +279,7 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .report-row h3{margin:0 0 8px}
 .safety-locks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .safety-locks span{border:1px solid var(--gs-line);border-radius:999px;padding:6px 9px;font-size:12px;color:var(--gs-muted)}
-@media(max-width:620px){.wrap{padding:24px 12px 56px}.metric strong{font-size:19px}.report-section-nav{gap:10px}.report-section-nav a{min-height:46px;padding:8px 12px}.report-section-icon{width:25px;height:25px;flex-basis:25px}}
+@media(max-width:620px){.wrap{padding:24px 12px 56px}.hero,.panel{padding:16px}.grid,.two{grid-template-columns:minmax(0,1fr)}.metric{min-width:0;padding:14px}.metric strong{font-size:19px}.report-section-nav{gap:8px;padding:10px}.report-section-nav a{min-height:44px;padding:8px 10px;max-width:100%;overflow-wrap:anywhere}.report-section-icon{width:24px;height:24px;flex-basis:24px}.ai-holding{min-width:0}.ai-holding strong,.ai-holding span,.report-row,h1,h2,h3,p{overflow-wrap:anywhere}.table-wrap{-webkit-overflow-scrolling:touch}}
 </style>
 </head>
 <body data-gs-page="customer-reports">
