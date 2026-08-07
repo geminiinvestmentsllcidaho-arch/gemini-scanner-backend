@@ -4821,6 +4821,18 @@ app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustome
     return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} lifecycle ready</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Lifecycle ID: ${handoff.lifecycleId}</p><p>Client order ID: ${handoff.order.clientOrderId}</p><p>Status: ${handoff.status}</p><p>GeminiScanner created or resolved the exact PAPER lifecycle and deterministic order handoff. Final broker submission remains blocked here; no broker contact, order placement, or account mutation occurred.</p>${localMockControl}<p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
   } catch (error) {
     console.error('[customer-paper-order-prepare]', error);
+    const conflictErrors = new Set([
+      'paper_enter_customer_preparation_in_progress',
+      'paper_enter_active_customer_lifecycle_exists',
+      'paper_exit_matching_lifecycle_not_found',
+      'paper_exit_multiple_matching_lifecycles',
+      'paper_preparation_account_required',
+      'paper_preparation_account_mismatch',
+      'customer_account_required',
+    ]);
+    if (conflictErrors.has(String(error?.message ?? ''))) {
+      return res.status(409).type('html').send('<!doctype html><html><body><main><h1>Paper order preparation blocked</h1><p>The requested PAPER lifecycle could not be prepared because the authenticated customer state is busy, missing, or does not match this request. Refresh the scanner or portfolio and try again after the current PAPER lifecycle state is resolved.</p><p>No broker contact or order placement occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>');
+    }
     return res.status(500).type('html').send('<!doctype html><html><body><main><h1>Paper order preparation failed</h1><p>No broker contact or order placement occurred.</p></main></body></html>');
   }
 });

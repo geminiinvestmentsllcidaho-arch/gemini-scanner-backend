@@ -31,3 +31,16 @@ test('bridge remains explicit pre-submission handoff only', () => {
   assert.doesNotMatch(source, /\/v2\/orders/)
   assert.doesNotMatch(source, /fetch\(/)
 })
+
+test('preparation route preserves generic 500 fallback for unexpected failures', () => {
+  const source = fs.readFileSync('src/server.js', 'utf8')
+  const start = source.indexOf("app.post('/customer/paper-order/prepare'")
+  const end = source.indexOf("app.post('/customer/paper-order/mock-exercise'", start)
+  assert.ok(start >= 0 && end > start)
+  const block = source.slice(start, end)
+  assert.match(block, /conflictErrors\.has/)
+  assert.match(block, /res\.status\(409\)/)
+  assert.match(block, /res\.status\(500\)/)
+  assert.match(block, /Paper order preparation failed/)
+  assert.doesNotMatch(block, /submitPaperAutoOrder|submitPaperOrder|\/v2\/orders|fetch\(/)
+})
