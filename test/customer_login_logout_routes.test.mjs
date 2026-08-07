@@ -964,6 +964,10 @@ test('customer settings renders shared customer neon theme and fixed background 
   assert.match(source, /renderGlobalHeader\(\{ surface: 'customer', homeHref: '\/customer', label: 'GeminiScanner' \}\)/);
   assert.match(source, /renderGlobalFooter\(\)/);
   assert.match(source, /data-role="customer" data-page="settings"/);
+  assert.match(source, /href="#about-ai">About AI/);
+  assert.match(source, /About GeminiScanner AI/);
+  assert.match(source, /GeminiScanner uses AI in the background/);
+  assert.match(source, /AI does not independently place trades/);
 });
 
 test('customer scanner run button stays authenticated and routes only to read-only customer surfaces', () => {

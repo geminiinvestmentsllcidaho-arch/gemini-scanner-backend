@@ -122,6 +122,20 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const historicalSimulatedOpenPositions = Array.isArray(report.historicalSimulatedOpenPositions)
     ? report.historicalSimulatedOpenPositions
     : [];
+  const realtimeAiNotesHtml = realtimeAiText
+    ? realtimeAiText
+        .split(/\r?\n|(?<=[.!?])\s+(?=[A-Z0-9])/)
+        .map((line) => line.replace(/^[-•*]+\s*/, "").trim())
+        .filter(Boolean)
+        .map((line) => line
+          .replaceAll("currentBrokerPositions", "current broker positions")
+          .replaceAll("historicalSimulatedOpenPositions", "historical simulated positions")
+          .replaceAll("averagePotentialScore", "average potential score")
+          .replaceAll("possibleReplayCount", "possible replay count")
+          .replaceAll("sourceIntentReplayAudit", "source intent replay audit"))
+        .map((line) => `<li>${esc(line.charAt(0).toUpperCase() + line.slice(1))}</li>`)
+        .join("")
+    : "";
   const decisionQualityProposals = report.decisionQualityProposals ?? {};
   const proposalRows = Array.isArray(decisionQualityProposals.proposals)
     ? decisionQualityProposals.proposals
@@ -243,6 +257,7 @@ ${renderCustomerPrimaryNavigationCss()}
 .ai-review-details{margin-top:14px;border-top:1px solid var(--gs-line);padding-top:12px}
 .ai-review-details summary{cursor:pointer;color:var(--gs-accent);font-weight:700}
 .ai-review-details .report-row{margin-top:12px}
+.ai-technical-notes{display:grid;gap:10px;margin:12px 0 0;padding-left:22px}.ai-technical-notes li{line-height:1.55;overflow-wrap:anywhere}
 .ai-review-note{color:var(--gs-muted);font-size:14px}
 .report-section-nav{display:flex;flex-wrap:wrap;gap:9px;padding:14px;margin-bottom:18px}
 .report-section-nav a{display:inline-flex;align-items:center;min-height:38px;color:var(--gs-text);text-decoration:none;border:1px solid var(--gs-line);border-radius:999px;padding:8px 12px;background:rgba(0,0,0,.5)}
@@ -449,7 +464,7 @@ ${calibrationHistoryRows.length
     : ""}
 </div>
 ${realtimeAiText
-  ? `<details class="ai-review-details"><summary>View detailed AI notes</summary><article class="report-row"><p>${esc(realtimeAiText).replaceAll("\n", "<br>")}</p></article></details>`
+  ? `<details class="ai-review-details"><summary>View detailed AI notes</summary><article class="report-row"><p class="muted">Advanced review details for transparency and support.</p><ul class="ai-technical-notes">${realtimeAiNotesHtml}</ul></article></details>`
   : "<p>No AI review is available yet. The standard report information above is still available.</p>"}
 <p class="ai-review-note">${realtimeAiReview.requiresBacktest === true ? "Any suggested strategy change must be tested before use." : "No strategy test is currently flagged by this review."}${realtimeAiReview.requiresOperatorApproval === true ? " Your approval is also required before any change can be made." : ""}</p>
 </section>

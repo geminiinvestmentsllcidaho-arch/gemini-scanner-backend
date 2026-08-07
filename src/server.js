@@ -5256,7 +5256,8 @@ section[style]{border-top-color:var(--gs-line)!important}
 .danger-settings>summary{color:#ffd5da}.danger-settings{border-color:rgba(255,53,71,.48)}
 .signin-history{margin-top:10px;border:1px solid var(--gs-line);border-radius:12px;padding:0 14px;background:rgba(0,0,0,.32)}
 .signin-history>summary{cursor:pointer;padding:12px 2px;font-weight:800;color:var(--gs-accent)}
-@media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}.settings-toolbar{position:sticky;top:8px;z-index:8}.settings-group>summary{padding:14px}}
+.about-ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.about-ai-grid article{padding:14px 15px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.34)}.about-ai-grid h3{margin:0 0 7px}.about-ai-grid p{margin:0;color:var(--gs-muted);line-height:1.5}
+@media (max-width:600px){.row{grid-template-columns:1fr;gap:4px}.settings-toolbar{position:sticky;top:8px;z-index:8}.settings-group>summary{padding:14px}.about-ai-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body data-gs-page="customer-settings" data-gs-theme="${esc(account?.displayPreferences?.theme || 'system')}" data-gs-density="${esc(account?.displayPreferences?.density || 'comfortable')}" data-gs-reduced-motion="${account?.displayPreferences?.reducedMotion ? 'true' : 'false'}">
@@ -5266,6 +5267,7 @@ ${renderGlobalHeader({ surface: 'customer', homeHref: '/customer', label: 'Gemin
 ${renderCustomerPrimaryNavigation({ active: 'settings' })}
 <nav class="settings-secondary-nav" aria-label="Settings navigation">
 <a href="/customer/security-activity">Security activity</a>
+<a href="#about-ai">About AI</a>
 </nav>
 <section class="card">
 <h1>Settings</h1>
@@ -5425,6 +5427,16 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 <p><label><input name="reducedMotion" type="checkbox"${account?.displayPreferences?.reducedMotion ? ' checked' : ''}> Reduce motion</label></p>
 <p><button type="submit" style="background:#3d72d9">Save appearance</button></p>
 </form>
+</section>
+<section id="about-ai" style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
+<h2>About GeminiScanner AI</h2>
+<p style="color:#9eb0c9">GeminiScanner uses AI in the background to review scanner results, paper-trading reports, and historical evidence. It helps turn complex information into clearer observations and highlights patterns that may deserve attention.</p>
+<div class="about-ai-grid">
+<article><h3>What AI does</h3><p>Reviews available information, summarizes patterns, highlights potential risks, and helps identify areas that may deserve a closer look.</p></article>
+<article><h3>What AI does not do by itself</h3><p>AI does not independently place trades, change your brokerage account, or change GeminiScanner strategy rules or safety limits.</p></article>
+<article><h3>How changes are handled</h3><p>Any suggested strategy change must be tested and separately approved before it can be used.</p></article>
+<article><h3>Why technical details stay in the background</h3><p>Diagnostic and audit information is retained for reliability, testing, and support while everyday screens focus on useful customer information.</p></article>
+</div>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
 <h2>Your data</h2>

@@ -143,6 +143,8 @@ test("renders optional real-time AI review without mutation controls", () => {
   assert.match(html, /Review complete/);
   assert.match(html, /AI reviews your current paper-trading report and highlights the most important takeaways/);
   assert.match(html, /View detailed AI notes/);
+  assert.match(html, /Advanced review details for transparency and support/);
+  assert.match(html, /class="ai-technical-notes"/);
   assert.match(html, /Backtest tighter confidence thresholds/);
   assert.match(html, /Any suggested strategy change must be tested before use/);
   assert.match(html, /Your approval is also required before any change can be made/);
