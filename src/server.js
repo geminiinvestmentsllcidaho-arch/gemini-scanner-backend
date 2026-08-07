@@ -4815,10 +4815,31 @@ app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustome
     const handoff = bridgeMod.bridgePaperPreparationToLifecycle(saved, {
       accountId: req.customerAccount?.id,
     });
-    return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} lifecycle ready</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Lifecycle ID: ${handoff.lifecycleId}</p><p>Client order ID: ${handoff.order.clientOrderId}</p><p>Status: ${handoff.status}</p><p>GeminiScanner created or resolved the exact PAPER lifecycle and deterministic order handoff. Final broker submission remains blocked here; no broker contact, order placement, or account mutation occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
+    const localMockControl = process.env.CUSTOMER_PAPER_LOCAL_MOCK_EXERCISE_ENABLED === '1'
+      ? `<form method="post" action="/customer/paper-order/mock-exercise"><input type="hidden" name="preparationId" value="${saved.preparationId}"><button type="submit">Run LOCAL MOCK PAPER ${saved.mode}</button></form><p>LOCAL MOCK only: deterministic synthetic reconciliation; no Alpaca order or position will be created.</p>`
+      : '';
+    return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} lifecycle ready</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Lifecycle ID: ${handoff.lifecycleId}</p><p>Client order ID: ${handoff.order.clientOrderId}</p><p>Status: ${handoff.status}</p><p>GeminiScanner created or resolved the exact PAPER lifecycle and deterministic order handoff. Final broker submission remains blocked here; no broker contact, order placement, or account mutation occurred.</p>${localMockControl}<p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
   } catch (error) {
     console.error('[customer-paper-order-prepare]', error);
     return res.status(500).type('html').send('<!doctype html><html><body><main><h1>Paper order preparation failed</h1><p>No broker contact or order placement occurred.</p></main></body></html>');
+  }
+});
+
+
+app.post('/customer/paper-order/mock-exercise', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  if (process.env.CUSTOMER_PAPER_LOCAL_MOCK_EXERCISE_ENABLED !== '1') {
+    return res.status(403).type('html').send('<!doctype html><html><body><main><h1>LOCAL MOCK PAPER exercise blocked</h1><p>The dedicated local-mock gate is disabled. No broker contact or order placement occurred.</p></main></body></html>');
+  }
+  try {
+    const mod = await import('./scanner/customer_paper_local_mock_exercise.mjs');
+    const result = await mod.exerciseCustomerPaperLocalMock({
+      accountId: req.customerAccount?.id,
+      preparationId: req.body?.preparationId,
+    });
+    return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>LOCAL MOCK PAPER lifecycle completed</h1><p>Preparation ID: ${result.preparationId}</p><p>Lifecycle ID: ${result.lifecycle.lifecycleId}</p><p>Final lifecycle state: ${result.lifecycle.state}</p><p>Status: ${result.status}</p><p>Deterministic synthetic reconciliation only. No broker contact, Alpaca order placement, Alpaca position creation, or brokerage account mutation occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
+  } catch (error) {
+    console.error('[customer-paper-order-mock-exercise]', error);
+    return res.status(409).type('html').send('<!doctype html><html><body><main><h1>LOCAL MOCK PAPER exercise blocked</h1><p>The preparation or authenticated customer lifecycle did not match the required local-mock contract. No broker contact or order placement occurred.</p></main></body></html>');
   }
 });
 
