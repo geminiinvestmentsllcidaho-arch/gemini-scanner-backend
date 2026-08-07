@@ -19,7 +19,7 @@ test("settings does not render redundant Security activity and About AI secondar
   assert.doesNotMatch(block, /class="settings-secondary-nav"/);
   assert.doesNotMatch(block, /href="#about-ai">About AI<\/a>/);
   assert.doesNotMatch(block, /<nav[^>]*Settings navigation/);
-  assert.match(block, /<h2>Security activity<\/h2>/);
+  assert.match(block, /<span>Security activity<\/span>/);
   assert.match(block, /View complete security activity/);
   assert.match(block, /About GeminiScanner AI/);
 });

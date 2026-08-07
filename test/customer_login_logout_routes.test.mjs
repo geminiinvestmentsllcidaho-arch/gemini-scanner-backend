@@ -291,7 +291,7 @@ test('settings page exposes last sign-in security activity', () => {
   assert.match(source, />Last sign-in<\/div>/);
   assert.match(source, />Last sign-in IP<\/div>/);
   assert.match(source, />Last sign-in device<\/div>/);
-  assert.match(source, /<h2>Security activity<\/h2>/);
+  assert.match(source, /<span>Security activity<\/span>/);
   assert.match(source, /<h3>Recent sign-ins<\/h3>/);
   assert.match(source, /View complete security activity/);
   assert.match(source, /recentLoginHistory/);
@@ -984,6 +984,11 @@ test('customer settings renders shared customer neon theme and fixed background 
   assert.match(source, /data-role="customer" data-page="settings"/);
   assert.doesNotMatch(source, /href="#about-ai">About AI/);
   assert.match(source, /About GeminiScanner AI/);
+  for (const icon of ['activity', 'security', 'bell', 'appearance', 'ai', 'data', 'sessions', 'deactivate', 'delete']) {
+    assert.match(source, new RegExp(`renderCustomerIcon\\('${icon}'`));
+  }
+  assert.match(source, /settings-icon-label/);
+  assert.match(source, /icon\.cloneNode\(true\)/);
   assert.match(source, /GeminiScanner uses AI in the background/);
   assert.match(source, /AI does not independently place trades/);
 });

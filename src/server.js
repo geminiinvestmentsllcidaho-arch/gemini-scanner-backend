@@ -5185,13 +5185,23 @@ app.get('/assets/customer-settings.js', (_req, res) => {
     details.className = 'settings-group';
     if (['Deactivate account', 'Permanently delete account'].includes(title)) details.classList.add('danger-settings');
     details.open = ['Security'].includes(title);
+    const icon = heading.querySelector('.gs-icon');
+    const buildLabel = () => {
+      const label = document.createElement('span');
+      label.className = 'settings-icon-label';
+      if (icon) label.append(icon.cloneNode(true));
+      const text = document.createElement('span');
+      text.textContent = title;
+      label.append(text);
+      return label;
+    };
     const summary = document.createElement('summary');
-    summary.textContent = title;
+    summary.append(buildLabel());
     section.before(details);
     details.append(summary, section);
     const shortcut = document.createElement('button');
     shortcut.type = 'button';
-    shortcut.textContent = title;
+    shortcut.append(buildLabel());
     shortcut.addEventListener('click', () => {
       details.open = true;
       details.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5242,7 +5252,10 @@ input[type="checkbox"]{width:auto}
 button{padding:12px 18px;border:1px solid var(--gs-line);border-radius:10px;background:rgba(0,0,0,.72);color:var(--gs-text);font-weight:700;cursor:pointer}
 section[style]{border-top-color:var(--gs-line)!important}
 .settings-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 22px;padding:12px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.5)}
-.settings-toolbar button{padding:8px 11px;background:rgba(24,215,255,.08)}
+.settings-toolbar button{padding:8px 11px;background:rgba(24,215,255,.08);display:inline-flex;align-items:center;gap:8px}
+.settings-icon-label{display:inline-flex;align-items:center;gap:9px;min-width:0}
+.settings-toolbar .gs-icon,.settings-group>summary .gs-icon{color:var(--gs-accent);filter:drop-shadow(0 0 5px rgba(24,215,255,.24))}
+.danger-settings .settings-icon-label .gs-icon{color:#ff7a86}
 .settings-group{margin-top:14px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(2,9,12,.72);overflow:hidden}
 .settings-group>summary{cursor:pointer;list-style:none;padding:16px 18px;font-size:1.05rem;font-weight:900;color:var(--gs-text);display:flex;align-items:center;justify-content:space-between}
 .settings-group>summary::-webkit-details-marker{display:none}
@@ -5296,7 +5309,7 @@ ${account?.pendingEmail ? `<div class="row"><div class="label">Pending email</di
 <div class="row"><div class="label">Successful sign-ins</div><div class="value">${esc(account?.loginCount ?? 0)}</div></div>
 </div>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Security activity</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('activity', { size: 22 })}<span>Security activity</span></span></h2>
 <h3>Recent sign-ins</h3>
 ${latestLogin
   ? `<div class="details"><div class="row"><div class="label">${esc(formatCustomerDateTime(latestLogin.loginAt, account, { fallback: 'Unknown time' }))}</div><div class="value">${esc(latestLogin.ip || 'unknown')} | ${esc(latestLogin.userAgent || 'unknown')}</div></div></div>${earlierLogins.length ? `<details class="signin-history"><summary>Show ${earlierLogins.length} earlier sign-in${earlierLogins.length === 1 ? '' : 's'}</summary><div class="details">${earlierLogins.map((entry) => `<div class="row"><div class="label">${esc(formatCustomerDateTime(entry?.loginAt, account, { fallback: 'Unknown time' }))}</div><div class="value">${esc(entry?.ip || 'unknown')} | ${esc(entry?.userAgent || 'unknown')}</div></div>`).join('')}</div></details>` : ''}`
@@ -5305,7 +5318,7 @@ ${latestLogin
 <p><a href="/customer/security-activity">View complete security activity</a></p>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Security</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('security', { size: 22 })}<span>Security</span></span></h2>
 <h3>Authenticator app</h3>
 ${account?.authenticatorEnabled ? `
 <p><strong>Status:</strong> Enabled</p>
@@ -5389,7 +5402,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Appearance</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('appearance', { size: 22 })}<span>Appearance</span></span></h2>
 <form method="post" action="/customer/settings/display">
 <p><label for="theme">Theme</label><br>
 <select id="theme" name="theme">
@@ -5423,7 +5436,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 </form>
 </section>
 <section id="about-ai" style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>About GeminiScanner AI</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('ai', { size: 22 })}<span>About GeminiScanner AI</span></span></h2>
 <p style="color:#9eb0c9">GeminiScanner uses AI in the background to review scanner results, paper-trading reports, and historical evidence. It helps turn complex information into clearer observations and highlights patterns that may deserve attention.</p>
 <div class="about-ai-grid">
 <article><h3>What AI does</h3><p>Reviews available information, summarizes patterns, highlights potential risks, and helps identify areas that may deserve a closer look.</p></article>
@@ -5433,7 +5446,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 </div>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Your data</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('data', { size: 22 })}<span>Your data</span></span></h2>
 <p style="color:#9eb0c9">Download a readable copy of the information stored with your GeminiScanner customer account. Passwords and authenticator secrets are excluded.</p>
 <form method="post" action="/customer/settings/data/export">
 <button type="submit" style="background:#3d72d9">Download readable copy of my data</button>
@@ -5446,14 +5459,14 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 </details>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Sessions</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('sessions', { size: 22 })}<span>Sessions</span></span></h2>
 <p style="color:#9eb0c9">Sign out this account on every device, including this one.</p>
 <form method="post" action="/customer/settings/sessions/revoke">
 <button type="submit">Sign out all sessions</button>
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Deactivate account</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('deactivate', { size: 22 })}<span>Deactivate account</span></span></h2>
 <p style="color:#9eb0c9">Deactivate this customer account and sign out every session.</p>
 <form method="post" action="/customer/settings/account/deactivate">
 <p><label for="deactivateAccountPassword">Current password</label><br>
@@ -5463,7 +5476,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 </form>
 </section>
 <section style="margin-top:28px;padding-top:20px;border-top:1px solid #263a58">
-<h2>Permanently delete account</h2>
+<h2><span class="gs-icon-heading">${renderCustomerIcon('delete', { size: 22 })}<span>Permanently delete account</span></span></h2>
 <p style="color:#9eb0c9">Permanently remove this customer account. This cannot be undone.</p>
 <form method="post" action="/customer/settings/account/delete">
 <p><label for="deleteAccountPassword">Current password</label><br>
