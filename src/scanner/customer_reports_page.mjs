@@ -119,6 +119,9 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const realtimeAiText = typeof realtimeAiReview.reviewText === "string"
     ? realtimeAiReview.reviewText.trim()
     : "";
+  const historicalSimulatedOpenPositions = Array.isArray(report.historicalSimulatedOpenPositions)
+    ? report.historicalSimulatedOpenPositions
+    : [];
   const decisionQualityProposals = report.decisionQualityProposals ?? {};
   const proposalRows = Array.isArray(decisionQualityProposals.proposals)
     ? decisionQualityProposals.proposals
@@ -229,6 +232,18 @@ ${renderCustomerPrimaryNavigationCss()}
 .report-section-nav a:hover,.report-section-nav a:focus-visible{border-color:rgba(57,220,255,.62);box-shadow:0 0 20px rgba(0,220,255,.16);transform:translateY(-1px);outline:none}
 .report-section-icon{width:27px;height:27px;display:inline-grid;place-items:center;flex:0 0 27px;color:#39dcff;filter:drop-shadow(0 0 5px rgba(57,220,255,.48))}
 .report-section-icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+.ai-consumer-summary{display:grid;gap:12px;margin:18px 0}
+.ai-consumer-card{border:1px solid var(--gs-line);border-radius:14px;padding:15px 16px;background:rgba(0,0,0,.42)}
+.ai-consumer-card h3{margin:0 0 8px;font-size:16px}
+.ai-consumer-card p{margin:4px 0}
+.ai-holdings-list{display:grid;gap:8px;margin-top:10px}
+.ai-holding{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:10px 12px;border:1px solid rgba(57,220,255,.12);border-radius:11px;background:rgba(0,0,0,.36)}
+.ai-holding strong{font-size:17px;color:var(--gs-text)}
+.ai-holding span{color:var(--gs-muted);font-size:14px}
+.ai-review-details{margin-top:14px;border-top:1px solid var(--gs-line);padding-top:12px}
+.ai-review-details summary{cursor:pointer;color:var(--gs-accent);font-weight:700}
+.ai-review-details .report-row{margin-top:12px}
+.ai-review-note{color:var(--gs-muted);font-size:14px}
 .report-section-nav{display:flex;flex-wrap:wrap;gap:9px;padding:14px;margin-bottom:18px}
 .report-section-nav a{display:inline-flex;align-items:center;min-height:38px;color:var(--gs-text);text-decoration:none;border:1px solid var(--gs-line);border-radius:999px;padding:8px 12px;background:rgba(0,0,0,.5)}
 .report-section-nav a:hover,.report-section-nav a:focus-visible{color:var(--gs-accent);border-color:var(--gs-accent)}
@@ -412,20 +427,31 @@ ${calibrationHistoryRows.length
 
 <section class="card panel" id="realtime-ai-review">
 <h2>Real-Time AI Review</h2>
-<p>This optional review uses the current paper report only. It cannot change scanner logic, contact a broker, place orders, or modify an account.</p>
+<p>AI reviews your current paper-trading report and highlights the most important takeaways. It can analyze information only — it cannot place trades or change your account.</p>
 <p><strong>Status:</strong> ${esc(({
-  disabled: "Disabled",
-  not_configured: "Not configured",
-  completed_readonly: "Completed — read only",
-  empty_response: "No review returned",
-  provider_error: "Provider error",
-  timeout: "Timed out",
-  request_failed: "Request failed",
+  disabled: "Off",
+  not_configured: "Not set up",
+  completed_readonly: "Review complete",
+  empty_response: "No review available",
+  provider_error: "AI service unavailable",
+  timeout: "Review timed out",
+  request_failed: "Review could not be completed",
 })[realtimeAiReview.status] ?? "Not active")}</p>
+<div class="ai-consumer-summary">
+  <article class="ai-consumer-card">
+    <h3>Current paper holdings</h3>
+    ${currentBrokerPositions.length
+      ? `<p>These are the positions currently reported by your connected Alpaca paper account.</p><div class="ai-holdings-list">${currentBrokerPositions.map((position) => `<div class="ai-holding"><strong>${esc(position.symbol ?? "—")}</strong><span>${esc(number(position.qty, locale))} ${String(position.side ?? "").toLowerCase() === "long" ? "share" + (Number(position.qty) === 1 ? "" : "s") : esc(position.side ?? "")}</span><span>Avg. entry ${esc(money(position.averageEntryPrice, locale))}</span><span>Current ${esc(money(position.currentPrice, locale))}</span><span>P/L ${esc(money(position.unrealizedPl, locale))}</span></div>`).join("")}</div>`
+      : "<p>No current paper positions are reported right now.</p>"}
+  </article>
+  ${historicalSimulatedOpenPositions.length
+    ? `<article class="ai-consumer-card"><h3>Historical simulation data</h3><p>${esc(number(historicalSimulatedOpenPositions.length, locale))} historical simulated position${historicalSimulatedOpenPositions.length === 1 ? "" : "s"} ${historicalSimulatedOpenPositions.length === 1 ? "is" : "are"} stored for testing and audit history. ${historicalSimulatedOpenPositions.length === 1 ? "It is" : "They are"} not part of your current Alpaca paper holdings.</p></article>`
+    : ""}
+</div>
 ${realtimeAiText
-  ? `<article class="report-row"><p>${esc(realtimeAiText).replaceAll("\n", "<br>")}</p></article>`
-  : "<p>No real-time AI review is available. The deterministic report review above remains active.</p>"}
-<p><strong>Backtesting required:</strong> ${esc(realtimeAiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(realtimeAiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
+  ? `<details class="ai-review-details"><summary>View detailed AI notes</summary><article class="report-row"><p>${esc(realtimeAiText).replaceAll("\n", "<br>")}</p></article></details>`
+  : "<p>No AI review is available yet. The standard report information above is still available.</p>"}
+<p class="ai-review-note">${realtimeAiReview.requiresBacktest === true ? "Any suggested strategy change must be tested before use." : "No strategy test is currently flagged by this review."}${realtimeAiReview.requiresOperatorApproval === true ? " Your approval is also required before any change can be made." : ""}</p>
 </section>
 
 <section class="card panel" id="detailed-activity">

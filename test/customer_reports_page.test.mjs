@@ -140,9 +140,53 @@ test("renders optional real-time AI review without mutation controls", () => {
   }));
 
   assert.match(html, /Real-Time AI Review/);
-  assert.match(html, /Completed — read only/);
+  assert.match(html, /Review complete/);
+  assert.match(html, /AI reviews your current paper-trading report and highlights the most important takeaways/);
+  assert.match(html, /View detailed AI notes/);
   assert.match(html, /Backtest tighter confidence thresholds/);
+  assert.match(html, /Any suggested strategy change must be tested before use/);
+  assert.match(html, /Your approval is also required before any change can be made/);
   assert.doesNotMatch(html, /Apply AI changes/);
+});
+
+test("real-time AI review presents current holdings and historical simulations in plain English", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    account: {},
+    report: {
+      period: "weekly",
+      currentBrokerPositions: [{
+        symbol: "BTG",
+        qty: 1,
+        side: "long",
+        averageEntryPrice: 4.12,
+        currentPrice: 4.00,
+        unrealizedPl: -0.12,
+      }],
+      historicalSimulatedOpenPositions: [{
+        symbol: "SOFI",
+        qty: 198,
+        averageEntryPrice: 10.1,
+      }],
+      realtimeAiReview: {
+        status: "completed_readonly",
+        reviewText: "Detailed internal evidence remains available.",
+        requiresBacktest: false,
+        requiresOperatorApproval: false,
+      },
+    },
+  }));
+
+  assert.match(html, /Current paper holdings/);
+  assert.match(html, /positions currently reported by your connected Alpaca paper account/);
+  assert.match(html, /BTG/);
+  assert.match(html, /Avg\. entry \$4\.12/);
+  assert.match(html, /Current \$4\.00/);
+  assert.match(html, /P\/L -\$0\.12/);
+  assert.match(html, /Historical simulation data/);
+  assert.match(html, /1 historical simulated position is stored for testing and audit history/);
+  assert.match(html, /not part of your current Alpaca paper holdings/);
+  assert.match(html, /View detailed AI notes/);
+  assert.match(html, /Detailed internal evidence remains available/);
 });
 
 
