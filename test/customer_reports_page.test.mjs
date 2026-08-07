@@ -139,7 +139,7 @@ test("renders optional real-time AI review without mutation controls", () => {
     },
   }));
 
-  assert.match(html, /Real-Time AI Review/);
+  assert.match(html, /Real-time AI review/);
   assert.match(html, /Review complete/);
   assert.match(html, /AI reviews your current paper-trading report and highlights the most important takeaways/);
   assert.match(html, /View detailed AI notes/);
@@ -292,10 +292,10 @@ test("renders historical decision-quality proposals and calibration review read 
     },
   }));
 
-  assert.match(html, /Historical Decision-Quality Proposals/);
+  assert.match(html, /Historical decision-quality proposals/);
   assert.match(html, /Review entry confirmation requirements/);
-  assert.match(html, /Proposal Evidence Calibration/);
-  assert.match(html, /Calibration History/);
+  assert.match(html, /Proposal evidence calibration/);
+  assert.match(html, /Calibration history/);
   assert.match(html, /Saved snapshots/);
   assert.match(html, /Duplicate snapshots skipped/);
   assert.match(html, /High Calibration Concern/);

@@ -258,9 +258,9 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <summary aria-label="Open earnings period selector"><span>${esc(performanceLabel)} EARNINGS</span><strong>$${esc(performance.netAfterCosts ?? performance.totalPl ?? 0)}</strong></summary>
 <div class="earnings-menu">
 <nav class="performance-periods" aria-label="Performance period">${["daily","weekly","monthly","yearly","ytd","lifetime"].map((period) => `<a class="${performance.period === period ? "active" : ""}" href="/customer?period=${period}">${period === "ytd" ? "YEAR TO DATE" : period.toUpperCase()}</a>`).join("")}</nav>
-<p>Realized: $${esc(performance.realizedPl ?? 0)} | Unrealized: $${esc(performance.unrealizedPl ?? 0)} | Combined: $${esc(performance.totalPl ?? 0)} | Net after costs: $${esc(performance.netAfterCosts ?? 0)}</p>
-<p>Winners: ${esc(performance.winners ?? 0)} | Losers: ${esc(performance.losers ?? 0)} | Win rate: ${esc(performance.winRatePct ?? 0)}%</p>
-<p>Data timestamp: ${esc(formatCustomerDateTime(performance.sourceTs, account, { fallback: "Unavailable" }))} | Status: ${performance.stale === true ? "STALE — READ ONLY" : "Current — read only"}</p>
+<p>Realized: $${esc(performance.realizedPl ?? 0)} · Unrealized: $${esc(performance.unrealizedPl ?? 0)} · Combined: $${esc(performance.totalPl ?? 0)} · Net after costs: $${esc(performance.netAfterCosts ?? 0)}</p>
+<p>Winners: ${esc(performance.winners ?? 0)} · Losers: ${esc(performance.losers ?? 0)} · Win rate: ${esc(performance.winRatePct ?? 0)}%</p>
+<p>Data timestamp: ${esc(formatCustomerDateTime(performance.sourceTs, account, { fallback: "Unavailable" }))} · Status: ${performance.stale === true ? "STALE — READ ONLY" : "Current — read only"}</p>
 </div>
 </details>`
     : "";
@@ -337,7 +337,7 @@ ${premarketMultiscanPanel}
 <div><span>Completed cycles</span><b>${esc(postMarket.runCount ?? 0)}</b></div>
 <div><span>Skipped cycles</span><b>${esc(postMarket.skippedCount ?? 0)}</b></div>
 <div><span>Last cycle</span><b>${esc(formatMarketDateTime(postMarket.lastCompletedAt, account, { fallback: "Not run yet" }))}</b></div>
-<div><span>Last result</span><b>${esc(postMarketLastResult?.status ?? postMarket.lastStatus ?? "Waiting")}</b></div>
+<div><span>Last result</span><b>${esc(customerTokenLabel(postMarketLastResult?.status ?? postMarket.lastStatus ?? "waiting", "Waiting"))}</b></div>
 </div>
 <p>${postMarket.inFlight
   ? "The automatic post-market review cycle is running now."

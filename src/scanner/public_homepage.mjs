@@ -28,11 +28,11 @@ export function buildPublicHomepage() {
     capabilities: Object.freeze([
       Object.freeze({
         title: "Focused scanners",
-        text: "Review intraday and under-$5 opportunities, plus automatic pre-market and post-market analysis, without sorting through market noise.",
+        text: "Review intraday and under $5 opportunities, plus automatic pre-market and post-market analysis, without sorting through market noise.",
       }),
       Object.freeze({
         title: "AI-assisted opportunity review",
-        text: "AI reviews scanner evidence to summarize patterns, risks, missing information, and potential improvements—without changing scanner logic or placing trades.",
+        text: "AI reviews scanner evidence to summarize patterns, risks, missing information, and potential improvements — without changing scanner logic or placing trades.",
       }),
       Object.freeze({
         title: "Explainable, controlled decisions",

@@ -103,7 +103,7 @@ ${metric("Cash change", panel.entry?.cashDelta)}${metric("Buying-power change", 
 ${metric("Cash change", panel.exit?.cashDelta)}${metric("Buying-power change", panel.exit?.buyingPowerDelta)}${metric("Equity change", panel.exit?.equityDelta)}${metric("Portfolio-value change", panel.exit?.portfolioValueDelta)}</article>
 <article><h3>Completion gates</h3><ul>${state("Round trip closed", panel.recovery?.roundTripClosed)}${state("Restart recovery verified", panel.recovery?.restartRecoveryVerified)}${state("Duplicate protection verified", panel.recovery?.duplicateProtectionVerified)}${state("Mechanical proof complete", panel.recovery?.mechanicalSuccess)}</ul></article>
 </div>
-<div class="stage1-alert-readiness" role="status"><strong>EXIT alert readiness:</strong> visual alert ready; audio alert ready after browser permission/user gesture. Manual review only—no system-initiated sale.</div>
+<div class="stage1-alert-readiness" role="status"><strong>EXIT alert readiness:</strong> visual alert ready; audio alert ready after browser permission/user gesture. Manual review only — no system-initiated sale.</div>
 <p class="helper">Read-only, GET-only evidence. GeminiScanner cannot submit, cancel, replace, or modify an Alpaca order from this panel. Stage 2 and Stage 3 remain locked.</p>
 </section>`;
 }

@@ -211,7 +211,7 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const proposalCards = proposalRows.length
     ? proposalRows.slice(0, 12).map((proposal) => `<article class="report-row proposal-card">
 <h3>${esc(proposal.title ?? labelToken(proposal.proposalType) ?? "Review proposal")}</h3>
-<p><strong>Area:</strong> ${esc(labelToken(proposal.targetArea) || "General review")} | <strong>Risk:</strong> ${esc(labelToken(proposal.riskLevel) || "Review")}</p>
+<p><strong>Area:</strong> ${esc(labelToken(proposal.targetArea) || "General review")} · <strong>Risk:</strong> ${esc(labelToken(proposal.riskLevel) || "Review")}</p>
 <p><strong>Suggested direction:</strong> ${esc(proposal.suggestedDirection ?? "Historical review required.")}</p>
 <p><strong>Evidence:</strong> ${esc(proposal.evidence?.symbol ?? "No symbol")} · confidence ${esc(number(proposal.evidence?.rankingConfidence, locale))} · potential ${esc(number(proposal.evidence?.readonlyPotentialScore, locale))}</p>
 </article>`).join("")
@@ -220,10 +220,10 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const calibrationCards = calibrationRows.length
     ? calibrationRows.slice(0, 12).map((group) => `<article class="report-row calibration-card">
 <h3>${esc(labelToken(group.groupKey) || "Calibration review group")}</h3>
-<p><strong>Status:</strong> ${esc(labelToken(group.calibrationReviewStatus))} | <strong>Sample:</strong> ${esc(number(group.sampleCount, locale))} | <strong>Band:</strong> ${esc(labelToken(group.calibrationBand))}</p>
-<p><strong>High-confidence concern rate:</strong> ${esc(number(group.disagreementRatePct, locale, "%"))} | <strong>Average confidence:</strong> ${esc(number(group.averageRankingConfidence, locale))}</p>
-<p><strong>Symbols:</strong> ${esc(number(group.uniqueSymbolCount, locale))} | <strong>Scans:</strong> ${esc(number(group.uniqueScanCount, locale))}</p>
-<p><strong>Observable sources:</strong> ${esc(number(group.observableSourceCount, locale))} | <strong>Stale sources:</strong> ${esc(number(group.staleSourceCount, locale))}</p>
+<p><strong>Status:</strong> ${esc(labelToken(group.calibrationReviewStatus))} · <strong>Sample:</strong> ${esc(number(group.sampleCount, locale))} · <strong>Band:</strong> ${esc(labelToken(group.calibrationBand))}</p>
+<p><strong>High-confidence concern rate:</strong> ${esc(number(group.disagreementRatePct, locale, "%"))} · <strong>Average confidence:</strong> ${esc(number(group.averageRankingConfidence, locale))}</p>
+<p><strong>Symbols:</strong> ${esc(number(group.uniqueSymbolCount, locale))} · <strong>Scans:</strong> ${esc(number(group.uniqueScanCount, locale))}</p>
+<p><strong>Observable sources:</strong> ${esc(number(group.observableSourceCount, locale))} · <strong>Stale sources:</strong> ${esc(number(group.staleSourceCount, locale))}</p>
 </article>`).join("")
     : "<p>No calibration review groups are available yet.</p>";
 
@@ -376,7 +376,7 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 <section class="card panel" id="ai-review">
 <h2>AI-assisted review</h2>
 <p>AI reviews scanner evidence and summarizes patterns, risks, and missing information. It cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades.</p>
-<p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} | <strong>Manual approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
+<p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} · <strong>Manual approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
 ${aiProposals.length
   ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(({ data_quality: "Data freshness", signal_quality: "Signal quality", entry_logic: "Entry quality", exit_logic: "Exit timing", risk_logic: "Risk controls", ranking_logic: "Ranking quality", observation: "Review status" })[proposal?.category] ?? "Review item")} · ${esc(({ high: "Important", medium: "Review", low: "Informational" })[proposal?.severity] ?? "Informational")}</h3><p><strong>What we found:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Suggested next step:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
   : "<p>No improvement suggestions are available for this report yet.</p>"}
@@ -430,7 +430,7 @@ ${metric("Automatic learning", proposalCalibrationHistory.automaticLearningAllow
 ${metric("Scanner mutation", proposalCalibrationHistory.scannerLogicMutationAllowed === true ? "Allowed" : "Locked")}
 </div>
 ${calibrationHistoryRows.length
-  ? calibrationHistoryRows.slice(0, 10).map((row) => `<article class="report-row"><h3>${esc(formatCustomerDateTime(row.generatedAt, account))}</h3><p><strong>Analyzed proposals:</strong> ${esc(number(row.analyzedProposalCount, locale))} | <strong>Review groups:</strong> ${esc(number(row.calibrationReviewQueueCount, locale))}</p><p><strong>Proposal groups:</strong> ${esc(number(row.proposalTypeGroupCount, locale))} | <strong>Target-area groups:</strong> ${esc(number(row.targetAreaGroupCount, locale))}</p><p><strong>Market-open evidence:</strong> ${esc(row.marketOpenObservationsOnly === true ? "Only" : "Mixed or unavailable")} | <strong>Fresh-source evidence:</strong> ${esc(row.freshSourceObservationsOnly === true ? "Only" : "Mixed or unavailable")}</p></article>`).join("")
+  ? calibrationHistoryRows.slice(0, 10).map((row) => `<article class="report-row"><h3>${esc(formatCustomerDateTime(row.generatedAt, account))}</h3><p><strong>Analyzed proposals:</strong> ${esc(number(row.analyzedProposalCount, locale))} · <strong>Review groups:</strong> ${esc(number(row.calibrationReviewQueueCount, locale))}</p><p><strong>Proposal groups:</strong> ${esc(number(row.proposalTypeGroupCount, locale))} · <strong>Target-area groups:</strong> ${esc(number(row.targetAreaGroupCount, locale))}</p><p><strong>Market-open evidence:</strong> ${esc(row.marketOpenObservationsOnly === true ? "Only" : "Mixed or unavailable")} · <strong>Fresh-source evidence:</strong> ${esc(row.freshSourceObservationsOnly === true ? "Only" : "Mixed or unavailable")}</p></article>`).join("")
   : "<p>No calibration history snapshots are available yet.</p>"}
 <div class="safety-locks">
 <span>Local history only</span>

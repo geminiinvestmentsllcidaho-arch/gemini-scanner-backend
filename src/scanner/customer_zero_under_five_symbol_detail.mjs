@@ -115,11 +115,11 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <section class="card hero"><p><a href="${esc(detail.backHref ?? "/customer/scanner/under-five")}" style="color:white">← Back to scanner</a></p><h1>${esc(detail.title)}</h1><p><b>Role:</b> ${esc(detail.roleLabel ?? "Customer")}</p></section>
 <section class="card"><span class="decision ${esc(String(detail.decision).toLowerCase().replaceAll("_","-"))}">${esc(detail.decisionLabel)}</span><p>${esc(detail.briefExplanation)}</p></section>
 <section class="card"><h2>Scan results</h2>
-<p><b>Score:</b> ${esc(detail.score)} | <b>Potential:</b> ${esc(detail.potentialLabel)}</p>
-<p><b>Price:</b> ${esc(detail.price)} | <b>Previous close:</b> ${esc(detail.previousClose)} | <b>Change:</b> ${esc(detail.changePct)}%</p>
-<p><b>Spread:</b> ${esc(detail.spreadPct)}% | <b>Daily volume:</b> ${esc(detail.dailyVolume)} | <b>Dollar volume:</b> ${esc(detail.dollarVolume)}</p>
+<p><b>Score:</b> ${esc(detail.score)} · <b>Potential:</b> ${esc(detail.potentialLabel)}</p>
+<p><b>Price:</b> ${esc(detail.price)} · <b>Previous close:</b> ${esc(detail.previousClose)} · <b>Change:</b> ${esc(detail.changePct)}%</p>
+<p><b>Spread:</b> ${esc(detail.spreadPct)}% · <b>Daily volume:</b> ${esc(detail.dailyVolume)} · <b>Dollar volume:</b> ${esc(detail.dollarVolume)}</p>
 <p><b>Data timestamp:</b> ${esc(formatCustomerDateTime(detail.sourceTs, account, { fallback: "Unavailable" }))}</p>
-<p><b>Source age:</b> ${esc(detail.sourceAgeSec)}s | <b>Stale:</b> ${esc(detail.sourceStale)}</p></section>
+<p><b>Source age:</b> ${esc(detail.sourceAgeSec)}s · <b>Stale:</b> ${esc(detail.sourceStale)}</p></section>
 <section class="card"><h2>Checks passed</h2><ul>${passed}</ul></section>
 ${detail.sourceStale ? `<section class="card runtime-health-block"><h2>Why this result is blocked</h2><p>Current data cannot be trusted for a fresh scanner decision.</p><ul>${runtimeHealth}</ul></section>` : ""}
 <section class="card"><h2>Flags</h2><ul>${flags}</ul><h2>Blocking reasons</h2><ul>${blockers}</ul></section>
