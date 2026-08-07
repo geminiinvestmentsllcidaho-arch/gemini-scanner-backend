@@ -1,0 +1,59 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { bridgePaperPreparationToLifecycle } from '../src/scanner/customer_paper_preparation_lifecycle_bridge.mjs'
+
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gs-bridge-'))
+
+test('ENTER creates lifecycle and deterministic one-share BUY handoff without broker permission', () => {
+  const runsDir = tmp()
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-enter-1', mode: 'ENTER', symbol: 'ABC', quantity: 1,
+  }, { runsDir, accountId: 'customer-zero' })
+  assert.equal(out.lifecycleState, 'CANDIDATE_SELECTED')
+  assert.equal(out.order.qty, 1)
+  assert.equal(out.order.side, 'buy')
+  assert.match(out.order.clientOrderId, /^gs-pa-enter-/)
+  assert.equal(out.safety.orderPlacementAllowed, false)
+  assert.equal(out.safety.submissionBoundaryRetained, true)
+  assert.equal(fs.existsSync(out.lifecycleFile), true)
+})
+
+test('EXIT resolves exactly one matching MONITORING lifecycle and deterministic SELL handoff', () => {
+  const runsDir = tmp()
+  const now = new Date().toISOString()
+  const file = path.join(runsDir, 'paper_auto_enter_only_mechanical_lifecycle_test.json')
+  fs.writeFileSync(file, JSON.stringify({
+    version: 'paper_auto_execution_lifecycle_v1',
+    lifecycleId: 'life-123',
+    state: 'MONITORING',
+    selectedSymbol: 'BTG',
+    enterClientOrderId: 'enter-1',
+    enterBrokerOrderId: 'broker-1',
+    exitClientOrderId: null,
+    exitBrokerOrderId: null,
+    filledQuantity: 2,
+    averageFillPrice: 4.5,
+    brokerPositionIdentity: 'BTG:2',
+    reconciliation: [],
+    createdAt: now,
+    updatedAt: now,
+  }))
+  const out = bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-exit-1', mode: 'EXIT', symbol: 'BTG', quantity: 2,
+  }, { runsDir })
+  assert.equal(out.lifecycleId, 'life-123')
+  assert.equal(out.lifecycleState, 'MONITORING')
+  assert.equal(out.order.side, 'sell')
+  assert.equal(out.order.qty, 2)
+  assert.match(out.order.clientOrderId, /^gs-pa-exit-/)
+})
+
+test('EXIT fails closed without exactly one matching lifecycle', () => {
+  const runsDir = tmp()
+  assert.throws(() => bridgePaperPreparationToLifecycle({
+    ok: true, preparationId: 'prep-exit-missing', mode: 'EXIT', symbol: 'USAS', quantity: 1,
+  }, { runsDir }), /matching_lifecycle_not_found/)
+})

@@ -4811,7 +4811,11 @@ app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustome
       return res.status(400).type('html').send(`<!doctype html><html><body><main><h1>Paper order preparation blocked</h1><p>${record.blockers.join(', ')}</p><p>No broker contact or order placement occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
     }
     const saved = mod.persistCustomerPaperOrderPreparation(record);
-    return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} prepared</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Local mechanical-test preparation only. No broker contact, order placement, or account mutation occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
+    const bridgeMod = await import('./scanner/customer_paper_preparation_lifecycle_bridge.mjs');
+    const handoff = bridgeMod.bridgePaperPreparationToLifecycle(saved, {
+      accountId: req.customerAccount?.id,
+    });
+    return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} lifecycle ready</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Lifecycle ID: ${handoff.lifecycleId}</p><p>Client order ID: ${handoff.order.clientOrderId}</p><p>Status: ${handoff.status}</p><p>GeminiScanner created or resolved the exact PAPER lifecycle and deterministic order handoff. Final broker submission remains blocked here; no broker contact, order placement, or account mutation occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
   } catch (error) {
     console.error('[customer-paper-order-prepare]', error);
     return res.status(500).type('html').send('<!doctype html><html><body><main><h1>Paper order preparation failed</h1><p>No broker contact or order placement occurred.</p></main></body></html>');
