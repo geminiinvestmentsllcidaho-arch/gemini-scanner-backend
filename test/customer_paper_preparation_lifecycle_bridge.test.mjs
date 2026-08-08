@@ -168,7 +168,6 @@ test('repeated ENTER preparation fails closed while customer lifecycle is active
     runsDir,
     accountId: 'customer-zero',
     nowMs: 1786128600000,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
   })
   assert.equal(first.lifecycleState, 'CANDIDATE_SELECTED')
   assert.throws(() => bridgePaperPreparationToLifecycle({
@@ -182,7 +181,6 @@ test('repeated ENTER preparation fails closed while customer lifecycle is active
     runsDir,
     accountId: 'customer-zero',
     nowMs: 1786128601000,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
   }), /paper_enter_active_customer_lifecycle_exists/)
   const lifecycleFiles = fs.readdirSync(runsDir).filter((name) => name.startsWith('customer_paper_user_lifecycle_customer-zero') && name.endsWith('.json'))
   assert.equal(lifecycleFiles.length, 1)
@@ -195,14 +193,12 @@ test('different customer account may create its own pending ENTER lifecycle', ()
     customerAccountId: 'customer-a',
   }, {
     runsDir, accountId: 'customer-a', nowMs: 1786128600000,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
   })
   const second = bridgePaperPreparationToLifecycle({
     ok: true, preparationId: 'prep-b', mode: 'ENTER', symbol: 'XYZ', quantity: 1,
     customerAccountId: 'customer-b',
   }, {
     runsDir, accountId: 'customer-b', nowMs: 1786128600000,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
   })
   assert.equal(second.lifecycleState, 'CANDIDATE_SELECTED')
 })
@@ -224,7 +220,6 @@ test('simultaneous ENTER preparation fails closed on account-scoped lock content
     runsDir,
     accountId: 'customer-zero',
     nowMs: 1786128800000,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
   }), /paper_enter_customer_preparation_in_progress/)
   assert.equal(fs.existsSync(path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json')), false)
 })
@@ -242,7 +237,6 @@ test('ENTER preparation lock is removed after successful lifecycle creation', ()
     runsDir,
     accountId: 'customer-zero',
     nowMs: 1786128800000,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
   })
   assert.equal(fs.existsSync(path.join(runsDir, 'customer_paper_user_enter_locks', 'customer-zero.lock')), false)
 })
