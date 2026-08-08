@@ -4,12 +4,9 @@ const ROUTES = Object.freeze([
   ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
   ["/app/paper-app-readiness-status", "Paper App Readiness Status"],
   ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
-  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
-  ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
   ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"],
   ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
-  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
 ]);
 
 function esc(value) {
@@ -39,5 +36,5 @@ export function buildPaperOperatorStartHereAppScreen() {
 
 export function renderPaperOperatorStartHereAppScreenHtml(screen = buildPaperOperatorStartHereAppScreen()) {
   const rows = screen.recommendedSequence.map((route) => `<li><a href="${esc(route.href)}">${esc(route.title)}</a></li>`).join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(screen.title)}</title></head><body><main><p><a href="/app">App</a></p><h1>${esc(screen.title)}</h1><p>${esc(screen.finalDecision)}</p><p>read-only. Monitor-only. Diagnostics-only. No broker contact. No order placement. No account mutation. No live trading. No auto trading. No execution controls.</p><h2>Start Here Sequence</h2><ol>${rows}</ol><h2>Safety Locks</h2><p>brokerContactAllowed=false</p><p>orderPlacementAllowed=false</p><p>accountMutationAllowed=false</p><p>Approval record tool is read-only and cannot create approvals from the web app.</p></main></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(screen.title)}</title></head><body><main><p><a href="/app">App</a></p><h1>${esc(screen.title)}</h1><p>${esc(screen.finalDecision)}</p><p>read-only. Monitor-only. Diagnostics-only. No broker contact. No order placement. No account mutation. No live trading. No auto trading. No execution controls.</p><h2>Start Here Sequence</h2><ol>${rows}</ol><h2>Safety Locks</h2><p>brokerContactAllowed=false</p><p>orderPlacementAllowed=false</p><p>accountMutationAllowed=false</p></main></body></html>`;
 }

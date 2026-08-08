@@ -105,7 +105,7 @@ const summary = {
     orderPlacementAllowed: route.orderPlacementAllowed ?? safety.orderPlacementAllowed ?? null,
     accountMutationAllowed: route.accountMutationAllowed ?? safety.accountMutationAllowed ?? null
   },
-  nextStepIfPass: "Review /app/paper-readiness-gate, /app/paper-trade-readiness-report, and /app/paper-trade-operator-go-no-go before any tiny paper attempt.",
+  nextStepIfPass: "Review /app/paper-readiness-gate before any PAPER execution attempt.",
   abort: [
     "pm2 stop gemini-scanner",
     "pm2 logs gemini-scanner --lines 100",

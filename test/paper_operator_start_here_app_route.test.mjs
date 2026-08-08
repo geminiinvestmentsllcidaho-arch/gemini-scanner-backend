@@ -12,9 +12,9 @@ test("paper operator start here app screen is read-only and links workflow route
   assert.equal(screen.monitorOnly, true);
   assert.equal(screen.displayState, "PAPER_OPERATOR_START_HERE_READONLY");
   assert.equal(screen.finalDecision, "NO_GO_FOR_ORDER_PLACEMENT");
-  assert.match(html, /Paper Broker Adapter Approval Record Tool/);
-  assert.match(html, /Paper Broker Adapter Approval Lock/);
+  assert.match(html, /Paper Trading Readiness Gate/);
   assert.match(html, /Paper App Broker Readiness Index/);
+  assert.doesNotMatch(html, /Approval Record|Approval Lock|approval record/i);
   assert.deepEqual([html.includes("No broker contact"), html.includes("No order placement"), html.includes("No account mutation")], [true, true, true]);
   assert.doesNotMatch(html, /<button|<form|method=["']post/i);
 });
