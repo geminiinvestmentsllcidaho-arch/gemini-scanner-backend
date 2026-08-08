@@ -6,12 +6,10 @@ import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from '../src/scanner/paper_auto_execution_lifecycle_store.mjs'
 import { STATES as S } from '../src/scanner/paper_auto_execution_state_machine.mjs'
 import { runPaperAutoExecutionExitOnly } from '../src/scanner/paper_auto_execution_exit_only_runner.mjs'
-import { REQUIRED_PHRASE, REQUIRED_SCOPE } from '../src/scanner/paper_auto_execution_exit_only_run_once_authorization.mjs'
 
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-exit-only-'))
   const lifecycleFile = path.join(dir, 'lifecycle.json')
-  const latch = path.join(dir, 'authorization.json')
   const reportFile = path.join(dir, 'report.json')
   const store = new PaperAutoExecutionLifecycleStore({
     filePath: lifecycleFile,
@@ -29,15 +27,9 @@ function fixture() {
   const nowMs = Date.now()
   const args = {
     execute: 'true',
-    operator: 'Borac',
-    authorizationId: 'exit-only-auth-1',
-    phrase: REQUIRED_PHRASE,
-    scope: REQUIRED_SCOPE,
     lifecycleId: 'life-exit-only-1',
     symbol: 'BTG',
     quantity: '1',
-    expiresAtMs: String(nowMs + 60000),
-    latch,
     lifecycleFile,
   }
   const env = {
@@ -51,7 +43,7 @@ function fixture() {
     accessSwitchEnabled: true,
     env: {},
   })
-  return { dir, lifecycleFile, latch, reportFile, nowMs, args, env, accountCredentialResolver }
+  return { dir, lifecycleFile, reportFile, nowMs, args, env, accountCredentialResolver }
 }
 
 test('fails closed before network when explicit execution is absent', async () => {
@@ -68,7 +60,26 @@ test('fails closed before network when explicit execution is absent', async () =
     assert.equal(result.status, 'EXIT_ONLY_BLOCKED')
     assert.ok(result.blockers.includes('explicit_execute_true_required'))
     assert.equal(calls, 0)
-    assert.equal(fs.existsSync(f.latch), false)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f.lifecycleFile }).load().state, S.MONITORING)
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true })
+  }
+})
+
+test('fails closed before network when exact EXIT identity is missing', async () => {
+  const f = fixture()
+  let calls = 0
+  try {
+    await assert.rejects(
+      runPaperAutoExecutionExitOnly({
+        args: { ...f.args, lifecycleId: '', symbol: '', quantity: '0' },
+        env: f.env,
+        nowMs: f.nowMs,
+        fetchImpl: async () => { calls += 1; throw new Error('network forbidden') },
+      }),
+      /paper_exit_only_exact_lifecycle_id_required/,
+    )
+    assert.equal(calls, 0)
     assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f.lifecycleFile }).load().state, S.MONITORING)
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true })
@@ -105,7 +116,6 @@ test('fails closed before submission when exact broker position is absent', asyn
       /paper_exit_only_exact_broker_position_required/,
     )
     assert.equal(postCalls, 0)
-    assert.equal(fs.existsSync(f.latch), false)
     assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f.lifecycleFile }).load().state, S.MONITORING)
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true })
@@ -132,7 +142,6 @@ test('blocks a closed market before authorization consumption or submission', as
       /paper_exit_only_market_open_required/,
     )
     assert.equal(postCalls, 0)
-    assert.equal(fs.existsSync(f.latch), false)
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true })
   }
@@ -161,7 +170,6 @@ test('blocks a conflicting open order before authorization consumption or submis
       /paper_exit_only_conflicting_open_order/,
     )
     assert.equal(postCalls, 0)
-    assert.equal(fs.existsSync(f.latch), false)
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true })
   }
@@ -193,7 +201,6 @@ test('blocks broker-position identity mismatch before authorization consumption 
       /paper_exit_only_broker_position_identity_mismatch/,
     )
     assert.equal(postCalls, 0)
-    assert.equal(fs.existsSync(f.latch), false)
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true })
   }
@@ -256,7 +263,6 @@ test('submits one exact sell and reconciles the lifecycle closed', async () => {
     assert.equal(result.lifecycle.state, S.ROUND_TRIP_COMPLETED)
     assert.equal(result.safety.enterAllowed, false)
     assert.equal(result.safety.liveTradingAllowed, false)
-    assert.equal(JSON.parse(fs.readFileSync(f.latch, 'utf8')).status, 'CONSUMED')
     assert.equal(JSON.parse(fs.readFileSync(f.reportFile, 'utf8')).status, 'EXACT_POSITION_PAPER_EXIT_COMPLETED')
   } finally {
     fs.rmSync(f.dir, { recursive: true, force: true })

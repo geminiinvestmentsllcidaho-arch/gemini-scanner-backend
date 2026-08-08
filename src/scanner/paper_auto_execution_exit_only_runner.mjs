@@ -5,10 +5,6 @@ import { createPaperAutoExecutionAlpacaPaperAdapter } from './paper_auto_executi
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
 import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
-import {
-  evaluatePaperAutoExitOnlyRunOnceAuthorization,
-  consumePaperAutoExitOnlyRunOnceAuthorization,
-} from './paper_auto_execution_exit_only_run_once_authorization.mjs'
 
 export const VERSION = 'paper_auto_execution_exit_only_runner_v1'
 const clean = (value) => String(value ?? '').trim()
@@ -56,7 +52,6 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   const lifecycleFile = clean(args.lifecycleFile ?? args['lifecycle-file'])
   const blockers = []
   if (!yes(args.execute)) blockers.push('explicit_execute_true_required')
-  if (clean(args.operator) !== 'Borac') blockers.push('borac_operator_identity_required')
   if (!lifecycleFile) blockers.push('lifecycle_file_required')
   if (clean(env.APCA_API_BASE_URL) !== 'https://paper-api.alpaca.markets') blockers.push('alpaca_paper_base_url_required')
   if (clean(env.ALPACA_PAPER_TRADING).toLowerCase() !== 'true') blockers.push('alpaca_paper_trading_flag_required')
@@ -66,23 +61,15 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
 
   const store = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
   const lifecycle = store.load()
-  const authorization = {
-    env: { ...env, PAPER_AUTO_EXIT_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
-    authorizationId: clean(args.authorizationId ?? args['authorization-id']),
-    operator: clean(args.operator),
-    phrase: clean(args.phrase),
-    scope: clean(args.scope),
-    lifecycleId: clean(args.lifecycleId ?? args['lifecycle-id']),
-    symbol: clean(args.symbol),
-    quantity: Number(args.quantity),
-    expiresAtMs: Number(args.expiresAtMs ?? args['expires-at-ms']),
-    latchFile: clean(args.latch),
-  }
-  const evaluated = evaluatePaperAutoExitOnlyRunOnceAuthorization(authorization, nowMs)
-  if (!evaluated.ok) return { ok: false, version: VERSION, status: 'EXIT_ONLY_BLOCKED', blockers: evaluated.blockers }
+  const lifecycleId = clean(args.lifecycleId ?? args['lifecycle-id'])
+  const symbol = clean(args.symbol).toUpperCase()
+  const quantity = Number(args.quantity)
+  if (!lifecycleId) throw new Error('paper_exit_only_exact_lifecycle_id_required')
+  if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error('paper_exit_only_exact_symbol_required')
+  if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('paper_exit_only_exact_positive_quantity_required')
   if (!lifecycle || lifecycle.state !== 'MONITORING') throw new Error('paper_exit_only_monitoring_lifecycle_required')
-  if (lifecycle.lifecycleId !== evaluated.lifecycleId) throw new Error('paper_exit_only_lifecycle_id_mismatch')
-  store.assertExitTarget({symbol: evaluated.symbol, quantity: evaluated.quantity})
+  if (lifecycle.lifecycleId !== lifecycleId) throw new Error('paper_exit_only_lifecycle_id_mismatch')
+  store.assertExitTarget({ symbol, quantity })
 
   const clock = await fetchPaperClock({ env, fetchImpl })
   if (clock.is_open !== true) throw new Error('paper_exit_only_market_open_required')
@@ -99,20 +86,17 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   if (!Number.isFinite(observedAtMs) || Math.abs(nowMs - observedAtMs) > 30000) throw new Error('paper_exit_only_account_snapshot_stale')
   if (accountBefore.account?.tradingBlocked === true || accountBefore.account?.accountBlocked === true) throw new Error('paper_exit_only_account_blocked')
   const exactPosition = (accountBefore.positions ?? []).find((position) =>
-    clean(position.symbol).toUpperCase() === evaluated.symbol &&
-    Number(position.qty ?? position.quantity) === evaluated.quantity
+    clean(position.symbol).toUpperCase() === symbol &&
+    Number(position.qty ?? position.quantity) === quantity
   )
   if (!exactPosition) throw new Error('paper_exit_only_exact_broker_position_required')
   const brokerIdentity = `${clean(exactPosition.symbol).toUpperCase()}:${Number(exactPosition.qty ?? exactPosition.quantity)}`
   if (clean(lifecycle.brokerPositionIdentity) !== brokerIdentity) throw new Error('paper_exit_only_broker_position_identity_mismatch')
   const conflictingOrder = (accountBefore.openOrders ?? []).find((order) =>
-    clean(order.symbol).toUpperCase() === evaluated.symbol &&
+    clean(order.symbol).toUpperCase() === symbol &&
     ['buy', 'sell'].includes(clean(order.side).toLowerCase())
   )
   if (conflictingOrder) throw new Error('paper_exit_only_conflicting_open_order')
-
-  const consumed = consumePaperAutoExitOnlyRunOnceAuthorization(authorization, nowMs)
-  if (!consumed.ok || consumed.consumed !== true) throw new Error('paper_exit_only_authorization_consume_failed')
 
   const adapter = createPaperAutoExecutionAlpacaPaperAdapter( {
     env: { ...env, PAPER_AUTO_ALPACA_ADAPTER_ENABLED: '1' },
@@ -121,7 +105,7 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   const submission = await submitPaperAutoOrder({
     lifecycleStore: store,
     phase: 'exit',
-    quantity: evaluated.quantity,
+    quantity,
     submitPaperOrder: adapter.submitPaperOrder,
     env: {
       ...env,
@@ -151,7 +135,6 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     status: finalLifecycle?.state === 'ROUND_TRIP_COMPLETED'
       ? 'EXACT_POSITION_PAPER_EXIT_COMPLETED'
       : 'EXACT_POSITION_PAPER_EXIT_RECONCILIATION_REQUIRED',
-    authorization: consumed.record,
     submission,
     reconciliation,
     lifecycle: finalLifecycle,
