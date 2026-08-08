@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-test('customer PAPER preparation route bridges into lifecycle handoff without broker submission', () => {
+test('customer PAPER preparation route bridges into retained submission boundary without submitting', () => {
   const source = fs.readFileSync('src/server.js', 'utf8')
   const start = source.indexOf("app.post('/customer/paper-order/prepare'")
   assert.ok(start >= 0)
@@ -14,12 +14,8 @@ test('customer PAPER preparation route bridges into lifecycle handoff without br
   assert.match(block, /bridgePaperPreparationToLifecycle/)
   assert.match(block, /Lifecycle ID:/)
   assert.match(block, /Client order ID:/)
-  assert.match(block, /Final broker submission remains blocked here/)
-  assert.match(block, /Manual Alpaca PAPER submission ticket/)
-  assert.match(block, /GeminiScanner will not transmit this order/)
-  assert.match(block, /open your Alpaca PAPER account/)
-  assert.match(block, /press Alpaca's submit control yourself/)
-  assert.match(block, /return to GeminiScanner for read-only reconciliation/)
+  assert.match(block, /retained submission boundary/)
+  assert.match(block, /did not contact Alpaca, submit an order, or mutate the account/)
   assert.doesNotMatch(block, /fetch\s*\(|\/v2\/orders|submitPaperOrder|submitPaperAutoOrder/)
   assert.doesNotMatch(block, /submitPaperAutoOrder/)
   assert.doesNotMatch(block, /submitPaperOrder/)

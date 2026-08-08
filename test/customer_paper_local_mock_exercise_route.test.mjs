@@ -32,7 +32,7 @@ test('preparation response exposes LOCAL MOCK control only behind dedicated gate
   assert.match(block, /action="\/customer\/paper-order\/mock-exercise"/)
   assert.match(block, /name="preparationId"/)
   assert.match(block, /LOCAL MOCK only/)
-  assert.match(block, /Final broker submission remains blocked here/)
+  assert.match(block, /retained submission boundary/)
   assert.doesNotMatch(block, /submitPaperAutoOrder/)
   assert.doesNotMatch(block, /\/v2\/orders/)
   assert.doesNotMatch(block, /fetch\(/)
