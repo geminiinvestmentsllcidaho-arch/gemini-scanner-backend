@@ -1,7 +1,6 @@
 import{buildAppNavigationReadonly as nav}from"./app_navigation_readonly.mjs";
 export const VERSION="paper_app_broker_readiness_index_app_screen_v1";
 export const ROUTE="/app/paper-app-broker-readiness-index";
-const PAPER_BROKER_ADAPTER_APPROVAL_LOCK_TITLE="Paper Broker Adapter Approval Lock";
 export const REQUIRED_ROUTES=Object.freeze(["/app/paper-app-safety-lock-status","/app/paper-broker-runtime-environment-preflight","/app/paper-broker-network-attempt-status","/app/paper-readiness-gate"]);
 const S=Object.freeze({liveTradingAllowed:false,autoTradingAllowed:false,brokerExecutionAllowed:false,brokerContactAllowed:false,orderPlacementAllowed:false,orderSubmitAllowed:false,retryAllowed:false,resetAllowed:false,accountMutationAllowed:false,routeExecutionAllowed:false});
 const A=v=>Array.isArray(v)?v:[],R=e=>String(e?.routeHref||e?.href||""),E=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
