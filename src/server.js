@@ -2643,11 +2643,14 @@ app.post('/admin/logout', requireCustomerSameOrigin, (req, res) => {
 app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const mod = await import('./scanner/admin_surface.mjs');
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
-  const alpacaAccess = await accessMod.getAlpacaMasterAccessSwitchState();
-  const surface = mod.buildAdminSurface({ alpacaAccess });
+  const healthMod = await import('./scanner/admin_system_health.mjs');
+  const [alpacaAccess, systemHealth] = await Promise.all([accessMod.getAlpacaMasterAccessSwitchState(), healthMod.collectAdminSystemHealth()]);
+  const surface = mod.buildAdminSurface({ alpacaAccess, systemHealth });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderAdminSurfaceHtml(surface));
 });
+
+app.get('/admin/system-health', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_system_health.mjs'); const x = await m.collectAdminSystemHealth(); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminSystemHealth(x)); });
 
 app.post('/admin/alpaca-access', requireAdminAuthorization, requireCustomerSameOrigin, async (req, res) => {
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');

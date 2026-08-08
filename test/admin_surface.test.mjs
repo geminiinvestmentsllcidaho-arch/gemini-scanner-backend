@@ -88,9 +88,9 @@ test("renders admin-only navigation without customer interface links", () => {
     "Active User Sessions",
     "Database &amp; Queue Backups",
   ]) assert.match(html, new RegExp(label));
-  assert.match(html, /Local telemetry wiring pending/);
-  assert.match(html, /Local latency wiring pending/);
-  assert.match(html, /Local error-stream wiring pending/);
+  assert.match(html, /Memory:<\/strong>/);
+  assert.match(html, /\/health:<\/strong>/);
+  assert.match(html, /Recent errors:<\/strong>/);
   assert.match(html, /Exact concurrent-session counting not yet instrumented/);
   assert.match(html, /Automatic backup scheduler verification pending/);
   assert.match(html, /Turn OFF Alpaca read access/);

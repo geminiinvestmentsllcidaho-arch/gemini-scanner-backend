@@ -10,6 +10,7 @@ function esc(value) {
 }
 
 export function buildAdminSurface(options = {}) {
+  const systemHealth = options.systemHealth ?? null;
   const alpacaAccess = options.alpacaAccess ?? {
     enabled: false,
     accessMode: "ALPACA_ACCOUNT_ACCESS_OFF",
@@ -42,6 +43,7 @@ export function buildAdminSurface(options = {}) {
     decisionAssistOnly: true,
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
+    systemHealth,
     alpacaAccess: Object.freeze({ ...alpacaAccess }),
   });
 }
@@ -95,9 +97,9 @@ hr{border:0;border-top:1px solid #39ff14}
 <p>${esc(surface.subtitle)}</p>
 </section>
 <section class="ops-group"><h2>System &amp; Infrastructure Health</h2><div class="grid">
-<div class="card"><h3>Server Status Panel</h3><p>CPU usage, memory, disk space, and network traffic.</p><p><strong>Status:</strong> Local telemetry wiring pending.</p><a href="/admin/system-health">Open system health</a></div>
-<div class="card"><h3>Uptime &amp; Latency Monitor</h3><p>Server uptime, API response times, and connection latency in milliseconds.</p><p><strong>Status:</strong> Local latency wiring pending.</p></div>
-<div class="card"><h3>Error Log Stream</h3><p>Recent server errors, database failures, watchdog incidents, and unhandled exceptions.</p><p><strong>Status:</strong> Local error-stream wiring pending.</p></div>
+<div class="card"><h3>Server Status Panel</h3><p>CPU usage, memory, disk space, and network traffic.</p><p><strong>Memory:</strong> ${esc(surface.systemHealth?.host?.memoryPct ?? "Unavailable")}% · <strong>Disk:</strong> ${esc(surface.systemHealth?.host?.diskPct ?? "Unavailable")}% · <strong>Load/CPU:</strong> ${esc(surface.systemHealth?.host?.load ?? "Unavailable")}</p><a href="/admin/system-health">Open system health</a></div>
+<div class="card"><h3>Uptime &amp; Latency Monitor</h3><p>Server uptime and local API response times.</p><p><strong>/health:</strong> ${esc(surface.systemHealth?.latency?.health?.ms ?? "Unavailable")} ms · <strong>/readiness:</strong> ${esc(surface.systemHealth?.latency?.readiness?.ms ?? "Unavailable")} ms</p></div>
+<div class="card"><h3>Error Log Stream</h3><p>Recent server errors and watchdog incidents.</p><p><strong>Recent errors:</strong> ${esc(surface.systemHealth?.errors?.length ?? "Unavailable")} · <strong>Infrastructure:</strong> ${esc(surface.systemHealth?.infra ?? "Unavailable")} · <strong>Ops AI:</strong> ${esc(surface.systemHealth?.ops ?? "Unavailable")}</p><a href="/admin/system-health">Open error stream</a></div>
 </div></section>
 <section class="ops-group"><h2>Trading Engine &amp; Execution</h2><div class="grid">
 <div class="card"><h3>Active Orders &amp; Queue</h3><p>Pending, executing, partially filled, and filled PAPER order evidence.</p><p><strong>Status:</strong> Stored read-only order evidence only until live broker read is explicitly enabled.</p></div>
