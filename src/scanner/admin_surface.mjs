@@ -72,7 +72,7 @@ p{color:#b8c7dc;line-height:1.6}
 </head>
 <body>
 <main class="wrap" data-role="admin">
-<nav aria-label="Admin navigation">${nav}</nav>
+<nav aria-label="Admin navigation">${nav}<form method="post" action="/admin/logout" style="margin-left:auto"><button type="submit">Log out</button></form></nav>
 <section class="hero">
 <div class="eyebrow">Protected admin operations</div>
 <h1>${esc(surface.title)}</h1>

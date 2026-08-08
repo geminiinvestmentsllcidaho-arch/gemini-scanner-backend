@@ -62,6 +62,8 @@ test("renders admin-only navigation without customer interface links", () => {
   assert.match(html, /Alpaca account access/);
   assert.match(html, /Status: <strong>ON<\/strong>/);
   assert.match(html, /form method="post" action="\/admin\/alpaca-access"/);
+  assert.match(html, /form method="post" action="\/admin\/logout"/);
+  assert.match(html, /<button type="submit">Log out<\/button>/);
   assert.match(html, /Turn OFF Alpaca read access/);
   assert.match(html, /order placement, cancellation, replacement, live trading, and PAPER submission remain locked/i);
   assert.doesNotMatch(html, /href="\/customer(?:["/])/);
