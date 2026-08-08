@@ -81,12 +81,7 @@ const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
   ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
-  ["/app/paper-trade-readiness-report", "Paper Trade Readiness Report"],
-  ["/app/paper-trade-broker-integration-preflight-stack", "Paper Trade Broker Integration Preflight Stack"],
   ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
-  ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
-  ["/app/paper-trade-execution-control-stack", "Paper Trade Execution Control Stack"],
-  ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
   ["/app/paper-trading-completion-certificate", "Paper Trading Completion Certificate"],
   ["/app/paper-trading-module-route-index", "Paper Trading Module Route Index"],
   ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"]

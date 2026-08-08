@@ -11,7 +11,7 @@ test("paper app readiness status links related broker readiness routes and remai
   assert.match(html, /\/app\/paper-app-broker-readiness-index/);
   assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
   assert.match(html, /\/app\/paper-broker-network-attempt-status/);
-  assert.match(html, /\/app\/paper-trade-readiness-report/);
+  assert.match(html, /\/app\/paper-readiness-gate/);
   assert.match(html, /\/app\/paper-trading-module-final-status/);
 
   assert.doesNotMatch(html, /<form/i);
