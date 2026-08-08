@@ -58,16 +58,27 @@ export function renderAdminSurfaceHtml(surface = buildAdminSurface()) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(surface.title)}</title>
 <style>
+:root{color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:#070b12;color:#eef4ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:1050px;margin:auto;padding:24px 18px 46px}
-nav{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
-nav a{color:#dbe8ff;text-decoration:none;border:1px solid #304766;border-radius:10px;padding:10px 13px;background:#101c2f}\nbutton{cursor:pointer;border:1px solid #4b6f9f;border-radius:10px;padding:10px 13px;background:#173052;color:#eef4ff;font-weight:800}
-.hero,.card{background:#101c2f;border:1px solid #263a58;border-radius:16px;padding:20px;margin-bottom:16px}
-.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:#8eb4ff}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-.card a{color:#9ee4ff}
-p{color:#b8c7dc;line-height:1.6}
+html,body{margin:0;background:#000;color:#39ff14;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{min-height:100vh;background:#000}
+a{color:#39ff14}
+.wrap{max-width:1180px;margin:0 auto;padding:24px}
+nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;border:1px solid #39ff14;padding:12px;background:#000;box-shadow:0 0 18px rgba(57,255,20,.16)}
+nav a,nav button{border:1px solid #39ff14;background:#000;color:#39ff14;padding:10px 14px;border-radius:8px;text-decoration:none;font:inherit;cursor:pointer}
+nav a:hover,nav button:hover,nav a:focus-visible,nav button:focus-visible{background:#39ff14;color:#000;outline:none;box-shadow:0 0 16px rgba(57,255,20,.65)}
+.hero,.card,.panel,.section{background:#000;border:1px solid #39ff14;border-radius:14px;padding:22px;box-shadow:0 0 18px rgba(57,255,20,.14)}
+.hero{margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+h1,h2,h3,h4,strong,label,.eyebrow{color:#39ff14}
+p,li,td,th,small,.muted{color:#39ff14}
+table{width:100%;border-collapse:collapse;background:#000;color:#39ff14}
+th,td{border:1px solid #39ff14;padding:10px;text-align:left}
+input,select,textarea{width:100%;background:#000;color:#39ff14;border:1px solid #39ff14;border-radius:8px;padding:10px;outline:none}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 14px rgba(57,255,20,.55)}
+button{background:#000;color:#39ff14;border:1px solid #39ff14}
+hr{border:0;border-top:1px solid #39ff14}
+.status,.badge,.pill{background:#000!important;color:#39ff14!important;border:1px solid #39ff14!important}
 </style>
 </head>
 <body>
