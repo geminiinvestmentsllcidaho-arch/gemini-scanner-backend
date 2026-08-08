@@ -64,6 +64,7 @@ import { applyCustomerSecurityHeaders } from './scanner/customer_security_header
 import { validateCustomerSessionSecret } from './scanner/customer_session_secret.mjs';
 import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
 import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
+import { createAdminLoginRateLimiter } from './scanner/admin_login_rate_limit.mjs';
 import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
 import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
 import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
@@ -96,7 +97,7 @@ import { fetchAlpacaMarketClockReadonly } from './scanner/alpaca_market_clock_re
 import { runStrategyObservationPersistence } from './scanner/strategy_observation_persistence_runner.mjs';
 import { listCustomerReportBackgroundAiReviewRecords } from './scanner/customer_report_background_ai_review_store.mjs';
 import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes, resolveOperatorDashboardToken } from './operator/operator_dashboard.mjs';
-import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
+import { createRequireAdminAuthorization, evaluateAdminAuthorization } from './scanner/admin_authorization.mjs';
 import {
   ADMIN_SESSION_COOKIE_NAME,
   buildAdminSessionCookieClearOptions,
@@ -2544,7 +2545,7 @@ const requireInternalOwnerAuth = createRequireOperatorDashboardAuth();
 const requireInternalOwnerAuthorization = createRequireInternalOwnerAuthorization();
 const requireInternalOwnerTenantIsolation = createRequireInternalOwnerTenantIsolation();
 const requireAdminTokenAuthorization = createRequireAdminAuthorization();
-const adminLoginRateLimiter = createCustomerLoginRateLimiter();
+const adminLoginRateLimiter = createAdminLoginRateLimiter();
 
 function adminLoginHtml(message = '') {
   const notice = message
