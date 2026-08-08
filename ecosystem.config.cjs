@@ -51,19 +51,5 @@ module.exports = {
       max_restarts: 20,
       env: { NODE_ENV: "production", GS_EXECUTION_READINESS_WATCH_INTERVAL_MS: "30000" },
     },
-    {
-      name: "gemini-paper-manual-watcher",
-      cwd: "/home/gemini/apps/gemini-scanner-backend",
-      script: "./scripts/run_paper_manual_round_trip_watcher_pm2_safe.sh",
-      interpreter: "none",
-      exec_mode: "fork",
-      autorestart: true,
-      restart_delay: 5000,
-      max_restarts: 20,
-      env: {
-        NODE_ENV: "production",
-        PAPER_MANUAL_WATCH_INTERVAL_MS: "15000",
-      },
-    },
   ],
 };
