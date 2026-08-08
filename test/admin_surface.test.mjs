@@ -67,6 +67,8 @@ test("renders admin-only navigation without customer interface links", () => {
   assert.match(html, /background:#000/);
   assert.match(html, /color:#39ff14/);
   assert.match(html, /border:1px solid #39ff14/);
+  assert.match(html, /button\{background:#000;color:#00ffff;border:1px solid #00ffff/);
+  assert.match(html, /nav button\{border:1px solid #00ffff;background:#000;color:#00ffff/);
   assert.doesNotMatch(html, /#b8c7dc|#0b1220|#101827|#1b263b|#38bdf8/i);
   assert.match(html, /Turn OFF Alpaca read access/);
   assert.match(html, /order placement, cancellation, replacement, live trading, and PAPER submission remain locked/i);

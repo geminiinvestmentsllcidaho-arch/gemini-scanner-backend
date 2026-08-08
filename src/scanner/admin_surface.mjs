@@ -65,8 +65,10 @@ body{min-height:100vh;background:#000}
 a{color:#39ff14}
 .wrap{max-width:1180px;margin:0 auto;padding:24px}
 nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;border:1px solid #39ff14;padding:12px;background:#000;box-shadow:0 0 18px rgba(57,255,20,.16)}
-nav a,nav button{border:1px solid #39ff14;background:#000;color:#39ff14;padding:10px 14px;border-radius:8px;text-decoration:none;font:inherit;cursor:pointer}
-nav a:hover,nav button:hover,nav a:focus-visible,nav button:focus-visible{background:#39ff14;color:#000;outline:none;box-shadow:0 0 16px rgba(57,255,20,.65)}
+nav a{border:1px solid #39ff14;background:#000;color:#39ff14;padding:10px 14px;border-radius:8px;text-decoration:none;font:inherit;cursor:pointer}
+nav a:hover,nav a:focus-visible{background:#39ff14;color:#000;outline:none;box-shadow:0 0 16px rgba(57,255,20,.65)}
+nav button{border:1px solid #00ffff;background:#000;color:#00ffff;padding:10px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button:hover,nav button:focus-visible{background:#00ffff;color:#000;outline:none;box-shadow:0 0 16px rgba(0,255,255,.65)}
 .hero,.card,.panel,.section{background:#000;border:1px solid #39ff14;border-radius:14px;padding:22px;box-shadow:0 0 18px rgba(57,255,20,.14)}
 .hero{margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
@@ -76,7 +78,7 @@ table{width:100%;border-collapse:collapse;background:#000;color:#39ff14}
 th,td{border:1px solid #39ff14;padding:10px;text-align:left}
 input,select,textarea{width:100%;background:#000;color:#39ff14;border:1px solid #39ff14;border-radius:8px;padding:10px;outline:none}
 input:focus,select:focus,textarea:focus{box-shadow:0 0 14px rgba(57,255,20,.55)}
-button{background:#000;color:#39ff14;border:1px solid #39ff14}
+button{background:#000;color:#00ffff;border:1px solid #00ffff;cursor:pointer} button:hover,button:focus-visible{background:#00ffff;color:#000;outline:none;box-shadow:0 0 16px rgba(0,255,255,.65)}
 hr{border:0;border-top:1px solid #39ff14}
 .status,.badge,.pill{background:#000!important;color:#39ff14!important;border:1px solid #39ff14!important}
 </style>
