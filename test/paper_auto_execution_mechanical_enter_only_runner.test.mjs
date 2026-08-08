@@ -6,44 +6,6 @@ import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from '../src/scanner/paper_auto_execution_lifecycle_store.mjs'
 import { createPaperAutoExecutionMechanicalEnterOnlyRunner } from '../src/scanner/paper_auto_execution_mechanical_enter_only_runner.mjs'
 
-const stage = () => {
-  const completedAt = '2026-08-05T17:00:00.000Z'
-  return {
-    activeStage: 'automatic',
-    stage2Unlocked: true,
-    stage3Unlocked: true,
-    manualProof: {
-      stage: 'manual_detection_only',
-      enterDetected: true,
-      entryReconciled: true,
-      monitoringStarted: true,
-      exitDetected: true,
-      exitReconciled: true,
-      roundTripClosed: true,
-      restartRecoveryVerified: true,
-      duplicateProtectionVerified: true,
-      mechanicalSuccess: true,
-      evidenceId: 'enter_only_test_manual_proof',
-      completedAt,
-    },
-    userApprovedProof: {
-      stage: 'user_approved_paper',
-      enterApproved: true,
-      enterSubmittedOnce: true,
-      enterFilledAndReconciled: true,
-      exitApproved: true,
-      exitSubmittedOnce: true,
-      exitFilledAndReconciled: true,
-      roundTripClosed: true,
-      restartRecoveryVerified: true,
-      duplicateProtectionVerified: true,
-      mechanicalSuccess: true,
-      evidenceId: 'enter_only_test_user_approved_proof',
-      completedAt,
-    },
-  }
-}
-
 test('submits one ENTER, reconciles the position, and never prepares EXIT', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'enter-only-runner-'))
   try {
@@ -51,7 +13,6 @@ test('submits one ENTER, reconciles the position, and never prepares EXIT', asyn
     let submissions = 0
     const runner = createPaperAutoExecutionMechanicalEnterOnlyRunner({
       lifecycleStore: store,
-      readStageState: stage,
       env: { PAPER_AUTO_COMPOSITION_ENABLED: '1', PAPER_AUTO_ORCHESTRATOR_ENABLED: '1', PAPER_AUTO_ENTER_ENABLED: '1', PAPER_AUTO_EXIT_ENABLED: '0', PAPER_AUTO_SUBMISSION_BOUNDARY_ENABLED: '1', PAPER_AUTO_ENTER_SUBMISSION_ENABLED: '1', PAPER_AUTO_EXIT_SUBMISSION_ENABLED: '0' },
       getScanSnapshot: async () => ({ candidates: [{ symbol: 'AAPL', state: 'ENTER', buyRecommendation: true, blockers: [], score: 99 }] }),
       getAccountSnapshot: async () => ({

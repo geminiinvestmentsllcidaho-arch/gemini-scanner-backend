@@ -5,14 +5,6 @@ import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly
 import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecycle_store.mjs'
 import { createPaperAutoExecutionAlpacaPaperAdapter } from './paper_auto_execution_alpaca_paper_adapter.mjs'
 import { createPaperAutoExecutionMechanicalEnterOnlyRunner } from './paper_auto_execution_mechanical_enter_only_runner.mjs'
-import {
-  evaluatePaperAutoEnterOnlyRunOnceAuthorization,
-  consumePaperAutoEnterOnlyRunOnceAuthorization,
-  REQUIRED_PHRASE,
-  REQUIRED_SCOPE,
-} from './paper_auto_execution_enter_only_run_once_authorization.mjs'
-import { PAPER_EXECUTION_STAGES } from './paper_execution_stage_promotion_lock.mjs'
-
 export const VERSION = 'paper_auto_execution_mechanical_enter_only_cli_v1'
 const clean = (value) => String(value ?? '').trim()
 const yes = (value) => ['1', 'true', 'yes', 'on'].includes(clean(value).toLowerCase())
@@ -165,44 +157,6 @@ export function normalizeCandidates(payload = {}) {
   })
 }
 
-function isolatedAutomaticStageState() {
-  const completedAt = new Date().toISOString()
-  return {
-    activeStage: PAPER_EXECUTION_STAGES.AUTOMATIC,
-    stage2Unlocked: true,
-    stage3Unlocked: true,
-    manualProof: {
-      stage: PAPER_EXECUTION_STAGES.MANUAL,
-      enterDetected: true,
-      entryReconciled: true,
-      monitoringStarted: true,
-      exitDetected: true,
-      exitReconciled: true,
-      roundTripClosed: true,
-      restartRecoveryVerified: true,
-      duplicateProtectionVerified: true,
-      mechanicalSuccess: true,
-      evidenceId: 'isolated_mechanical_test_override',
-      completedAt,
-    },
-    userApprovedProof: {
-      stage: PAPER_EXECUTION_STAGES.USER_APPROVED,
-      enterApproved: true,
-      enterSubmittedOnce: true,
-      enterFilledAndReconciled: true,
-      exitApproved: true,
-      exitSubmittedOnce: true,
-      exitFilledAndReconciled: true,
-      roundTripClosed: true,
-      restartRecoveryVerified: true,
-      duplicateProtectionVerified: true,
-      mechanicalSuccess: true,
-      evidenceId: 'isolated_mechanical_test_override',
-      completedAt,
-    },
-  }
-}
-
 async function fetchHistoricalOrders({ env, fetchImpl }) {
   const { baseUrl, apiKey, apiSecret } = resolvePaperAutoEnterOnlyBrokerEnv(env)
   const parsed = new URL(baseUrl)
@@ -229,13 +183,6 @@ export async function runPaperAutoExecutionMechanicalEnterOnlyCli(options = {}) 
   const nowMs = Number(options.nowMs ?? Date.now())
   const blockers = []
   if (!yes(args.execute)) blockers.push('explicit_execute_true_required')
-  if (!yes(args['mechanical-test-override'])) blockers.push('explicit_mechanical_test_override_required')
-  if (args.operator !== 'Borac') blockers.push('borac_operator_identity_required')
-  if (args.phrase !== REQUIRED_PHRASE) blockers.push('exact_authorization_phrase_required')
-  if (args.scope !== REQUIRED_SCOPE) blockers.push('exact_authorization_scope_required')
-  if (!clean(args['authorization-id'])) blockers.push('authorization_id_required')
-  if (!clean(args.latch)) blockers.push('authorization_latch_path_required')
-  if (!Number.isFinite(Number(args['expires-at-ms']))) blockers.push('authorization_expiry_required')
   const brokerEnv = resolvePaperAutoEnterOnlyBrokerEnv(env)
   if (brokerEnv.baseUrl !== 'https://paper-api.alpaca.markets') blockers.push('alpaca_paper_base_url_required')
   if (clean(env.ALPACA_PAPER_TRADING).toLowerCase() !== 'true') blockers.push('alpaca_paper_trading_flag_required')
@@ -243,24 +190,9 @@ export async function runPaperAutoExecutionMechanicalEnterOnlyCli(options = {}) 
   if (typeof fetchImpl !== 'function') blockers.push('fetch_required')
   if (blockers.length) return { ok: false, version: VERSION, status: 'MECHANICAL_CLI_BLOCKED', blockers: [...new Set(blockers)] }
 
-  const authorization = {
-    env: { ...env, PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
-    authorizationId: clean(args['authorization-id']),
-    operator: args.operator,
-    phrase: args.phrase,
-    scope: args.scope,
-    expiresAtMs: Number(args['expires-at-ms']),
-    latchFile: args.latch,
-  }
-  const evaluated = evaluatePaperAutoEnterOnlyRunOnceAuthorization(authorization, nowMs)
-  if (!evaluated.ok) return { ok: false, version: VERSION, status: 'MECHANICAL_CLI_BLOCKED', blockers: evaluated.blockers }
-  const consumed = consumePaperAutoEnterOnlyRunOnceAuthorization(authorization, nowMs)
-  if (!consumed.ok || consumed.consumed !== true) {
-    return { ok: false, version: VERSION, status: 'MECHANICAL_CLI_AUTHORIZATION_CONSUME_FAILED', blockers: consumed.blockers }
-  }
-
   const runsDir = options.runsDir ?? 'runs'
-  const lifecycleFile = options.lifecycleFile ?? path.join(runsDir, `paper_auto_enter_only_mechanical_lifecycle_${authorization.authorizationId}.json`)
+  const runId = clean(options.runId ?? args['run-id']) || `run-${nowMs}-${process.pid}`
+  const lifecycleFile = options.lifecycleFile ?? path.join(runsDir, `paper_auto_enter_only_mechanical_lifecycle_${runId}.json`)
   if (fs.existsSync(lifecycleFile)) throw new Error('paper_auto_enter_only_mechanical_lifecycle_already_exists')
   const lifecycleStore = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
   const adapter = createPaperAutoExecutionAlpacaPaperAdapter({
@@ -273,7 +205,6 @@ export async function runPaperAutoExecutionMechanicalEnterOnlyCli(options = {}) 
   })
   const runner = createPaperAutoExecutionMechanicalEnterOnlyRunner({
     lifecycleStore,
-    readStageState: isolatedAutomaticStageState,
     env: {
       ...env,
       PAPER_AUTO_COMPOSITION_ENABLED: '1',
@@ -299,18 +230,16 @@ export async function runPaperAutoExecutionMechanicalEnterOnlyCli(options = {}) 
   })
   const result = await runner.run()
   fs.mkdirSync(runsDir, { recursive: true, mode: 0o700 })
-  const reportFile = path.join(runsDir, `paper_auto_mechanical_enter_only_${authorization.authorizationId}.json`)
-  fs.writeFileSync(reportFile, `${JSON.stringify({ ...result, authorization: consumed.record, reportFile }, null, 2)}\n`, { mode: 0o600, flag: 'wx' })
+  const reportFile = path.join(runsDir, `paper_auto_mechanical_enter_only_${runId}.json`)
+  fs.writeFileSync(reportFile, `${JSON.stringify({ ...result, runId, reportFile }, null, 2)}\n`, { mode: 0o600, flag: 'wx' })
   return {
     ...result,
     reportFile,
-    authorization: consumed.record,
+    runId,
     safety: {
       ...result.safety,
-      isolatedMechanicalStageOverride: true,
       enterOnly: true,
       exitAuthorized: false,
-      stagePromotionGranted: false,
       paperOnly: true,
       liveTradingAllowed: false,
     },
