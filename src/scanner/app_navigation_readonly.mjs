@@ -345,66 +345,6 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
-    id: "paper_trade_broker_integration_preflight_stack",
-    title: "Paper Trade Broker Integration Preflight Stack",
-    subtitle: "Read-only broker integration preflight stack app screen.",
-    description: "Read-only app screen for the 50 planned broker integration preflight builds with broker contact, order placement, account mutation, and execution blocked by design.",
-    category: "paper_lifecycle",
-    href: "/app/paper-trade-broker-integration-preflight-stack",
-    diagnosticHref: "/diagnostics/paper-trade-broker-integration-preflight-stack",
-    routeHref: "/app/paper-trade-broker-integration-preflight-stack",
-    displayState: "PAPER_TRADE_BROKER_INTEGRATION_PREFLIGHT_STACK_READONLY",
-    refreshFriendly: false
-  }),
-  Object.freeze({
-    id: "paper_trade_broker_adapter_guard",
-    title: "Paper Trade Broker Adapter Guard",
-    subtitle: "Read-only broker adapter guard app screen.",
-    description: "Read-only broker adapter guard screen showing disabled broker contact, disabled order placement, disabled account mutation, and blocked broker execution.",
-    category: "paper_lifecycle",
-    href: "/app/paper-trade-broker-adapter-guard",
-    diagnosticHref: "/diagnostics/paper-trade-broker-adapter-guard",
-    routeHref: "/app/paper-trade-broker-adapter-guard",
-    displayState: "PAPER_TRADE_BROKER_ADAPTER_GUARD_READONLY",
-    refreshFriendly: false
-  }),
-  Object.freeze({
-    id: "paper_trade_execution_control_stack",
-    title: "Paper Trade Execution Control Stack",
-    subtitle: "Read-only 20-layer execution-control app screen.",
-    description: "Read-only execution-control stack screen showing blocked broker contact, order placement, account mutation, and all paper execution safety layers.",
-    category: "paper_lifecycle",
-    href: "/app/paper-trade-execution-control-stack",
-    diagnosticHref: "/diagnostics/paper-trade-execution-control-stack",
-    routeHref: "/app/paper-trade-execution-control-stack",
-    displayState: "PAPER_TRADE_EXECUTION_CONTROL_STACK_READONLY",
-    refreshFriendly: false
-  }),
-  Object.freeze({
-    id: "paper_trade_operator_go_no_go",
-    title: "Paper Trade Operator Go / No-Go",
-    subtitle: "Read-only final operator go/no-go app screen.",
-    description: "Final paper-trade operator decision screen that keeps broker integration, live paper trading, and final go blocked until explicit future approval.",
-    category: "paper_lifecycle",
-    href: "/app/paper-trade-operator-go-no-go",
-    diagnosticHref: "/diagnostics/paper-trade-operator-go-no-go",
-    routeHref: "/app/paper-trade-operator-go-no-go",
-    displayState: "PAPER_TRADE_OPERATOR_GO_NO_GO_READONLY",
-    refreshFriendly: false
-  }),
-  Object.freeze({
-    id: "paper_trade_readiness_report",
-    title: "Paper Trade Readiness Report",
-    subtitle: "Read-only paper trade readiness app screen.",
-    description: "Broker-blocked paper trade readiness report app screen with no broker contact, order placement, or account mutation controls.",
-    category: "paper_lifecycle",
-    href: "/app/paper-trade-readiness-report",
-    diagnosticHref: "/diagnostics/paper-trade-readiness-report",
-    routeHref: "/app/paper-trade-readiness-report",
-    displayState: "PAPER_TRADE_READINESS_REPORT_READONLY",
-    refreshFriendly: false,
-  }),
-  Object.freeze({
     id: "operator_approval_dashboard",
     title: "Operator Approval Dashboard",
     subtitle: "Read-only operator approval workflow.",
@@ -945,7 +885,6 @@ function renderReadinessQuickLinks(entries = []) {
     { href: "/app/paper-app-readiness-status", label: "App Readiness Status" },
     { href: "/app/paper-app-route-health-status", label: "Route Health Status" },
     { href: "/app/paper-app-safety-lock-status", label: "Safety Lock Status" },
-    { href: "/app/paper-trade-operator-go-no-go", label: "Go / No-Go" },
   ];
 
   const rendered = links
