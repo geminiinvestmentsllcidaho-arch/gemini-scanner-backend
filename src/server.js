@@ -136,18 +136,10 @@ import { evaluatePaperTradeBrokerIntegrationPreflightStack, readPaperTradeBroker
 import { buildPaperTradeModuleCompletionReport, buildPaperTradeModuleCompletionReportPanel } from './scanner/paper_trade_module_completion_report.mjs';
 import { buildPaperTradeOperatorGoNoGo, buildPaperTradeOperatorGoNoGoPanel } from './scanner/paper_trade_operator_go_no_go.mjs';
 
-import { buildPaperBrokerAdapterApprovalLock } from './scanner/paper_broker_adapter_approval_lock.mjs';
 
-import { buildPaperBrokerAdapterApprovalLockPanel } from './scanner/paper_broker_adapter_approval_lock_panel.mjs';
 import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_null_adapter.mjs';
 import { getPaperBrokerAdapterContractDiagnostics } from './scanner/paper_broker_adapter_contract.mjs';
 import { getPaperOrderIntentAdapterPreviewBridgeDiagnostics } from './scanner/paper_order_intent_adapter_preview_bridge.mjs';
-import { getPaperBrokerAdapterApprovalRecordDiagnostics } from './scanner/paper_broker_adapter_approval_record_tool.mjs';
-import { buildPaperBrokerAdapterApprovalRecordToolAppScreen, renderPaperBrokerAdapterApprovalRecordToolAppScreenHtml } from './scanner/paper_broker_adapter_approval_record_tool_app_screen.mjs';
-import { getAlpacaPaperBrokerAdapterDiagnostics } from './scanner/alpaca_paper_broker_adapter.mjs';
-import { getPaperOrderSubmitDryRunDiagnostics } from './scanner/paper_order_submit_dry_run_preview.mjs';
-import { getPaperTradingFinalGoNoGoDiagnostics } from './scanner/paper_trading_final_go_no_go.mjs';
-import { getFirstRealPaperOrderTestGateDiagnostics } from './scanner/first_real_paper_order_test_gate.mjs';
 import { getPaperTradingMonitoringDiagnostics } from './scanner/paper_trading_monitoring_kill_switch.mjs';
 import { getRealTradingConversionLockDiagnostics } from './scanner/real_trading_conversion_lock.mjs';
 import { buildMarketClosedSnapshotDiagnostics, buildMarketClosedSnapshotPanel } from "./scanner/market_closed_scanner_snapshot_diagnostics.mjs";
@@ -1339,7 +1331,6 @@ function renderFastLifecyclePreviewHtml(title) {
     "<p>Fast read-only app preview. Source report not loaded unless requested.</p>",
     "<section><h2>Related Broker Readiness Routes</h2><ul>",
     "<li><a href='/app/paper-app-broker-readiness-index'>Paper App Broker Readiness Index</a></li>",
-    "<li><a href='/app/paper-broker-adapter-approval-lock'>Paper Broker Adapter Approval Lock</a></li>",
     "<li><a href='/app/paper-broker-runtime-environment-preflight'>Paper Broker Runtime Environment Preflight</a></li>",
     "<li><a href='/app/paper-broker-network-attempt-status'>Paper Broker Network Attempt Status</a></li>",
     "<li><a href='/app/paper-trade-readiness-report'>Paper Trade Readiness Report</a></li>",
@@ -2790,69 +2781,11 @@ app.get('/app/paper-operator-start-here', (_req, res) => {
   }
 });
 
-app.get('/app/paper-broker-adapter-approval-record-tool', async (req, res) => {
-  try {
-    const screen = await buildPaperBrokerAdapterApprovalRecordToolAppScreen();
-    res.type('html').send(renderPaperBrokerAdapterApprovalRecordToolAppScreenHtml(screen));
-  } catch (error) {
-    res.status(500).type('text').send(error?.message ?? String(error));
-  }
-});
 
-app.get('/diagnostics/paper-broker-adapter-approval-record-tool', async (req, res) => {
-  try {
-    res.json(await getPaperBrokerAdapterApprovalRecordDiagnostics());
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-broker-adapter-approval-record-tool', error: error?.message ?? String(error) });
-  }
-});
 
-app.get('/diagnostics/alpaca-paper-broker-adapter', async (req, res) => {
-  try {
-    res.json(await getAlpacaPaperBrokerAdapterDiagnostics({
-      symbol: req.query.symbol,
-      side: req.query.side,
-      qty: req.query.qty,
-      notional: req.query.notional,
-      orderType: req.query.orderType,
-      timeInForce: req.query.timeInForce
-    }));
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/diagnostics/alpaca-paper-broker-adapter', error: error?.message ?? String(error) });
-  }
-});
 
-app.get('/diagnostics/paper-order-submit-dry-run', async (req, res) => {
-  try {
-    res.json(await getPaperOrderSubmitDryRunDiagnostics({
-      symbol: req.query.symbol,
-      side: req.query.side,
-      qty: req.query.qty,
-      notional: req.query.notional,
-      orderType: req.query.orderType,
-      timeInForce: req.query.timeInForce,
-      marketSession: req.query.marketSession
-    }));
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-order-submit-dry-run', error: error?.message ?? String(error) });
-  }
-});
 
-app.get('/diagnostics/paper-trading-final-go-no-go', async (req, res) => {
-  try {
-    res.json(await getPaperTradingFinalGoNoGoDiagnostics());
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-trading-final-go-no-go', error: error?.message ?? String(error) });
-  }
-});
 
-app.get('/diagnostics/first-real-paper-order-test-gate', async (req, res) => {
-  try {
-    res.json(await getFirstRealPaperOrderTestGateDiagnostics());
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/diagnostics/first-real-paper-order-test-gate', error: error?.message ?? String(error) });
-  }
-});
 
 app.get('/diagnostics/paper-trading-monitoring-kill-switch', async (req, res) => {
   try {
@@ -4069,27 +4002,6 @@ app.get('/diagnostics/paper-trade-broker-integration-preflight-stack-panel', (_r
 
 
 
-app.get('/diagnostics/paper-trading-final-go-no-go-panel', async (_req, res) => {
-  try {
-    const payload = await getPaperTradingFinalGoNoGoDiagnostics();
-    res.json({
-      ...payload,
-      version: 'paper_trading_final_go_no_go_panel_v1',
-      panelType: 'operator_dashboard_card',
-      title: 'Paper Trading Final Go / No-Go',
-      route: '/diagnostics/paper-trading-final-go-no-go-panel',
-      refreshRoute: '/diagnostics/paper-trading-final-go-no-go',
-      readOnly: true,
-      monitorOnly: true,
-      noExecutionControls: true,
-      orderPlacementAllowed: false,
-      brokerContactAllowed: false,
-      accountMutationAllowed: false
-    });
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-trading-final-go-no-go-panel', error: error?.message ?? String(error) });
-  }
-});
 
 app.get('/diagnostics/paper-trade-operator-go-no-go', (_req, res) => {
   res.json(buildPaperTradeOperatorGoNoGo());
@@ -4301,28 +4213,6 @@ app.get('/app/paper-trade-broker-integration-preflight-stack', async (_req, res)
   }
 });
 
-app.get('/app/paper-broker-adapter-approval-lock', async (_req, res) => {
-  try {
-    const panel = buildPaperBrokerAdapterApprovalLockPanel();
-    const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
-    const reasons = Array.isArray(panel.lockReasons) ? panel.lockReasons : [];
-    res.type('html').send([
-      "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Paper Broker Adapter Approval Lock</title></head><body><main>",
-      "<p><a href='/app'>Back to GeminiScanner App</a></p><h1>", esc(panel.title), "</h1><p>", esc(panel.summary), "</p>",
-      "<section><h2>Approval Lock Status</h2>",
-      "<p>Status: <strong>", esc(panel.status), "</strong></p><p>Broker adapter enabled: <strong>", esc(panel.brokerAdapterEnabled), "</strong></p>",
-      "<p>Approval lock passed: <strong>", esc(panel.approvalLockPassed), "</strong></p><p>Explicit approval record found: <strong>", esc(panel.hasExplicitApprovalRecord), "</strong></p>",
-      "<p>Valid approval record count: <strong>", esc(panel.validApprovalRecordCount), "</strong></p></section>",
-      "<section><h2>Safety Locks</h2><p>brokerContactAllowed=", esc(panel.brokerContactAllowed), "</p><p>orderPlacementAllowed=", esc(panel.orderPlacementAllowed), "</p><p>accountMutationAllowed=", esc(panel.accountMutationAllowed), "</p></section>",
-      "<section><h2>Lock Reasons</h2><ul>", reasons.length ? reasons.map((r) => `<li>${esc(r)}</li>`).join("") : "<li>none</li>", "</ul></section>",
-      "<section><h2>Related Broker Readiness Routes</h2><ul><li><a href='/app/paper-operator-start-here'>Paper Operator Start Here</a></li><li><a href='/app/paper-app-broker-readiness-index'>Paper App Broker Readiness Index</a></li><li><a href='/app/paper-broker-adapter-approval-record-tool'>Paper Broker Adapter Approval Record Tool</a></li><li><a href='/app/paper-trade-broker-adapter-guard'>Paper Trade Broker Adapter Guard</a></li><li><a href='/app/paper-trade-operator-go-no-go'>Paper Trade Operator Go / No-Go</a></li><li><a href='/diagnostics/paper-broker-adapter-approval-lock-panel'>Diagnostic panel payload</a></li></ul></section>",
-      "<section><h2>Display State</h2><p>PAPER_BROKER_ADAPTER_APPROVAL_LOCK_READONLY</p><p>read-only. Monitor-only. Diagnostics-only. No broker contact, no order placement, no account mutation, no execution controls.</p></section>",
-      "</main></body></html>"
-    ].join(''));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_broker_adapter_approval_lock_app_route_failed', message: err?.message ?? String(err) });
-  }
-});
 
 app.get('/app/paper-trade-broker-adapter-guard', async (_req, res) => {
   try {
@@ -4530,13 +4420,7 @@ app.get('/diagnostics/paper-trade-intent-audit-dashboard', (_req, res) => {
 
 
 
-app.get('/diagnostics/paper-broker-adapter-approval-lock', (_req, res) => {
-  res.json(buildPaperBrokerAdapterApprovalLock());
-});
 
-app.get('/diagnostics/paper-broker-adapter-approval-lock-panel', (_req, res) => {
-  res.json(buildPaperBrokerAdapterApprovalLockPanel());
-});
 
 app.get('/diagnostics/paper-trade-intent-audit-dashboard-panel', async (_req, res) => {
   try {

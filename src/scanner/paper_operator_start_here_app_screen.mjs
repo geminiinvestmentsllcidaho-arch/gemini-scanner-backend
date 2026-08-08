@@ -8,8 +8,6 @@ const ROUTES = Object.freeze([
   ["/app/paper-trade-operator-go-no-go", "Paper Trade Operator Go / No-Go"],
   ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"],
   ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
-  ["/app/paper-broker-adapter-approval-record-tool", "Paper Broker Adapter Approval Record Tool"],
-  ["/app/paper-broker-adapter-approval-lock", "Paper Broker Adapter Approval Lock"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-trade-broker-adapter-guard", "Paper Trade Broker Adapter Guard"],
 ]);
