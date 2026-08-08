@@ -129,12 +129,6 @@ import { readPaperTradeLifecycleDashboard, readPaperTradeLifecycleDashboardPanel
 import { previewPaperTradeLifecycleRun, readPaperTradeLifecycleRunnerPanel } from './scanner/paper_trade_lifecycle_runner.mjs';
 import { readPaperTradeLifecycleRunnerAuditDashboard } from './scanner/paper_trade_lifecycle_runner_audit.mjs';
 import { readPaperTradeLifecycleRunnerAuditPanel } from './scanner/paper_trade_lifecycle_runner_audit_panel.mjs';
-import { evaluatePaperTradeBrokerAdapterGuard, readPaperTradeBrokerAdapterGuardPanel } from './scanner/paper_trade_broker_adapter_guard.mjs';
-import { evaluatePaperTradeExecutionControlStack, readPaperTradeExecutionControlStackPanel } from './scanner/paper_trade_execution_control_stack.mjs';
-import { buildPaperTradeReadinessReport, buildPaperTradeReadinessReportPanel } from './scanner/paper_trade_readiness_report.mjs';
-import { evaluatePaperTradeBrokerIntegrationPreflightStack, readPaperTradeBrokerIntegrationPreflightStackPanel } from './scanner/paper_trade_broker_integration_preflight_stack.mjs';
-import { buildPaperTradeModuleCompletionReport, buildPaperTradeModuleCompletionReportPanel } from './scanner/paper_trade_module_completion_report.mjs';
-import { buildPaperTradeOperatorGoNoGo, buildPaperTradeOperatorGoNoGoPanel } from './scanner/paper_trade_operator_go_no_go.mjs';
 
 
 import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_null_adapter.mjs';
@@ -1333,12 +1327,7 @@ function renderFastLifecyclePreviewHtml(title) {
     "<li><a href='/app/paper-app-broker-readiness-index'>Paper App Broker Readiness Index</a></li>",
     "<li><a href='/app/paper-broker-runtime-environment-preflight'>Paper Broker Runtime Environment Preflight</a></li>",
     "<li><a href='/app/paper-broker-network-attempt-status'>Paper Broker Network Attempt Status</a></li>",
-    "<li><a href='/app/paper-trade-readiness-report'>Paper Trade Readiness Report</a></li>",
-    "<li><a href='/app/paper-trade-broker-integration-preflight-stack'>Paper Trade Broker Integration Preflight Stack</a></li>",
     "<li><a href='/app/paper-app-safety-lock-status'>Paper App Safety Lock Status</a></li>",
-    "<li><a href='/app/paper-trade-broker-adapter-guard'>Paper Trade Broker Adapter Guard</a></li>",
-    "<li><a href='/app/paper-trade-execution-control-stack'>Paper Trade Execution Control Stack</a></li>",
-    "<li><a href='/app/paper-trade-operator-go-no-go'>Paper Trade Operator Go / No-Go</a></li>",
     "<li><a href='/app/paper-lifecycle-dashboard'>Paper Lifecycle Read-Only Dashboard</a></li>",
     "</ul></section>",
     "<section><h2>Display State</h2><p>FAST_PREVIEW_READONLY</p>",
@@ -2260,9 +2249,6 @@ const PAPER_APP_NONLIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
 ]);
 
 const PAPER_APP_NONLIFECYCLE_REDIRECT_DIAGNOSTIC_ALIASES = Object.freeze([
-  { route: '/diagnostics/paper-trade-broker-integration-preflight', target: '/app/paper-trade-broker-integration-preflight-stack' },
-  { route: '/diagnostics/paper-trade-readiness', target: '/app/paper-trade-readiness-report' },
-  { route: '/diagnostics/paper-trading-readiness', target: '/app/paper-trade-readiness-report' }
 ]);
 
 function summarizePaperAppNonLifecycleDiagnosticAliasPayload(payload = {}, route = '') {
@@ -3982,35 +3968,6 @@ app.listen(PORT, HOST, async () => {
 
 
 
-app.get('/diagnostics/paper-trade-module-completion-report', (_req, res) => {
-  res.json(buildPaperTradeModuleCompletionReport());
-});
-
-
-app.get('/diagnostics/paper-trade-module-completion-report-panel', (_req, res) => {
-  res.json(buildPaperTradeModuleCompletionReportPanel());
-});
-
-app.get('/diagnostics/paper-trade-broker-integration-preflight-stack', (_req, res) => {
-  res.json(evaluatePaperTradeBrokerIntegrationPreflightStack());
-});
-
-
-app.get('/diagnostics/paper-trade-broker-integration-preflight-stack-panel', (_req, res) => {
-  res.json(readPaperTradeBrokerIntegrationPreflightStackPanel());
-});
-
-
-
-
-app.get('/diagnostics/paper-trade-operator-go-no-go', (_req, res) => {
-  res.json(buildPaperTradeOperatorGoNoGo());
-});
-
-app.get('/diagnostics/paper-trade-operator-go-no-go-panel', (_req, res) => {
-  res.json(buildPaperTradeOperatorGoNoGoPanel());
-});
-
 app.get('/app/paper-trading-overview-status', async (_req, res) => {
   try {
     const mod = await import('./scanner/paper_trading_overview_status_app_screen.mjs');
@@ -4199,93 +4156,8 @@ app.get('/diagnostics/paper-broker-network-attempt-status', async (_req, res) =>
 });
 
 
-app.get('/app/paper-trade-broker-integration-preflight', async (_req, res) => {
-  res.redirect(302, '/app/paper-trade-broker-integration-preflight-stack');
-});
-
-app.get('/app/paper-trade-broker-integration-preflight-stack', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_broker_integration_preflight_stack_app_screen.mjs');
-    const screen = mod.buildPaperTradeBrokerIntegrationPreflightStackAppScreen();
-    res.type('html').send(mod.renderPaperTradeBrokerIntegrationPreflightStackAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_broker_integration_preflight_stack_app_screen_failed', message: err?.message || String(err) });
-  }
-});
-
-
-app.get('/app/paper-trade-broker-adapter-guard', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_broker_adapter_guard_app_screen.mjs');
-    const screen = mod.buildPaperTradeBrokerAdapterGuardAppScreen();
-    res.type('html').send(mod.renderPaperTradeBrokerAdapterGuardAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_broker_adapter_guard_app_screen_failed', message: err?.message || String(err) });
-  }
-});
-
-app.get('/app/paper-trade-execution-control-stack', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_execution_control_stack_app_screen.mjs');
-    const screen = mod.buildPaperTradeExecutionControlStackAppScreen();
-    res.type('html').send(mod.renderPaperTradeExecutionControlStackAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_execution_control_stack_app_screen_failed', message: err?.message || String(err) });
-  }
-});
-
-app.get('/app/paper-trade-operator-go-no-go', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_operator_go_no_go_app_screen.mjs');
-    const screen = mod.buildPaperTradeOperatorGoNoGoAppScreen();
-    res.type('html').send(mod.renderPaperTradeOperatorGoNoGoAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_operator_go_no_go_app_screen_failed', message: err?.message || String(err) });
-  }
-});
-
-app.get('/app/paper-trade-readiness', (_req, res) => res.redirect(302, '/app/paper-trade-readiness-report'));
-app.get('/app/paper-trading-readiness', (_req, res) => res.redirect(302, '/app/paper-trade-readiness-report'));
 app.get('/app/paper-trading-readiness-gate', (_req, res) => res.redirect(302, '/app/paper-readiness-gate'));
-app.get('/app/paper-operator-go-no-go', (_req, res) => res.redirect(302, '/app/paper-trade-operator-go-no-go'));
 app.get('/paper-trading-module-final-status', (_req, res) => res.redirect(302, '/app/paper-trading-module-final-status'));
-
-app.get('/app/paper-trade-readiness-report', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_readiness_report_app_screen.mjs');
-    const screen = mod.buildPaperTradeReadinessReportAppScreen({});
-    res.type('html').send(mod.renderPaperTradeReadinessReportAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).type('text').send(err?.message ?? 'paper trade readiness report app screen failed');
-  }
-});
-
-app.get('/diagnostics/paper-trade-readiness-report', (_req, res) => {
-  res.json(buildPaperTradeReadinessReport());
-});
-
-
-app.get('/diagnostics/paper-trade-readiness-report-panel', (_req, res) => {
-  res.json(buildPaperTradeReadinessReportPanel());
-});
-
-app.get('/diagnostics/paper-trade-execution-control-stack', (_req, res) => {
-  res.json(evaluatePaperTradeExecutionControlStack());
-});
-
-
-app.get('/diagnostics/paper-trade-execution-control-stack-panel', (_req, res) => {
-  res.json(readPaperTradeExecutionControlStackPanel());
-});
-
-app.get('/diagnostics/paper-trade-broker-adapter-guard', (_req, res) => {
-  res.json(evaluatePaperTradeBrokerAdapterGuard());
-});
-
-
-app.get('/diagnostics/paper-trade-broker-adapter-guard-panel', (_req, res) => {
-  res.json(readPaperTradeBrokerAdapterGuardPanel());
-});
 
 app.get('/diagnostics/paper-trade-lifecycle-runner-audit', (_req, res) => {
   res.json(readPaperTradeLifecycleRunnerAuditDashboard());

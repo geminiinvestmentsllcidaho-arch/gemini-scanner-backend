@@ -16,7 +16,7 @@ test("paper broker runtime and network diagnostic aliases are registered read-on
   assert.ok(networkStart > 0);
 
   const runtimeBlock = server.slice(runtimeStart, server.indexOf("app.get('/app/paper-broker-network-attempt-status'", runtimeStart));
-  const networkBlock = server.slice(networkStart, server.indexOf("app.get('/app/paper-trade-broker-integration-preflight'", networkStart));
+  const networkBlock = server.slice(networkStart, server.indexOf("app.get('/app/paper-trading-readiness-gate'", networkStart));
   const combined = `${runtimeBlock}\n${networkBlock}`;
 
   assert.doesNotMatch(combined, /\.post\(/);
