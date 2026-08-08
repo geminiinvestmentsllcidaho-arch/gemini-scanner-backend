@@ -8,12 +8,6 @@ function isoNow(now) {
 export function buildPaperAttemptReadOnlyBrokerExecutionPathDiagnosticPanel({ now = new Date() } = {}) {
   const brokerPathChecklist = [
     {
-      id: "execution_authorization_diagnostic_reviewed",
-      label: "Read-only execution authorization diagnostic panel reviewed",
-      status: "review_required",
-      readOnly: true
-    },
-    {
       id: "broker_contact_disabled",
       label: "Broker contact disabled",
       status: "locked",
@@ -55,9 +49,6 @@ export function buildPaperAttemptReadOnlyBrokerExecutionPathDiagnosticPanel({ no
     diagnosticsOnly: true,
     monitorOnly: true,
     planningOnly: true,
-    goNoGoOnly: true,
-    approvalRecordOnly: true,
-    executionAuthorizationOnly: true,
     brokerExecutionPathOnly: true,
     readOnly: true,
     noExecutionControls: true,
@@ -87,7 +78,6 @@ export function buildPaperAttemptReadOnlyBrokerExecutionPathDiagnosticPanel({ no
       brokerExecutionPathStatus: "disabled"
     },
     nextReadOnlyActions: [
-      "review_execution_authorization_diagnostic_panel",
       "confirm_broker_execution_path_remains_disabled",
       "keep_broker_contact_disabled",
       "keep_order_submission_disabled",

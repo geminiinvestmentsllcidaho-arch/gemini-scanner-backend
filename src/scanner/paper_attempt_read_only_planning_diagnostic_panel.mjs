@@ -31,8 +31,7 @@ export function buildPaperAttemptReadOnlyPlanningDiagnosticPanel() {
   const blockers = [
     "operator_review_required",
     "order_placement_not_ready",
-    "broker_execution_disabled",
-    "manual_go_no_go_not_approved"
+    "broker_execution_disabled"
   ];
 
   return {
@@ -67,8 +66,7 @@ export function buildPaperAttemptReadOnlyPlanningDiagnosticPanel() {
     },
     nextReadOnlyActions: [
       "review_operator_summary_panel",
-      "verify_candidate_inputs_without_broker_contact",
-      "record_manual_go_no_go_as_diagnostic_only"
+      "verify_candidate_inputs_without_broker_contact"
     ],
     generatedAt: new Date().toISOString()
   };
