@@ -1,14 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { DEFAULT_PATH, VERSION, defaultPaperManualRoundTripEvidence } from "./paper_manual_round_trip_evidence_tracker.mjs";
-import { PAPER_EXECUTION_STAGES } from "./paper_execution_stage_promotion_lock.mjs";
+import { DEFAULT_PATH, VERSION, MANUAL_ROUND_TRIP_STAGE, defaultPaperManualRoundTripEvidence } from "./paper_manual_round_trip_evidence_tracker.mjs";
 
-export const RESET_CONFIRMATION = "RESET_STAGE1_MANUAL_EVIDENCE";
+export const RESET_CONFIRMATION = "RESET_MANUAL_ROUND_TRIP_EVIDENCE";
 
 function validState(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value) &&
-    value.version === VERSION && value.stage === PAPER_EXECUTION_STAGES.MANUAL &&
+    value.version === VERSION && value.stage === MANUAL_ROUND_TRIP_STAGE &&
     typeof value.status === "string" && typeof value.baselineObserved === "boolean" &&
     typeof value.enterDetected === "boolean" && typeof value.exitDetected === "boolean" &&
     typeof value.roundTripClosed === "boolean" && typeof value.mechanicalSuccess === "boolean" &&
@@ -46,7 +45,7 @@ export function previewPaperManualRoundTripEvidenceReset(options = {}) {
     wouldArchive: resetNeeded && current.exists,
     wouldWriteFreshState: resetNeeded,
     safety: Object.freeze({ localEvidenceOnly: true, brokerContactAllowed: false, orderPlacementAllowed: false,
-      accountMutationAllowed: false, watcherStartAllowed: false, executionEnabled: false, stage2Locked: true, stage3Locked: true }),
+      accountMutationAllowed: false, watcherStartAllowed: false, executionEnabled: false }),
   });
 }
 

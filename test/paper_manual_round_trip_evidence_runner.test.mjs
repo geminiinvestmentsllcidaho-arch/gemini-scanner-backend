@@ -29,10 +29,10 @@ test("runner completes only after exit and explicit recovery checks", async () =
   await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([]) });
   await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([{ symbol: "SPY", qty: 1, side: "long" }]) });
   let result = await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([]) });
-  assert.equal(result.promotionProof.mechanicalSuccess, false);
+  assert.equal(result.manualRoundTripProof.mechanicalSuccess, false);
   result = await runPaperManualRoundTripEvidenceTracker({ path: file, snapshot: snap([]), restartRecoveryVerified: true, duplicateProtectionVerified: true });
-  assert.equal(result.promotionProof.mechanicalSuccess, true);
-  assert.equal(result.promotionProof.entryReconciled, true);
+  assert.equal(result.manualRoundTripProof.mechanicalSuccess, true);
+  assert.equal(result.manualRoundTripProof.entryReconciled, true);
 });
 
 test("runner fails closed without connected readonly account", async () => {

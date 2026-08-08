@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { PAPER_EXECUTION_STAGES } from "./paper_execution_stage_promotion_lock.mjs";
 
 export const VERSION = "paper_manual_round_trip_evidence_tracker_v2";
+export const MANUAL_ROUND_TRIP_STAGE = "manual_detection_only";
 export const DEFAULT_PATH = path.join(process.cwd(), "runs", "paper_manual_round_trip_evidence.json");
 
 const clean = (value) => String(value ?? "").trim();
@@ -54,7 +54,7 @@ function evidenceId(state) {
 export function defaultPaperManualRoundTripEvidence(now = new Date()) {
   return {
     version: VERSION,
-    stage: PAPER_EXECUTION_STAGES.MANUAL,
+    stage: MANUAL_ROUND_TRIP_STAGE,
     status: "awaiting_baseline",
     symbol: null,
     baselineFingerprint: null,
@@ -230,9 +230,9 @@ export default {
   writePaperManualRoundTripEvidence,
 };
 
-export function buildManualStagePromotionProof(state = {}) {
+export function buildManualRoundTripProof(state = {}) {
   const valid = Boolean(
-    state.stage === PAPER_EXECUTION_STAGES.MANUAL &&
+    state.stage === MANUAL_ROUND_TRIP_STAGE &&
     state.baselineObserved === true &&
     state.enterDetected === true &&
     state.enterReconciled === true &&
@@ -248,7 +248,7 @@ export function buildManualStagePromotionProof(state = {}) {
   );
 
   return Object.freeze({
-    stage: PAPER_EXECUTION_STAGES.MANUAL,
+    stage: MANUAL_ROUND_TRIP_STAGE,
     enterDetected: valid && state.enterDetected === true,
     entryReconciled: valid && state.enterReconciled === true,
     monitoringStarted: valid && state.monitoringStarted === true,

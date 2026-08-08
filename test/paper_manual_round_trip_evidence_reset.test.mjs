@@ -85,6 +85,4 @@ test("reset module never permits watcher start or broker activity", () => {
   assert.equal(preview.safety.accountMutationAllowed, false);
   assert.equal(preview.safety.watcherStartAllowed, false);
   assert.equal(preview.safety.executionEnabled, false);
-  assert.equal(preview.safety.stage2Locked, true);
-  assert.equal(preview.safety.stage3Locked, true);
 });

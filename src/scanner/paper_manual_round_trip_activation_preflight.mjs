@@ -1,13 +1,12 @@
 import fs from "node:fs";
-import { DEFAULT_PATH, VERSION } from "./paper_manual_round_trip_evidence_tracker.mjs";
-import { PAPER_EXECUTION_STAGES } from "./paper_execution_stage_promotion_lock.mjs";
+import { DEFAULT_PATH, VERSION, MANUAL_ROUND_TRIP_STAGE } from "./paper_manual_round_trip_evidence_tracker.mjs";
 
 const MAX_SNAPSHOT_AGE_MS = 120000;
 
 function validState(value) {
   return Boolean(
     value && typeof value === "object" && !Array.isArray(value) &&
-    value.version === VERSION && value.stage === PAPER_EXECUTION_STAGES.MANUAL &&
+    value.version === VERSION && value.stage === MANUAL_ROUND_TRIP_STAGE &&
     typeof value.status === "string" &&
     typeof value.baselineObserved === "boolean" &&
     typeof value.enterDetected === "boolean" &&
@@ -63,7 +62,7 @@ export function buildPaperManualRoundTripActivationPreflight(snapshot = {}, opti
     checkedAt: now.toISOString(), evidencePath, evidenceState: evidence.stateCondition,
     snapshot: Object.freeze({ status: snapshot?.status ?? null, observedAt: snapshot?.observedAt ?? null, fresh: snapshotFresh, positionsKnown, positionsCount, openOrdersKnown, openOrdersCount }),
     blockers: Object.freeze(blockers),
-    safety: Object.freeze({ readOnly: true, allowedMethods: Object.freeze(["GET"]), writesEvidence: false, startsWatcher: false, brokerMutationAllowed: false, orderPlacementAllowed: false, executionEnabled: false, stage2Locked: true, stage3Locked: true }),
+    safety: Object.freeze({ readOnly: true, allowedMethods: Object.freeze(["GET"]), writesEvidence: false, startsWatcher: false, brokerMutationAllowed: false, orderPlacementAllowed: false, executionEnabled: false }),
   });
 }
 

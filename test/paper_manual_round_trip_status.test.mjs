@@ -8,7 +8,6 @@ test("status exposes ordered operator states with later stages locked", () => {
     { status: "connected_readonly", positions: [{ symbol: "SPY", qty: 1 }], openOrders: [] },
   );
   assert.equal(status.operatorState, "EXISTING_POSITIONS_MUST_BE_CLOSED");
-  assert.equal(status.safety.stage2Locked, true);
 
   status = buildPaperManualRoundTripStatus(
     { status: "awaiting_baseline", baselineObserved: false, issues: [] },

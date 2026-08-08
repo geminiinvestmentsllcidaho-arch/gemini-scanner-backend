@@ -1,4 +1,4 @@
-import { buildManualStagePromotionProof } from "./paper_manual_round_trip_evidence_tracker.mjs";
+import { buildManualRoundTripProof } from "./paper_manual_round_trip_evidence_tracker.mjs";
 
 const clean = (value) => String(value ?? "").trim();
 
@@ -8,7 +8,7 @@ export function buildPaperManualRoundTripStatus(state = {}, snapshot = {}) {
   const openOrdersKnown = Array.isArray(snapshot?.openOrders);
   const openOrders = openOrdersKnown ? snapshot.openOrders : [];
   const connected = snapshot?.status === "connected_readonly";
-  const proof = buildManualStagePromotionProof(state);
+  const proof = buildManualRoundTripProof(state);
 
   let operatorState = "WAITING_FOR_READONLY_ACCOUNT";
   let nextOperatorAction = "RESTORE_READONLY_PAPER_ACCOUNT_ACCESS";
@@ -69,8 +69,6 @@ export function buildPaperManualRoundTripStatus(state = {}, snapshot = {}) {
       orderPlacementAllowed: false,
       accountMutationAllowed: false,
       executionEnabled: false,
-      stage2Locked: true,
-      stage3Locked: true,
     }),
   });
 }

@@ -24,6 +24,4 @@ test("runbook requires preflight and explicit evidence reset review while later 
   assert.equal(runbook.safety.activationPreflightWritesEvidence, false);
   assert.equal(runbook.safety.evidenceResetRequiresExactConfirmation, true);
   assert.equal(runbook.safety.orderPlacementAllowed, false);
-  assert.equal(runbook.safety.stage2Locked, true);
-  assert.equal(runbook.safety.stage3Locked, true);
 });

@@ -34,8 +34,6 @@ export function buildPaperManualRoundTripRunbook() {
       accountMutationAllowed: false,
       automaticEnterEnabled: false,
       automaticExitEnabled: false,
-      stage2Locked: true,
-      stage3Locked: true,
     }),
   });
 }

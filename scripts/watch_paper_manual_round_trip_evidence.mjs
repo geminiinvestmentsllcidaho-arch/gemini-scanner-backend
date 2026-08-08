@@ -31,7 +31,7 @@ export async function runPaperManualRoundTripWatcher(options = {}) {
       cycle,
       observedAt: new Date().toISOString(),
       tracker: result.state,
-      promotionProof: result.promotionProof,
+      manualRoundTripProof: result.manualRoundTripProof,
       operator,
       safety: Object.freeze({
         readOnly: true,
@@ -40,8 +40,6 @@ export async function runPaperManualRoundTripWatcher(options = {}) {
         orderPlacementAllowed: false,
         accountMutationAllowed: false,
         executionEnabled: false,
-        stage2Locked: true,
-        stage3Locked: true,
       }),
     });
     fs.mkdirSync(path.dirname(statusPath), { recursive: true });

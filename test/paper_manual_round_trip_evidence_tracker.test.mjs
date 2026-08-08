@@ -79,7 +79,7 @@ test("fails closed when account is unavailable or baseline is ambiguous", () => 
   ]);
 });
 
-test("builds promotion-lock proof only from completed mechanical evidence", async () => {
+test("builds manual round-trip proof only from completed mechanical evidence", async () => {
   const mod = await import("../src/scanner/paper_manual_round_trip_evidence_tracker.mjs");
   let state = mod.defaultPaperManualRoundTripEvidence(at("2026-07-30T20:00:00Z"));
   state = evaluatePaperManualRoundTripEvidence(state, snap([]), { now: at("2026-07-30T20:01:00Z") });
@@ -88,7 +88,7 @@ test("builds promotion-lock proof only from completed mechanical evidence", asyn
     observedAt: "2026-07-30T20:02:30.000Z",
   }), { now: at("2026-07-30T20:03:00Z") });
 
-  const incomplete = mod.buildManualStagePromotionProof(state);
+  const incomplete = mod.buildManualRoundTripProof(state);
   assert.equal(incomplete.mechanicalSuccess, false);
   assert.equal(incomplete.evidenceId, null);
 
@@ -97,7 +97,7 @@ test("builds promotion-lock proof only from completed mechanical evidence", asyn
     restartRecoveryVerified: true,
     duplicateProtectionVerified: true,
   });
-  const proof = mod.buildManualStagePromotionProof(state);
+  const proof = mod.buildManualRoundTripProof(state);
   assert.equal(proof.mechanicalSuccess, true);
   assert.equal(proof.stage, "manual_detection_only");
   assert.match(proof.evidenceId, /^[a-f0-9]{24}$/);
@@ -105,30 +105,7 @@ test("builds promotion-lock proof only from completed mechanical evidence", asyn
   assert.equal(proof.orderPlacementAllowed, false);
 });
 
-test("promotion-lock accepts only the completed tracker proof", async () => {
-  const tracker = await import("../src/scanner/paper_manual_round_trip_evidence_tracker.mjs");
-  const lock = await import("../src/scanner/paper_execution_stage_promotion_lock.mjs");
-  let state = tracker.evaluatePaperManualRoundTripEvidence({}, snap([]), { now: at("2026-07-30T20:01:00Z") });
-  let proof = tracker.buildManualStagePromotionProof(state);
-  let access = lock.evaluatePaperExecutionStageAccess(lock.PAPER_EXECUTION_STAGES.USER_APPROVED, {
-    state: { ...lock.defaultPaperExecutionStageState(), manualProof: proof, stage2Unlocked: true },
-  });
-  assert.equal(access.allowed, false);
 
-  state = tracker.evaluatePaperManualRoundTripEvidence(state, snap([{ symbol: "SPY", qty: 1, side: "long" }], "connected_readonly", { observedAt: "2026-07-30T20:01:30.000Z" }), { now: at("2026-07-30T20:02:00Z") });
-  state = tracker.evaluatePaperManualRoundTripEvidence(state, snap([], "connected_readonly", { observedAt: "2026-07-30T20:02:30.000Z" }), {
-    now: at("2026-07-30T20:03:00Z"),
-    restartRecoveryVerified: true,
-    duplicateProtectionVerified: true,
-  });
-  proof = tracker.buildManualStagePromotionProof(state);
-  access = lock.evaluatePaperExecutionStageAccess(lock.PAPER_EXECUTION_STAGES.USER_APPROVED, {
-    state: { ...lock.defaultPaperExecutionStageState(), manualProof: proof, stage2Unlocked: true },
-  });
-  assert.equal(access.allowed, true);
-  assert.equal(access.safety.executionEnabled, false);
-  assert.equal(access.safety.brokerContactAllowed, false);
-});
 
 test("fails closed with explicit issue when baseline account already holds a position", () => {
   const state = evaluatePaperManualRoundTripEvidence(

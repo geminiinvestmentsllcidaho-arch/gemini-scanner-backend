@@ -5,7 +5,7 @@ import {
   defaultPaperManualRoundTripEvidence,
   evaluatePaperManualRoundTripEvidence,
   writePaperManualRoundTripEvidence,
-  buildManualStagePromotionProof,
+  buildManualRoundTripProof,
 } from "../src/scanner/paper_manual_round_trip_evidence_tracker.mjs";
 
 function validPersistedState(value) {
@@ -58,7 +58,7 @@ export async function runPaperManualRoundTripEvidenceTracker(options = {}) {
     ok: snapshot?.status === "connected_readonly",
     version: "paper_manual_round_trip_evidence_runner_v1",
     state,
-    promotionProof: buildManualStagePromotionProof(state),
+    manualRoundTripProof: buildManualRoundTripProof(state),
     snapshot: {
       status: snapshot?.status ?? null,
       observedAt: snapshot?.observedAt ?? null,

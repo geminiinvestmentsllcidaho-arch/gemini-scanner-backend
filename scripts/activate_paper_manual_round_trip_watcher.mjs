@@ -20,8 +20,6 @@ export async function activatePaperManualRoundTripWatcher(options = {}) {
       brokerMutationAllowed: false,
       orderPlacementAllowed: false,
       cancellationAllowed: false,
-      stage2Locked: true,
-      stage3Locked: true,
     },
   };
 

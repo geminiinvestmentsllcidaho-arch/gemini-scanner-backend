@@ -13,8 +13,6 @@ test("guarded activation blocks without READY preflight and never calls PM2", as
   assert.equal(result.started, false);
   assert.equal(calls, 0);
   assert.equal(result.safety.orderPlacementAllowed, false);
-  assert.equal(result.safety.stage2Locked, true);
-  assert.equal(result.safety.stage3Locked, true);
 });
 
 test("guarded activation starts only the dedicated watcher after READY preflight", async () => {
