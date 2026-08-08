@@ -29,10 +29,7 @@ test("paper lifecycle evidence bundle links broker readiness routes and remains 
   assert.match(html, /\/app\/paper-app-broker-readiness-index/);
   assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
   assert.match(html, /\/app\/paper-broker-network-attempt-status/);
-  assert.match(html, /\/app\/paper-trade-readiness-report/);
-  assert.match(html, /\/app\/paper-trade-broker-integration-preflight-stack/);
-  assert.match(html, /\/app\/paper-trade-execution-control-stack/);
-  assert.match(html, /\/app\/paper-trade-operator-go-no-go/);
+  assert.match(html, /\/app\/paper-readiness-gate/);
   assert.match(html, /\/app\/paper-lifecycle-dashboard/);
   assert.match(html, /\/app\/paper-lifecycle-operator-summary/);
   assert.match(html, /\/app\/paper-lifecycle-final-status/);

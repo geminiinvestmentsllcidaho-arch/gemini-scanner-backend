@@ -21,10 +21,7 @@ test("paper lifecycle readonly dashboard links broker readiness routes and remai
   assert.match(html, /\/app\/paper-app-broker-readiness-index/);
   assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
   assert.match(html, /\/app\/paper-broker-network-attempt-status/);
-  assert.match(html, /\/app\/paper-trade-readiness-report/);
-  assert.match(html, /\/app\/paper-trade-broker-integration-preflight-stack/);
-  assert.match(html, /\/app\/paper-trade-execution-control-stack/);
-  assert.match(html, /\/app\/paper-trade-operator-go-no-go/);
+  assert.match(html, /\/app\/paper-readiness-gate/);
   assert.doesNotMatch(html, /<form\b/i);
   assert.doesNotMatch(html, /<button\b/i);
   assert.doesNotMatch(html, /type=["']submit["']/i);
