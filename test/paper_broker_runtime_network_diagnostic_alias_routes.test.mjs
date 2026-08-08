@@ -6,7 +6,7 @@ const server = readFileSync("src/server.js", "utf8");
 
 test("paper broker runtime and network diagnostic aliases are registered read-only and historical-safe", () => {
   assert.match(server, /app\.get\('\/diagnostics\/paper-broker-runtime-environment-preflight'/);
-  assert.match(server, /buildPaperBrokerRuntimeEnvironmentPreflight\(\{ preflightOnly: true \}\)/);
+  assert.match(server, /buildPaperBrokerRuntimeEnvironmentPreflightAppScreen\(\{ loadSourceReport: false \}\)/);
   assert.match(server, /app\.get\('\/diagnostics\/paper-broker-network-attempt-status'/);
   assert.match(server, /buildPaperBrokerNetworkAttemptStatusAppScreen\(\{ loadSourceReport: false \}\)/);
 

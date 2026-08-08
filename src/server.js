@@ -4257,8 +4257,8 @@ app.get('/app/paper-broker-runtime-environment-preflight', async (_req, res) => 
 
 app.get('/diagnostics/paper-broker-runtime-environment-preflight', async (_req, res) => {
   try {
-    const mod = await import('./scanner/paper_broker_runtime_environment_preflight.mjs');
-    const payload = await mod.buildPaperBrokerRuntimeEnvironmentPreflight({ preflightOnly: true });
+    const mod = await import('./scanner/paper_broker_runtime_environment_preflight_app_screen.mjs');
+    const payload = mod.buildPaperBrokerRuntimeEnvironmentPreflightAppScreen({ loadSourceReport: false });
     res.json({ ...payload, route: '/diagnostics/paper-broker-runtime-environment-preflight' });
   } catch (err) {
     res.status(500).json({ ok: false, route: '/diagnostics/paper-broker-runtime-environment-preflight', error: err?.message ?? String(err) });
