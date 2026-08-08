@@ -13,23 +13,17 @@ export function parsePaperAutoExitOnlyArgs(argv = []) {
 
 export async function runPaperAutoExecutionExitOnlyCli(options = {}) {
   const args = options.args ?? parsePaperAutoExitOnlyArgs(options.argv ?? [])
-  const authorizationId = clean(args['authorization-id'])
+  const lifecycleId = clean(args['lifecycle-id'])
   const runsDir = options.runsDir ?? 'runs'
   const reportFile = options.reportFile ??
-    (authorizationId ? path.join(runsDir, `paper_auto_exit_only_${authorizationId}.json`) : undefined)
+    (lifecycleId ? path.join(runsDir, `paper_auto_exit_only_${lifecycleId}.json`) : undefined)
 
   return runPaperAutoExecutionExitOnly({
     args: {
       execute: args.execute,
-      operator: args.operator,
-      authorizationId,
-      phrase: args.phrase,
-      scope: args.scope,
-      lifecycleId: clean(args['lifecycle-id']),
+      lifecycleId,
       symbol: clean(args.symbol).toUpperCase(),
       quantity: args.quantity,
-      expiresAtMs: args['expires-at-ms'],
-      latch: args.latch,
       lifecycleFile: args['lifecycle-file'],
     },
     env: options.env ?? process.env,
