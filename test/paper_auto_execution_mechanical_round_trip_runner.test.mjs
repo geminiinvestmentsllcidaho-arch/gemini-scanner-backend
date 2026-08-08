@@ -4,26 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from '../src/scanner/paper_auto_execution_lifecycle_store.mjs'
-import { PAPER_EXECUTION_STAGES } from '../src/scanner/paper_execution_stage_promotion_lock.mjs'
 import { createPaperAutoExecutionMechanicalRoundTripRunner } from '../src/scanner/paper_auto_execution_mechanical_round_trip_runner.mjs'
-
-const unlocked = () => ({
-  activeStage: PAPER_EXECUTION_STAGES.AUTOMATIC,
-  stage2Unlocked: true, stage3Unlocked: true,
-  manualProof: {
-    stage: PAPER_EXECUTION_STAGES.MANUAL, enterDetected: true, entryReconciled: true,
-    monitoringStarted: true, exitDetected: true, exitReconciled: true, roundTripClosed: true,
-    restartRecoveryVerified: true, duplicateProtectionVerified: true, mechanicalSuccess: true,
-    evidenceId: 'manual', completedAt: '2026-08-05T00:00:00.000Z',
-  },
-  userApprovedProof: {
-    stage: PAPER_EXECUTION_STAGES.USER_APPROVED, enterApproved: true, enterSubmittedOnce: true,
-    enterFilledAndReconciled: true, exitApproved: true, exitSubmittedOnce: true,
-    exitFilledAndReconciled: true, roundTripClosed: true, restartRecoveryVerified: true,
-    duplicateProtectionVerified: true, mechanicalSuccess: true,
-    evidenceId: 'approved', completedAt: '2026-08-05T00:01:00.000Z',
-  },
-})
 
 const env = {
   PAPER_AUTO_COMPOSITION_ENABLED: '1',
@@ -46,7 +27,7 @@ test('completes one top-candidate exact-position mechanical round trip', async (
       idFactory: () => 'mechanical-life-1',
     })
     const runner = createPaperAutoExecutionMechanicalRoundTripRunner({
-      lifecycleStore: store, readStageState: unlocked, env,
+      lifecycleStore: store, env,
       getScanSnapshot: async () => ({ candidates: [
         { symbol: 'MSFT', state: 'ENTER', buyRecommendation: true, blockers: [], score: 80 },
         { symbol: 'AAPL', state: 'ENTER', buyRecommendation: true, blockers: [], score: 95 },
@@ -104,7 +85,7 @@ test('fails closed after bounded cycles without duplicate entry', async () => {
       idFactory: () => 'mechanical-life-2',
     })
     const runner = createPaperAutoExecutionMechanicalRoundTripRunner({
-      lifecycleStore: store, readStageState: unlocked, env,
+      lifecycleStore: store, env,
       getScanSnapshot: async () => ({ candidates: [
         { symbol: 'AAPL', state: 'ENTER', buyRecommendation: true, blockers: [], score: 99 },
       ] }),
