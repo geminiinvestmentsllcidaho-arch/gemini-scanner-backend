@@ -2,6 +2,7 @@ import {execFile} from "node:child_process";
 import {promisify} from "node:util";
 import fs from "node:fs";
 import path from "node:path";
+import {pathToFileURL} from "node:url";
 import {fetchAlpacaPaperAccountReadonly} from "../src/scanner/alpaca_paper_account_readonly_fetch.mjs";
 import {fetchAlpacaMarketClockReadonly} from "../src/scanner/alpaca_market_clock_readonly.mjs";
 import {createPaperAutoExecutionAlpacaPaperAdapter} from "../src/scanner/paper_auto_execution_alpaca_paper_adapter.mjs";
@@ -46,7 +47,12 @@ export async function runExecutionReadinessOnce({pm2Reader=readPm2}={}){
   return result;
 }
 
-if(import.meta.url===`file://${process.argv[1]}`){
+export function isDirectExecution(metaUrl=import.meta.url,argv1=process.argv[1]){
+  if(!argv1)return false;
+  try{return metaUrl===pathToFileURL(path.resolve(argv1)).href}catch{return false}
+}
+
+if(isDirectExecution()){
   await runExecutionReadinessOnce();
   setInterval(()=>runExecutionReadinessOnce().catch(error=>console.error(error?.message??error)),waitMs);
 }
