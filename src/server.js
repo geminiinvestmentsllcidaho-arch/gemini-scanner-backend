@@ -2644,13 +2644,17 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const mod = await import('./scanner/admin_surface.mjs');
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
   const healthMod = await import('./scanner/admin_system_health.mjs');
+  const tradingMod = await import('./scanner/admin_trading_engine.mjs');
   const [alpacaAccess, systemHealth] = await Promise.all([accessMod.getAlpacaMasterAccessSwitchState(), healthMod.collectAdminSystemHealth()]);
-  const surface = mod.buildAdminSurface({ alpacaAccess, systemHealth });
+  const tradingEngine = tradingMod.collectAdminTradingEngine({ alpacaAccess, systemHealth });
+  const surface = mod.buildAdminSurface({ alpacaAccess, systemHealth, tradingEngine });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderAdminSurfaceHtml(surface));
 });
 
 app.get('/admin/system-health', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_system_health.mjs'); const x = await m.collectAdminSystemHealth(); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminSystemHealth(x)); });
+
+app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_trading_engine.mjs'); const accessMod = await import('./scanner/alpaca_master_access_switch.mjs'); const alpacaAccess = await accessMod.getAlpacaMasterAccessSwitchState(); const x = m.collectAdminTradingEngine({ alpacaAccess }); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminTradingEngine(x)); });
 
 app.post('/admin/alpaca-access', requireAdminAuthorization, requireCustomerSameOrigin, async (req, res) => {
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');

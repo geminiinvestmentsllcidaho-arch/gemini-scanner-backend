@@ -11,6 +11,7 @@ function esc(value) {
 
 export function buildAdminSurface(options = {}) {
   const systemHealth = options.systemHealth ?? null;
+  const tradingEngine = options.tradingEngine ?? null;
   const alpacaAccess = options.alpacaAccess ?? {
     enabled: false,
     accessMode: "ALPACA_ACCOUNT_ACCESS_OFF",
@@ -44,6 +45,7 @@ export function buildAdminSurface(options = {}) {
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
     systemHealth,
+    tradingEngine,
     alpacaAccess: Object.freeze({ ...alpacaAccess }),
   });
 }
@@ -102,9 +104,9 @@ hr{border:0;border-top:1px solid #39ff14}
 <div class="card"><h3>Error Log Stream</h3><p>Recent server errors and watchdog incidents.</p><p><strong>Recent errors:</strong> ${esc(surface.systemHealth?.errors?.length ?? "Unavailable")} · <strong>Infrastructure:</strong> ${esc(surface.systemHealth?.infra ?? "Unavailable")} · <strong>Ops AI:</strong> ${esc(surface.systemHealth?.ops ?? "Unavailable")}</p><a href="/admin/system-health">Open error stream</a></div>
 </div></section>
 <section class="ops-group"><h2>Trading Engine &amp; Execution</h2><div class="grid">
-<div class="card"><h3>Active Orders &amp; Queue</h3><p>Pending, executing, partially filled, and filled PAPER order evidence.</p><p><strong>Status:</strong> Stored read-only order evidence only until live broker read is explicitly enabled.</p></div>
-<div class="card"><h3>Brokerage API Status</h3><p>Alpaca PAPER read connection health, market-data status, and rate-limit visibility.</p><p><strong>Status:</strong> No broker request is made by this admin page.</p></div>
-<div class="card"><h3>Execution Latency Panel</h3><p>Signal-to-submit and submit-to-fill timing from stored timestamps.</p><p><strong>Status:</strong> Unavailable when timestamps are not present.</p></div>
+<div class="card"><h3>Active Orders &amp; Queue</h3><p>Stored PAPER order evidence; not a live broker queue.</p><p><strong>Stored active:</strong> ${esc(surface.tradingEngine?.orderEvidence?.activeStoredCount ?? "Unavailable")} · <strong>Latest:</strong> ${esc(surface.tradingEngine?.orderEvidence?.latestStatus ?? "Unavailable")} · <strong>Symbol:</strong> ${esc(surface.tradingEngine?.orderEvidence?.order?.symbol ?? "Unavailable")}</p><a href="/admin/trading-engine">Open trading engine</a></div>
+<div class="card"><h3>Brokerage API Status</h3><p>Local configuration and stored broker-read evidence only.</p><p><strong>Read access:</strong> ${surface.tradingEngine?.brokerage?.alpacaReadAccessEnabled ? "ON" : "OFF"} · <strong>Last stored HTTP:</strong> ${esc(surface.tradingEngine?.brokerage?.lastStoredResponseStatus ?? "Unavailable")}</p><a href="/admin/trading-engine">Open brokerage status</a></div>
+<div class="card"><h3>Execution Latency Panel</h3><p>Stored order timestamps only.</p><p><strong>Submit → fill:</strong> ${esc(surface.tradingEngine?.execution?.submitToFillMs ?? "Unavailable")} ms · <strong>Signal → submit:</strong> Not yet instrumented</p><a href="/admin/trading-engine">Open latency detail</a></div>
 </div></section>
 <section class="ops-group"><h2>Financial &amp; Risk Management</h2><div class="grid">
 <div class="card"><h3>Portfolio &amp; Liquidity Dashboard</h3><p>Cash, buying power, equity, open positions, market value, and margin usage.</p><p><strong>Status:</strong> Read-only PAPER account evidence only.</p></div>

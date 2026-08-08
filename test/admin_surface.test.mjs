@@ -93,6 +93,10 @@ test("renders admin-only navigation without customer interface links", () => {
   assert.match(html, /Recent errors:<\/strong>/);
   assert.match(html, /Exact concurrent-session counting not yet instrumented/);
   assert.match(html, /Automatic backup scheduler verification pending/);
+  assert.match(html, /Stored active:<\/strong>/);
+  assert.match(html, /Last stored HTTP:<\/strong>/);
+  assert.match(html, /Submit → fill:<\/strong>/);
+  assert.match(html, /\/admin\/trading-engine/);
   assert.match(html, /Turn OFF Alpaca read access/);
   assert.match(html, /order placement, cancellation, replacement, live trading, and PAPER submission remain locked/i);
   assert.doesNotMatch(html, /href="\/customer(?:["/])/);

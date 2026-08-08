@@ -30,6 +30,7 @@ test("admin authorization accepts browser session but preserves protected-token 
   assert.match(server, /verifyAdminSessionToken\(adminCookieValue\(req\), \{ secret: sessionSecret \}\)/);
   assert.match(server, /return requireAdminTokenAuthorization\(req, res, next\)/);
   assert.match(server, /app\.get\('\/admin', requireAdminAuthorization/);
+  assert.match(server, /app\.get\('\/admin\/trading-engine', requireAdminAuthorization/);
   assert.match(server, /app\.post\('\/admin\/alpaca-access', requireAdminAuthorization, requireCustomerSameOrigin/);
 });
 
