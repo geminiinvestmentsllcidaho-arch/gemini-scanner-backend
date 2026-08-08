@@ -1,4 +1,3 @@
-import { PAPER_EXECUTION_STAGES, evaluatePaperExecutionStageAccess } from './paper_execution_stage_promotion_lock.mjs'
 import { STATES as S } from './paper_auto_execution_state_machine.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
@@ -49,7 +48,6 @@ export function createPaperAutoExecutionOrchestrator({
   getAccountSnapshot,
   getHistoricalOrders = async () => [],
   submitPaperOrder,
-  readStageState,
   env = process.env,
   now = () => Date.now(),
 } = {}) {
@@ -66,10 +64,6 @@ export function createPaperAutoExecutionOrchestrator({
   const automaticEntryEnabled = () => enabled(env, 'PAPER_AUTO_ENTER_ENABLED')
   const automaticExitEnabled = () => enabled(env, 'PAPER_AUTO_EXIT_ENABLED')
 
-  const stageAccess = () => evaluatePaperExecutionStageAccess(PAPER_EXECUTION_STAGES.AUTOMATIC, {
-    state: typeof readStageState === 'function' ? readStageState() : undefined,
-  })
-
   const diagnostics = () => Object.freeze({
     ok: true,
     version: VERSION,
@@ -78,7 +72,6 @@ export function createPaperAutoExecutionOrchestrator({
     orchestrationEnabled: orchestrationEnabled(),
     automaticEntryEnabled: automaticEntryEnabled(),
     automaticExitEnabled: automaticExitEnabled(),
-    stageAccess: stageAccess(),
     lifecycle: lifecycleStore.load(),
     lastResult,
     lastError,
@@ -88,16 +81,10 @@ export function createPaperAutoExecutionOrchestrator({
   const runOnce = async () => {
     cycles += 1
     try {
-      const access = stageAccess()
       if (!orchestrationEnabled()) {
         lastResult = Object.freeze({ status: 'DISABLED_BY_ENV', changed: false, blockers: Object.freeze(['paper_auto_orchestrator_not_enabled']), safety: safety() })
         return diagnostics()
       }
-      if (!access.allowed) {
-        lastResult = Object.freeze({ status: 'BLOCKED_STAGE_LOCKED', changed: false, blockers: access.reasons, safety: safety() })
-        return diagnostics()
-      }
-
       let lifecycle = lifecycleStore.load()
       if (!lifecycle) {
         if (!automaticEntryEnabled()) {

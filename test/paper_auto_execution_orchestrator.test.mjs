@@ -5,30 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from '../src/scanner/paper_auto_execution_lifecycle_store.mjs'
 import { createPaperAutoExecutionOrchestrator } from '../src/scanner/paper_auto_execution_orchestrator.mjs'
-import { PAPER_EXECUTION_STAGES } from '../src/scanner/paper_execution_stage_promotion_lock.mjs'
 import { STATES as S } from '../src/scanner/paper_auto_execution_state_machine.mjs'
-
-function unlockedState() {
-  return {
-    activeStage: PAPER_EXECUTION_STAGES.AUTOMATIC,
-    stage2Unlocked: true,
-    stage3Unlocked: true,
-    manualProof: {
-      stage: PAPER_EXECUTION_STAGES.MANUAL,
-      enterDetected: true, entryReconciled: true, monitoringStarted: true,
-      exitDetected: true, exitReconciled: true, roundTripClosed: true,
-      restartRecoveryVerified: true, duplicateProtectionVerified: true,
-      mechanicalSuccess: true, evidenceId: 'manual-proof', completedAt: '2026-08-04T04:00:00.000Z',
-    },
-    userApprovedProof: {
-      stage: PAPER_EXECUTION_STAGES.USER_APPROVED,
-      enterApproved: true, enterSubmittedOnce: true, enterFilledAndReconciled: true,
-      exitApproved: true, exitSubmittedOnce: true, exitFilledAndReconciled: true,
-      roundTripClosed: true, restartRecoveryVerified: true, duplicateProtectionVerified: true,
-      mechanicalSuccess: true, evidenceId: 'approved-proof', completedAt: '2026-08-04T04:10:00.000Z',
-    },
-  }
-}
 
 function makeStore() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-orchestrator-'))
@@ -49,7 +26,7 @@ const candidateSnapshot = {
 test('is disabled by default and automatic start is prohibited', async () => {
   const { dir, store } = makeStore()
   try {
-    const orchestrator = createPaperAutoExecutionOrchestrator({ lifecycleStore: store, readStageState: unlockedState, env: {} })
+    const orchestrator = createPaperAutoExecutionOrchestrator({ lifecycleStore: store, env: {} })
     assert.equal(orchestrator.start().running, false)
     const result = await orchestrator.runOnce()
     assert.equal(result.lastResult.status, 'DISABLED_BY_ENV')
@@ -59,18 +36,18 @@ test('is disabled by default and automatic start is prohibited', async () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('stage lock blocks lifecycle creation even when env flags are enabled', async () => {
+test('operational env gates create lifecycle without obsolete stage proof while submission remains locked', async () => {
   const { dir, store } = makeStore()
   try {
     const orchestrator = createPaperAutoExecutionOrchestrator({
       lifecycleStore: store,
       getScanSnapshot: async () => candidateSnapshot,
-      readStageState: () => ({}),
       env: { PAPER_AUTO_ORCHESTRATOR_ENABLED: '1', PAPER_AUTO_ENTER_ENABLED: '1' },
     })
     const result = await orchestrator.runOnce()
-    assert.equal(result.lastResult.status, 'BLOCKED_STAGE_LOCKED')
-    assert.equal(store.load(), null)
+    assert.equal(result.lastResult.status, 'LIFECYCLE_CREATED_ORDER_SUBMISSION_LOCKED')
+    assert.equal(store.load()?.state, S.CANDIDATE_SELECTED)
+    assert.equal(result.lastResult.safety.orderPlacementAllowed, false)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
@@ -81,7 +58,6 @@ test('creates one durable lifecycle and deterministic enter identity without bro
     const orchestrator = createPaperAutoExecutionOrchestrator({
       lifecycleStore: store,
       getScanSnapshot: async () => { scans += 1; return candidateSnapshot },
-      readStageState: unlockedState,
       env: { PAPER_AUTO_ORCHESTRATOR_ENABLED: '1', PAPER_AUTO_ENTER_ENABLED: '1' },
     })
     const first = await orchestrator.runOnce()
@@ -112,7 +88,6 @@ test('reconciles confirmed position to monitoring and prepares exact exit identi
         positions: [{ assetId: 'asset-aapl', symbol: 'AAPL', qty: 1, averageEntryPrice: 100 }],
         openOrders: [{ id: 'order-enter', clientOrderId: 'cid-enter', symbol: 'AAPL', side: 'buy', status: 'filled', filledQty: 1, filledAvgPrice: 100 }],
       }),
-      readStageState: unlockedState,
       env: { PAPER_AUTO_ORCHESTRATOR_ENABLED: '1', PAPER_AUTO_EXIT_ENABLED: '1' },
       now: () => Date.parse('2026-08-04T04:20:30.000Z'),
     })

@@ -1,4 +1,3 @@
-import { PAPER_EXECUTION_STAGES, evaluatePaperExecutionStageAccess } from './paper_execution_stage_promotion_lock.mjs'
 import { STATES as S } from './paper_auto_execution_state_machine.mjs'
 import { createPaperAutoExecutionOrchestrator } from './paper_auto_execution_orchestrator.mjs'
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
@@ -12,7 +11,7 @@ const safe = (extra = {}) => Object.freeze({
 })
 
 export function createPaperAutoExecutionComposition(options = {}) {
-  const { lifecycleStore, readStageState, submitPaperOrder, env = process.env } = options
+  const { lifecycleStore, submitPaperOrder, env = process.env } = options
   if (!lifecycleStore?.load) throw new Error('paper_auto_composition_lifecycle_store_required')
   const orchestrator = createPaperAutoExecutionOrchestrator(options)
   let cycles = 0
@@ -29,14 +28,6 @@ export function createPaperAutoExecutionComposition(options = {}) {
       lastResult = Object.freeze({ status: 'COMPOSITION_DISABLED_BY_ENV', adapterInvoked: false })
       return diagnostics()
     }
-    const access = evaluatePaperExecutionStageAccess(PAPER_EXECUTION_STAGES.AUTOMATIC, {
-      state: typeof readStageState === 'function' ? readStageState() : undefined,
-    })
-    if (!access.allowed) {
-      lastResult = Object.freeze({ status: 'COMPOSITION_BLOCKED_STAGE_LOCKED', adapterInvoked: false, blockers: access.reasons })
-      return diagnostics()
-    }
-
     const orchestration = await orchestrator.runOnce()
     const orchestratorSubmission = orchestration.lastResult?.submission ?? null
     if (orchestratorSubmission) {
