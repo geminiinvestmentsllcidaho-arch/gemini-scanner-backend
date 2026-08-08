@@ -70,6 +70,29 @@ test("renders admin-only navigation without customer interface links", () => {
   assert.match(html, /button\{background:#000;color:#00ffff;border:1px solid #00ffff/);
   assert.match(html, /nav button\{border:1px solid #00ffff;background:#000;color:#00ffff/);
   assert.doesNotMatch(html, /#b8c7dc|#0b1220|#101827|#1b263b|#38bdf8/i);
+  for (const label of [
+    "System &amp; Infrastructure Health",
+    "Server Status Panel",
+    "Uptime &amp; Latency Monitor",
+    "Error Log Stream",
+    "Trading Engine &amp; Execution",
+    "Active Orders &amp; Queue",
+    "Brokerage API Status",
+    "Execution Latency Panel",
+    "Financial &amp; Risk Management",
+    "Portfolio &amp; Liquidity Dashboard",
+    "Kill Switch Control",
+    "P&amp;L Tracker",
+    "Security &amp; User Activity",
+    "Security &amp; Failed Logins",
+    "Active User Sessions",
+    "Database &amp; Queue Backups",
+  ]) assert.match(html, new RegExp(label));
+  assert.match(html, /Local telemetry wiring pending/);
+  assert.match(html, /Local latency wiring pending/);
+  assert.match(html, /Local error-stream wiring pending/);
+  assert.match(html, /Exact concurrent-session counting not yet instrumented/);
+  assert.match(html, /Automatic backup scheduler verification pending/);
   assert.match(html, /Turn OFF Alpaca read access/);
   assert.match(html, /order placement, cancellation, replacement, live trading, and PAPER submission remain locked/i);
   assert.doesNotMatch(html, /href="\/customer(?:["/])/);
