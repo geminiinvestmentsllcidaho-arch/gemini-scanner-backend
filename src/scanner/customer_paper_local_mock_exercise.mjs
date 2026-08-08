@@ -2,8 +2,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecycle_store.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
-import { REQUIRED_PHRASE as ENTER_PHRASE, REQUIRED_SCOPE as ENTER_SCOPE } from './paper_auto_execution_enter_only_run_once_authorization.mjs'
-import { REQUIRED_PHRASE as EXIT_PHRASE, REQUIRED_SCOPE as EXIT_SCOPE } from './paper_auto_execution_exit_only_run_once_authorization.mjs'
 import { exerciseCustomerPaperMockExecutionBoundary } from './customer_paper_mock_execution_boundary.mjs'
 
 export const VERSION = 'customer_paper_local_mock_exercise_v1'
@@ -43,27 +41,12 @@ export async function exerciseCustomerPaperLocalMock({ accountId, preparationId,
   const phase = mode.toLowerCase()
   const side = mode === 'ENTER' ? 'buy' : 'sell'
   const identity = buildPaperAutoOrderIdentity({ lifecycleId: lifecycle.lifecycleId, phase, symbol, quantity, side })
-  const authorizationId = `customer-paper-${phase}-${prepId}`
   const handoff = Object.freeze({
     ok: true,
     status: 'READY_AT_FINAL_BROKER_SUBMISSION_BOUNDARY',
     mode,
     order: Object.freeze({ symbol, qty: quantity, side, type: 'market', timeInForce: 'day', clientOrderId: identity.clientOrderId, paperOnly: true }),
-    authorization: Object.freeze({
-      authorizationId,
-      operator: 'Borac',
-      phrase: mode === 'ENTER' ? ENTER_PHRASE : EXIT_PHRASE,
-      scope: mode === 'ENTER' ? ENTER_SCOPE : EXIT_SCOPE,
-      lifecycleId: lifecycle.lifecycleId,
-      symbol,
-      quantity,
-      expiresAtMs: Number(nowMs) + 15 * 60 * 1000,
-      latchFile: path.join(runsDir, 'customer_paper_user_authorization_latches', `${safe(authorizationId)}.json`),
-      paperOnly: true,
-      userInitiated: true,
-      consumed: false,
-      requiresExplicitConsumptionAtExecutionBoundary: true,
-    }),
+
   })
 
   const result = await exerciseCustomerPaperMockExecutionBoundary({ handoff, lifecycleStore: store, nowMs })
@@ -74,7 +57,7 @@ export async function exerciseCustomerPaperLocalMock({ accountId, preparationId,
     preparationId: prepId,
     lifecycleFile,
     lifecycle: result.lifecycle,
-    safety: Object.freeze({ paperOnly: true, localMockOnly: true, brokerContactAllowed: false, realOrderPlacementAllowed: false, accountMutationAllowed: false }),
+    safety: Object.freeze({ paperOnly: true, localMockOnly: true, humanAuthorizationRequired: false, brokerContactAllowed: false, realOrderPlacementAllowed: false, accountMutationAllowed: false }),
   })
 }
 

@@ -59,23 +59,23 @@ test('EXIT fails closed without exactly one matching lifecycle', () => {
   }, { runsDir, accountId: 'customer-zero' }), /matching_lifecycle_not_found/)
 })
 
-test('ENTER handoff carries exact unconsumed one-shot authorization metadata', () => {
+test('ENTER handoff binds deterministic identity without human authorization metadata', () => {
   const runsDir = tmp()
   const out = bridgePaperPreparationToLifecycle({
     ok: true, preparationId: 'prep-auth-enter', mode: 'ENTER', symbol: 'ABC', quantity: 1,
     customerAccountId: 'customer-zero',
   }, { runsDir, accountId: 'customer-zero' })
-  assert.equal(out.authorization.operator, 'Borac')
-  assert.equal(out.authorization.scope, 'paper_auto_enter_once_only')
-  assert.equal(out.authorization.phrase, 'I_APPROVE_ONE_DISABLED_PAPER_AUTO_ENTER_ONCE')
-  assert.equal(out.authorization.lifecycleId, out.lifecycleId)
-  assert.equal(out.authorization.symbol, 'ABC')
-  assert.equal(out.authorization.quantity, 1)
-  assert.equal(out.authorization.consumed, false)
-  assert.equal(out.authorization.requiresExplicitConsumptionAtExecutionBoundary, true)
+  assert.equal(out.lifecycleState, 'CANDIDATE_SELECTED')
+  assert.equal(out.deterministicIdentity.lifecycleId, out.lifecycleId)
+  assert.equal(out.deterministicIdentity.symbol, 'ABC')
+  assert.equal(out.deterministicIdentity.quantity, 1)
+  assert.equal(out.deterministicIdentity.side, 'buy')
+  assert.equal(out.authorization, undefined)
+  assert.equal(out.authorizationEvaluation, undefined)
+  assert.equal(out.safety.humanAuthorizationRequired, false)
 })
 
-test('EXIT handoff carries exact lifecycle-bound unconsumed one-shot authorization metadata', () => {
+test('EXIT handoff binds deterministic exact lifecycle target without human authorization metadata', () => {
   const runsDir = tmp()
   const now = new Date().toISOString()
   const file = path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json')
@@ -99,35 +99,29 @@ test('EXIT handoff carries exact lifecycle-bound unconsumed one-shot authorizati
   const out = bridgePaperPreparationToLifecycle({
     ok: true, preparationId: 'prep-auth-exit', mode: 'EXIT', symbol: 'BTG', quantity: 2, customerAccountId: 'customer-zero',
   }, { runsDir, accountId: 'customer-zero' })
-  assert.equal(out.authorization.scope, 'paper_auto_exit_once_only')
-  assert.equal(out.authorization.phrase, 'I_APPROVE_ONE_EXACT_POSITION_PAPER_AUTO_EXIT_ONCE')
-  assert.equal(out.authorization.lifecycleId, 'life-auth-exit')
-  assert.equal(out.authorization.symbol, 'BTG')
-  assert.equal(out.authorization.quantity, 2)
-  assert.equal(out.authorization.consumed, false)
+  assert.equal(out.lifecycleId, 'life-auth-exit')
+  assert.equal(out.deterministicIdentity.lifecycleId, 'life-auth-exit')
+  assert.equal(out.deterministicIdentity.symbol, 'BTG')
+  assert.equal(out.deterministicIdentity.quantity, 2)
+  assert.equal(out.deterministicIdentity.side, 'sell')
+  assert.equal(out.authorization, undefined)
+  assert.equal(out.authorizationEvaluation, undefined)
+  assert.equal(out.safety.humanAuthorizationRequired, false)
 })
 
-test('ENTER authorization handoff has deterministic latch expiry and evaluates without consumption', () => {
+test('ENTER handoff does not create authorization latch artifacts', () => {
   const runsDir = tmp()
-  const nowMs = 1786128000000
   const out = bridgePaperPreparationToLifecycle({
     ok: true, preparationId: 'prep-eval-enter', mode: 'ENTER', symbol: 'ABC', quantity: 1,
     customerAccountId: 'customer-zero',
-  }, {
-    runsDir,
-    accountId: 'customer-zero',
-    nowMs,
-    authorizationEnv: { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
-  })
-  assert.equal(out.authorization.expiresAtMs, nowMs + 15 * 60 * 1000)
-  assert.match(out.authorization.latchFile, /customer_paper_user_authorization_latches/)
-  assert.equal(out.authorizationEvaluation.ok, true)
-  assert.equal(out.authorizationEvaluation.authorizationId, out.authorization.authorizationId)
-  assert.equal(out.authorization.consumed, false)
-  assert.equal(fs.existsSync(out.authorization.latchFile), false)
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786128000000 })
+  assert.equal(out.authorization, undefined)
+  assert.equal(out.authorizationEvaluation, undefined)
+  assert.equal(fs.existsSync(path.join(runsDir, 'customer_paper_user_authorization_latches')), false)
+  assert.equal(out.safety.humanAuthorizationRequired, false)
 })
 
-test('EXIT authorization handoff evaluates exact lifecycle target without consumption', () => {
+test('EXIT handoff retains exact lifecycle identity without authorization evaluation', () => {
   const runsDir = tmp()
   const now = new Date().toISOString()
   const lifecycleFile = path.join(runsDir, 'customer_paper_user_lifecycle_customer-zero.json')
@@ -150,17 +144,14 @@ test('EXIT authorization handoff evaluates exact lifecycle target without consum
   }))
   const out = bridgePaperPreparationToLifecycle({
     ok: true, preparationId: 'prep-eval-exit', mode: 'EXIT', symbol: 'BTG', quantity: 2, customerAccountId: 'customer-zero',
-  }, {
-    runsDir,
-    accountId: 'customer-zero',
-    nowMs: 1786128000000,
-    authorizationEnv: { PAPER_AUTO_EXIT_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
-  })
-  assert.equal(out.authorizationEvaluation.ok, true)
-  assert.equal(out.authorizationEvaluation.lifecycleId, 'life-eval-exit')
-  assert.equal(out.authorizationEvaluation.symbol, 'BTG')
-  assert.equal(out.authorizationEvaluation.quantity, 2)
-  assert.equal(fs.existsSync(out.authorization.latchFile), false)
+  }, { runsDir, accountId: 'customer-zero', nowMs: 1786128000000 })
+  assert.equal(out.lifecycleId, 'life-eval-exit')
+  assert.equal(out.deterministicIdentity.lifecycleId, 'life-eval-exit')
+  assert.equal(out.deterministicIdentity.symbol, 'BTG')
+  assert.equal(out.deterministicIdentity.quantity, 2)
+  assert.equal(out.authorization, undefined)
+  assert.equal(out.authorizationEvaluation, undefined)
+  assert.equal(fs.existsSync(path.join(runsDir, 'customer_paper_user_authorization_latches')), false)
 })
 
 

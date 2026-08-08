@@ -1,5 +1,3 @@
-import { consumePaperAutoEnterOnlyRunOnceAuthorization } from './paper_auto_execution_enter_only_run_once_authorization.mjs'
-import { consumePaperAutoExitOnlyRunOnceAuthorization } from './paper_auto_execution_exit_only_run_once_authorization.mjs'
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
 import { reconcilePaperAutoExecution } from './paper_auto_execution_reconciliation.mjs'
 
@@ -10,17 +8,6 @@ export async function exerciseCustomerPaperMockExecutionBoundary({ handoff, life
   if (!lifecycleStore?.load || !lifecycleStore?.transition) throw new Error('mock_boundary_lifecycle_store_required')
   const mode = String(handoff.mode ?? '').toUpperCase()
   if (!['ENTER', 'EXIT'].includes(mode)) throw new Error('mock_boundary_mode_invalid')
-  const auth = {
-    ...handoff.authorization,
-    env: mode === 'ENTER'
-      ? { PAPER_AUTO_ENTER_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' }
-      : { PAPER_AUTO_EXIT_ONLY_RUN_ONCE_AUTHORIZATION_ENABLED: '1' },
-  }
-  const consumed = mode === 'ENTER'
-    ? consumePaperAutoEnterOnlyRunOnceAuthorization(auth, Number(nowMs))
-    : consumePaperAutoExitOnlyRunOnceAuthorization(auth, Number(nowMs))
-  if (!consumed.ok || consumed.consumed !== true) throw new Error('mock_boundary_authorization_consume_failed')
-
   const mockAdapter = async (order, metadata) => Object.freeze({
     orderSubmitted: true,
     brokerOrderId: `mock-${metadata.phase}-${order.clientOrderId}`,
@@ -79,12 +66,11 @@ export async function exerciseCustomerPaperMockExecutionBoundary({ handoff, life
     ok: true,
     version: VERSION,
     status: 'MOCK_FULL_LIFECYCLE_COMPLETED_NO_BROKER',
-    authorization: consumed.record,
     submission,
     reconciliation,
     mockObservations: Object.freeze({ orders: Object.freeze(mockOrders), positions: Object.freeze(mockPositions) }),
     lifecycle: finalLifecycle,
-    safety: Object.freeze({ paperOnly: true, mockOnly: true, syntheticReconciliationOnly: true, brokerContactAllowed: false, realOrderPlacementAllowed: false, accountMutationAllowed: false }),
+    safety: Object.freeze({ paperOnly: true, mockOnly: true, syntheticReconciliationOnly: true, humanAuthorizationRequired: false, brokerContactAllowed: false, realOrderPlacementAllowed: false, accountMutationAllowed: false }),
   })
 }
 
