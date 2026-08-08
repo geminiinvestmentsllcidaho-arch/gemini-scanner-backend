@@ -35,7 +35,6 @@ import { buildPaperAttemptModuleCompleteSelectorAppScreen, renderPaperAttemptMod
 import { buildPaperAttemptControlCenterPanel, buildPaperAttemptControlCenterPanelHtml } from "./scanner/paper_attempt_control_center_panel.mjs";
 import { buildPaperAttemptControlCenterAppScreen, renderPaperAttemptControlCenterAppScreenHtml } from "./scanner/paper_attempt_control_center_app_screen.mjs";
 import { buildPaperAttemptControlCenter } from "./scanner/paper_attempt_control_center.mjs";
-import { buildPaperAutoExecutionAuthorizedRunOnceOperatorPacketHistoryAppScreen, renderPaperAutoExecutionAuthorizedRunOnceOperatorPacketHistoryAppScreenHtml } from "./scanner/paper_auto_execution_authorized_run_once_operator_packet_history_app_screen.mjs";
 import { getPaperTradeIntentPlan } from "./scanner/paper_trade_intent_planner.mjs";
 import { buildPaperTradeIntentPlanAppScreen, renderPaperTradeIntentPlanAppScreenHtml } from "./scanner/paper_trade_intent_plan_app_screen.mjs";
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
@@ -2970,29 +2969,6 @@ app.get('/diagnostics/real-trading-conversion-lock', (req, res) => {
 
 
 
-
-app.get("/diagnostics/paper-auto-preflight-history", (req, res) => {
-  res.json(buildPaperAutoExecutionAuthorizedRunOnceOperatorPacketHistoryAppScreen({
-    runsDir: "runs",
-    limit: req.query?.limit,
-    retentionDays: req.query?.retentionDays,
-    maxRecords: req.query?.maxRecords,
-    maxBytes: req.query?.maxBytes,
-    now: new Date(),
-  }));
-});
-
-app.get("/app/paper-auto-preflight-history", (req, res) => {
-  const screen = buildPaperAutoExecutionAuthorizedRunOnceOperatorPacketHistoryAppScreen({
-    runsDir: "runs",
-    limit: req.query?.limit,
-    retentionDays: req.query?.retentionDays,
-    maxRecords: req.query?.maxRecords,
-    maxBytes: req.query?.maxBytes,
-    now: new Date(),
-  });
-  res.type("html").send(renderPaperAutoExecutionAuthorizedRunOnceOperatorPacketHistoryAppScreenHtml(screen));
-});
 
 app.get("/diagnostics/paper-attempt-control-center-app-screen", (req, res) => {
   res.json(buildPaperAttemptControlCenterAppScreen({
