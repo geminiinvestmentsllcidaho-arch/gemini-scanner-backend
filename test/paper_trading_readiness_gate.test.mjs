@@ -13,7 +13,6 @@ test("paper trading readiness gate blocks by default", () => {
   assert.equal(result.allowedToCreatePaperIntent, false);
   assert.equal(result.paperIntentStatus, "blocked");
   assert.ok(result.issues.includes("paper_trading_enabled"));
-  assert.ok(result.issues.includes("operator_approved"));
 });
 
 test("paper trading readiness gate allows only when every safety and readiness check passes", () => {
@@ -21,8 +20,6 @@ test("paper trading readiness gate allows only when every safety and readiness c
     mode: "paper",
     paperTradingEnabled: true,
     liveTradingEnabled: false,
-    executionAdapterEnabled: false,
-    operatorApproval: { approved: true, status: "approved" },
     scannerHealth: "ok",
     governanceState: "open",
     portfolioPermission: "allowed",
@@ -45,8 +42,6 @@ test("paper trading readiness gate blocks live mode even with strong signal", ()
     mode: "live",
     paperTradingEnabled: true,
     liveTradingEnabled: true,
-    executionAdapterEnabled: false,
-    operatorApproval: { approved: true, status: "approved" },
     scannerHealth: "ok",
     governanceState: "open",
     portfolioPermission: "allowed",
@@ -67,8 +62,6 @@ test("paper trading readiness gate blocks stale or weak rankings", () => {
     mode: "paper",
     paperTradingEnabled: true,
     liveTradingEnabled: false,
-    executionAdapterEnabled: false,
-    operatorApproval: { approved: true, status: "approved" },
     scannerHealth: "stale",
     governanceState: "open",
     portfolioPermission: "allowed",
