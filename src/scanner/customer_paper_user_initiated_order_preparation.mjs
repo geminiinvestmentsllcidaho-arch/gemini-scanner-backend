@@ -23,7 +23,6 @@ export function buildCustomerPaperOrderPreparation(input = {}, options = {}) {
   if (quantity === null) blockers.push("positive_quantity_required");
   if (mode === "ENTER" && quantity !== 1) blockers.push("mechanical_enter_quantity_locked_to_one");
   if (input.paperOnly !== true) blockers.push("paper_only_required");
-  if (input.userConfirmed !== true) blockers.push("explicit_user_confirmation_required");
 
   const now = options.now instanceof Date ? options.now : new Date();
   const preparationId = blockers.length === 0

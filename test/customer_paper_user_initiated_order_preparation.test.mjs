@@ -10,7 +10,7 @@ import {
 
 test("prepares one-share PAPER ENTER without broker execution permission", () => {
   const record = buildCustomerPaperOrderPreparation({
-    mode: "ENTER", symbol: "abc", quantity: 1, paperOnly: true, userConfirmed: true,
+    mode: "ENTER", symbol: "abc", quantity: 1, paperOnly: true,
   });
   assert.equal(record.ok, true);
   assert.equal(record.orderPreview.symbol, "ABC");
@@ -22,7 +22,7 @@ test("prepares one-share PAPER ENTER without broker execution permission", () =>
 
 test("prepares exact PAPER EXIT quantity without broker execution permission", () => {
   const record = buildCustomerPaperOrderPreparation({
-    mode: "EXIT", symbol: "btg", quantity: 2.5, paperOnly: true, userConfirmed: true,
+    mode: "EXIT", symbol: "btg", quantity: 2.5, paperOnly: true,
   });
   assert.equal(record.ok, true);
   assert.equal(record.orderPreview.side, "sell");
@@ -32,7 +32,7 @@ test("prepares exact PAPER EXIT quantity without broker execution permission", (
 
 test("ENTER is locked to one share", () => {
   const record = buildCustomerPaperOrderPreparation({
-    mode: "ENTER", symbol: "ABC", quantity: 2, paperOnly: true, userConfirmed: true,
+    mode: "ENTER", symbol: "ABC", quantity: 2, paperOnly: true,
   });
   assert.equal(record.ok, false);
   assert.ok(record.blockers.includes("mechanical_enter_quantity_locked_to_one"));
@@ -41,7 +41,7 @@ test("ENTER is locked to one share", () => {
 
 test("persisted preparation is bound to authenticated customer account", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-paper-prep-account-"));
-  const record = buildCustomerPaperOrderPreparation({ mode:"ENTER", symbol:"ABC", quantity:1, paperOnly:true, userConfirmed:true }, { now:new Date("2026-08-07T19:00:00.000Z") });
+  const record = buildCustomerPaperOrderPreparation({ mode:"ENTER", symbol:"ABC", quantity:1, paperOnly:true }, { now:new Date("2026-08-07T19:00:00.000Z") });
   const saved = persistCustomerPaperOrderPreparation(record, { dir, accountId:"customer-zero" });
   assert.equal(saved.customerAccountId, "customer-zero");
   const onDisk = JSON.parse(fs.readFileSync(saved.file, "utf8"));
@@ -50,6 +50,6 @@ test("persisted preparation is bound to authenticated customer account", () => {
 
 test("preparation persistence fails closed without customer account", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-paper-prep-no-account-"));
-  const record = buildCustomerPaperOrderPreparation({ mode:"ENTER", symbol:"ABC", quantity:1, paperOnly:true, userConfirmed:true });
+  const record = buildCustomerPaperOrderPreparation({ mode:"ENTER", symbol:"ABC", quantity:1, paperOnly:true });
   assert.throws(() => persistCustomerPaperOrderPreparation(record, { dir }), /customer_account_required/);
 });

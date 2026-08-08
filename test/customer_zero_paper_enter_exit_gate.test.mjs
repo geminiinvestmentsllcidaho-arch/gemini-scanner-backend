@@ -9,7 +9,6 @@ function safeOptions(overrides = {}) {
   return {
     marketOpen: true,
     paperExecutionEnabled: true,
-    operatorApproved: true,
     killSwitchActive: false,
     duplicateOrderDetected: false,
     priceDeviationOk : true,
@@ -66,7 +65,7 @@ test("stale or blocked states never permit ENTER preview readiness", () => {
   }
 });
 
-test("EXIT receives priority and requires an affected position and confirmation", () => {
+test("EXIT receives priority and requires an affected position", () => {
   const gate = buildCustomerZeroPaperEnterExitGate({
     symbol: "XYZ",
     resultState: "EXIT",
@@ -88,7 +87,6 @@ test("EXIT receives priority and requires an affected position and confirmation"
   assert.equal(gate.exit.ready, true);
   assert.equal(gate.exit.priority, "highest");
   assert.equal(gate.exit.style, "priority_red");
-  assert.equal(gate.exit.confirmationRequired, true);
   assert.equal(gate.exit.quantityPreview, 12);
   assert.equal(gate.enter.visible, false);
 });
@@ -187,7 +185,6 @@ test("portfolio wind-down blocks ENTER even when every ordinary paper check pass
     },
     marketOpen: true,
     paperExecutionEnabled: true,
-    operatorApproved: true,
     killSwitchActive: false,
     duplicateOrderDetected: false,
     priceDeviationOk: true,

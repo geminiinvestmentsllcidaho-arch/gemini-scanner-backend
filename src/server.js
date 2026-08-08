@@ -4530,7 +4530,6 @@ app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustome
       symbol: req.body?.symbol,
       quantity: req.body?.quantity,
       paperOnly: String(req.body?.paperOnly ?? '').toLowerCase() === 'true',
-      userConfirmed: String(req.body?.userConfirmed ?? '').toLowerCase() === 'true',
     });
     if (!record.ok) {
       return res.status(400).type('html').send(`<!doctype html><html><body><main><h1>Paper order preparation blocked</h1><p>${record.blockers.join(', ')}</p><p>No broker contact or order placement occurred.</p><p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
@@ -5988,7 +5987,6 @@ app.get('/customer/scanner/exit-demo', requireCustomerSession, async (req, res) 
       },
       marketOpen: true,
       paperExecutionEnabled: true,
-      operatorApproved: true,
       killSwitchActive: false,
       duplicateOrderDetected: false,
       priceDeviationOk: true,

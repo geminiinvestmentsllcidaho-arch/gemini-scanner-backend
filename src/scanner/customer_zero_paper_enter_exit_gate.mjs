@@ -39,7 +39,6 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
     openPositionCount < Math.max(1, Math.trunc(maxConcurrentTestPositions));
   const marketOpen = bool(options.marketOpen);
   const paperExecutionEnabled = bool(options.paperExecutionEnabled);
-  const operatorApproved = bool(options.operatorApproved);
   const killSwitchClear = options.killSwitchActive === false;
   const duplicateOrderClear = options.duplicateOrderDetected !== true;
   const priceDeviationOk = options.priceDeviationOk === true;
@@ -55,10 +54,8 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
     ? Number((price * firstTestQuantity).toFixed(2))
     : 0;
   const positionQty = finite(position?.qty) ?? 0;
-  const exitConfirmationRequired = state === "EXIT";
   const baseChecks = {
     paperExecutionEnabled,
-    operatorApproved,
     killSwitchClear,
     marketOpen,
     accountHealthy,
@@ -80,7 +77,6 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
     ...baseChecks,
     exitState: state === "EXIT",
     positionPresent: positionQty > 0,
-    exitConfirmationRequired,
   };
   const enterBlockedReasons = Object.entries(enterChecks)
     .filter(([, passed]) => passed !== true)
@@ -108,7 +104,6 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
       label: "ENTER / BUY",
       style: enterReady ? "bright_green" : "disabled_gray",
       ready: enterReady,
-      confirmationRequired: true,
       quantityPreview: firstTestQuantity,
       firstTestQuantity,
       firstTestEstimatedCost,
@@ -123,7 +118,6 @@ export function buildCustomerZeroPaperEnterExitGate(candidate = {}, options = {}
       style: "priority_red",
       priority: "highest",
       ready: exitReady,
-      confirmationRequired: true,
       quantityPreview: positionQty,
       blockedReasons: exitBlockedReasons,
     },
