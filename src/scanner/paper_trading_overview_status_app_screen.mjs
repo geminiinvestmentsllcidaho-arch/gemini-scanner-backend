@@ -1,5 +1,4 @@
-import { buildPaperTradeReadinessReportAppScreen } from "./paper_trade_readiness_report_app_screen.mjs";
-import { buildPaperTradeOperatorGoNoGoAppScreen } from "./paper_trade_operator_go_no_go_app_screen.mjs";
+import { getPaperTradingReadinessGate } from "./paper_trading_readiness_gate.mjs";
 import { buildPaperBrokerRuntimeEnvironmentPreflightAppScreen } from "./paper_broker_runtime_environment_preflight_app_screen.mjs";
 import { buildPaperBrokerNetworkAttemptStatusAppScreen } from "./paper_broker_network_attempt_status_app_screen.mjs";
 
@@ -44,19 +43,9 @@ function safeBuild(label, fn) {
 
 function fastReadinessSource() {
   return {
-    route: "/app/paper-trade-readiness-report",
+    route: "/app/paper-readiness-gate",
     status: "fast_preview_readonly",
     readinessPct: 0,
-    safety: { liveTrading: false, autoTrading: false, accountMutation: false }
-  };
-}
-
-function fastGoNoGoSource() {
-  return {
-    route: "/app/paper-trade-operator-go-no-go",
-    status: "fast_preview_no_go",
-    finalGo: false,
-    reasons: ["source_panel_not_loaded"],
     safety: { liveTrading: false, autoTrading: false, accountMutation: false }
   };
 }
@@ -89,13 +78,8 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
   const readinessResult = input.readiness
     ? { ok: true, label: "readiness", value: input.readiness }
     : (loadSources || input.readinessInput
-      ? safeBuild("readiness", () => buildPaperTradeReadinessReportAppScreen(input.readinessInput ?? {}))
+      ? safeBuild("readiness", () => getPaperTradingReadinessGate({ input: input.readinessInput ?? {}, write: false }))
       : { ok: true, label: "readiness", value: fastReadinessSource() });
-  const goNoGoResult = input.goNoGo
-    ? { ok: true, label: "go_no_go", value: input.goNoGo }
-    : (loadSources || input.goNoGoInput
-      ? safeBuild("go_no_go", () => buildPaperTradeOperatorGoNoGoAppScreen(input.goNoGoInput ?? {}))
-      : { ok: true, label: "go_no_go", value: fastGoNoGoSource() });
   const runtimeResult = input.runtime
     ? { ok: true, label: "runtime", value: input.runtime }
     : (loadSources || input.runtimeInput
@@ -108,12 +92,10 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
       : { ok: true, label: "network_attempt", value: fastNetworkAttemptSource() });
 
   const readiness = objectValue(readinessResult.value);
-  const goNoGo = objectValue(goNoGoResult.value);
   const runtime = objectValue(runtimeResult.value);
   const networkAttempt = objectValue(networkResult.value);
 
   const readinessSafety = objectValue(readiness.safety);
-  const goNoGoSafety = objectValue(goNoGo.safety);
   const runtimeSafety = objectValue(runtime.safety);
   const networkSafety = objectValue(networkAttempt.safety);
 
@@ -127,23 +109,19 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
 
   const liveTradingAllowed =
     boolValue(readinessSafety.liveTrading) ||
-    boolValue(goNoGoSafety.liveTrading) ||
     boolValue(runtimeSafety.liveTradingAllowed) ||
     boolValue(networkSafety.liveTradingAllowed);
   const autoTradingAllowed =
     boolValue(readinessSafety.autoTrading) ||
-    boolValue(goNoGoSafety.autoTrading) ||
     boolValue(runtimeSafety.autoTradingAllowed) ||
     boolValue(networkSafety.autoTradingAllowed);
   const accountMutationAllowed =
     boolValue(readinessSafety.accountMutation) ||
-    boolValue(goNoGoSafety.accountMutation) ||
     boolValue(runtimeSafety.accountMutationAllowed) ||
     boolValue(networkSafety.accountMutationAllowed);
 
   const blockers = [
     ...arrayValue(runtime.blockers),
-    ...arrayValue(goNoGo.reasons),
     ...(networkAttemptRecorded ? ["prior_one_shot_paper_network_attempt_recorded"] : [])
   ].map(String);
 
@@ -153,7 +131,7 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-trading-overview-status",
     title: "Paper Trading Overview Status",
-    subtitle: "read-only overview of Alpaca paper account readiness, runtime preflight, one-shot network attempt status, and operator go/no-go.",
+    subtitle: "read-only overview of current PAPER intent readiness, runtime preflight, and historical network-attempt status.",
     readOnly: true,
     monitorOnly: true,
     previewOnly: true,
@@ -165,8 +143,6 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
     summary: {
       readinessStatus: textValue(readiness.status, "unknown"),
       readinessPct: readiness.readinessPct ?? 0,
-      operatorStatus: textValue(goNoGo.status, "unknown"),
-      finalGo: boolValue(goNoGo.finalGo),
       runtimeStatus: textValue(runtime.status, "unknown"),
       runtimeEnvironmentReady: boolValue(runtime.runtimeEnvironmentReady),
       networkAttemptStatus: textValue(networkAttempt.status, "unknown"),
@@ -190,8 +166,7 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
       orderPlacementAllowed: false
     },
     sources: {
-      readiness: { ok: readinessResult.ok, status: textValue(readiness.status, "unknown"), route: textValue(readiness.route, "/app/paper-trade-readiness-report") },
-      goNoGo: { ok: goNoGoResult.ok, status: textValue(goNoGo.status, "unknown"), route: textValue(goNoGo.route, "/app/paper-trade-operator-go-no-go") },
+      readiness: { ok: readinessResult.ok, status: textValue(readiness.paperIntentStatus ?? readiness.status, "unknown"), route: "/app/paper-readiness-gate" },
       runtime: { ok: runtimeResult.ok, status: textValue(runtime.status, "unknown"), route: textValue(runtime.route, "/app/paper-broker-runtime-environment-preflight") },
       networkAttempt: { ok: networkResult.ok, status: textValue(networkAttempt.status, "unknown"), route: textValue(networkAttempt.route, "/app/paper-broker-network-attempt-status") }
     },
@@ -201,9 +176,7 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
       alpacaPaperAccount: "/app/alpaca-paper-account-status",
       runtimePreflight: "/app/paper-broker-runtime-environment-preflight",
       networkAttemptStatus: "/app/paper-broker-network-attempt-status",
-      readinessReport: "/app/paper-trade-readiness-report",
       readinessGate: "/app/paper-readiness-gate",
-      operatorGoNoGo: "/app/paper-trade-operator-go-no-go",
       lifecycleDashboard: "/app/paper-lifecycle-dashboard",
       moduleFinalStatus: "/app/paper-trading-module-final-status",
       routeIndex: "/app/paper-trading-module-route-index"
@@ -222,9 +195,7 @@ export function renderPaperTradingOverviewStatusAppScreenHtml(input = {}) {
     ["Alpaca Paper Account", "Connected read-only account status.", links.alpacaPaperAccount],
     ["Runtime Preflight", sources.runtime?.status ?? "unknown", links.runtimePreflight],
     ["Network Attempt Status", sources.networkAttempt?.status ?? "unknown", links.networkAttemptStatus],
-    ["Readiness Report", sources.readiness?.status ?? "unknown", links.readinessReport],
-    ["Readiness Gate", "paper-trading readiness gate.", links.readinessGate],
-    ["Operator Go / No-Go", sources.goNoGo?.status ?? "unknown", links.operatorGoNoGo],
+    ["Readiness Gate", sources.readiness?.status ?? "unknown", links.readinessGate],
     ["Lifecycle Dashboard", "Local lifecycle dashboard.", links.lifecycleDashboard],
     ["Module Final Status", "read-only module final status.", links.moduleFinalStatus],
     ["Route Index", "read-only route index.", links.routeIndex]
@@ -238,8 +209,6 @@ body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background
 <section class="grid">
 <div class="metric"><div class="k">Readiness status</div><div class="v">${esc(summary.readinessStatus)}</div></div>
 <div class="metric"><div class="k">Readiness %</div><div class="v">${esc(summary.readinessPct)}</div></div>
-<div class="metric"><div class="k">Operator status</div><div class="v">${esc(summary.operatorStatus)}</div></div>
-<div class="metric"><div class="k">Final go</div><div class="v">${renderBool(summary.finalGo)}</div></div>
 <div class="metric"><div class="k">Runtime ready</div><div class="v">${renderBool(summary.runtimeEnvironmentReady)}</div></div>
 <div class="metric"><div class="k">Network attempt recorded</div><div class="v">${renderBool(summary.networkAttemptRecorded)}</div></div>
 <div class="metric"><div class="k">Order submitted</div><div class="v">${renderBool(summary.orderSubmitted)}</div></div>

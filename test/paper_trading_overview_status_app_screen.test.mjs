@@ -8,7 +8,7 @@ import {
 test("paper trading overview status app screen aggregates readiness sources safely", () => {
   const screen = buildPaperTradingOverviewStatusAppScreen({
     readiness: {
-      route: "/app/paper-trade-readiness-report",
+      route: "/app/paper-readiness-gate",
       status: "not_ready_broker_blocked",
       readinessPct: 71,
       safety: {
@@ -18,7 +18,6 @@ test("paper trading overview status app screen aggregates readiness sources safe
       }
     },
     goNoGo: {
-      route: "/app/paper-trade-operator-go-no-go",
       status: "no_go",
       finalGo: false,
       reasons: ["broker execution blocked"],
@@ -67,7 +66,6 @@ test("paper trading overview status app screen aggregates readiness sources safe
   assert.equal(screen.status, "paper_trading_overview_readonly_broker_blocked");
   assert.equal(screen.displayState, "PAPER_TRADING_OVERVIEW_READONLY_BROKER_BLOCKED");
   assert.equal(screen.summary.readinessPct, 71);
-  assert.equal(screen.summary.finalGo, false);
   assert.equal(screen.summary.runtimeEnvironmentReady, false);
   assert.equal(screen.summary.networkAttemptRecorded, true);
   assert.equal(screen.summary.brokerContactAttempted, false);
@@ -82,8 +80,7 @@ test("paper trading overview status app screen aggregates readiness sources safe
   assert.equal(screen.safety.retryAllowed, false);
   assert.equal(screen.safety.resetAllowed, false);
   assert.equal(screen.safety.orderPlacementAllowed, false);
-  assert.equal(screen.sources.readiness.route, "/app/paper-trade-readiness-report");
-  assert.equal(screen.sources.goNoGo.route, "/app/paper-trade-operator-go-no-go");
+  assert.equal(screen.sources.readiness.route, "/app/paper-readiness-gate");
   assert.equal(screen.sources.runtime.route, "/app/paper-broker-runtime-environment-preflight");
   assert.equal(screen.sources.networkAttempt.route, "/app/paper-broker-network-attempt-status");
 });
