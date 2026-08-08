@@ -165,7 +165,6 @@
     "preflight:paper-manual-round-trip": "node scripts/preview_paper_manual_round_trip_activation_preflight.mjs",
     "reset:paper-manual-round-trip-evidence": "node scripts/reset_paper_manual_round_trip_evidence.mjs",
     "activate:paper-manual-round-trip-watcher": "node scripts/activate_paper_manual_round_trip_watcher.mjs",
-    "preview:paper-user-approved-disabled-chain": "node scripts/preview_paper_user_approved_disabled_chain.mjs",
     "test:resource-safe": "node scripts/run_test_files_isolated.mjs",
     "test:paper-auto-mechanical-round-trip": "node --test test/paper_auto_execution_mechanical_round_trip_runner.test.mjs",
     "test:paper-auto-mechanical-enter-only": "node --test test/paper_auto_execution_mechanical_enter_only_cli_credentials.test.mjs test/paper_auto_execution_mechanical_enter_only_runner.test.mjs",
