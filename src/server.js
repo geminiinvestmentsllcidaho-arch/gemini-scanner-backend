@@ -95,8 +95,15 @@ import { createPostMarketRuntimeWorker } from './scanner/post_market_runtime_wor
 import { fetchAlpacaMarketClockReadonly } from './scanner/alpaca_market_clock_readonly.mjs';
 import { runStrategyObservationPersistence } from './scanner/strategy_observation_persistence_runner.mjs';
 import { listCustomerReportBackgroundAiReviewRecords } from './scanner/customer_report_background_ai_review_store.mjs';
-import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes } from './operator/operator_dashboard.mjs';
+import { createRequireOperatorDashboardAuth, registerOperatorDashboardRoutes, resolveOperatorDashboardToken } from './operator/operator_dashboard.mjs';
 import { createRequireAdminAuthorization } from './scanner/admin_authorization.mjs';
+import {
+  ADMIN_SESSION_COOKIE_NAME,
+  buildAdminSessionCookieClearOptions,
+  buildAdminSessionCookieOptions,
+  createAdminSessionToken,
+  verifyAdminSessionToken,
+} from './scanner/admin_session.mjs';
 import { buildPaperTradeIntentDashboardPanel } from './scanner/paper_trade_intent_dashboard.mjs';
 import { buildPaperTradeIntentAuditDashboard } from './scanner/paper_trade_intent_audit_dashboard.mjs';
 import { getPaperTradeIntentAuditDashboardPanel } from "./scanner/paper_trade_intent_audit_dashboard_panel.mjs";
@@ -793,6 +800,15 @@ function customerCookieValue(req) {
   for (const part of raw.split(';')) {
     const [name, ...rest] = part.trim().split('=');
     if (name === CUSTOMER_COOKIE_NAME) return decodeURIComponent(rest.join('='));
+  }
+  return '';
+}
+
+function adminCookieValue(req) {
+  const raw = String(req.headers?.cookie ?? '');
+  for (const part of raw.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === ADMIN_SESSION_COOKIE_NAME) return decodeURIComponent(rest.join('='));
   }
   return '';
 }
@@ -2527,7 +2543,101 @@ if (!app.__geminiOperatorDashboardRoutesRegistered) {
 const requireInternalOwnerAuth = createRequireOperatorDashboardAuth();
 const requireInternalOwnerAuthorization = createRequireInternalOwnerAuthorization();
 const requireInternalOwnerTenantIsolation = createRequireInternalOwnerTenantIsolation();
-const requireAdminAuthorization = createRequireAdminAuthorization();
+const requireAdminTokenAuthorization = createRequireAdminAuthorization();
+const adminLoginRateLimiter = createCustomerLoginRateLimiter();
+
+function adminLoginHtml(message = '') {
+  const notice = message
+    ? `<div class="notice" role="status">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</div>`
+    : '';
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin sign in · GeminiScanner</title>
+${renderGlobalThemeCss({ surface: 'public' })}
+<style>
+main{min-height:calc(100vh - 132px);display:grid;place-items:center;padding:34px 18px 64px}
+.auth-card{width:min(100%,500px);padding:28px}
+h1{margin:0 0 10px;font-size:clamp(32px,8vw,46px);letter-spacing:-.035em}
+.sub{margin:0 0 24px;color:var(--gs-muted);line-height:1.55}
+form{display:grid;gap:16px}
+label{display:grid;gap:8px;font-weight:800}
+input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--gs-line);background:var(--gs-panel);color:var(--gs-text);font:inherit}
+button{width:100%;padding:14px 18px}
+.links{margin:20px 0 0;text-align:center}
+.notice{margin:0 0 18px;padding:12px 14px;border:1px solid rgba(255,184,77,.45);border-radius:12px;background:rgba(84,55,5,.34);color:#ffe8bd}
+</style>
+</head>
+<body data-gs-page="admin-login">
+${renderBackgroundLogoLayer()}
+${renderGlobalHeader({ surface: 'public', homeHref: '/', label: 'GeminiScanner Admin' })}
+<main><section class="card auth-card">
+<h1>Admin sign in</h1>
+<p class="sub">Use the protected GeminiScanner operator access key. Admin sessions are isolated from customer accounts.</p>
+${notice}
+<form method="post" action="/admin/login">
+<label>Admin access key
+<input type="password" name="token" autocomplete="current-password" required>
+</label>
+<button type="submit">Sign in as admin</button>
+</form>
+<p class="links"><a href="/">Return to GeminiScanner</a></p>
+</section></main>
+${renderGlobalFooter()}
+</body>
+</html>`;
+}
+
+function requireAdminAuthorization(req, res, next) {
+  const sessionSecret = resolveOperatorDashboardToken();
+  const session = verifyAdminSessionToken(adminCookieValue(req), { secret: sessionSecret });
+  if (session.ok) {
+    req.adminAuthorization = Object.freeze({
+      role: 'admin',
+      policy: 'admin_browser_session_v1',
+      subject: session.subject,
+    });
+    return next();
+  }
+  return requireAdminTokenAuthorization(req, res, next);
+}
+
+app.get('/admin/login', (req, res) => {
+  const sessionSecret = resolveOperatorDashboardToken();
+  const session = verifyAdminSessionToken(adminCookieValue(req), { secret: sessionSecret });
+  if (session.ok) return res.redirect(303, '/admin');
+  res.set('Cache-Control', 'no-store');
+  return res.status(200).type('html').send(adminLoginHtml());
+});
+
+app.post('/admin/login', requireCustomerSameOrigin, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (adminLoginRateLimiter.isLimited(req)) {
+    res.set('Retry-After', '900');
+    return res.status(429).type('html').send(adminLoginHtml('Too many admin sign-in attempts. Try again later.'));
+  }
+
+  const decision = evaluateAdminAuthorization(req.body?.token);
+  if (!decision.allowed) {
+    return res.status(401).type('html').send(adminLoginHtml('Admin access key is incorrect.'));
+  }
+
+  const sessionSecret = resolveOperatorDashboardToken();
+  const token = createAdminSessionToken({
+    secret: sessionSecret,
+    subject: 'owner',
+  });
+  adminLoginRateLimiter.clear(req);
+  res.cookie(ADMIN_SESSION_COOKIE_NAME, token, buildAdminSessionCookieOptions());
+  return res.redirect(303, '/admin');
+});
+
+app.post('/admin/logout', requireCustomerSameOrigin, (req, res) => {
+  res.clearCookie(ADMIN_SESSION_COOKIE_NAME, buildAdminSessionCookieClearOptions());
+  return res.redirect(303, '/admin/login');
+});
 
 app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const mod = await import('./scanner/admin_surface.mjs');

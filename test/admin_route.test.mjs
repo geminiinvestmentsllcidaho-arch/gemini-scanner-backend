@@ -7,7 +7,9 @@ test("server protects isolated admin route with admin authorization middleware",
   const route = server.match(/app\.get\('\/admin'[\s\S]*?\n}\);/)?.[0] ?? "";
 
   assert.match(server, /createRequireAdminAuthorization/);
-  assert.match(server, /const requireAdminAuthorization = createRequireAdminAuthorization\(\)/);
+  assert.match(server, /const requireAdminTokenAuthorization = createRequireAdminAuthorization\(\)/);
+  assert.match(server, /function requireAdminAuthorization\(req, res, next\)/);
+  assert.match(server, /return requireAdminTokenAuthorization\(req, res, next\)/);
   assert.match(route, /requireAdminAuthorization/);
   assert.match(route, /admin_surface\.mjs/);
   assert.match(route, /buildAdminSurface/);

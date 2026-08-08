@@ -5,7 +5,7 @@ import {
   renderGlobalThemeCss,
 } from "./global_theme.mjs";
 
-export const VERSION = "public_homepage_v4";
+export const VERSION = "public_homepage_v5";
 
 function esc(value) {
   return String(value ?? "")
@@ -45,6 +45,7 @@ export function buildPublicHomepage() {
       "Options scanner support",
     ]),
     signInHref: "/customer",
+    adminSignInHref: "/admin/login",
     signupHref: "/signup",
     scannerHref: "/customer/scanner",
     readOnly: true,
@@ -96,7 +97,7 @@ footer{border-top:1px solid #1b283a;margin-top:24px;padding:26px 0 38px;color:#7
 ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: "public", homeHref: "/", label: source.product })}
 <div class="wrap">
-<div class="topbar-actions" aria-label="Public account navigation"><a class="nav-link" href="${esc(source.signupHref)}">Sign up</a><a class="nav-link" href="${esc(source.signInHref)}">Sign in</a></div>
+<div class="topbar-actions" aria-label="Public account navigation"><a class="nav-link" href="${esc(source.signupHref)}">Sign up</a><a class="nav-link" href="${esc(source.signInHref)}">Sign in</a><a class="nav-link" href="${esc(source.adminSignInHref)}">Admin sign in</a></div>
 <main>
 <section class="hero">
 <div>

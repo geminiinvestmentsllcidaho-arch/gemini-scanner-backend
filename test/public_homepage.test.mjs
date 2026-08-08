@@ -45,7 +45,9 @@ test("renders public homepage with product information and no admin or diagnosti
   assert.match(html, /AI-backed analysis with human control/);
   assert.match(html, /Coming next/);
   assert.match(html, /href="\/customer"/);
-  assert.doesNotMatch(html, /\/admin\b|\/diagnostics\b|\/app\b|paper trading|broker|security|deployment|internal owner/i);
+  assert.match(html, /href="\/admin\/login"[^>]*>Admin sign in<\/a>/i)
+  const publicHtmlWithoutAdminLogin = html.replace(/<a\b[^>]*href="\/admin\/login"[^>]*>[\s\S]*?<\/a>/i, "")
+  assert.doesNotMatch(publicHtmlWithoutAdminLogin, /\/admin\b|\/diagnostics\b|\/app\b|paper trading|broker|security|deployment|internal owner/i);
 });
 
 test("server root route uses isolated public homepage renderer", () => {
@@ -77,5 +79,7 @@ test("public theme preserves public-only navigation and safety wording", () => {
   assert.match(html, /href="\/customer"/);
   assert.match(html, /href="\/customer\/scanner"/);
   assert.match(html, /Decision assist only\. No automatic execution\./);
-  assert.doesNotMatch(html, /\/admin\b|Place order|Buy now|automatic trading/i);
+  assert.match(html, /href="\/admin\/login"[^>]*>Admin sign in<\/a>/i)
+  const themedPublicHtmlWithoutAdminLogin = html.replace(/<a\b[^>]*href="\/admin\/login"[^>]*>[\s\S]*?<\/a>/i, "")
+  assert.doesNotMatch(themedPublicHtmlWithoutAdminLogin, /\/admin\b|Place order|Buy now|automatic trading/i);
 });
