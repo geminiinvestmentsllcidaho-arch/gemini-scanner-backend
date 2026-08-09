@@ -47,10 +47,6 @@ function samplePanel() {
       orderSubmitAllowed: false,
       retryAllowed: false,
       accountMutationAllowed: false
-    },
-    noRetryGuard: {
-      active: true,
-      reason: "prior_one_shot_attempt_already_recorded"
     }
   };
 }

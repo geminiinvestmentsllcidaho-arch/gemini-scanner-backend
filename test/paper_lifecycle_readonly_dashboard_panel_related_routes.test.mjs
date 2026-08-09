@@ -11,8 +11,7 @@ test("paper lifecycle readonly dashboard links broker readiness routes and remai
     displayState: "FAST_PREVIEW_READONLY",
     position: {},
     pnl: {},
-    readiness: {},
-    noRetryGuard: { reason: "locked" }
+    readiness: {}
   });
 
   assert.match(html, /Paper Lifecycle Read-Only Dashboard/);

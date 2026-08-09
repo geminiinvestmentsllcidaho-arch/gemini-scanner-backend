@@ -28,7 +28,6 @@ export function buildPaperPositionPnlReadOnlyBaselineAppScreen(input = {}) {
   const pnl = object(panel.pnl);
   const latestFiles = object(panel.latestFiles);
   const safety = object(panel.safety);
-  const noRetryGuard = object(panel.noRetryGuard);
 
   return {
     ok: true,
@@ -77,10 +76,6 @@ export function buildPaperPositionPnlReadOnlyBaselineAppScreen(input = {}) {
       retryAllowed: safety.retryAllowed === true,
       accountMutationAllowed: safety.accountMutationAllowed === true
     },
-    noRetryGuard: {
-      active: Boolean(noRetryGuard.active),
-      reason: noRetryGuard.reason ?? "unknown"
-    },
     links: {
       diagnosticHref: "/diagnostics/paper-position-pnl-readonly-baseline",
       panelHref: "/diagnostics/paper-position-pnl-readonly-baseline-panel",
@@ -95,7 +90,6 @@ export function renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen = {})
   const pnl = object(screen.pnl);
   const latestFiles = object(screen.latestFiles);
   const safety = object(screen.safety);
-  const noRetryGuard = object(screen.noRetryGuard);
   const links = object(screen.links);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(screen.title || "Paper Position P/L Read-Only Baseline")}</title></head><body>
 <main>
@@ -139,12 +133,7 @@ export function renderPaperPositionPnlReadOnlyBaselineAppScreenHtml(screen = {})
 <li>Retry allowed: ${esc(safety.retryAllowed ? "true" : "false")}</li>
 <li>Account mutation allowed: ${esc(safety.accountMutationAllowed ? "true" : "false")}</li>
 </ul>
-</section>
-<section>
-<h2>No-Retry Guard</h2>
-<p>${esc(noRetryGuard.reason || "unknown")}</p>
-</section>
-<section>
+</section><section>
 <h2>Latest Files</h2>
 <p><code>${esc(latestFiles.statusFile)}</code><br><code>${esc(latestFiles.postAttemptAuditFile)}</code></p>
 </section>

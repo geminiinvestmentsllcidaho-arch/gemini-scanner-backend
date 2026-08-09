@@ -70,10 +70,6 @@ export function buildPaperOrderReadonlyStatusDashboardPanel({ runsDir = "runs", 
       orderSubmitAllowed: false,
       retryAllowed: false,
       accountMutationAllowed: false
-    },
-    noRetryGuard: {
-      active: Boolean(postFile),
-      reason: postFile ? "prior_one_shot_attempt_already_recorded" : "no_prior_attempt_file_found"
     }
   };
 }
@@ -85,7 +81,6 @@ export function renderPaperOrderReadonlyStatusDashboardPanel(report) {
 body{margin:0;background:#080b12;color:#edf4ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:980px;margin:auto;0;padding:28px 18px}.card{background:#111827;border:1px solid #263244;border-radius:20px;padding:20px;margin:14px 0}.k{color:#9ca8b8;text-transform:uppercase;letter-spacing:.12em;font-size:12px}.v{font-size:34px;font-weight:850;margin:8px 0}.ok{color:#45d483}.warn{color:#f5c542}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.item{background:#0b1220;border:1px solid #243044;border-radius:14px;padding:14px}code{color:#9ee4ff}</style></head><body><main>
 <h1>Paper Order Read-Only Status</h1><div class="card"><div class="k">Display state</div><div class="v ${report.displayState === "FILLED" ? "ok" : "warn"}">${safe(report.displayState)}</div><p>Read-only dashboard. No order submit, no retry, no account mutation.</p></div>
 <div class="grid"><div class="item"><div class="k">Symbol</div><h2>${safe(o.symbol)}</h2></div><div class="item"><div class="k">Side / Qty</div><h2>${safe(o.side)} ${safe(o.qty)}</h2></div><div class="item"><div class="k">Status</div><h2>${safe(o.status)}</h2></div><div class="item"><div class="k">Filled Avg</div><h2>${safe(o.filledAvgPrice)}</h2></div><div class="item"><div class="k">Filled Qty</div><h2>${safe(o.filledQty)}</h2></div><div class="item"><div class="k">Order ID</div><h2><code>${safe(o.alpacaOrderId)}</code></h2></div></div>
-<div class="card"><div class="k">No-retry guard</div><p>${safe(report.noRetryGuard.reason)}</p></div>
 <div class="card"><div class="k">Latest files</div><p><code>${safe(report.latestFiles.statusFile)}</code><br><code>${safe(report.latestFiles.postAttemptAuditFile)}</code></p></div>
 </main></body></html>`;
 }

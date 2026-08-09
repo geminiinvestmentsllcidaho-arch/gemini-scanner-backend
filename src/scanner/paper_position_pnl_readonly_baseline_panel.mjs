@@ -66,8 +66,7 @@ export function buildPaperPositionPnlReadOnlyBaselinePanel({ runsDir = "runs", n
       orderSubmitAllowed: false,
       retryAllowed: false,
       accountMutationAllowed: false
-    },
-    noRetryGuard: positionReport.noRetryGuard
+    }
   };
 }
 
@@ -87,7 +86,6 @@ export function renderPaperPositionPnlReadOnlyBaselinePanel(report) {
 <li>Mark Price: ${safe(pnl.markPrice ?? "missing")}</li>
 <li>Market Value: ${safe(pnl.marketValue ?? "not available")}</li>
 <li>Unrealized P/L: ${safe(pnl.unrealizedPnl ?? "not available")}</li>
-<li>No-retry guard: ${safe(report.noRetryGuard?.reason)}</li>
 </ul>
 </body></html>`;
 }

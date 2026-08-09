@@ -61,8 +61,7 @@ export function buildPaperPositionReadOnlyDashboardPanel({ runsDir = "runs", now
       orderSubmitAllowed: false,
       retryAllowed: false,
       accountMutationAllowed: false
-    },
-    noRetryGuard: orderReport.noRetryGuard
+    }
   };
 }
 
@@ -73,7 +72,6 @@ export function renderPaperPositionReadOnlyDashboardPanel(report) {
 body{margin:0;background:#080b12;color:#edf4ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:980px;margin:auto;padding:28px 18px}.card{background:#111827;border:1px solid #263244;border-radius:20px;padding:20px;margin:14px 0}.k{color:#9ca8b8;text-transform:uppercase;letter-spacing:.12em;font-size:12px}.v{font-size:34px;font-weight:850;margin:8px 0}.ok{color:#45d483}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.item{background:#0b1220;border:1px solid #243044;border-radius:14px;padding:14px}code{color:#9ee4ff}</style></head><body><main>
 <h1>Paper Position Read-Only Dashboard</h1><div class="card"><div class="k">Display state</div><div class="v ok">${safe(report.displayState)}</div><p>Read-only position view from stored paper order status. No broker read, no order submit, no retry, no account mutation.</p></div>
 <div class="grid"><div class="item"><div class="k">Symbol</div><h2>${safe(p.symbol)}</h2></div><div class="item"><div class="k">Quantity</div><h2>${safe(p.qty)}</h2></div><div class="item"><div class="k">Avg Entry</div><h2>${safe(p.avgEntryPrice)}</h2></div><div class="item"><div class="k">Cost Basis</div><h2>${safe(p.costBasis)}</h2></div><div class="item"><div class="k">Source Order Status</div><h2>${safe(p.sourceOrderStatus)}</h2></div><div class="item"><div class="k">Source Order ID</div><h2><code>${safe(p.sourceOrderId)}</code></h2></div></div>
-<div class="card"><div class="k">No-retry guard</div><p>${safe(report.noRetryGuard?.reason)}</p></div>
 <div class="card"><div class="k">Latest files</div><p><code>${safe(report.latestFiles?.statusFile)}</code><br><code>${safe(report.latestFiles?.postAttemptAuditFile)}</code></p></div>
 </main></body></html>`;
 }

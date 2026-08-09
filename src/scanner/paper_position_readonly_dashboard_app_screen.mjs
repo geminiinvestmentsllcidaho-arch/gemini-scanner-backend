@@ -27,7 +27,6 @@ export function buildPaperPositionReadonlyDashboardAppScreen(input = {}) {
   const sourceOrder = object(panel.sourceOrder);
   const latestFiles = object(panel.latestFiles);
   const safety = object(panel.safety);
-  const noRetryGuard = object(panel.noRetryGuard);
 
   return {
     ok: true,
@@ -75,10 +74,6 @@ export function buildPaperPositionReadonlyDashboardAppScreen(input = {}) {
       retryAllowed: safety.retryAllowed === true,
       accountMutationAllowed: safety.accountMutationAllowed === true
     },
-    noRetryGuard: {
-      active: Boolean(noRetryGuard.active),
-      reason: noRetryGuard.reason ?? "unknown"
-    },
     links: {
       diagnosticHref: "/diagnostics/paper-position-readonly-dashboard",
       panelHref: "/diagnostics/paper-position-readonly-dashboard-panel",
@@ -93,7 +88,6 @@ export function renderPaperPositionReadonlyDashboardAppScreenHtml(screen = {}) {
   const sourceOrder = object(screen.sourceOrder);
   const latestFiles = object(screen.latestFiles);
   const safety = object(screen.safety);
-  const noRetryGuard = object(screen.noRetryGuard);
   const links = object(screen.links);
   const open = String(screen.displayState ?? "").toUpperCase() === "OPEN_POSITION";
 
@@ -151,11 +145,6 @@ export function renderPaperPositionReadonlyDashboardAppScreenHtml(screen = {}) {
       <p>Status: ${esc(sourceOrder.status)}</p>
       <p>Filled at: ${esc(sourceOrder.filledAt)}</p>
       <p>Submitted at: ${esc(sourceOrder.submittedAt)}</p>
-    </section>
-
-    <section class="card">
-      <h2>No-Retry Guard</h2>
-      <p>${esc(noRetryGuard.reason || "unknown")}</p>
     </section>
 
     <section class="card">

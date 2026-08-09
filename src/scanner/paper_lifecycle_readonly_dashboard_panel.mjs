@@ -41,7 +41,6 @@ export function buildPaperLifecycleReadonlyDashboardPanel({ runsDir = "runs", no
   const orderFilled = position.sourceOrderStatus === "filled";
   const positionOpen = qty > 0;
   const pnlAvailable = pnl.pnlAvailable === true;
-  const noRetryGuardActive = pnlReport.noRetryGuard?.active === true;
 
   return {
     ok: true,
@@ -64,8 +63,7 @@ export function buildPaperLifecycleReadonlyDashboardPanel({ runsDir = "runs", no
       orderFilled,
       positionOpen,
       pnlAvailable,
-      noRetryGuardActive,
-      lifecycleReady: orderFilled && positionOpen && noRetryGuardActive
+      lifecycleReady: orderFilled && positionOpen
     },
     order: {
       symbol: position.symbol ?? null,
@@ -82,8 +80,7 @@ export function buildPaperLifecycleReadonlyDashboardPanel({ runsDir = "runs", no
       orderSubmitAllowed: false,
       retryAllowed: false,
       accountMutationAllowed: false
-    },
-    noRetryGuard: pnlReport.noRetryGuard
+    }
   };
 }
 
@@ -101,14 +98,12 @@ export function renderPaperLifecycleReadonlyDashboardPanel(report) {
 <li>Order filled: ${safe(ready.orderFilled)}</li>
 <li>Position open: ${safe(ready.positionOpen)}</li>
 <li>P/L available: ${safe(ready.pnlAvailable)}</li>
-<li>No-retry guard active: ${safe(ready.noRetryGuardActive)}</li>
 <li>Symbol: ${safe(p.symbol)}</li>
 <li>Qty: ${safe(p.qty)}</li>
 <li>Avg Entry: ${safe(p.avgEntryPrice)}</li>
 <li>Mark Price: ${safe(pnl.markPrice ?? "missing")}</li>
 <li>Unrealized P/L: ${safe(pnl.unrealizedPnl ?? "not available")}</li>
 <li>Source Order ID: ${safe(p.sourceOrderId)}</li>
-<li>No-retry guard: ${safe(report.noRetryGuard?.reason)}</li>
 </ul>
 </body></html>`;
 }
