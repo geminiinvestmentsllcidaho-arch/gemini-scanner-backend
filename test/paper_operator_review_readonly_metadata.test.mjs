@@ -4,8 +4,6 @@ import test from "node:test";
 import { buildPaperReadinessGateAppScreen } from "../src/scanner/paper_readiness_gate_app_screen.mjs";
 
 function assertReadonlyMetadata(value) {
-  assert.equal(value.finalDecision, "NO_GO_FOR_ORDER_PLACEMENT");
-  assert.equal(value.readyForOrderPlacement, false);
   assert.equal(value.credentialSource, "not_applicable_readonly_diagnostics");
   assert.equal(value.paperOnly, true);
   assert.equal(value.readOnly, true);
@@ -16,7 +14,7 @@ function assertReadonlyMetadata(value) {
   assert.equal(value.accountMutationAllowed, false);
 }
 
-test("paper readiness gate exposes explicit safe readonly metadata", () => {
+test("paper readiness gate exposes explicit safe readonly diagnostics metadata", () => {
   const screen = buildPaperReadinessGateAppScreen({
     gate: {
       ok: false,

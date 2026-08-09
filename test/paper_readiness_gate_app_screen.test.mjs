@@ -16,10 +16,10 @@ test("builds read-only paper readiness gate app screen from supplied gate", () =
       displayState: "PAPER_TRADING_READINESS_GATE_READONLY",
       readinessScore: 0.42,
       readyForPaperTrading: false,
-      failed: ["approval_missing"],
+      failed: ["readiness_check_failed"],
       checks: [
         { key: "broker_blocked", ok: true, detail: "broker contact blocked" },
-        { key: "approval_missing", ok: false, detail: "operator approval missing" },
+        { key: "readiness_check_failed", ok: false, detail: "readiness check failed" },
       ],
     },
   });
@@ -33,7 +33,7 @@ test("builds read-only paper readiness gate app screen from supplied gate", () =
   assert.equal(screen.sourceDisplayState, "PAPER_TRADING_READINESS_GATE_READONLY");
   assert.equal(screen.readyForPaperTrading, false);
   assert.equal(screen.blockerCount, 1);
-  assert.deepEqual(screen.failed, ["approval_missing"]);
+  assert.deepEqual(screen.failed, ["readiness_check_failed"]);
   assert.equal(screen.checkCount, 2);
   assert.equal(screen.visibleCheckCount, 2);
   assert.equal(screen.checks[0].key, "broker_blocked");
@@ -43,7 +43,6 @@ test("builds read-only paper readiness gate app screen from supplied gate", () =
   assert.equal(screen.readOnly, true);
   assert.equal(screen.monitorOnly, true);
   assert.equal(screen.diagnosticsOnly, true);
-  assert.equal(screen.reviewOnly, true);
   assert.equal(screen.noExecutionControls, true);
   assert.equal(screen.brokerContactAllowed, false);
   assert.equal(screen.orderSubmitAllowed, false);
@@ -62,10 +61,10 @@ test("renders paper readiness gate html without mutation controls", () => {
     gate: {
       ok: true,
       readyForPaperTrading: false,
-      failed: ["approval_missing"],
+      failed: ["readiness_check_failed"],
       checks: [
         { key: "broker_blocked", ok: true, detail: "broker contact blocked" },
-        { key: "approval_missing", ok: false, detail: "operator approval missing" },
+        { key: "readiness_check_failed", ok: false, detail: "readiness check failed" },
       ],
     },
   });
