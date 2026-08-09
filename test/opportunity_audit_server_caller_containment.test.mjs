@@ -29,7 +29,7 @@ test("premarket hydration contains strict opportunity audit failures inside cach
   assert.doesNotMatch(block, /catch\s*\([^)]*\)\s*\{\s*return \[\];/);
 });
 
-test("customer reports contains strict opportunity audit failures before realtime AI provider work", () => {
+test("customer reports contains strict opportunity audit failures before deferred realtime AI status construction", () => {
   const start = source.indexOf(
     "app.get('/customer/reports', requireCustomerSession, async (req, res) => {",
   );
@@ -45,14 +45,15 @@ test("customer reports contains strict opportunity audit failures before realtim
   const strictReadIndex = block.indexOf(
     "listOpportunityFunnelAuditRecords({ maxRecords: 120 })",
   );
-  const providerIndex = block.indexOf(
-    "requestCustomerReportRealtimeAiReview({",
+  const deferredIndex = block.indexOf(
+    "status: realtimeAiConfig.enabled ? 'deferred_nonblocking' : 'disabled'",
   );
   const catchIndex = block.lastIndexOf("} catch (_error) {");
 
   assert.ok(strictReadIndex >= 0);
-  assert.ok(providerIndex > strictReadIndex);
-  assert.ok(catchIndex > providerIndex);
+  assert.ok(deferredIndex > strictReadIndex);
+  assert.ok(catchIndex > deferredIndex);
+  assert.doesNotMatch(block, /requestCustomerReportRealtimeAiReview\(\{/);
   assert.match(block, /return res\.status\(500\)\.type\('html'\)\.send\(/);
   assert.match(block, /renderThemedStatusPage\(\{ surface: 'customer', title: 'Reports unavailable'/);
   assert.match(block, /Read-only\. No order placement, broker contact, or account mutation\./);

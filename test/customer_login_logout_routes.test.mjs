@@ -40,15 +40,14 @@ test("background AI review diagnostic route is read-only", () => {
   assert.match(source, /accountMutationAllowed:\s*false/);
 });
 
-test("reports route bounds realtime AI latency", () => {
-  assert.match(
-    source,
-    /requestCustomerReportRealtimeAiReview\(\{[\s\S]*?timeoutMs: Number\(process\.env\.GS_REALTIME_AI_TIMEOUT_MS \|\| 30000\),\s*\}\)/,
-  );
-  assert.match(source, /calibrationContext:\s*Object\.freeze\(\{/);
-  assert.match(source, /automaticLearningAllowed:\s*false/);
-  assert.match(source, /scannerLogicMutationAllowed:\s*false/);
-  assert.match(source, /thresholdMutationAllowed:\s*false/);
+test("reports route defers realtime AI without blocking page load", () => {
+  assert.doesNotMatch(source, /requestCustomerReportRealtimeAiReview\(\{/);
+  assert.match(source, /status:\s*realtimeAiConfig\.enabled \? 'deferred_nonblocking' : 'disabled'/);
+  assert.match(source, /reviewText:\s*null/);
+  assert.match(source, /automaticLogicMutationAllowed:\s*false/);
+  assert.match(source, /orderPlacementAllowed:\s*false/);
+  assert.match(source, /brokerContactAllowed:\s*false/);
+  assert.match(source, /accountMutationAllowed:\s*false/);
   assert.match(source, /listOpportunityFunnelAuditRecords\(\{ maxRecords: 120 \}\)/);
   assert.match(source, /resultState: candidate\?\.resultState \?\? candidate\?\.decision \?\? null/);
 });

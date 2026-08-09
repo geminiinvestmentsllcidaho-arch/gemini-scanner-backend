@@ -451,6 +451,7 @@ ${calibrationHistoryRows.length
   provider_error: "AI service unavailable",
   timeout: "Review timed out",
   request_failed: "Review could not be completed",
+  deferred_nonblocking: "Available without blocking page load",
 })[realtimeAiReview.status] ?? "Not active")}</p>
 <div class="ai-consumer-summary">
   <article class="ai-consumer-card">
@@ -466,7 +467,7 @@ ${calibrationHistoryRows.length
 ${realtimeAiText
   ? `<details class="ai-review-details"><summary>View detailed AI notes</summary><article class="report-row"><p class="muted">Advanced review details for transparency and support.</p><ul class="ai-technical-notes">${realtimeAiNotesHtml}</ul></article></details>`
   : "<p>No AI review is available yet. The standard report information above is still available.</p>"}
-<p class="ai-review-note">${realtimeAiReview.requiresBacktest === true ? "Any suggested strategy change must be tested before use." : "No strategy test is currently flagged by this review."}${realtimeAiReview.requiresOperatorApproval === true ? " Your approval is also required before any change can be made." : ""}</p>
+<p class="ai-review-note">${realtimeAiReview.status === "deferred_nonblocking" ? "Real-time provider review is not run synchronously while this page opens, so report loading is not delayed by the AI request. " : ""}${realtimeAiReview.requiresBacktest === true ? "Any suggested strategy change must be tested before use." : "No strategy test is currently flagged by this review."}${realtimeAiReview.requiresOperatorApproval === true ? " Your approval is also required before any change can be made." : ""}</p>
 </section>
 
 <section class="card panel" id="detailed-activity">

@@ -718,7 +718,7 @@ ${renderGlobalFooter()}
 </html>`;
 }
 
-async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath = '') {
+async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath = '', requestContext = null) {
   try {
     const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
@@ -731,6 +731,9 @@ async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath
       accountData.fetchAlpacaPaperAccountReadonly(),
       clockMod.fetchAlpacaMarketClockReadonly(),
     ]);
+    if (requestContext && typeof requestContext === 'object') {
+      requestContext.fetchedPaperAccount = fetchedPaperAccount;
+    }
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedger = paperPositionLedger.latestRecord ?? {};
@@ -765,7 +768,9 @@ async function requireCustomerSession(req, res, next) {
   req.customerAccount = result.account;
 
   const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
-  const bannerHtml = await buildAuthenticatedCustomerLifetimeEarningsBanner(result.account, req.path);
+  const requestContext = {};
+  const bannerHtml = await buildAuthenticatedCustomerLifetimeEarningsBanner(result.account, req.path, requestContext);
+  req.customerPaperAccountFetch = requestContext.fetchedPaperAccount ?? null;
   const originalSend = res.send.bind(res);
   res.send = (body) => {
     const contentType = String(res.getHeader('Content-Type') ?? '');
@@ -2981,13 +2986,17 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const calibrationHistoryMod = await import('./scanner/proposal_calibration_history_store.mjs');
 
     const now = new Date();
-    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const [fetchedPaperAccount, historicalOrderResult] = await Promise.all([
+      req.customerPaperAccountFetch
+        ? Promise.resolve(req.customerPaperAccountFetch)
+        : accountData.fetchAlpacaPaperAccountReadonly(),
+      reportingHistoryFetch.fetchAlpacaPaperHistoricalOrdersReadonly(),
+    ]);
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
     const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
     const paperLedgerHistory = Array.isArray(paperPositionLedger.records)
       ? paperPositionLedger.records
       : [];
-    const historicalOrderResult = await reportingHistoryFetch.fetchAlpacaPaperHistoricalOrdersReadonly();
     const adaptedReportingHistory = reportingHistory.adaptAlpacaPaperFilledOrderHistory({
       historicalOrders: historicalOrderResult.historicalOrders,
     });
@@ -3017,6 +3026,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       paperLedgerHistory,
       fillLedgerHistory,
       fillLedgerHistorySource: 'alpaca_paper_order_history',
+      brokerObservationTs: now.toISOString(),
       scannerEvents,
     });
     const decisionQualityProposals = qualityProposalMod.readDecisionQualityProposalReport({
@@ -3031,39 +3041,21 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
         maxReviewGroups: 100,
       },
     );
-    const realtimeAiReview = await realtimeAiMod.requestCustomerReportRealtimeAiReview({
-      input: Object.freeze({
-        ...(report.aiReview?.input ?? {}),
-        calibrationContext: Object.freeze({
-          generatedAt: proposalCalibrationReview.generatedAt ?? null,
-          analyzedProposalCount: proposalCalibrationReview.analyzedProposalCount ?? 0,
-          calibrationReviewQueueCount: proposalCalibrationReview.calibrationReviewQueueCount ?? 0,
-          marketOpenObservationsOnly: proposalCalibrationReview.marketOpenObservationsOnly === true,
-          freshSourceObservationsOnly: proposalCalibrationReview.freshSourceObservationsOnly === true,
-          groups: Object.freeze(
-            (Array.isArray(proposalCalibrationReview.calibrationReviewQueue)
-              ? proposalCalibrationReview.calibrationReviewQueue
-              : [])
-              .slice(0, 20)
-              .map((group) => Object.freeze({
-                groupBy: group?.groupBy ?? null,
-                groupKey: group?.groupKey ?? null,
-                sampleCount: group?.sampleCount ?? 0,
-                calibrationBand: group?.calibrationBand ?? null,
-                calibrationReviewStatus: group?.calibrationReviewStatus ?? null,
-                disagreementRatePct: group?.disagreementRatePct ?? null,
-                observableSourceCount: group?.observableSourceCount ?? 0,
-                staleSourceCount: group?.staleSourceCount ?? 0,
-              })),
-          ),
-          readOnly: true,
-          historicalMeasurementOnly: true,
-          automaticLearningAllowed: false,
-          scannerLogicMutationAllowed: false,
-          thresholdMutationAllowed: false,
-        }),
-      }),
-      timeoutMs: Number(process.env.GS_REALTIME_AI_TIMEOUT_MS || 30000),
+    const realtimeAiConfig = realtimeAiMod.getCustomerReportRealtimeAiConfig(process.env);
+    const realtimeAiReview = Object.freeze({
+      version: realtimeAiMod.VERSION,
+      status: realtimeAiConfig.enabled ? 'deferred_nonblocking' : 'disabled',
+      provider: 'openai',
+      model: realtimeAiConfig.model,
+      reviewText: null,
+      readOnly: true,
+      paperOnly: true,
+      requiresBacktest: true,
+      requiresOperatorApproval: true,
+      automaticLogicMutationAllowed: false,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false,
     });
     const proposalCalibrationHistoryWrite = calibrationHistoryMod.persistProposalCalibrationHistory(
       decisionQualityProposals,

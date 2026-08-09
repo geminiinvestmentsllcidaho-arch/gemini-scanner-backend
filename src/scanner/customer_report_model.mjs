@@ -112,15 +112,16 @@ function performanceSummary(records, baseline, options = {}) {
   );
   const realizedStart = finite(baseline?.totalRealizedPnl) ?? 0;
   const realizedEnd = finite(latest?.totalRealizedPnl);
-  const realizedPl = realizedEnd === null ? null : round2(realizedEnd - realizedStart);
+  const snapshotRealizedPl = realizedEnd === null ? null : round2(realizedEnd - realizedStart);
+  const realizedPl = round2(options.realizedPl ?? snapshotRealizedPl);
   const unrealizedPl = round2(options.paperAccount?.summary?.totalUnrealizedPl);
   const totalPl = realizedPl === null && unrealizedPl === null
     ? null
     : round2((realizedPl ?? 0) + (unrealizedPl ?? 0));
   const explicitStartingBalance = round2(
     options.startingBalance
-      ?? startingRecord?.endingEquity
-      ?? startingRecord?.startingEquity
+      ?? (options.preferDerivedStartingBalance === true ? null : startingRecord?.endingEquity)
+      ?? (options.preferDerivedStartingBalance === true ? null : startingRecord?.startingEquity)
   );
   const startingBalance = explicitStartingBalance !== null
     ? explicitStartingBalance
@@ -227,7 +228,18 @@ export function buildCustomerReportModel(options = {}) {
         largestLoser: snapshotTrades.largestLoser,
       })
     : snapshotTrades;
-  const performance = performanceSummary(paperRecords, baseline, options);
+  const brokerBackedFillHistory = options.fillLedgerHistorySource === "alpaca_paper_order_history";
+  const brokerRealizedPl = lifecycleTrades
+    ? round2(list(lifecycleTrades.completedTrades).reduce(
+        (sum, trade) => sum + (finite(trade?.realizedPnl) ?? 0),
+        0,
+      ))
+    : null;
+  const performance = performanceSummary(paperRecords, baseline, {
+    ...options,
+    realizedPl: brokerBackedFillHistory ? brokerRealizedPl : undefined,
+    preferDerivedStartingBalance: brokerBackedFillHistory,
+  });
   const currentBrokerPositions = Object.freeze(
     list(options.paperAccount?.positions).map((position) => Object.freeze({
       symbol: String(position?.symbol ?? "").trim().toUpperCase() || null,
@@ -240,7 +252,9 @@ export function buildCustomerReportModel(options = {}) {
       unrealizedPlpc: finite(position?.unrealizedPlpc),
     }))
   );
-  const sourceTs = timestamp(latest);
+  const sourceTs = brokerBackedFillHistory
+    ? timestamp({ sourceTs: options.brokerObservationTs })
+    : timestamp(latest);
   const sourceAgeSec = sourceTs
     ? Math.max(0, Math.floor((range.end.getTime() - Date.parse(sourceTs)) / 1000))
     : null;
@@ -259,6 +273,7 @@ export function buildCustomerReportModel(options = {}) {
     sourceTs,
     sourceAgeSec,
     maxAgeSec,
+    freshnessSource: brokerBackedFillHistory ? "alpaca_paper_readonly_observation" : "paper_position_snapshot",
     paperRecordCount: paperRecords.length,
     performance,
     currentBrokerPositions,
@@ -290,13 +305,15 @@ export function buildCustomerReportModel(options = {}) {
       sourceIntentReplayAudit,
     }),
     largestWinners: Object.freeze(
-      activity.filter((row) => row.realizedPnl > 0)
-        .sort((a, b) => b.realizedPnl - a.realizedPnl)
+      (lifecycleTrades ? list(lifecycleTrades.completedTrades) : activity)
+        .filter((row) => finite(row?.realizedPnl) > 0)
+        .sort((a, b) => (finite(b?.realizedPnl) ?? 0) - (finite(a?.realizedPnl) ?? 0))
         .slice(0, 5)
     ),
     largestLosers: Object.freeze(
-      activity.filter((row) => row.realizedPnl < 0)
-        .sort((a, b) => a.realizedPnl - b.realizedPnl)
+      (lifecycleTrades ? list(lifecycleTrades.completedTrades) : activity)
+        .filter((row) => finite(row?.realizedPnl) < 0)
+        .sort((a, b) => (finite(a?.realizedPnl) ?? 0) - (finite(b?.realizedPnl) ?? 0))
         .slice(0, 5)
     ),
     activity: Object.freeze(activity),
