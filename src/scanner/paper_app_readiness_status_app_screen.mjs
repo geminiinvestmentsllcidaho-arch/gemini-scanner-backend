@@ -50,7 +50,7 @@ const DEFAULT_FAST_ROUTES = Object.freeze({
   maxDefaultRouteSec: 0.25,
   fastDefaultRoutesPassed: true,
   fullSourceModePreserved: true,
-  sampleFullSourceHref: "/app/paper-trading-completion-certificate?loadSources=true"
+  sampleFullSourceHref: "/app/paper-lifecycle-dashboard?loadSources=true"
 });
 
 function objectValue(value) {
@@ -80,9 +80,6 @@ const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
   ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
-  ["/app/paper-trading-completion-certificate", "Paper Trading Completion Certificate"],
-  ["/app/paper-trading-module-route-index", "Paper Trading Module Route Index"],
-  ["/app/paper-trading-module-final-status", "Paper Trading Module Final Status"]
 ]);
 
 function renderRelatedBrokerReadinessRoutes() {
@@ -198,8 +195,8 @@ export function buildPaperAppReadinessStatusAppScreen(input = {}) {
       safetyLocks: "/app/paper-app-safety-lock-status",
       overviewStatus: "/app/paper-trading-overview-status",
       readinessGate: "/app/paper-readiness-gate",
-      completionCertificate: "/app/paper-trading-completion-certificate",
-      completionCertificateFullSource: fastRoutes.sampleFullSourceHref
+      lifecycleDashboard: "/app/paper-lifecycle-dashboard",
+      lifecycleDashboardFullSource: fastRoutes.sampleFullSourceHref
     }
   };
 }
