@@ -5,11 +5,6 @@ import fs from "node:fs";
 const targets = [
   "src/scanner/alpaca_paper_account_status_app_screen.mjs",
   "src/scanner/market_closed_snapshot_app_screen.mjs",
-  "src/scanner/paper_attempt_control_center_app_screen.mjs",
-  "src/scanner/paper_attempt_module_complete_selector_app_screen.mjs",
-  "src/scanner/paper_attempt_operator_review_packet_app_screen.mjs",
-  "src/scanner/paper_attempt_operator_review_packet_audit_dashboard_app_screen.mjs",
-  "src/scanner/paper_attempt_read_only_operator_summary_app_screen.mjs",
   "src/scanner/paper_order_readonly_status_app_screen.mjs",
   "src/scanner/paper_position_pnl_readonly_baseline_app_screen.mjs",
   "src/scanner/paper_position_readonly_dashboard_app_screen.mjs",

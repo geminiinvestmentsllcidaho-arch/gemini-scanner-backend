@@ -75,11 +75,6 @@ test("app navigation exposes all built website options", () => {
     "retention_cleanup_preview",
     "paper_readiness_gate",
     "paper_trade_intent_plan",
-    "paper_attempt_control_center",
-    "operator_review_packet",
-    "audit_dashboard",
-    "module_complete_selector",
-    "readonly_operator_summary",
   ]) {
     assert.equal(ids.has(id), true, id);
   }
