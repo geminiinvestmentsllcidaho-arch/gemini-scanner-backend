@@ -2307,81 +2307,6 @@ app.get('/app/alpaca-paper-account-status', (_req, res) => {
 });
 
 
-// Paper app final status diagnostic aliases.
-// Read-only JSON/panel mirrors for final paper-trading status app screens.
-const PAPER_APP_FINAL_STATUS_DIAGNOSTIC_ALIASES = Object.freeze([
-  {
-    route: '/diagnostics/paper-trading-completion-certificate',
-    module: './scanner/paper_trading_completion_certificate_readonly_panel.mjs',
-    build: 'buildPaperTradingCompletionCertificateReadOnlyPanel',
-    render: 'renderPaperTradingCompletionCertificateReadOnlyPanel',
-    title: 'Paper Trading Completion Certificate Read-Only',
-    preview: { paperTradingCompletionCertificate: { certificateStatus: 'fast_preview_readonly' } }
-  },
-  {
-    route: '/diagnostics/paper-trading-module-final-status',
-    module: './scanner/paper_trading_module_final_status_readonly_panel.mjs',
-    build: 'buildPaperTradingModuleFinalStatusReadOnlyPanel',
-    render: 'renderPaperTradingModuleFinalStatusReadOnlyPanel',
-    title: 'Paper Trading Module Final Status Read-Only',
-    preview: { paperTradingModuleFinalStatus: { milestones: [], finalStatus: 'fast_preview_readonly' } }
-  },
-  {
-    route: '/diagnostics/paper-trading-module-route-index',
-    module: './scanner/paper_trading_module_route_index_readonly_panel.mjs',
-    build: 'buildPaperTradingModuleRouteIndexReadOnlyPanel',
-    render: 'renderPaperTradingModuleRouteIndexReadOnlyPanel',
-    title: 'Paper Trading Module Route Index Read-Only',
-    preview: { paperTradingModuleRouteIndex: { routes: [], routeCount: 0, routeIndexStatus: 'fast_preview_readonly' } }
-  }
-]);
-
-function summarizePaperAppFinalStatusDiagnosticAliasPayload(payload = {}, route = '') {
-  return {
-    ok: payload.ok ?? true,
-    route,
-    version: payload.version ?? null,
-    title: payload.title ?? null,
-    status: payload.status ?? null,
-    displayState: payload.displayState ?? null,
-    readOnly: payload.readOnly ?? true,
-    monitorOnly: payload.monitorOnly ?? true,
-    diagnosticsOnly: true,
-    noExecutionControls: payload.noExecutionControls ?? true,
-    noOrderPlacement: payload.noOrderPlacement ?? true,
-    brokerExecutionAllowed: payload.brokerExecutionAllowed ?? false,
-    orderPlacementAllowed: payload.orderPlacementAllowed ?? false,
-    safety: payload.safety ?? null,
-    summary: payload.summary ?? null,
-    ts: payload.ts ?? new Date().toISOString()
-  };
-}
-
-for (const spec of PAPER_APP_FINAL_STATUS_DIAGNOSTIC_ALIASES) {
-  app.get(spec.route, async (req, res) => {
-    try {
-      const mod = await import(spec.module);
-      const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-      const report = mod[spec.build]({ runsDir: 'runs', markPrice });
-      res.json(report);
-    } catch (err) {
-      res.status(500).json({ ok: false, route: spec.route, error: 'paper_app_final_status_diagnostic_alias_failed', message: err?.message ?? String(err) });
-    }
-  });
-
-  app.get(spec.route + '-panel', async (req, res) => {
-    try {
-      const mod = await import(spec.module);
-      const markPrice = req.query?.mark === undefined ? null : Number(req.query.mark);
-      const report = mod[spec.build]({ runsDir: 'runs', markPrice });
-      res.json(summarizePaperAppFinalStatusDiagnosticAliasPayload(report, spec.route + '-panel'));
-    } catch (err) {
-      res.status(500).json({ ok: false, route: spec.route + '-panel', error: 'paper_app_final_status_diagnostic_alias_panel_failed', message: err?.message ?? String(err) });
-    }
-  });
-}
-
-
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '127.0.0.1';
 
@@ -3406,7 +3331,6 @@ app.get('/diagnostics/paper-broker-runtime-environment-preflight', async (_req, 
 
 
 app.get('/app/paper-trading-readiness-gate', (_req, res) => res.redirect(302, '/app/paper-readiness-gate'));
-app.get('/paper-trading-module-final-status', (_req, res) => res.redirect(302, '/app/paper-trading-module-final-status'));
 
 app.get('/diagnostics/paper-trade-lifecycle-runner-audit', (_req, res) => {
   res.json(readPaperTradeLifecycleRunnerAuditDashboard());
