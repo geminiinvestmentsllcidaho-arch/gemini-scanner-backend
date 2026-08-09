@@ -248,18 +248,6 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
-    id: "paper_operator_start_here",
-    title: "Paper Operator Start Here",
-    subtitle: "Read-only start point for the paper trading readiness workflow.",
-    description: "Read-only operator start screen linking current PAPER broker readiness, safety, diagnostics, and workflow status.",
-    category: "paper_lifecycle",
-    href: "/app/paper-operator-start-here",
-    diagnosticHref: "/app/paper-operator-start-here",
-    routeHref: "/app/paper-operator-start-here",
-    displayState: "PAPER_OPERATOR_START_HERE_READONLY",
-    refreshFriendly: false,
-  }),
-  Object.freeze({
     id: "paper_trading_overview_status",
     title: "Paper Trading Overview Status",
     subtitle: "Read-only paper trading overview status.",
@@ -844,7 +832,6 @@ function renderReadinessQuickLinks(entries = []) {
   const links = [
     { href: "/app/alpaca-paper-account-dashboard", label: "Alpaca Paper Account Dashboard" },
     { href: "/app/alpaca-operator-key-entry", label: "Alpaca Operator Key Entry" },
-    { href: "/app/paper-operator-start-here", label: "Paper Operator Start Here" },
     { href: "/app/paper-app-broker-readiness-index", label: "Broker Readiness Index" },
     { href: "/app/paper-app-readiness-status", label: "App Readiness Status" },
     { href: "/app/paper-app-route-health-status", label: "Route Health Status" },

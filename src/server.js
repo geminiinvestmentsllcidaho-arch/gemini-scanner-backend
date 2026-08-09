@@ -150,7 +150,6 @@ import { buildAppNavigationReadonly, renderAppNavigationReadonlyHtml } from "./s
 import { buildWatchlistSettingsReadonly, renderWatchlistSettingsReadonlyHtml } from "./scanner/watchlist_settings_readonly.mjs";
 import { buildExitAllControlReadonly, renderExitAllControlReadonlyHtml } from "./scanner/exit_all_control_readonly.mjs";
 import { enrichScannerRankingWithIntradayFeatures } from "./scanner/intraday_feature_enrichment.mjs";
-import { buildPaperOperatorStartHereAppScreen, renderPaperOperatorStartHereAppScreenHtml } from "./scanner/paper_operator_start_here_app_screen.mjs";
 import { buildInternalOwnerTenantReadonly } from "./scanner/internal_owner_tenant_readonly.mjs";
 import { buildInternalOwnerTenantCredentialStoreStatus } from "./scanner/internal_owner_tenant_credential_store.mjs";
 import { createRequireInternalOwnerAuthorization } from "./scanner/internal_owner_authorization.mjs";
@@ -2223,7 +2222,6 @@ app.post('/ops/run', async (req, res) => {
 const PAPER_APP_NONLIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
   { route: '/diagnostics/alpaca-paper-account-status', module: './scanner/alpaca_paper_account_status_app_screen.mjs', build: 'buildAlpacaPaperAccountStatusAppScreen' },
   { route: '/diagnostics/paper-app-readiness-status', module: './scanner/paper_app_readiness_status_app_screen.mjs', build: 'buildPaperAppReadinessStatusAppScreen', args: [{}] },
-  { route: '/diagnostics/paper-operator-start-here', module: './scanner/paper_operator_start_here_app_screen.mjs', build: 'buildPaperOperatorStartHereAppScreen' },
   { route: '/diagnostics/paper-order-readonly-status', module: './scanner/paper_order_readonly_status_app_screen.mjs', build: 'buildPaperOrderReadonlyStatusAppScreen', args: [{ panel: fastReadonlyAppPanel('Paper Order Read-Only Status') }] },
   { route: '/diagnostics/paper-trading-overview-status', module: './scanner/paper_trading_overview_status_app_screen.mjs', build: 'buildPaperTradingOverviewStatusAppScreen' }
 ]);
@@ -2693,14 +2691,6 @@ app.get('/diagnostics/paper-order-intent-adapter-preview-bridge', async (req, re
 
 
 
-app.get('/app/paper-operator-start-here', (_req, res) => {
-  try {
-    const screen = buildPaperOperatorStartHereAppScreen();
-    res.type('html').send(renderPaperOperatorStartHereAppScreenHtml(screen));
-  } catch (error) {
-    res.status(500).json({ ok: false, route: '/app/paper-operator-start-here', error: error instanceof Error ? error.message : String(error) });
-  }
-});
 
 
 
