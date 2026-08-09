@@ -40,7 +40,6 @@ import { buildPaperTradeIntentPlanAppScreen, renderPaperTradeIntentPlanAppScreen
 import { getPaperTradingReadinessGate } from "./scanner/paper_trading_readiness_gate.mjs";
 import { buildPaperReadinessGateAppScreen, renderPaperReadinessGateAppScreenHtml } from "./scanner/paper_readiness_gate_app_screen.mjs";
 import { buildAlpacaPaperAccountStatusAppScreen, renderAlpacaPaperAccountStatusAppScreenHtml } from "./scanner/alpaca_paper_account_status_app_screen.mjs";
-import { buildOperatorApprovalDashboardPanel } from './scanner/operator_approval_dashboard_panel.mjs';
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from 'dotenv';
@@ -2223,7 +2222,6 @@ app.post('/ops/run', async (req, res) => {
 // Read-only JSON/panel mirrors for app screens and short redirect aliases.
 const PAPER_APP_NONLIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
   { route: '/diagnostics/alpaca-paper-account-status', module: './scanner/alpaca_paper_account_status_app_screen.mjs', build: 'buildAlpacaPaperAccountStatusAppScreen' },
-  { route: '/diagnostics/operator-approval-dashboard', module: './scanner/operator_approval_dashboard_app_screen.mjs', build: 'buildOperatorApprovalDashboardAppScreen' },
   { route: '/diagnostics/paper-app-readiness-status', module: './scanner/paper_app_readiness_status_app_screen.mjs', build: 'buildPaperAppReadinessStatusAppScreen', args: [{}] },
   { route: '/diagnostics/paper-operator-start-here', module: './scanner/paper_operator_start_here_app_screen.mjs', build: 'buildPaperOperatorStartHereAppScreen' },
   { route: '/diagnostics/paper-order-readonly-status', module: './scanner/paper_order_readonly_status_app_screen.mjs', build: 'buildPaperOrderReadonlyStatusAppScreen', args: [{ panel: fastReadonlyAppPanel('Paper Order Read-Only Status') }] },
@@ -2533,54 +2531,9 @@ app.post('/admin/alpaca-access', requireAdminAuthorization, requireCustomerSameO
 
 
 
-app.get('/app/operator-approval-dashboard', async (req, res) => {
-  try {
-    const mod = await import('./scanner/operator_approval_dashboard_app_screen.mjs');
-    const screen = mod.buildOperatorApprovalDashboardAppScreen();
-    res.type('html').send(mod.renderOperatorApprovalDashboardAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).type('text').send(err?.message ?? 'operator approval dashboard app screen failed');
-  }
-});
 
 
-app.get('/diagnostics/operator-approval-dashboard-panel', (req, res) => {
-  try {
-    const panel = buildOperatorApprovalDashboardPanel();
-    res.json({ ok: true, panel });
-  } catch (error) {
-    res.status(500).json({
-      ok: false,
-      error: 'operator_approval_dashboard_panel_failed',
-      message: error?.message || String(error)
-    });
-  }
-});
-app.get('/app/operator-approval-workflow', async (req, res) => {
-  try {
-    const workflowMod = await import('./scanner/operator_approval_workflow.mjs');
-    const appMod = await import('./scanner/operator_approval_workflow_app_screen.mjs');
-    const workflow = await workflowMod.loadOperatorApprovalWorkflow();
-    const screen = appMod.buildOperatorApprovalWorkflowAppScreen({ workflow });
-    res.type('html').send(appMod.renderOperatorApprovalWorkflowAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).type('text').send(err?.message ?? 'operator approval workflow app screen failed');
-  }
-});
 
-app.get('/diagnostics/operator-approval-workflow', async (req, res) => {
-  try {
-    const { loadOperatorApprovalWorkflow } = await import('./scanner/operator_approval_workflow.mjs')
-    const workflow = await loadOperatorApprovalWorkflow()
-    res.json(workflow)
-  } catch (error) {
-    res.status(500).json({
-      ok: false,
-      error: 'operator_approval_workflow_failed',
-      message: error instanceof Error ? error.message : String(error)
-    })
-  }
-})
 
 
 
