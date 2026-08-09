@@ -42,14 +42,14 @@ test("exit receives priority over blocked and entry states", () => {
 test("maps blocked, do-not-enter, wait, and watch states conservatively", () => {
   assert.equal(normalizeCustomerZeroResultState({ scannerReadiness: "blocked" }).state, "BLOCKED");
   assert.equal(normalizeCustomerZeroResultState({ appDecision: "DO_NOT_ENTER" }).state, "DO_NOT_ENTER");
-  assert.equal(normalizeCustomerZeroResultState({ primaryCommand: "WAIT_FOR_CONFIRMATION" }).state, "WAIT");
+  assert.equal(normalizeCustomerZeroResultState({ primaryCommand: "WAIT" }).state, "WAIT");
   assert.equal(normalizeCustomerZeroResultState({ status: "WATCH_ONLY" }).state, "WATCH");
 });
 
 test("surfaces explicit ENTER without a separate approval gate", () => {
   const result = normalizeCustomerZeroResultState({ decision: "ENTER" });
   assert.equal(result.state, "ENTER");
-  assert.equal(result.tradePermission, "review_allowed");
+  assert.equal(result.tradePermission, "allowed");
   assert.equal(result.orderPlacementAllowed, false);
   assert.equal(result.paperOrderPlacementAllowed, false);
   assert.equal(result.liveOrderPlacementAllowed, false);

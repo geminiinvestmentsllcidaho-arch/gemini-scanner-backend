@@ -3346,7 +3346,7 @@ test("readScannerRankings exposes capital decision assist output stack", () => {
   assert.ok(out.lcmMessageScore >= 0);
   assert.ok(out.lcmMessageScore <= 1);
   assert.ok(["lcm_stand_down", "lcm_restricted", "lcm_actionable", "lcm_conditional", "lcm_watch"].includes(out.lcmMessageState));
-  assert.ok(["Capital protection active", "Restricted manual setup", "Manual setup cleared", "Manual setup needs confirmation", "Monitor only"].includes(out.lcmHeadline));
+  assert.ok(["Capital protection active", "Restricted setup", "Setup cleared", "Setup conditional", "Monitor only"].includes(out.lcmHeadline));
   assert.ok(["critical", "high", "normal", "watch"].includes(out.lcmSeverity));
   assert.ok(Array.isArray(out.lcmMessageIssues));
 
@@ -3359,7 +3359,7 @@ test("readScannerRankings exposes capital decision assist output stack", () => {
   assert.ok(out.actionCardScore >= 0);
   assert.ok(out.actionCardScore <= 1);
   assert.ok(["card_blocked", "card_restricted", "card_actionable", "card_conditional", "card_watch"].includes(out.actionCardState));
-  assert.ok(["DO NOT ENTER", "MICRO ONLY", "MANUAL ACTION OK", "WAIT FOR CONFIRMATION", "WATCH"].includes(out.actionCardPrimary));
+  assert.ok(["DO NOT ENTER", "MICRO ONLY", "ACTION ALLOWED", "WAIT", "WATCH"].includes(out.actionCardPrimary));
   assert.ok(Array.isArray(out.actionCardIssues));
 
   assert.ok(out.coachingNarrativeScore >= 0);

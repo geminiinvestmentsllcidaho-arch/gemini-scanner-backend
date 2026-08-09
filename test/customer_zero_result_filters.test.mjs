@@ -22,8 +22,8 @@ test("accepts multiple unique states and ignores unknown values", () => {
 
 test("filters results by normalized state", () => {
   const results = [
-    { symbol: "AAPL", decision: "ENTER", permission: "approved" },
-    { symbol: "MSFT", primaryCommand: "WAIT_FOR_CONFIRMATION" },
+    { symbol: "AAPL", decision: "ENTER", permission: "allowed" },
+    { symbol: "MSFT", primaryCommand: "WAIT" },
     { symbol: "NVDA", stale: true },
   ];
 

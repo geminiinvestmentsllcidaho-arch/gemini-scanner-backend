@@ -5203,22 +5203,22 @@ function computeCapitalLCMMessageIntelligence(inputs = {}) {
     lcmMessageState === "lcm_stand_down"
       ? "Capital protection active"
       : lcmMessageState === "lcm_restricted"
-        ? "Restricted manual setup"
+        ? "Restricted setup"
         : lcmMessageState === "lcm_actionable"
-          ? "Manual setup cleared"
+          ? "Setup cleared"
           : lcmMessageState === "lcm_conditional"
-            ? "Manual setup needs confirmation"
+            ? "Setup conditional"
             : "Monitor only";
 
   const lcmInstruction =
     lcmMessageState === "lcm_stand_down"
       ? "Do not enter. Wait for reset."
       : lcmMessageState === "lcm_restricted"
-        ? "Only consider micro size after confirmation."
+        ? "Only consider micro size."
         : lcmMessageState === "lcm_actionable"
-          ? "Manual action allowed with standard controls."
+          ? "Action allowed with standard controls."
           : lcmMessageState === "lcm_conditional"
-            ? "Wait for confirmation before action."
+            ? "Wait while conditions remain incomplete."
             : "Watch without action.";
 
   const lcmSeverity =
@@ -5363,20 +5363,20 @@ function computeCapitalActionCardIntelligence(inputs = {}) {
       : actionCardState === "card_restricted"
         ? "MICRO ONLY"
         : actionCardState === "card_actionable"
-          ? "MANUAL ACTION OK"
+          ? "ACTION ALLOWED"
           : actionCardState === "card_conditional"
-            ? "WAIT FOR CONFIRMATION"
+            ? "WAIT"
             : "WATCH";
 
   const actionCardSecondary =
     actionCardState === "card_blocked"
       ? "Capital protection overrides setup."
       : actionCardState === "card_restricted"
-        ? "Use reduced risk only after confirmation."
+        ? "Use reduced risk only."
         : actionCardState === "card_actionable"
-          ? "Follow manual plan and exits."
+          ? "Follow risk controls and exits."
           : actionCardState === "card_conditional"
-            ? "Need stronger confirmation."
+            ? "Conditions remain incomplete."
             : "No action yet.";
 
   return {
@@ -5441,11 +5441,11 @@ function computeCapitalCoachingNarrativeIntelligence(inputs = {}) {
     coachingNarrativeState === "narrative_defensive"
       ? "The scanner is prioritizing capital protection. Stand down and wait for a clean reset."
       : coachingNarrativeState === "narrative_restricted"
-        ? "The scanner allows only restricted consideration. Confirm first and keep size minimal."
+        ? "The scanner allows only restricted consideration. Keep size minimal."
         : coachingNarrativeState === "narrative_clear"
-          ? "The scanner supports a manual plan with standard risk controls."
+          ? "The scanner supports action with standard risk controls."
           : coachingNarrativeState === "narrative_conditional"
-            ? "The scanner needs more confirmation before manual action."
+            ? "The scanner needs stronger conditions before action."
             : "The scanner is in watch mode.";
 
   return {

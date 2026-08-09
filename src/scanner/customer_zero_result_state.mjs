@@ -67,13 +67,12 @@ export function normalizeCustomerZeroResultState(source = {}) {
     values.includes("DO_NOT_TRADE") ||
     values.includes("NO_TRADE");
 
-  const wait = includesAny(values, ["WAIT", "WAIT_FOR_CONFIRMATION", "WAITING_FOR_APPROVAL"]);
+  const wait = includesAny(values, ["WAIT"]);
   const watch = includesAny(values, ["WATCH", "WATCH_ONLY", "WATCH_CONTRACT"]);
 
   const explicitEnter =
     values.includes("ENTER") ||
-    values.includes("BUY") ||
-    values.includes("REVIEW_SETUP");
+    values.includes("BUY");
 
   let state = "NO_SETUP";
   if (stale) state = "STALE_DATA";
@@ -87,7 +86,7 @@ export function normalizeCustomerZeroResultState(source = {}) {
   return Object.freeze({
     version: VERSION,
     state,
-    tradePermission: state === "ENTER" ? "review_allowed" : "denied",
+    tradePermission: state === "ENTER" ? "allowed" : "denied",
     orderPlacementAllowed: false,
     paperOrderPlacementAllowed: false,
     liveOrderPlacementAllowed: false,
