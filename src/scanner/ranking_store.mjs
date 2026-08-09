@@ -7819,7 +7819,7 @@ function computeStage2AppDisplayOutput(inputs = {}) {
   const stage2FinalCommand = String(inputs.stage2FinalCommand || 'DO_NOT_TRADE')
   const stage2FinalPermission = String(inputs.stage2FinalPermission || 'denied')
   const stage2FinalCommandState = String(inputs.stage2FinalCommandState || 'final_denied')
-  const allowed = stage2FinalPermission === 'approved' && stage2FinalCommand !== 'DO_NOT_TRADE'
+  const allowed = stage2FinalPermission === 'allowed' && stage2FinalCommand !== 'DO_NOT_TRADE'
 
   return {
     appDisplayVersion: 'stage2_app_display_v1',

@@ -52,7 +52,7 @@ export function mapLiveUnderFiveUniverseToRankingEnvelope(payload = {}, nowMs = 
     scannerHealth: sourceBlocked ? 'stale' : 'healthy',
     scannerReadiness: sourceBlocked ? 'blocked' : 'ready',
     executionReadiness: sourceBlocked ? 'blocked' : 'ready',
-    decisionPermission: sourceBlocked ? 'denied' : 'approved',
+    decisionPermission: sourceBlocked ? 'denied' : 'allowed',
     decisionDirective: sourceBlocked ? 'do_not_enter' : 'enter',
     issues,
     rankings: rows.map((row) => {
@@ -70,7 +70,6 @@ export function mapLiveUnderFiveUniverseToRankingEnvelope(payload = {}, nowMs = 
         Date.parse(row.sourceTs) <= nowMs + 30000
       const candidateSafe =
         clean(row?.decision).toUpperCase() === 'ENTER' &&
-        row?.decisionReviewAllowed === true &&
         row?.tradable === true &&
         clean(row?.status).toLowerCase() === 'active' &&
         sourceFresh &&
@@ -88,7 +87,6 @@ export function mapLiveUnderFiveUniverseToRankingEnvelope(payload = {}, nowMs = 
           ...blockingFlags,
           ...readonlyPotentialFlags,
           ...(sourceFresh ? [] : ['live_candidate_source_stale']),
-          ...(row?.decisionReviewAllowed === true ? [] : ['decision_review_not_allowed']),
           ...(row?.tradable === true ? [] : ['candidate_not_tradable']),
           ...(clean(row?.status).toLowerCase() === 'active' ? [] : ['candidate_not_active']),
         ])],
