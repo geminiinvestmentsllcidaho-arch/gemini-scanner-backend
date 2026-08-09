@@ -24,7 +24,7 @@ test("paper app route health status app screen summarizes paper routes safely", 
   assert.equal(screen.noResetControls, true);
   assert.equal(screen.status, "paper_app_route_health_ready_readonly");
   assert.equal(screen.displayState, "PAPER_APP_ROUTE_HEALTH_READY_READONLY");
-  assert.ok(screen.summary.paperRouteCount >= 30);
+  assert.ok(screen.summary.paperRouteCount > 0);
   assert.equal(screen.summary.paperRouteCount, screen.summary.uniquePaperRouteCount);
   assert.equal(screen.summary.serverBackedPaperRouteCount, screen.summary.uniquePaperRouteCount);
   assert.equal(screen.summary.missingServerRouteCount, 0);

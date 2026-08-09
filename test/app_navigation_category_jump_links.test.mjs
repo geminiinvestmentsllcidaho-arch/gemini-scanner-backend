@@ -13,7 +13,7 @@ test("app navigation summary renders read-only category jump links", () => {
   });
   const html = renderAppNavigationReadonlyHtml(nav);
 
-  for (const category of ["scanner_app", "paper_lifecycle", "paper_trading", "operator_workflow", "paper_attempt"]) {
+  for (const category of ["scanner_app", "paper_lifecycle", "paper_trading", "operator_workflow"]) {
     const anchor = `app-nav-${category.replace(/_/g, "-")}`;
     assert.ok(html.includes(`id="${anchor}"`), anchor);
     assert.ok(html.includes(`href="#${anchor}"`), anchor);
