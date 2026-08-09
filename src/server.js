@@ -463,8 +463,6 @@ function normalizePaperDiagnosticSafetyAliases(payload) {
     ...payload,
     status,
     displayState,
-    finalDecision: paperDiagnosticText(payload.finalDecision, 'NO_GO_FOR_ORDER_PLACEMENT'),
-    readyForOrderPlacement: paperDiagnosticBool(payload.readyForOrderPlacement, false),
     readOnly: paperDiagnosticBool(payload.readOnly, true),
     monitorOnly: paperDiagnosticBool(payload.monitorOnly, true),
     noExecutionControls: paperDiagnosticBool(payload.noExecutionControls, true),

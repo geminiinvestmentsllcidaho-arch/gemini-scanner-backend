@@ -179,7 +179,7 @@ const DEFAULT_ENTRIES = Object.freeze([
     id: "paper_readiness_gate",
     title: "Paper Trading Readiness Gate",
     subtitle: "Read-only readiness diagnostics.",
-    description: "Broker/order placement readiness gate that remains blocked unless every safety check passes.",
+    description: "Read-only PAPER intent readiness status based on scanner, freshness, governance, portfolio, confidence, quality, and safety checks.",
     category: "paper_trading",
     href: "/app/paper-readiness-gate",
     diagnosticHref: "/diagnostics/paper-readiness-gate-app-screen",
