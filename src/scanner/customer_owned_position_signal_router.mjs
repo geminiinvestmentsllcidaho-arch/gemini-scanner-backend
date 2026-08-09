@@ -15,8 +15,8 @@ export function routeCustomerOwnedPositionSignals(candidates=[],paperAccount={})
   }
   const base={...candidate,symbol,ownedPosition:position,ownedPositionQty:num(position?.qty),ownedAverageEntryPrice:num(position?.averageEntryPrice??position?.avgEntryPrice),hiddenFromOpportunityResults:true,readOnly:true,paperOnly:true,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false};
   if(state(candidate)==="EXIT"){exitAlerts.push({...base,alertType:"OWNED_POSITION_EXIT",priority:"highest",visualAlert:true,audioAlertEligible:true,notificationEligible:true});continue;}
-  if(candidate?.ownedScaleOutReviewTriggered===true){scaleOutReviews.push({...base,alertType:"OWNED_POSITION_SCALE_OUT_REVIEW",priority:"review",scaleOutReady:false,separateApprovalRequired:true,blockedReasons:["SEPARATE_SCALE_OUT_APPROVAL_REQUIRED"]});continue;}
-  if(state(candidate)==="ENTER"){scaleInReviews.push({...base,alertType:"OWNED_POSITION_SCALE_IN_REVIEW",priority:"review",scaleInReady:false,separateApprovalRequired:true,blockedReasons:["SEPARATE_SCALE_IN_APPROVAL_REQUIRED"]});continue;}
+  if(candidate?.ownedScaleOutReviewTriggered===true){scaleOutReviews.push({...base,alertType:"OWNED_POSITION_SCALE_OUT_REVIEW",priority:"review",scaleOutReady:false});continue;}
+  if(state(candidate)==="ENTER"){scaleInReviews.push({...base,alertType:"OWNED_POSITION_SCALE_IN_REVIEW",priority:"review",scaleInReady:false});continue;}
   monitoredOwned.push({...base,alertType:"OWNED_POSITION_MONITOR"});
  }
  return Object.freeze({version:VERSION,scannerCandidates:Object.freeze(scannerCandidates),exitAlerts:Object.freeze(exitAlerts.sort(sort)),scaleOutReviews:Object.freeze(scaleOutReviews.sort(sort)),scaleInReviews:Object.freeze(scaleInReviews.sort(sort)),monitoredOwned:Object.freeze(monitoredOwned.sort(sort)),safety:Object.freeze({readOnly:true,paperOnly:true,decisionAssistOnly:true,automaticExitAllowed:false,automaticScaleOutAllowed:false,automaticScaleInAllowed:false,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false})});
