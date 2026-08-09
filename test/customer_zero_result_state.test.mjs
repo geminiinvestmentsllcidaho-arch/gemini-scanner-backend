@@ -46,12 +46,8 @@ test("maps blocked, do-not-enter, wait, and watch states conservatively", () => 
   assert.equal(normalizeCustomerZeroResultState({ status: "WATCH_ONLY" }).state, "WATCH");
 });
 
-test("requires explicit approval before producing ENTER", () => {
-  assert.equal(normalizeCustomerZeroResultState({ decision: "ENTER" }).state, "NO_SETUP");
-  const result = normalizeCustomerZeroResultState({
-    decision: "ENTER",
-    permission: "approved",
-  });
+test("surfaces explicit ENTER without a separate approval gate", () => {
+  const result = normalizeCustomerZeroResultState({ decision: "ENTER" });
   assert.equal(result.state, "ENTER");
   assert.equal(result.tradePermission, "review_allowed");
   assert.equal(result.orderPlacementAllowed, false);
@@ -59,17 +55,18 @@ test("requires explicit approval before producing ENTER", () => {
   assert.equal(result.liveOrderPlacementAllowed, false);
 });
 
-test("allows explicit read-only decision review permission to surface ENTER without execution", () => {
-  const result = normalizeCustomerZeroResultState({
-    decision: "ENTER",
-    decisionReviewAllowed: true,
-    orderPlacementAllowed: false,
-  });
-  assert.equal(result.state, "ENTER");
-  assert.equal(result.tradePermission, "review_allowed");
-  assert.equal(result.orderPlacementAllowed, false);
-  assert.equal(result.paperOrderPlacementAllowed, false);
-  assert.equal(result.liveOrderPlacementAllowed, false);
+test("legacy approval fields do not control an explicit ENTER result", () => {
+  for (const source of [
+    { decision: "ENTER", permission: "denied" },
+    { decision: "ENTER", stage2FinalPermission: "denied" },
+    { decision: "ENTER", decisionReviewAllowed: false, tradeAllowed: false, orderPlacementAllowed: false },
+  ]) {
+    const result = normalizeCustomerZeroResultState(source);
+    assert.equal(result.state, "ENTER");
+    assert.equal(result.orderPlacementAllowed, false);
+    assert.equal(result.paperOrderPlacementAllowed, false);
+    assert.equal(result.liveOrderPlacementAllowed, false);
+  }
 });
 
 test("defaults unknown outcomes to NO_SETUP", () => {

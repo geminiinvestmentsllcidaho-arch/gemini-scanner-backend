@@ -75,13 +75,6 @@ export function normalizeCustomerZeroResultState(source = {}) {
     values.includes("BUY") ||
     values.includes("REVIEW_SETUP");
 
-  const permissionApproved =
-    source.decisionReviewAllowed === true ||
-    source.tradeAllowed === true ||
-    source.orderPlacementAllowed === true ||
-    text(source.permission) === "APPROVED" ||
-    text(source.stage2FinalPermission) === "APPROVED";
-
   let state = "NO_SETUP";
   if (stale) state = "STALE_DATA";
   else if (exit) state = "EXIT";
@@ -89,7 +82,7 @@ export function normalizeCustomerZeroResultState(source = {}) {
   else if (doNotEnter) state = "DO_NOT_ENTER";
   else if (wait) state = "WAIT";
   else if (watch) state = "WATCH";
-  else if (explicitEnter && permissionApproved) state = "ENTER";
+  else if (explicitEnter) state = "ENTER";
 
   return Object.freeze({
     version: VERSION,
