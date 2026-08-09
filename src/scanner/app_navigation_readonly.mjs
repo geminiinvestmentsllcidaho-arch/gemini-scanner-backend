@@ -357,18 +357,6 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: false,
   }),
   Object.freeze({
-    id: "first_tiny_manual_paper_attempt_review_packet",
-    title: "First Tiny Manual Paper Attempt Review Packet",
-    subtitle: "Read-only first tiny manual paper attempt review surface.",
-    description: "Read-only route alias for the operator review packet source with no broker contact, order placement, or account mutation controls.",
-    category: "paper_attempt",
-    href: "/app/first-tiny-manual-paper-attempt-review-packet",
-    diagnosticHref: "/diagnostics/paper-attempt-operator-review-packet-app-screen",
-    routeHref: "/app/first-tiny-manual-paper-attempt-review-packet",
-    displayState: "FIRST_TINY_MANUAL_PAPER_ATTEMPT_REVIEW_PACKET_READONLY",
-    refreshFriendly: true,
-  }),
-  Object.freeze({
     id: "operator_review_packet",
     title: "Operator Review Packet",
     subtitle: "Review-only paper attempt packet.",

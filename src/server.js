@@ -2782,16 +2782,6 @@ app.get("/app/operator-review-packet", (req, res) => {
   res.type("html").send(renderPaperAttemptOperatorReviewPacketAppScreenHtml(screen));
 });
 
-app.get("/app/first-tiny-manual-paper-attempt-review-packet", (req, res) => {
-  const screen = buildPaperAttemptOperatorReviewPacketAppScreen({
-    limit: req.query?.limit,
-    refreshIntervalSec: req.query?.refreshIntervalSec ?? req.query?.refresh,
-    now: new Date(),
-    title: "First Tiny Manual Paper Attempt Review Packet",
-    subtitle: "Read-only first tiny manual paper attempt review packet. No broker contact and no order placement. No execution controls. No account mutation."
-  });
-  res.type("html").send(renderPaperAttemptOperatorReviewPacketAppScreenHtml(screen));
-});
 
 app.get("/diagnostics/paper-attempt-operator-review-packet-panel", (req, res) => {
   res.json(buildPaperAttemptOperatorReviewPacketPanel());
