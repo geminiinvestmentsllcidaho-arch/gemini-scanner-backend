@@ -23,7 +23,6 @@ const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/paper-trading-module-final-status", "Paper Trading Module Final Status Root Alias"],
   ["/app/paper-app-broker-readiness-index", "Paper App Broker Readiness Index"],
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
-  ["/app/paper-broker-network-attempt-status", "Paper Broker Network Attempt Status"],
   ["/app/paper-lifecycle-dashboard", "Paper Lifecycle Read-Only Dashboard"],
   ["/app/paper-lifecycle-operator-summary", "Paper Lifecycle Operator Summary Read-Only"],
   ["/app/paper-lifecycle-final-status", "Paper Lifecycle Final Status Read-Only"],

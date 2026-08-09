@@ -8,9 +8,6 @@ import {
   buildPaperBrokerRuntimeEnvironmentPreflightAppScreen
 } from "../src/scanner/paper_broker_runtime_environment_preflight_app_screen.mjs";
 import {
-  buildPaperBrokerNetworkAttemptStatusAppScreen
-} from "../src/scanner/paper_broker_network_attempt_status_app_screen.mjs";
-import {
   buildPaperTradingOverviewStatusAppScreen
 } from "../src/scanner/paper_trading_overview_status_app_screen.mjs";
 
@@ -29,36 +26,15 @@ test("paper broker app screens load latest source reports by default", () => {
     blockers: ["market_open_required"]
   }));
 
-  writeFileSync(join(runsDir, "paper_broker_network_call_post_attempt_2026.json"), JSON.stringify({
-    ok: true,
-    status: "blocked",
-    runStatus: "paper_network_attempt_blocked",
-    brokerContactAttempted: false,
-    orderSubmitAttempted: false,
-    orderSubmitted: false,
-    accountMutationAttempted: false,
-    parameters: {symbol: "SPY", qty: 1, side: "buy", type: "market", timeInForce: "day"},
-    safety: {paperOnly: true, manualOnly: true, oneShotOnly: true},
-    response: {ok: false, status: null},
-    blockers: ["paper_network_attempt_blocked"]
-  }));
 
   const runtime = buildPaperBrokerRuntimeEnvironmentPreflightAppScreen({ runsDir });
   assert.equal(runtime.reportFound, true);
   assert.equal(runtime.status, "blocked");
   assert.equal(runtime.environment.alpacaApiKeyPresent, true);
 
-  const network = buildPaperBrokerNetworkAttemptStatusAppScreen({ runsDir });
-  assert.equal(network.reportFound, true);
-  assert.equal(network.status, "paper_network_attempt_blocked");
-  assert.equal(network.parameters.symbol, "SPY");
 
-  const overview = buildPaperTradingOverviewStatusAppScreen({
-    runtimeInput: { runsDir },
-    networkAttemptInput: { runsDir }
-  });
+  const overview = buildPaperTradingOverviewStatusAppScreen({ runtimeInput: { runsDir } });
   assert.equal(overview.summary.runtimeStatus, "blocked");
-  assert.equal(overview.summary.networkAttemptStatus, "paper_network_attempt_blocked");
   assert.equal(overview.blockers.includes("runtime_source_not_loaded"), false);
   assert.equal(overview.blockers.includes("source_panel_not_loaded"), false);
 });

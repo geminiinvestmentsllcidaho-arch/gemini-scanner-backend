@@ -321,18 +321,6 @@ const DEFAULT_ENTRIES = Object.freeze([
     refreshFriendly: true,
   }),
   Object.freeze({
-    id: "paper_broker_network_attempt_status",
-    title: "Paper Broker Network Attempt Status",
-    subtitle: "Read-only one-shot paper broker network attempt status.",
-    description: "Shows the latest pre/post paper broker network attempt audit records, approval record, response summary, and safety locks without retry, reset, submit, or account mutation controls.",
-    category: "paper_lifecycle",
-    href: "/app/paper-broker-network-attempt-status",
-    diagnosticHref: "/app/paper-broker-network-attempt-status",
-    routeHref: "/app/paper-broker-network-attempt-status",
-    displayState: "PAPER_BROKER_NETWORK_ATTEMPT_STATUS_READONLY",
-    refreshFriendly: true,
-  }),
-  Object.freeze({
     id: "paper_attempt_control_center",
     title: "Paper Attempt Control Center",
     subtitle: "Main paper-attempt safety center.",

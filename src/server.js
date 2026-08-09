@@ -1306,7 +1306,6 @@ function renderFastLifecyclePreviewHtml(title) {
     "<section><h2>Related Broker Readiness Routes</h2><ul>",
     "<li><a href='/app/paper-app-broker-readiness-index'>Paper App Broker Readiness Index</a></li>",
     "<li><a href='/app/paper-broker-runtime-environment-preflight'>Paper Broker Runtime Environment Preflight</a></li>",
-    "<li><a href='/app/paper-broker-network-attempt-status'>Paper Broker Network Attempt Status</a></li>",
     "<li><a href='/app/paper-app-safety-lock-status'>Paper App Safety Lock Status</a></li>",
     "<li><a href='/app/paper-lifecycle-dashboard'>Paper Lifecycle Read-Only Dashboard</a></li>",
     "</ul></section>",
@@ -4006,25 +4005,7 @@ app.get('/diagnostics/paper-broker-runtime-environment-preflight', async (_req, 
 });
 
 
-app.get('/app/paper-broker-network-attempt-status', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_broker_network_attempt_status_app_screen.mjs');
-    const screen = mod.buildPaperBrokerNetworkAttemptStatusAppScreen();
-    res.type('html').send(mod.renderPaperBrokerNetworkAttemptStatusAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_broker_network_attempt_status_app_screen_failed', message: err?.message || String(err) });
-  }
-});
 
-app.get('/diagnostics/paper-broker-network-attempt-status', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_broker_network_attempt_status_app_screen.mjs');
-    const payload = await mod.buildPaperBrokerNetworkAttemptStatusAppScreen({ loadSourceReport: false });
-    res.json({ ...payload, route: '/diagnostics/paper-broker-network-attempt-status' });
-  } catch (err) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-broker-network-attempt-status', error: err?.message ?? String(err) });
-  }
-});
 
 
 app.get('/app/paper-trading-readiness-gate', (_req, res) => res.redirect(302, '/app/paper-readiness-gate'));

@@ -30,7 +30,6 @@ test("paper lifecycle operator handoff packet links broker readiness routes and 
   const routes = [
     "/app/paper-app-broker-readiness-index",
     "/app/paper-broker-runtime-environment-preflight",
-    "/app/paper-broker-network-attempt-status",
     "/app/paper-readiness-gate",
     "/app/paper-app-safety-lock-status",
     "/app/paper-lifecycle-dashboard",

@@ -1,6 +1,5 @@
 import { getPaperTradingReadinessGate } from "./paper_trading_readiness_gate.mjs";
 import { buildPaperBrokerRuntimeEnvironmentPreflightAppScreen } from "./paper_broker_runtime_environment_preflight_app_screen.mjs";
-import { buildPaperBrokerNetworkAttemptStatusAppScreen } from "./paper_broker_network_attempt_status_app_screen.mjs";
 
 export const VERSION = "paper_trading_overview_status_app_screen_v1";
 
@@ -60,18 +59,6 @@ function fastRuntimeSource() {
   };
 }
 
-function fastNetworkAttemptSource() {
-  return {
-    route: "/app/paper-broker-network-attempt-status",
-    status: "fast_preview_no_network_attempt",
-    reportFound: false,
-    brokerContactAttempted: false,
-    orderSubmitAttempted: false,
-    orderSubmitted: false,
-    accountMutationAttempted: false,
-    safety: { liveTradingAllowed: false, autoTradingAllowed: false, accountMutationAllowed: false }
-  };
-}
 
 export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
   const loadSources = input.loadSources !== false;
@@ -85,45 +72,26 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
     : (loadSources || input.runtimeInput
       ? safeBuild("runtime", () => buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input.runtimeInput ?? {}))
       : { ok: true, label: "runtime", value: fastRuntimeSource() });
-  const networkResult = input.networkAttempt
-    ? { ok: true, label: "network_attempt", value: input.networkAttempt }
-    : (loadSources || input.networkAttemptInput
-      ? safeBuild("network_attempt", () => buildPaperBrokerNetworkAttemptStatusAppScreen(input.networkAttemptInput ?? {}))
-      : { ok: true, label: "network_attempt", value: fastNetworkAttemptSource() });
 
   const readiness = objectValue(readinessResult.value);
   const runtime = objectValue(runtimeResult.value);
-  const networkAttempt = objectValue(networkResult.value);
 
   const readinessSafety = objectValue(readiness.safety);
   const runtimeSafety = objectValue(runtime.safety);
-  const networkSafety = objectValue(networkAttempt.safety);
 
-  const networkAttemptRecorded = boolValue(networkAttempt.reportFound);
-  const brokerContactAttempted = boolValue(networkAttempt.brokerContactAttempted);
-  const orderSubmitAttempted = boolValue(networkAttempt.orderSubmitAttempted);
-  const orderSubmitted = boolValue(networkAttempt.orderSubmitted);
-  const accountMutationAttempted =
-    boolValue(networkAttempt.accountMutationAttempted) ||
-    boolValue(runtimeSafety.accountMutationAttempted);
+  const accountMutationAttempted = boolValue(runtimeSafety.accountMutationAttempted);
 
   const liveTradingAllowed =
     boolValue(readinessSafety.liveTrading) ||
-    boolValue(runtimeSafety.liveTradingAllowed) ||
-    boolValue(networkSafety.liveTradingAllowed);
+    boolValue(runtimeSafety.liveTradingAllowed);
   const autoTradingAllowed =
     boolValue(readinessSafety.autoTrading) ||
-    boolValue(runtimeSafety.autoTradingAllowed) ||
-    boolValue(networkSafety.autoTradingAllowed);
+    boolValue(runtimeSafety.autoTradingAllowed);
   const accountMutationAllowed =
     boolValue(readinessSafety.accountMutation) ||
-    boolValue(runtimeSafety.accountMutationAllowed) ||
-    boolValue(networkSafety.accountMutationAllowed);
+    boolValue(runtimeSafety.accountMutationAllowed);
 
-  const blockers = [
-    ...arrayValue(runtime.blockers),
-    ...(networkAttemptRecorded ? ["prior_one_shot_paper_network_attempt_recorded"] : [])
-  ].map(String);
+  const blockers = arrayValue(runtime.blockers).map(String);
 
   return {
     ok: true,
@@ -131,7 +99,7 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
     appScreen: true,
     route: "/app/paper-trading-overview-status",
     title: "Paper Trading Overview Status",
-    subtitle: "read-only overview of current PAPER intent readiness, runtime preflight, and historical network-attempt status.",
+    subtitle: "read-only overview of current PAPER intent readiness and runtime preflight status.",
     readOnly: true,
     monitorOnly: true,
     previewOnly: true,
@@ -145,11 +113,6 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
       readinessPct: readiness.readinessPct ?? 0,
       runtimeStatus: textValue(runtime.status, "unknown"),
       runtimeEnvironmentReady: boolValue(runtime.runtimeEnvironmentReady),
-      networkAttemptStatus: textValue(networkAttempt.status, "unknown"),
-      networkAttemptRecorded,
-      brokerContactAttempted,
-      orderSubmitAttempted,
-      orderSubmitted,
       accountMutationAttempted
     },
     safety: {
@@ -168,14 +131,12 @@ export function buildPaperTradingOverviewStatusAppScreen(input = {}) {
     sources: {
       readiness: { ok: readinessResult.ok, status: textValue(readiness.paperIntentStatus ?? readiness.status, "unknown"), route: "/app/paper-readiness-gate" },
       runtime: { ok: runtimeResult.ok, status: textValue(runtime.status, "unknown"), route: textValue(runtime.route, "/app/paper-broker-runtime-environment-preflight") },
-      networkAttempt: { ok: networkResult.ok, status: textValue(networkAttempt.status, "unknown"), route: textValue(networkAttempt.route, "/app/paper-broker-network-attempt-status") }
     },
     blockers,
     links: {
       app: "/app",
       alpacaPaperAccount: "/app/alpaca-paper-account-status",
       runtimePreflight: "/app/paper-broker-runtime-environment-preflight",
-      networkAttemptStatus: "/app/paper-broker-network-attempt-status",
       readinessGate: "/app/paper-readiness-gate",
       lifecycleDashboard: "/app/paper-lifecycle-dashboard",
       moduleFinalStatus: "/app/paper-trading-module-final-status",
@@ -194,7 +155,6 @@ export function renderPaperTradingOverviewStatusAppScreenHtml(input = {}) {
   const sourceCards = [
     ["Alpaca Paper Account", "Connected read-only account status.", links.alpacaPaperAccount],
     ["Runtime Preflight", sources.runtime?.status ?? "unknown", links.runtimePreflight],
-    ["Network Attempt Status", sources.networkAttempt?.status ?? "unknown", links.networkAttemptStatus],
     ["Readiness Gate", sources.readiness?.status ?? "unknown", links.readinessGate],
     ["Lifecycle Dashboard", "Local lifecycle dashboard.", links.lifecycleDashboard],
     ["Module Final Status", "read-only module final status.", links.moduleFinalStatus],
@@ -210,8 +170,6 @@ body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background
 <div class="metric"><div class="k">Readiness status</div><div class="v">${esc(summary.readinessStatus)}</div></div>
 <div class="metric"><div class="k">Readiness %</div><div class="v">${esc(summary.readinessPct)}</div></div>
 <div class="metric"><div class="k">Runtime ready</div><div class="v">${renderBool(summary.runtimeEnvironmentReady)}</div></div>
-<div class="metric"><div class="k">Network attempt recorded</div><div class="v">${renderBool(summary.networkAttemptRecorded)}</div></div>
-<div class="metric"><div class="k">Order submitted</div><div class="v">${renderBool(summary.orderSubmitted)}</div></div>
 <div class="metric"><div class="k">Account mutation attempted</div><div class="v">${renderBool(summary.accountMutationAttempted)}</div></div>
 </section>
 <section class="card"><h2>Safety locks</h2><ul><li>Paper only: ${renderBool(safety.paperOnly)}</li><li>Manual only: ${renderBool(safety.manualOnly)}</li><li>One-shot only: ${renderBool(safety.oneShotOnly)}</li><li>Live trading allowed: ${renderBool(safety.liveTradingAllowed)}</li><li>Auto trading allowed: ${renderBool(safety.autoTradingAllowed)}</li><li>Broker execution allowed: ${renderBool(safety.brokerExecutionAllowed)}</li><li>New broker contact allowed: ${renderBool(safety.newBrokerContactAllowed)}</li><li>Retry allowed: ${renderBool(safety.retryAllowed)}</li><li>Reset allowed: ${renderBool(safety.resetAllowed)}</li><li>Order placement allowed: ${renderBool(safety.orderPlacementAllowed)}</li><li>Account mutation allowed: ${renderBool(safety.accountMutationAllowed)}</li></ul></section>

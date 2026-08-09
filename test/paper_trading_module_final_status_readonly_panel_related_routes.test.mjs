@@ -31,7 +31,6 @@ test("paper trading module final status links broker readiness routes and remain
   const routes = [
     "/app/paper-app-broker-readiness-index",
     "/app/paper-broker-runtime-environment-preflight",
-    "/app/paper-broker-network-attempt-status",
     "/app/paper-readiness-gate",
     "/app/paper-app-safety-lock-status",
     "/app/paper-lifecycle-dashboard",

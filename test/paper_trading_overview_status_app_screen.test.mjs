@@ -37,20 +37,6 @@ test("paper trading overview status app screen aggregates readiness sources safe
         autoTradingAllowed: false,
         accountMutationAllowed: false
       }
-    },
-    networkAttempt: {
-      route: "/app/paper-broker-network-attempt-status",
-      status: "blocked",
-      reportFound: true,
-      brokerContactAttempted: false,
-      orderSubmitAttempted: false,
-      orderSubmitted: false,
-      accountMutationAttempted: false,
-      safety: {
-        liveTradingAllowed: false,
-        autoTradingAllowed: false,
-        accountMutationAllowed: false
-      }
     }
   });
 
@@ -67,10 +53,6 @@ test("paper trading overview status app screen aggregates readiness sources safe
   assert.equal(screen.displayState, "PAPER_TRADING_OVERVIEW_READONLY_BROKER_BLOCKED");
   assert.equal(screen.summary.readinessPct, 71);
   assert.equal(screen.summary.runtimeEnvironmentReady, false);
-  assert.equal(screen.summary.networkAttemptRecorded, true);
-  assert.equal(screen.summary.brokerContactAttempted, false);
-  assert.equal(screen.summary.orderSubmitAttempted, false);
-  assert.equal(screen.summary.orderSubmitted, false);
   assert.equal(screen.summary.accountMutationAttempted, false);
   assert.equal(screen.safety.liveTradingAllowed, false);
   assert.equal(screen.safety.autoTradingAllowed, false);
@@ -82,7 +64,6 @@ test("paper trading overview status app screen aggregates readiness sources safe
   assert.equal(screen.safety.orderPlacementAllowed, false);
   assert.equal(screen.sources.readiness.route, "/app/paper-readiness-gate");
   assert.equal(screen.sources.runtime.route, "/app/paper-broker-runtime-environment-preflight");
-  assert.equal(screen.sources.networkAttempt.route, "/app/paper-broker-network-attempt-status");
 });
 
 test("paper trading overview status html has no mutation controls", () => {
@@ -101,15 +82,6 @@ test("paper trading overview status html has no mutation controls", () => {
       status: "blocked",
       runtimeEnvironmentReady: false,
       blockers: ["market_open_required"],
-      safety: { liveTradingAllowed: false, autoTradingAllowed: false, accountMutationAllowed: false }
-    },
-    networkAttempt: {
-      status: "blocked",
-      reportFound: true,
-      brokerContactAttempted: false,
-      orderSubmitAttempted: false,
-      orderSubmitted: false,
-      accountMutationAttempted: false,
       safety: { liveTradingAllowed: false, autoTradingAllowed: false, accountMutationAllowed: false }
     }
   });
