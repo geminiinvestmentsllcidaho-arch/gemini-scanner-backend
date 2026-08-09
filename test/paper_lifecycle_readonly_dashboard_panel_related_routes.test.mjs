@@ -17,7 +17,6 @@ test("paper lifecycle readonly dashboard links broker readiness routes and remai
   assert.match(html, /Paper Lifecycle Read-Only Dashboard/);
   assert.match(html, /No broker read, no order submit, no retry, no account mutation/);
   assert.match(html, /Related Broker Readiness Routes/);
-  assert.match(html, /\/app\/paper-app-broker-readiness-index/);
   assert.match(html, /\/app\/paper-broker-runtime-environment-preflight/);
   assert.match(html, /\/app\/paper-readiness-gate/);
   assert.match(html, /\/app\/paper-app-safety-lock-status/);

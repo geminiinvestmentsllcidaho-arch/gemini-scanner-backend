@@ -259,19 +259,7 @@ const DEFAULT_ENTRIES = Object.freeze([
     displayState: "PAPER_TRADING_OVERVIEW_STATUS_READONLY",
     refreshFriendly: true,
   }),
-  Object.freeze({
-    id: "paper_app_readiness_status",
-    title: "Paper App Readiness Status",
-    label: "App Readiness Status",
-    description: "Read-only operator summary for fast default app routes, freeze tag, validation status, source mode, and paper-trading safety locks.",
-    category: "paper_lifecycle",
-    href: "/app/paper-app-readiness-status",
-    diagnosticHref: "/app/paper-app-readiness-status",
-    routeHref: "/app/paper-app-readiness-status",
-    displayState: "PAPER_APP_READINESS_STATUS_READONLY",
-    refreshFriendly: true,
-    refreshIntervalSec: 30,
-  }),
+
   Object.freeze({
     id: "paper_app_route_health_status",
     title: "Paper App Route Health Status",
@@ -296,18 +284,7 @@ const DEFAULT_ENTRIES = Object.freeze([
     displayState: "PAPER_APP_SAFETY_LOCK_STATUS_READONLY",
     refreshFriendly: true,
   }),
-  Object.freeze({
-    id: "paper_app_broker_readiness_index",
-    title: "Paper App Broker Readiness Index",
-    subtitle: "Read-only broker readiness route index.",
-    description: "Indexes broker readiness app routes without route execution, broker contact, order submit, retry, reset, or account mutation controls.",
-    category: "paper_lifecycle",
-    href: "/app/paper-app-broker-readiness-index",
-    diagnosticHref: "/app/paper-app-broker-readiness-index",
-    routeHref: "/app/paper-app-broker-readiness-index",
-    displayState: "PAPER_APP_BROKER_READINESS_INDEX_READONLY",
-    refreshFriendly: true,
-  }),
+
   Object.freeze({
     id: "paper_broker_runtime_environment_preflight",
     title: "Paper Broker Runtime Environment Preflight",
@@ -555,8 +532,6 @@ function renderNavigationSummary(nav = {}) {
   const categoryCount = groups.size;
   const entryCount = entries.length;
   const quickLinks = [
-    "/app/paper-app-broker-readiness-index",
-    "/app/paper-app-readiness-status",
     "/app/paper-app-route-health-status",
     "/app/paper-app-safety-lock-status",
   ].filter((href) => entries.some((entry) => entry.href === href)).length;
@@ -579,8 +554,6 @@ function renderReadinessQuickLinks(entries = []) {
   const links = [
     { href: "/app/alpaca-paper-account-dashboard", label: "Alpaca Paper Account Dashboard" },
     { href: "/app/alpaca-operator-key-entry", label: "Alpaca Operator Key Entry" },
-    { href: "/app/paper-app-broker-readiness-index", label: "Broker Readiness Index" },
-    { href: "/app/paper-app-readiness-status", label: "App Readiness Status" },
     { href: "/app/paper-app-route-health-status", label: "Route Health Status" },
     { href: "/app/paper-app-safety-lock-status", label: "Safety Lock Status" },
   ];

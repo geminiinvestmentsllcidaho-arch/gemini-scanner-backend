@@ -492,17 +492,6 @@ app.use((req, res, next) => {
 
 
 
-app.get('/app/paper-app-readiness-status', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_app_readiness_status_app_screen.mjs');
-    const screen = mod.buildPaperAppReadinessStatusAppScreen({});
-    res.type('html').send(mod.renderPaperAppReadinessStatusAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_app_readiness_status_app_screen_failed', message: err?.message ?? String(err) });
-  }
-});
-
-
 const API_PATCH_PLAN_DASHBOARD_ROUTE = "/diagnostics/alpaca-api-patch-plan";
 
 app.get(API_PATCH_PLAN_DASHBOARD_ROUTE, async (_req, res) => {
@@ -1613,7 +1602,6 @@ app.post('/ops/run', async (req, res) => {
 // Read-only JSON/panel mirrors for app screens and short redirect aliases.
 const PAPER_APP_NONLIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
   { route: '/diagnostics/alpaca-paper-account-status', module: './scanner/alpaca_paper_account_status_app_screen.mjs', build: 'buildAlpacaPaperAccountStatusAppScreen' },
-  { route: '/diagnostics/paper-app-readiness-status', module: './scanner/paper_app_readiness_status_app_screen.mjs', build: 'buildPaperAppReadinessStatusAppScreen', args: [{}] },
   { route: '/diagnostics/paper-order-readonly-status', module: './scanner/paper_order_readonly_status_app_screen.mjs', build: 'buildPaperOrderReadonlyStatusAppScreen', args: [{ panel: fastReadonlyAppPanel('Paper Order Read-Only Status') }] },
   { route: '/diagnostics/paper-trading-overview-status', module: './scanner/paper_trading_overview_status_app_screen.mjs', build: 'buildPaperTradingOverviewStatusAppScreen' }
 ]);
@@ -2662,51 +2650,6 @@ app.get('/app/paper-app-safety-lock-status', async (_req, res) => {
   }
 });
 
-
-app.get('/diagnostics/paper-app-broker-readiness-index', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_app_broker_readiness_index_app_screen.mjs');
-    const screen = mod.buildPaperAppBrokerReadinessIndexAppScreen();
-    res.json(screen);
-  } catch (err) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-app-broker-readiness-index', error: 'paper_app_broker_readiness_index_diagnostics_failed', message: err?.message ?? String(err) });
-  }
-});
-
-app.get('/diagnostics/paper-app-broker-readiness-index-panel', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_app_broker_readiness_index_app_screen.mjs');
-    const screen = mod.buildPaperAppBrokerReadinessIndexAppScreen();
-    res.json({
-      ok: true,
-      route: '/diagnostics/paper-app-broker-readiness-index-panel',
-      version: screen.version,
-      title: screen.title,
-      status: screen.status,
-      displayState: screen.displayState,
-      readOnly: screen.readOnly,
-      monitorOnly: screen.monitorOnly,
-      diagnosticsOnly: screen.diagnosticsOnly,
-      noExecutionControls: screen.noExecutionControls,
-      missingRequiredRoutes: screen.missingRequiredRoutes ?? [],
-      summary: screen.summary,
-      safety: screen.safety,
-      ts: screen.ts
-    });
-  } catch (err) {
-    res.status(500).json({ ok: false, route: '/diagnostics/paper-app-broker-readiness-index-panel', error: 'paper_app_broker_readiness_index_panel_failed', message: err?.message ?? String(err) });
-  }
-});
-
-app.get('/app/paper-app-broker-readiness-index', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_app_broker_readiness_index_app_screen.mjs');
-    const screen = mod.buildPaperAppBrokerReadinessIndexAppScreen();
-    res.type('html').send(mod.renderPaperAppBrokerReadinessIndexAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_app_broker_readiness_index_app_screen_failed', message: err?.message ?? String(err) });
-  }
-});
 
 app.get('/app/paper-broker-runtime-environment-preflight', async (_req, res) => {
   try {
