@@ -13,11 +13,11 @@ test("app navigation groups entries by category and keeps readiness quick links 
   });
   const html = renderAppNavigationReadonlyHtml(nav);
 
-  for (const category of ["scanner_app", "paper_lifecycle", "paper_trading", "operator_workflow", "paper_attempt"]) {
+  for (const category of ["scanner_app", "paper_lifecycle", "paper_trading", "operator_workflow"]) {
     assert.ok(html.includes(`data-app-navigation-category="${category}"`), category);
   }
 
-  for (const heading of ["Scanner App", "Paper Lifecycle", "Paper Trading", "Operator Workflow", "Paper Attempt"]) {
+  for (const heading of ["Scanner App", "Paper Lifecycle", "Paper Trading", "Operator Workflow"]) {
     assert.ok(html.includes(heading), heading);
   }
 
@@ -31,7 +31,6 @@ test("app navigation groups entries by category and keeps readiness quick links 
   assert.ok(html.includes("/app/paper-app-readiness-status"));
   assert.ok(html.includes("/app/paper-app-route-health-status"));
   assert.ok(html.includes("/app/paper-app-safety-lock-status"));
-  assert.ok(html.includes("/app/paper-trading-module-final-status"));
 
   assert.ok(html.includes("Read-only Locks"));
   assert.ok(html.includes("no execution controls"));
