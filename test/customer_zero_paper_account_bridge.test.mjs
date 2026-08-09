@@ -6,7 +6,7 @@ import {
   VERSION,
 } from "../src/scanner/customer_zero_paper_account_bridge.mjs";
 
-test("bridges connected paper buying power positions and ledger data read-only", () => {
+test("bridges connected paper buying power and positions read-only", () => {
   const out = buildCustomerZeroPaperAccountBridge({
     status: "connected_readonly",
     account: {
@@ -43,7 +43,6 @@ test("bridges connected paper buying power positions and ledger data read-only",
   assert.equal(out.account.buyingPower, 1600);
   assert.equal(out.positions[0].symbol, "ABC");
   assert.equal(out.summary.positionsCount, 1);
-  assert.equal(out.ledger.readyForOrderPlacement, false);
   assert.equal(out.orderPlacementAllowed, false);
 });
 
@@ -77,5 +76,4 @@ test("blocks unhealthy paper account state", () => {
 
   assert.equal(out.accountHealthy, false);
   assert.ok(out.issues.includes("PAPER_TRADING_BLOCKED"));
-  assert.equal(out.ledger.finalDecision, "NO_GO_FOR_ORDER_PLACEMENT");
 });

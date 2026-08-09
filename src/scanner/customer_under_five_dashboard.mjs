@@ -196,13 +196,6 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
         totalUnrealizedPl: 0,
         operatorMessage: "Paper account data is unavailable.",
       },
-      ledger: {
-        finalDecision: "NO_GO_FOR_ORDER_PLACEMENT",
-        readyForOrderPlacement: false,
-        noExecutableOrder: true,
-        noBrokerContact: true,
-        noAccountMutation: true,
-      },
       issues: ["PAPER_ACCOUNT_NOT_CONNECTED"],
       readOnly: true,
       paperOnly: true,
@@ -299,7 +292,7 @@ ${marketOpen
 <b>Result order:</b> New ENTER opportunities appear first, ranked from the strongest potential score to the weakest. Ties are sorted by symbol. Owned positions are monitored separately: EXIT signals become urgent alerts, and repeat ENTER signals become add-on reviews unless portfolio wind-down is active.
 </section>
 
-<section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} · Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} · Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} · Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p><p>Ledger: ${esc(String(dashboard.paperAccount?.ledger?.finalDecision ?? "NO GO FOR ORDER PLACEMENT").replaceAll("_", " "))} · No broker contact or account mutation.</p></section>
+<section class="card paper-account"><b>Paper account — read only</b><p>Status: ${dashboard.paperAccount?.accountHealthy === true ? "Connected" : "Blocked"} · Buying power: $${esc(dashboard.paperAccount?.account?.buyingPower ?? "—")} · Cash: $${esc(dashboard.paperAccount?.account?.cash ?? "—")} · Positions: ${esc(dashboard.paperAccount?.summary?.positionsCount ?? 0)}</p></section>
 <section class="card allocation-controls"><b>Read-only allocation controls</b><p>Available funds: ${esc(dashboard.allocationControls?.availableFundsPct ?? 5)}% (0–80%, 5% steps) · Maximum per stock: $${esc(dashboard.allocationControls?.maxDollarsPerStock ?? 25)} ($5 steps)</p><p>Calculated previews only. No broker contact, order placement, or account mutation.</p></section>
 ${scaleOutHtml}${scaleInHtml}
 ${monitoredOwnedHtml}

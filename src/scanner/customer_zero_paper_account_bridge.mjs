@@ -1,5 +1,3 @@
-import { buildPaperAttemptReadOnlyOrderSubmissionOperatorLedgerPanel } from "./paper_attempt_read_only_order_submission_operator_ledger_panel.mjs";
-
 export const VERSION = "customer_zero_paper_account_bridge_v1";
 
 function finite(value) {
@@ -24,9 +22,6 @@ export function buildCustomerZeroPaperAccountBridge(fetchResult = {}, options = 
     unrealizedPlpc: finite(position?.unrealizedPlpc),
     side: position?.side ?? null,
   }));
-  const ledgerPanel = options.ledgerPanel
-    ?? buildPaperAttemptReadOnlyOrderSubmissionOperatorLedgerPanel();
-
   const accountHealthy = connected
     && account?.accountStatus === "ACTIVE"
     && account?.tradingBlocked !== true
@@ -39,7 +34,6 @@ export function buildCustomerZeroPaperAccountBridge(fetchResult = {}, options = 
   if (account?.tradingBlocked === true) issues.push("PAPER_TRADING_BLOCKED");
   if (account?.accountBlocked === true) issues.push("PAPER_ACCOUNT_BLOCKED");
   if (finite(account?.buyingPower) === null) issues.push("PAPER_BUYING_POWER_UNAVAILABLE");
-  if (ledgerPanel?.readyForOrderPlacement !== false) issues.push("PAPER_LEDGER_FAIL_CLOSED");
 
   return {
     version: VERSION,
@@ -66,16 +60,6 @@ export function buildCustomerZeroPaperAccountBridge(fetchResult = {}, options = 
       totalMarketValue: finite(fetchResult?.summary?.totalMarketValue) ?? 0,
       totalUnrealizedPl: finite(fetchResult?.summary?.totalUnrealizedPl) ?? 0,
       operatorMessage: fetchResult?.summary?.operatorMessage ?? null,
-    },
-    ledger: {
-      version: ledgerPanel?.version ?? null,
-      status: ledgerPanel?.status ?? "unavailable",
-      finalDecision: ledgerPanel?.finalDecision ?? "NO_GO_FOR_ORDER_PLACEMENT",
-      readyForOrderPlacement: false,
-      ledgeredNoGo: ledgerPanel?.ledger?.ledgeredNoGo === true,
-      noExecutableOrder: true,
-      noBrokerContact: true,
-      noAccountMutation: true,
     },
     issues,
     readOnly: true,

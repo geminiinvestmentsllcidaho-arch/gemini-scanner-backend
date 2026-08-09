@@ -274,13 +274,6 @@ test("customer dashboard exposes connected paper account buying power positions 
       totalUnrealizedPl: 2,
       operatorMessage: "GET only.",
     },
-    ledger: {
-      finalDecision: "NO_GO_FOR_ORDER_PLACEMENT",
-      readyForOrderPlacement: false,
-      noExecutableOrder: true,
-      noBrokerContact: true,
-      noAccountMutation: true,
-    },
     issues: [],
     readOnly: true,
     paperOnly: true,
@@ -308,8 +301,6 @@ test("customer dashboard exposes connected paper account buying power positions 
   assert.match(html, /Paper account — read only/);
   assert.match(html, /Buying power: \$1600/);
   assert.match(html, /Positions: 1/);
-  assert.match(html, /NO GO FOR ORDER PLACEMENT/);
-  assert.doesNotMatch(html, /NO_GO_FOR_ORDER_PLACEMENT/);
   assert.doesNotMatch(html, /Place order|Buy now|type="submit"/);
 });
 
