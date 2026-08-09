@@ -117,10 +117,6 @@ import { buildPaperTradePositionStatePreview, buildPaperTradePositionStatePrevie
 import { readPaperTradePositionStateStoreDashboard } from './scanner/paper_trade_position_state_store.mjs';
 import { readPaperTradePositionStateStorePanel } from './scanner/paper_trade_position_state_store_panel.mjs';
 import { createPaperTradePositionStateAutoRefresh } from './scanner/paper_trade_position_state_auto_refresh.mjs';
-import { readPaperTradeLifecycleDashboard, readPaperTradeLifecycleDashboardPanel } from './scanner/paper_trade_lifecycle_dashboard.mjs';
-import { previewPaperTradeLifecycleRun, readPaperTradeLifecycleRunnerPanel } from './scanner/paper_trade_lifecycle_runner.mjs';
-import { readPaperTradeLifecycleRunnerAuditDashboard } from './scanner/paper_trade_lifecycle_runner_audit.mjs';
-import { readPaperTradeLifecycleRunnerAuditPanel } from './scanner/paper_trade_lifecycle_runner_audit_panel.mjs';
 
 
 import { getPaperBrokerNullAdapterDiagnostics } from './scanner/paper_broker_null_adapter.mjs';
@@ -1202,35 +1198,8 @@ app.get('/diagnostics/paper-position-pnl-readonly-baseline-panel', async (req, r
 
 
 
-app.get('/app/paper-trade-lifecycle-runner-audit', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_lifecycle_runner_audit_app_screen.mjs');
-    const screen = mod.buildPaperTradeLifecycleRunnerAuditAppScreen();
-    res.type('html').send(mod.renderPaperTradeLifecycleRunnerAuditAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_lifecycle_runner_audit_app_screen_failed', message: err?.message || String(err) });
-  }
-});
 
-app.get('/app/paper-trade-lifecycle-runner', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_lifecycle_runner_app_screen.mjs');
-    const screen = mod.buildPaperTradeLifecycleRunnerAppScreen();
-    res.type('html').send(mod.renderPaperTradeLifecycleRunnerAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_lifecycle_runner_app_screen_failed', message: err?.message || String(err) });
-  }
-});
 
-app.get('/app/paper-trade-lifecycle-dashboard', async (_req, res) => {
-  try {
-    const mod = await import('./scanner/paper_trade_lifecycle_dashboard_app_screen.mjs');
-    const screen = mod.buildPaperTradeLifecycleDashboardAppScreen();
-    res.type('html').send(mod.renderPaperTradeLifecycleDashboardAppScreenHtml(screen));
-  } catch (err) {
-    res.status(500).json({ ok: false, error: 'paper_trade_lifecycle_dashboard_app_screen_failed', message: err?.message || String(err) });
-  }
-});
 
 app.get('/app/paper-lifecycle-dashboard', async (req, res) => {
   try {
@@ -2594,32 +2563,14 @@ app.get('/diagnostics/paper-broker-runtime-environment-preflight', async (_req, 
 
 app.get('/app/paper-trading-readiness-gate', (_req, res) => res.redirect(302, '/app/paper-readiness-gate'));
 
-app.get('/diagnostics/paper-trade-lifecycle-runner-audit', (_req, res) => {
-  res.json(readPaperTradeLifecycleRunnerAuditDashboard());
-});
 
 
-app.get('/diagnostics/paper-trade-lifecycle-runner-audit-panel', (_req, res) => {
-  res.json(readPaperTradeLifecycleRunnerAuditPanel());
-});
-
-app.get('/diagnostics/paper-trade-lifecycle-runner', (_req, res) => {
-  res.json(previewPaperTradeLifecycleRun());
-});
 
 
-app.get('/diagnostics/paper-trade-lifecycle-runner-panel', (_req, res) => {
-  res.json(readPaperTradeLifecycleRunnerPanel());
-});
-
-app.get('/diagnostics/paper-trade-lifecycle-dashboard', (_req, res) => {
-  res.json(readPaperTradeLifecycleDashboard());
-});
 
 
-app.get('/diagnostics/paper-trade-lifecycle-dashboard-panel', (_req, res) => {
-  res.json(readPaperTradeLifecycleDashboardPanel());
-});
+
+
 
 app.get('/diagnostics/paper-trade-position-state-auto-refresh', (_req, res) => {
   res.json(paperPositionStateAutoRefresh.diagnostics());
