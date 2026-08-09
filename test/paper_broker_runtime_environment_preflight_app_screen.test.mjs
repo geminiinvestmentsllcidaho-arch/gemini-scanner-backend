@@ -34,7 +34,6 @@ test("paper broker runtime environment preflight app screen renders latest repor
     runtimeEnvironmentReady: false,
     preflightOnly: true,
     parameters: { symbol: "SPY", qty: 1, side: "buy", type: "market", timeInForce: "day" },
-    approval: { by: "Borac", preflightApprovalPhraseMatched: true },
     environment: {
       alpacaPaperTradingBaseUrlPresent: true,
       alpacaPaperRoutePathPresent: true,
