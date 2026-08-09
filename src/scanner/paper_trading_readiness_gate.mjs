@@ -65,7 +65,7 @@ export function evaluatePaperTradingReadinessGate(input = {}, options = {}) {
   pushCheck(checks, "live_trading_disabled", !liveTradingEnabled, { liveTradingEnabled });
   pushCheck(checks, "scanner_not_stale", scannerHealth === "ok" || scannerHealth === "healthy", { scannerHealth });
   pushCheck(checks, "governance_unlocked", !["locked", "blocked", "denied"].includes(governanceState), { governanceState });
-  pushCheck(checks, "portfolio_permission_allowed", ["allowed", "approved", "paper_allowed"].includes(portfolioPermission), { portfolioPermission });
+  pushCheck(checks, "portfolio_permission_allowed", ["expanded", "restricted", "allowed", "paper_allowed"].includes(portfolioPermission), { portfolioPermission });
   pushCheck(checks, "ranking_confidence_minimum", rankingConfidence !== null && rankingConfidence >= thresholds.minRankingConfidence, { rankingConfidence, min: thresholds.minRankingConfidence });
   pushCheck(checks, "ranking_quality_minimum", rankingQuality !== null && rankingQuality >= thresholds.minRankingQuality, { rankingQuality, min: thresholds.minRankingQuality });
   pushCheck(checks, "p3_gate_ok", p3GateOk, { p3GateOk });

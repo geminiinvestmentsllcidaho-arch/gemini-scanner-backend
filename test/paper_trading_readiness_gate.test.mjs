@@ -21,8 +21,8 @@ test("paper trading readiness gate allows only when every safety and readiness c
     paperTradingEnabled: true,
     liveTradingEnabled: false,
     scannerHealth: "ok",
-    governanceState: "open",
-    portfolioPermission: "allowed",
+    governanceState: "permissive",
+    portfolioPermission: "expanded",
     rankingConfidence: 0.82,
     rankingQuality: 0.79,
     p3GateOk: true,
@@ -37,14 +37,54 @@ test("paper trading readiness gate allows only when every safety and readiness c
   assert.equal(result.safety.brokerExecution, "disabled");
 });
 
+test("paper trading readiness gate accepts restricted portfolio permission when governance remains unlocked", () => {
+  const result = evaluatePaperTradingReadinessGate({
+    mode: "paper",
+    paperTradingEnabled: true,
+    liveTradingEnabled: false,
+    scannerHealth: "healthy",
+    governanceState: "constrained",
+    portfolioPermission: "restricted",
+    rankingConfidence: 0.82,
+    rankingQuality: 0.79,
+    p3GateOk: true,
+    sourceAgeSec: 45,
+    topCandidate: { symbol: "AAPL" },
+  });
+
+  assert.equal(result.allowedToCreatePaperIntent, true);
+  assert.ok(!result.issues.includes("portfolio_permission_allowed"));
+  assert.ok(!result.issues.includes("governance_unlocked"));
+});
+
+test("paper trading readiness gate blocks denied portfolio permission", () => {
+  const result = evaluatePaperTradingReadinessGate({
+    mode: "paper",
+    paperTradingEnabled: true,
+    liveTradingEnabled: false,
+    scannerHealth: "healthy",
+    governanceState: "locked",
+    portfolioPermission: "denied",
+    rankingConfidence: 0.9,
+    rankingQuality: 0.9,
+    p3GateOk: true,
+    sourceAgeSec: 1,
+    topCandidate: { symbol: "MSFT" },
+  });
+
+  assert.equal(result.allowedToCreatePaperIntent, false);
+  assert.ok(result.issues.includes("governance_unlocked"));
+  assert.ok(result.issues.includes("portfolio_permission_allowed"));
+});
+
 test("paper trading readiness gate blocks live mode even with strong signal", () => {
   const result = evaluatePaperTradingReadinessGate({
     mode: "live",
     paperTradingEnabled: true,
     liveTradingEnabled: true,
     scannerHealth: "ok",
-    governanceState: "open",
-    portfolioPermission: "allowed",
+    governanceState: "permissive",
+    portfolioPermission: "expanded",
     rankingConfidence: 0.9,
     rankingQuality: 0.9,
     p3GateOk: true,
@@ -63,8 +103,8 @@ test("paper trading readiness gate blocks stale or weak rankings", () => {
     paperTradingEnabled: true,
     liveTradingEnabled: false,
     scannerHealth: "stale",
-    governanceState: "open",
-    portfolioPermission: "allowed",
+    governanceState: "permissive",
+    portfolioPermission: "expanded",
     rankingConfidence: 0.21,
     rankingQuality: 0.24,
     p3GateOk: true,
