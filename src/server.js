@@ -1031,9 +1031,13 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   recordCustomerSecurityAudit(req, 'password_reset', 'success', undefined, verified.accountId);
   markCustomerPasswordResetConsumed(record.tokenHash);
   res.clearCookie(CUSTOMER_COOKIE_NAME, buildCustomerSessionCookieClearOptions());
-  return res.status(200).type('html').send(
-    '<!doctype html><html><body><main><h1>Password reset complete</h1><p>Your password has been updated. Sign in with your new password.</p><p><a href="/login">Continue to sign in</a></p></main></body></html>',
-  );
+  return res.status(200).type('html').send(renderThemedStatusPage({
+    surface: 'public',
+    title: 'Password reset complete',
+    message: 'Your password has been updated. Sign in with your new password.',
+    href: '/login',
+    linkLabel: 'Continue to sign in',
+  }));
 });
 
 app.post('/logout', requireCustomerSameOrigin, (req, res) => {
