@@ -4617,7 +4617,7 @@ function computeCapitalFinalGateIntelligence(inputs = {}) {
   };
 }
 
-function computeCapitalManualExecutionPlanIntelligence(inputs = {}) {
+function computeCapitalExecutionPlanIntelligence(inputs = {}) {
   const capitalFinalGate = inputs.capitalFinalGate || {};
   const capitalDeploymentAuthorization = inputs.capitalDeploymentAuthorization || {};
 
@@ -4652,63 +4652,63 @@ function computeCapitalManualExecutionPlanIntelligence(inputs = {}) {
 
   score = clampCapitalExitProtectionScore(score);
 
-  let manualExecutionState = "manual_watch";
+  let executionPlanState = "manual_watch";
   if (finalGatePermission === "denied" || deploymentAuthorizationCommand === "stand_down") {
-    manualExecutionState = "manual_blocked";
+    executionPlanState = "manual_blocked";
   } else if (finalGatePermission === "restricted" || deploymentAuthorizationCommand === "micro_deploy") {
-    manualExecutionState = "manual_micro_only";
+    executionPlanState = "manual_micro_only";
   } else if (score >= 0.78) {
-    manualExecutionState = "manual_ready";
+    executionPlanState = "manual_ready";
   } else if (score >= 0.58) {
-    manualExecutionState = "manual_conditional";
+    executionPlanState = "manual_conditional";
   }
 
-  const manualExecutionPlan =
-    manualExecutionState === "manual_blocked"
+  const executionPlan =
+    executionPlanState === "manual_blocked"
       ? "do_not_enter"
-      : manualExecutionState === "manual_micro_only"
+      : executionPlanState === "manual_micro_only"
         ? "micro_size_only"
-        : manualExecutionState === "manual_ready"
+        : executionPlanState === "manual_ready"
           ? "use_standard_plan"
-          : manualExecutionState === "manual_conditional"
+          : executionPlanState === "manual_conditional"
             ? "use_reduced_plan"
             : "observe_only";
 
-  const manualExecutionPermission =
-    manualExecutionState === "manual_blocked"
+  const executionPlanPermission =
+    executionPlanState === "manual_blocked"
       ? "denied"
-      : manualExecutionState === "manual_micro_only"
+      : executionPlanState === "manual_micro_only"
         ? "restricted"
-        : manualExecutionState === "manual_ready"
+        : executionPlanState === "manual_ready"
           ? "allowed"
           : "conditional";
 
   return {
-    manualExecutionScore: score,
-    manualExecutionState,
-    manualExecutionPlan,
-    manualExecutionPermission,
-    manualExecutionIssues: Array.from(new Set(issues)),
+    executionPlanScore: score,
+    executionPlanState,
+    executionPlan,
+    executionPlanPermission,
+    executionPlanIssues: Array.from(new Set(issues)),
   };
 }
 
 function computeCapitalSignalEscalationIntelligence(inputs = {}) {
   const capitalFinalGate = inputs.capitalFinalGate || {};
-  const capitalManualExecutionPlan = inputs.capitalManualExecutionPlan || {};
+  const capitalExecutionPlan = inputs.capitalExecutionPlan || {};
   const capitalProtectionCommand = inputs.capitalProtectionCommand || {};
 
   const finalGateScore = clampCapitalExitProtectionScore(capitalFinalGate.finalGateScore);
-  const manualExecutionScore = clampCapitalExitProtectionScore(capitalManualExecutionPlan.manualExecutionScore);
+  const executionPlanScore = clampCapitalExitProtectionScore(capitalExecutionPlan.executionPlanScore);
   const protectionCommandScore = clampCapitalExitProtectionScore(capitalProtectionCommand.protectionCommandScore);
 
   const finalGatePermission = String(capitalFinalGate.finalGatePermission || "unknown");
-  const manualExecutionPermission = String(capitalManualExecutionPlan.manualExecutionPermission || "unknown");
+  const executionPlanPermission = String(capitalExecutionPlan.executionPlanPermission || "unknown");
   const protectionCommandState = String(capitalProtectionCommand.protectionCommandState || "unknown");
 
   const issues = [];
-  let score = (finalGateScore * 0.35) + (manualExecutionScore * 0.35) + (protectionCommandScore * 0.3);
+  let score = (finalGateScore * 0.35) + (executionPlanScore * 0.35) + (protectionCommandScore * 0.3);
 
-  if (finalGatePermission === "denied" || manualExecutionPermission === "denied") {
+  if (finalGatePermission === "denied" || executionPlanPermission === "denied") {
     score -= 0.35;
     issues.push("ACTION_DENIED");
   }
@@ -4718,7 +4718,7 @@ function computeCapitalSignalEscalationIntelligence(inputs = {}) {
     issues.push("PROTECT_NOW");
   }
 
-  if (finalGatePermission === "restricted" || manualExecutionPermission === "restricted" || protectionCommandState === "protective_reduce") {
+  if (finalGatePermission === "restricted" || executionPlanPermission === "restricted" || protectionCommandState === "protective_reduce") {
     score -= 0.14;
     issues.push("ESCALATION_RESTRICTED");
   }
@@ -4726,9 +4726,9 @@ function computeCapitalSignalEscalationIntelligence(inputs = {}) {
   score = clampCapitalExitProtectionScore(score);
 
   let signalEscalationState = "signal_watch";
-  if (finalGatePermission === "denied" || manualExecutionPermission === "denied" || protectionCommandState === "protect_now") {
+  if (finalGatePermission === "denied" || executionPlanPermission === "denied" || protectionCommandState === "protect_now") {
     signalEscalationState = "risk_alert";
-  } else if (finalGatePermission === "restricted" || manualExecutionPermission === "restricted" || protectionCommandState === "protective_reduce") {
+  } else if (finalGatePermission === "restricted" || executionPlanPermission === "restricted" || protectionCommandState === "protective_reduce") {
     signalEscalationState = "caution_alert";
   } else if (score >= 0.78) {
     signalEscalationState = "entry_alert";
@@ -4766,22 +4766,22 @@ function computeCapitalSignalEscalationIntelligence(inputs = {}) {
 }
 
 function computeCapitalActionChecklistIntelligence(inputs = {}) {
-  const capitalManualExecutionPlan = inputs.capitalManualExecutionPlan || {};
+  const capitalExecutionPlan = inputs.capitalExecutionPlan || {};
   const capitalSignalEscalation = inputs.capitalSignalEscalation || {};
   const capitalFinalGate = inputs.capitalFinalGate || {};
 
-  const manualExecutionScore = clampCapitalExitProtectionScore(capitalManualExecutionPlan.manualExecutionScore);
+  const executionPlanScore = clampCapitalExitProtectionScore(capitalExecutionPlan.executionPlanScore);
   const signalEscalationScore = clampCapitalExitProtectionScore(capitalSignalEscalation.signalEscalationScore);
   const finalGateScore = clampCapitalExitProtectionScore(capitalFinalGate.finalGateScore);
 
-  const manualExecutionPermission = String(capitalManualExecutionPlan.manualExecutionPermission || "unknown");
+  const executionPlanPermission = String(capitalExecutionPlan.executionPlanPermission || "unknown");
   const signalEscalationState = String(capitalSignalEscalation.signalEscalationState || "unknown");
   const finalGatePermission = String(capitalFinalGate.finalGatePermission || "unknown");
 
   const issues = [];
-  let score = (manualExecutionScore * 0.4) + (signalEscalationScore * 0.3) + (finalGateScore * 0.3);
+  let score = (executionPlanScore * 0.4) + (signalEscalationScore * 0.3) + (finalGateScore * 0.3);
 
-  if (manualExecutionPermission === "denied" || finalGatePermission === "denied") {
+  if (executionPlanPermission === "denied" || finalGatePermission === "denied") {
     score -= 0.4;
     issues.push("PERMISSION_DENIED");
   }
@@ -4791,7 +4791,7 @@ function computeCapitalActionChecklistIntelligence(inputs = {}) {
     issues.push("RISK_ALERT_ACTIVE");
   }
 
-  if (manualExecutionPermission === "restricted" || finalGatePermission === "restricted" || signalEscalationState === "caution_alert") {
+  if (executionPlanPermission === "restricted" || finalGatePermission === "restricted" || signalEscalationState === "caution_alert") {
     score -= 0.14;
     issues.push("CHECKLIST_RESTRICTED");
   }
@@ -4799,9 +4799,9 @@ function computeCapitalActionChecklistIntelligence(inputs = {}) {
   score = clampCapitalExitProtectionScore(score);
 
   let actionChecklistState = "checklist_watch";
-  if (manualExecutionPermission === "denied" || finalGatePermission === "denied" || signalEscalationState === "risk_alert") {
+  if (executionPlanPermission === "denied" || finalGatePermission === "denied" || signalEscalationState === "risk_alert") {
     actionChecklistState = "checklist_failed";
-  } else if (manualExecutionPermission === "restricted" || finalGatePermission === "restricted" || signalEscalationState === "caution_alert") {
+  } else if (executionPlanPermission === "restricted" || finalGatePermission === "restricted" || signalEscalationState === "caution_alert") {
     actionChecklistState = "checklist_restricted";
   } else if (score >= 0.78) {
     actionChecklistState = "checklist_passed";
@@ -4937,20 +4937,20 @@ function computeCapitalDirectiveReasoningIntelligence(inputs = {}) {
 function computeCapitalOperatorGuidanceIntelligence(inputs = {}) {
   const capitalDecisionDirective = inputs.capitalDecisionDirective || {};
   const capitalDirectiveReasoning = inputs.capitalDirectiveReasoning || {};
-  const capitalManualExecutionPlan = inputs.capitalManualExecutionPlan || {};
+  const capitalExecutionPlan = inputs.capitalExecutionPlan || {};
 
   const decisionDirectiveScore = clampCapitalExitProtectionScore(capitalDecisionDirective.decisionDirectiveScore);
   const directiveReasoningScore = clampCapitalExitProtectionScore(capitalDirectiveReasoning.directiveReasoningScore);
-  const manualExecutionScore = clampCapitalExitProtectionScore(capitalManualExecutionPlan.manualExecutionScore);
+  const executionPlanScore = clampCapitalExitProtectionScore(capitalExecutionPlan.executionPlanScore);
 
   const decisionPermission = String(capitalDecisionDirective.decisionPermission || "unknown");
-  const manualExecutionPermission = String(capitalManualExecutionPlan.manualExecutionPermission || "unknown");
+  const executionPlanPermission = String(capitalExecutionPlan.executionPlanPermission || "unknown");
   const directiveReasoningState = String(capitalDirectiveReasoning.directiveReasoningState || "unknown");
 
   const issues = [];
-  let score = (decisionDirectiveScore * 0.4) + (directiveReasoningScore * 0.35) + (manualExecutionScore * 0.25);
+  let score = (decisionDirectiveScore * 0.4) + (directiveReasoningScore * 0.35) + (executionPlanScore * 0.25);
 
-  if (decisionPermission === "denied" || manualExecutionPermission === "denied") {
+  if (decisionPermission === "denied" || executionPlanPermission === "denied") {
     score -= 0.4;
     issues.push("OPERATOR_ACTION_DENIED");
   }
@@ -4960,7 +4960,7 @@ function computeCapitalOperatorGuidanceIntelligence(inputs = {}) {
     issues.push("DEFENSIVE_REASONING");
   }
 
-  if (decisionPermission === "restricted" || manualExecutionPermission === "restricted" || directiveReasoningState === "reasoning_restricted") {
+  if (decisionPermission === "restricted" || executionPlanPermission === "restricted" || directiveReasoningState === "reasoning_restricted") {
     score -= 0.16;
     issues.push("OPERATOR_GUIDANCE_RESTRICTED");
   }
@@ -4968,9 +4968,9 @@ function computeCapitalOperatorGuidanceIntelligence(inputs = {}) {
   score = clampCapitalExitProtectionScore(score);
 
   let operatorGuidanceState = "operator_watch";
-  if (decisionPermission === "denied" || manualExecutionPermission === "denied" || directiveReasoningState === "reasoning_defensive") {
+  if (decisionPermission === "denied" || executionPlanPermission === "denied" || directiveReasoningState === "reasoning_defensive") {
     operatorGuidanceState = "operator_stand_down";
-  } else if (decisionPermission === "restricted" || manualExecutionPermission === "restricted" || directiveReasoningState === "reasoning_restricted") {
+  } else if (decisionPermission === "restricted" || executionPlanPermission === "restricted" || directiveReasoningState === "reasoning_restricted") {
     operatorGuidanceState = "operator_micro_only";
   } else if (score >= 0.78) {
     operatorGuidanceState = "operator_ready";
@@ -6001,24 +6001,24 @@ function computeCapitalUserDecisionPacketIntelligence(inputs = {}) {
 
 function computeCapitalDecisionDirectiveIntelligence(inputs = {}) {
   const capitalFinalGate = inputs.capitalFinalGate || {};
-  const capitalManualExecutionPlan = inputs.capitalManualExecutionPlan || {};
+  const capitalExecutionPlan = inputs.capitalExecutionPlan || {};
   const capitalActionChecklist = inputs.capitalActionChecklist || {};
   const capitalSignalEscalation = inputs.capitalSignalEscalation || {};
 
   const finalGateScore = clampCapitalExitProtectionScore(capitalFinalGate.finalGateScore);
-  const manualExecutionScore = clampCapitalExitProtectionScore(capitalManualExecutionPlan.manualExecutionScore);
+  const executionPlanScore = clampCapitalExitProtectionScore(capitalExecutionPlan.executionPlanScore);
   const actionChecklistScore = clampCapitalExitProtectionScore(capitalActionChecklist.actionChecklistScore);
   const signalEscalationScore = clampCapitalExitProtectionScore(capitalSignalEscalation.signalEscalationScore);
 
   const finalGatePermission = String(capitalFinalGate.finalGatePermission || "unknown");
-  const manualExecutionPermission = String(capitalManualExecutionPlan.manualExecutionPermission || "unknown");
+  const executionPlanPermission = String(capitalExecutionPlan.executionPlanPermission || "unknown");
   const checklistPermission = String(capitalActionChecklist.checklistPermission || "unknown");
   const signalEscalationState = String(capitalSignalEscalation.signalEscalationState || "unknown");
 
   const issues = [];
-  let score = (finalGateScore * 0.25) + (manualExecutionScore * 0.25) + (actionChecklistScore * 0.3) + (signalEscalationScore * 0.2);
+  let score = (finalGateScore * 0.25) + (executionPlanScore * 0.25) + (actionChecklistScore * 0.3) + (signalEscalationScore * 0.2);
 
-  if (finalGatePermission === "denied" || manualExecutionPermission === "denied" || checklistPermission === "denied") {
+  if (finalGatePermission === "denied" || executionPlanPermission === "denied" || checklistPermission === "denied") {
     score -= 0.45;
     issues.push("DIRECTIVE_DENIED");
   }
@@ -6028,7 +6028,7 @@ function computeCapitalDecisionDirectiveIntelligence(inputs = {}) {
     issues.push("RISK_ALERT_DIRECTIVE");
   }
 
-  if (finalGatePermission === "restricted" || manualExecutionPermission === "restricted" || checklistPermission === "restricted") {
+  if (finalGatePermission === "restricted" || executionPlanPermission === "restricted" || checklistPermission === "restricted") {
     score -= 0.16;
     issues.push("DIRECTIVE_RESTRICTED");
   }
@@ -6036,9 +6036,9 @@ function computeCapitalDecisionDirectiveIntelligence(inputs = {}) {
   score = clampCapitalExitProtectionScore(score);
 
   let decisionDirectiveState = "directive_watch";
-  if (finalGatePermission === "denied" || manualExecutionPermission === "denied" || checklistPermission === "denied" || signalEscalationState === "risk_alert") {
+  if (finalGatePermission === "denied" || executionPlanPermission === "denied" || checklistPermission === "denied" || signalEscalationState === "risk_alert") {
     decisionDirectiveState = "directive_stand_down";
-  } else if (finalGatePermission === "restricted" || manualExecutionPermission === "restricted" || checklistPermission === "restricted") {
+  } else if (finalGatePermission === "restricted" || executionPlanPermission === "restricted" || checklistPermission === "restricted") {
     decisionDirectiveState = "directive_micro_only";
   } else if (score >= 0.78) {
     decisionDirectiveState = "directive_authorized";
@@ -7228,26 +7228,26 @@ export function readScannerRankings(opts = {}) {
     capitalContinuationCommand,
   });
 
-  const capitalManualExecutionPlan = computeCapitalManualExecutionPlanIntelligence({
+  const capitalExecutionPlan = computeCapitalExecutionPlanIntelligence({
     capitalFinalGate,
     capitalDeploymentAuthorization,
   });
 
   const capitalSignalEscalation = computeCapitalSignalEscalationIntelligence({
     capitalFinalGate,
-    capitalManualExecutionPlan,
+    capitalExecutionPlan,
     capitalProtectionCommand,
   });
 
   const capitalActionChecklist = computeCapitalActionChecklistIntelligence({
-    capitalManualExecutionPlan,
+    capitalExecutionPlan,
     capitalSignalEscalation,
     capitalFinalGate,
   });
 
   const capitalDecisionDirective = computeCapitalDecisionDirectiveIntelligence({
     capitalFinalGate,
-    capitalManualExecutionPlan,
+    capitalExecutionPlan,
     capitalActionChecklist,
     capitalSignalEscalation,
   });
@@ -7261,7 +7261,7 @@ export function readScannerRankings(opts = {}) {
   const capitalOperatorGuidance = computeCapitalOperatorGuidanceIntelligence({
     capitalDecisionDirective,
     capitalDirectiveReasoning,
-    capitalManualExecutionPlan,
+    capitalExecutionPlan,
   });
 
   const capitalReviewCheckpoint = computeCapitalReviewCheckpointIntelligence({
@@ -7676,11 +7676,11 @@ export function readScannerRankings(opts = {}) {
     finalGateMode: capitalFinalGate.finalGateMode,
     finalGatePermission: capitalFinalGate.finalGatePermission,
     finalGateIssues: capitalFinalGate.finalGateIssues,
-    manualExecutionScore: capitalManualExecutionPlan.manualExecutionScore,
-    manualExecutionState: capitalManualExecutionPlan.manualExecutionState,
-    manualExecutionPlan: capitalManualExecutionPlan.manualExecutionPlan,
-    manualExecutionPermission: capitalManualExecutionPlan.manualExecutionPermission,
-    manualExecutionIssues: capitalManualExecutionPlan.manualExecutionIssues,
+    executionPlanScore: capitalExecutionPlan.executionPlanScore,
+    executionPlanState: capitalExecutionPlan.executionPlanState,
+    executionPlan: capitalExecutionPlan.executionPlan,
+    executionPlanPermission: capitalExecutionPlan.executionPlanPermission,
+    executionPlanIssues: capitalExecutionPlan.executionPlanIssues,
     signalEscalationScore: capitalSignalEscalation.signalEscalationScore,
     signalEscalationState: capitalSignalEscalation.signalEscalationState,
     signalEscalationMode: capitalSignalEscalation.signalEscalationMode,

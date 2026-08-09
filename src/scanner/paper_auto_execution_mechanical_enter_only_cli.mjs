@@ -114,7 +114,7 @@ export function normalizeCandidates(payload = {}) {
     envelope.decisionAssistPermission,
     envelope.decisionContractPermission,
     envelope.finalGatePermission,
-    envelope.manualExecutionPermission,
+    envelope.executionPlanPermission,
     envelope.stage2FinalPermission,
     envelope.userDecisionPermission,
   ].some((value) => clean(value).toLowerCase() === 'denied')

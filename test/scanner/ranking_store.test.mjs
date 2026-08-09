@@ -3168,12 +3168,12 @@ test("readScannerRankings exposes capital final decision directive stack", () =>
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.finalGatePermission));
   assert.ok(Array.isArray(out.finalGateIssues));
 
-  assert.ok(out.manualExecutionScore >= 0);
-  assert.ok(out.manualExecutionScore <= 1);
-  assert.ok(["manual_blocked", "manual_micro_only", "manual_ready", "manual_conditional", "manual_watch"].includes(out.manualExecutionState));
-  assert.ok(["do_not_enter", "micro_size_only", "use_standard_plan", "use_reduced_plan", "observe_only"].includes(out.manualExecutionPlan));
-  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.manualExecutionPermission));
-  assert.ok(Array.isArray(out.manualExecutionIssues));
+  assert.ok(out.executionPlanScore >= 0);
+  assert.ok(out.executionPlanScore <= 1);
+  assert.ok(["manual_blocked", "manual_micro_only", "manual_ready", "manual_conditional", "manual_watch"].includes(out.executionPlanState));
+  assert.ok(["do_not_enter", "micro_size_only", "use_standard_plan", "use_reduced_plan", "observe_only"].includes(out.executionPlan));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.executionPlanPermission));
+  assert.ok(Array.isArray(out.executionPlanIssues));
 
   assert.ok(out.signalEscalationScore >= 0);
   assert.ok(out.signalEscalationScore <= 1);
@@ -3224,9 +3224,9 @@ test("readScannerRankings stands down final decision directive after deployment 
   assert.equal(out.deploymentAuthorizationPermission, "denied");
   assert.equal(out.finalGateState, "final_gate_denied");
   assert.equal(out.finalGatePermission, "denied");
-  assert.equal(out.manualExecutionState, "manual_blocked");
-  assert.equal(out.manualExecutionPlan, "do_not_enter");
-  assert.equal(out.manualExecutionPermission, "denied");
+  assert.equal(out.executionPlanState, "manual_blocked");
+  assert.equal(out.executionPlan, "do_not_enter");
+  assert.equal(out.executionPlanPermission, "denied");
   assert.equal(out.signalEscalationState, "risk_alert");
   assert.equal(out.alertPriority, "critical");
   assert.equal(out.actionChecklistState, "checklist_failed");
