@@ -233,18 +233,6 @@ app.get('/assets/customer-stage1-exit-alerts.js', (_req, res) => {
   return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-exit-alerts.js');
 });
 
-app.get('/assets/customer-stage1-state-refresh.js', (_req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-state-refresh.js');
-});
-
-app.get('/assets/customer-stage1-notification-self-test.js', (_req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-notification-self-test.js');
-});
-
 app.get('/assets/customer-exit-notification-settings.js', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.type('application/javascript');
