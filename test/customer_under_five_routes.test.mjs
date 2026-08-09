@@ -352,7 +352,6 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
     paperAccount: { accountHealthy: true, account: { equity: 1000, buyingPower: 1000 }, positions: [] },
     marketOpen: true,
     paperExecutionEnabled: true,
-    operatorApproved: true,
     killSwitchActive: false,
     duplicateOrderDetected: false,
     priceDeviationOk: true,
@@ -361,7 +360,7 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   const enterHtml = renderCustomerUnderFiveDashboardHtml(enterDashboard);
   assert.match(enterHtml, /ENTER control preview/);
   assert.match(enterHtml, /All preview gates passed\./);
-  assert.doesNotMatch(enterHtml, /operatorApproved|paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk/);
+  assert.doesNotMatch(enterHtml, /paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk/);
   assert.match(enterHtml, /ENTER \/ BUY/);
   assert.match(enterHtml, /No broker contact or order placement/);
 
@@ -381,7 +380,6 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
     paperAccount: { accountHealthy: true, positions: [{ symbol: "SELL", qty: 6 }] },
     marketOpen: true,
     paperExecutionEnabled: true,
-    operatorApproved: true,
     killSwitchActive: false,
     duplicateOrderDetected: false,
     priceDeviationOk: true,
@@ -397,7 +395,7 @@ test("customer decision cards render paper-only ENTER and priority EXIT control 
   assert.match(exitHtml, /Reason:/);
   assert.match(exitHtml, /SELL — EXIT/);
   assert.match(exitHtml, /Enable EXIT sound and notifications/);
-  assert.doesNotMatch(exitHtml, /operatorApproved|paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk|positionPresent/);
+  assert.doesNotMatch(exitHtml, /paperExecutionEnabled|priceDeviationOk|spreadLiquidityOk|positionPresent/);
   assert.match(exitHtml, /@keyframes gs-exit-flash/);
   assert.match(exitHtml, /\.market-closed\{color:#ff2929/);
   assert.equal(exitDashboard.orderPlacementAllowed, false);
@@ -811,7 +809,6 @@ test("customer dashboard propagates portfolio wind-down into every ENTER gate", 
     paperAccount: { accountHealthy: true, positions: [], account: { equity: 1000, buyingPower: 1000 } },
     marketOpen: true,
     paperExecutionEnabled: true,
-    operatorApproved: true,
     killSwitchActive: false,
     duplicateOrderDetected: false,
     priceDeviationOk: true,

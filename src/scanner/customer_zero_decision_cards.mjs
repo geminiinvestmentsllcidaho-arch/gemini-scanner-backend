@@ -72,7 +72,6 @@ function paperGateReasonLabel(value) {
     sufficientQuantity: "The calculated quantity is less than one whole share.",
     exitState: "This scanner result is not an EXIT decision.",
     positionPresent: "No matching paper position is available to exit.",
-    exitConfirmationRequired: "Explicit EXIT confirmation is required.",
   };
   return labels[reason] ?? reason.replaceAll(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 }

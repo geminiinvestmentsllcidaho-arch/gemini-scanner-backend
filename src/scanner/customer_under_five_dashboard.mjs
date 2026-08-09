@@ -107,7 +107,6 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
       allocationPreview: candidate.allocationPreview,
       marketOpen: options.marketOpen ?? source?.marketClock?.isOpen,
       paperExecutionEnabled: options.paperExecutionEnabled,
-      operatorApproved: options.operatorApproved,
       killSwitchActive: options.killSwitchActive,
       duplicateOrderDetected: options.duplicateOrderDetected,
       priceDeviationOk: options.priceDeviationOk,

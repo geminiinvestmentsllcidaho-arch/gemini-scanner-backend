@@ -95,10 +95,8 @@ test("renders blocked paper ENTER preview reasons in customer language", async (
         visible: true,
         label: "ENTER / BUY",
         ready: false,
-        confirmationRequired: true,
         quantityPreview: 0,
         blockedReasons: [
-          "operatorApproved",
           "marketOpen",
           "freshQuote",
           "allocationReady",
@@ -110,12 +108,11 @@ test("renders blocked paper ENTER preview reasons in customer language", async (
   }]);
   const html = renderCustomerZeroDecisionCardsHtml(cards);
 
-  assert.match(html, /Operator approval is still required\./);
   assert.match(html, /The market is currently closed\./);
   assert.match(html, /A fresh current quote is unavailable\./);
   assert.match(html, /The allocation preview is not ready\./);
   assert.match(html, /The calculated quantity is less than one whole share\./);
-  assert.doesNotMatch(html, /operatorApproved|marketOpen|freshQuote|allocationReady|sufficientQuantity/);
+  assert.doesNotMatch(html, /marketOpen|freshQuote|allocationReady|sufficientQuantity/);
 });
 
 
@@ -129,7 +126,6 @@ test("renders one-share first-test distinction and disabled blocked state", asyn
       enter: {
         visible: true,
         ready: false,
-        confirmationRequired: true,
         quantityPreview: 1,
         firstTestQuantity: 1,
         firstTestEstimatedCost: 4.75,
