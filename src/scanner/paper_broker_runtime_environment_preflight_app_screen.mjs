@@ -93,8 +93,6 @@ export function buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input = {})
       parameters: {},
       safety: {
         paperOnly: true,
-        manualOnly: true,
-        oneShotOnly: true,
         liveTradingAllowed: false,
         autoTradingAllowed: false,
         accountMutationAllowed: false,
@@ -109,7 +107,6 @@ export function buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input = {})
 
   const environment = objectValue(report.environment);
   const implementation = objectValue(report.implementationReadiness);
-  const priorAttempt = objectValue(implementation.priorAttempt);
   const session = objectValue(implementation.session);
   const safety = objectValue(report.safety);
   const parameters = objectValue(report.parameters);
@@ -130,10 +127,6 @@ export function buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input = {})
     },
     implementation: {
       status: textValue(implementation.status, "unknown"),
-      readyForSinglePaperNetworkAttempt: boolValue(implementation.readyForSinglePaperNetworkAttempt),
-      approvalRecordFound: boolValue(implementation.approvalRecordFound),
-      priorAttemptFound: boolValue(priorAttempt.found),
-      priorAttemptFile: textValue(priorAttempt.file),
       marketOpen: boolValue(session.marketOpen),
       sessionLabel: [textValue(session.weekday), session.hour, session.minute].filter((v) => v !== "" && v !== undefined && v !== null).join(" "),
       blockers: arrayValue(implementation.blockers).map(String)
@@ -147,8 +140,6 @@ export function buildPaperBrokerRuntimeEnvironmentPreflightAppScreen(input = {})
     },
     safety: {
       paperOnly: safety.paperOnly !== false,
-      manualOnly: safety.manualOnly !== false,
-      oneShotOnly: safety.oneShotOnly !== false,
       liveTradingAllowed: boolValue(safety.liveTradingAllowed),
       autoTradingAllowed: boolValue(safety.autoTradingAllowed),
       accountMutationAllowed: boolValue(safety.accountMutationAllowed),
@@ -177,9 +168,9 @@ body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background
 <section class="card"><div class="k">Related Broker Readiness Routes</div><p hidden>Related broker readiness routes</p><ul>${renderRelatedRoutes()}</ul></section>
 <section class="card"><div class="k">read-only runtime state</div><p class="blocked">No broker contact, no order submit, no account mutation, no execution controls.</p><p>Status: <strong>${esc(screen.status)}</strong></p><p>Runtime environment ready: <strong>${renderBool(screen.runtimeEnvironmentReady)}</strong></p><p>Latest report: <code>${esc(screen.reportFile ?? "")}</code></p></section>
 <section class="card"><div class="k">Environment mapping</div><div class="grid"><div class="metric"><div class="k">Paper base URL</div><div class="v">${renderBool(env.alpacaPaperTradingBaseUrlPresent)}</div></div><div class="metric"><div class="k">Paper route path</div><div class="v">${renderBool(env.alpacaPaperRoutePathPresent)}</div></div><div class="metric"><div class="k">API key present</div><div class="v">${renderBool(env.alpacaApiKeyPresent)}</div></div><div class="metric"><div class="k">API secret present</div><div class="v">${renderBool(env.alpacaApiSecretPresent)}</div></div></div><p>Key preview: <code>${esc(env.keyPreview)}</code></p><p>Secret preview: <code>${esc(env.secretPreview)}</code></p></section>
-<section class="card"><div class="k">One-shot implementation blockers</div><p>Ready for single paper network attempt: <strong>${renderBool(impl.readyForSinglePaperNetworkAttempt)}</strong></p><p>Approval record found: <strong>${renderBool(impl.approvalRecordFound)}</strong></p><p>Prior attempt found: <strong>${renderBool(impl.priorAttemptFound)}</strong></p><p>Market open: <strong>${renderBool(impl.marketOpen)}</strong></p><ul>${implBlockers.length ? implBlockers.map((b) => `<li>${esc(b)}</li>`).join("") : "<li>none</li>"}</ul></section>
+<section class="card"><div class="k">Implementation readiness</div><p>Market open: <strong>${renderBool(impl.marketOpen)}</strong></p><ul>${implBlockers.length ? implBlockers.map((b) => `<li>${esc(b)}</li>`).join("") : "<li>none</li>"}</ul></section>
 <section class="card"><div class="k">Preflight parameters</div><p>Symbol: <strong>${esc(params.symbol)}</strong> | Qty: <strong>${esc(params.qty)}</strong> | Side: <strong>${esc(params.side)}</strong> | Type: <strong>${esc(params.type)}</strong> | TIF: <strong>${esc(params.timeInForce)}</strong></p></section>
-<section class="card"><div class="k">Safety locks</div><p>Paper only: <strong>${renderBool(safety.paperOnly)}</strong></p><p>Manual only: <strong>${renderBool(safety.manualOnly)}</strong></p><p>One-shot only: <strong>${renderBool(safety.oneShotOnly)}</strong></p><p>Live trading allowed: <strong>${renderBool(safety.liveTradingAllowed)}</strong></p><p>Auto trading allowed: <strong>${renderBool(safety.autoTradingAllowed)}</strong></p><p>Network attempted: <strong>${renderBool(safety.networkAttempted)}</strong></p><p>Broker contact attempted: <strong>${renderBool(safety.brokerContactAttempted)}</strong></p><p>Order submitted: <strong>${renderBool(safety.orderSubmitted)}</strong></p><p>Account mutation attempted: <strong>${renderBool(safety.accountMutationAttempted)}</strong></p></section>
+<section class="card"><div class="k">Safety locks</div><p>Paper only: <strong>${renderBool(safety.paperOnly)}</strong></p><p>Live trading allowed: <strong>${renderBool(safety.liveTradingAllowed)}</strong></p><p>Auto trading allowed: <strong>${renderBool(safety.autoTradingAllowed)}</strong></p><p>Network attempted: <strong>${renderBool(safety.networkAttempted)}</strong></p><p>Broker contact attempted: <strong>${renderBool(safety.brokerContactAttempted)}</strong></p><p>Order submitted: <strong>${renderBool(safety.orderSubmitted)}</strong></p><p>Account mutation attempted: <strong>${renderBool(safety.accountMutationAttempted)}</strong></p></section>
 <section class="card"><div class="k">Runtime preflight blockers</div><ul>${blockers.length ? blockers.map((b) => `<li>${esc(b)}</li>`).join("") : "<li>none</li>"}</ul></section>
 </main></body></html>`;
 }

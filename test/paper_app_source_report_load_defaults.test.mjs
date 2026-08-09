@@ -20,9 +20,9 @@ test("paper broker app screens load latest source reports by default", () => {
     runtimeEnvironmentReady: false,
     reportFile: "runs/paper_broker_runtime_environment_preflight_blocked_2026.json",
     environment: {alpacaPaperTradingBaseUrlPresent: true, alpacaPaperRoutePathPresent: true, alpacaApiKeyPresent: true, alpacaApiSecretPresent: true},
-    implementationReadiness: {readyForSinglePaperNetworkAttempt: false, approvalRecordFound: true, priorAttempt: {found: true}, session: {marketOpen: false}, blockers: ["market_open_required"]},
+    implementationReadiness: {session: {marketOpen: false}, blockers: ["market_open_required"]},
     parameters: {symbol: "SPY", qty: 1, side: "buy", type: "market", timeInForce: "day"},
-    safety: {paperOnly: true, manualOnly: true, oneShotOnly: true},
+    safety: {paperOnly: true},
     blockers: ["market_open_required"]
   }));
 

@@ -47,19 +47,11 @@ test("paper broker runtime environment preflight app screen renders latest repor
     },
     implementationReadiness: {
       status: "blocked",
-      readyForSinglePaperNetworkAttempt: false,
-      approvalRecordFound: true,
-      priorAttempt: {
-        found: true,
-        file: "runs/paper_broker_network_call_post_attempt_2026-07-01T16-32-01-459Z.json"
-      },
       session: { weekday: "Sun", hour: 2, minute: 18, marketOpen: false },
-      blockers: ["prior_one_shot_attempt_already_recorded", "market_open_required"]
+      blockers: ["market_open_required"]
     },
     safety: {
       paperOnly: true,
-      manualOnly: true,
-      oneShotOnly: true,
       liveTradingAllowed: false,
       autoTradingAllowed: false,
       accountMutationAllowed: false,
@@ -90,10 +82,8 @@ test("paper broker runtime environment preflight app screen renders latest repor
   assert.equal(screen.environment.alpacaPaperRoutePathPresent, true);
   assert.equal(screen.environment.alpacaApiKeyPresent, true);
   assert.equal(screen.environment.alpacaApiSecretPresent, true);
-  assert.equal(screen.implementation.approvalRecordFound, true);
-  assert.equal(screen.implementation.priorAttemptFound, true);
   assert.equal(screen.implementation.marketOpen, false);
-  assert.deepEqual(screen.implementation.blockers, ["prior_one_shot_attempt_already_recorded", "market_open_required"]);
+  assert.deepEqual(screen.implementation.blockers, ["market_open_required"]);
   assert.equal(screen.safety.liveTradingAllowed, false);
   assert.equal(screen.safety.autoTradingAllowed, false);
   assert.equal(screen.safety.networkAttempted, false);
@@ -108,7 +98,6 @@ test("paper broker runtime environment preflight app screen renders latest repor
   assert.equal(html.includes("Related broker readiness routes"), true);
   assert.equal(html.includes("/app/paper-app-broker-readiness-index"), true);
   assert.equal(html.includes("/app/paper-readiness-gate"), true);
-  assert.equal(html.includes("prior_one_shot_attempt_already_recorded"), true);
   assert.equal(html.includes("market_open_required"), true);
   assert.equal(html.includes("PKC3...redacted"), true);
   assert.equal(html.includes("redacted"), true);
