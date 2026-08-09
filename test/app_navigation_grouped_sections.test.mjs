@@ -27,8 +27,6 @@ test("app navigation groups entries by category and keeps readiness quick links 
 
   assert.ok(html.includes("Related Broker Readiness Routes"));
   assert.ok(html.includes('data-paper-readiness-quick-links="true"'));
-  assert.ok(html.includes("/app/paper-app-route-health-status"));
-  assert.ok(html.includes("/app/paper-app-safety-lock-status"));
 
   assert.ok(html.includes("Read-only Locks"));
   assert.ok(html.includes("no execution controls"));

@@ -261,31 +261,6 @@ const DEFAULT_ENTRIES = Object.freeze([
   }),
 
   Object.freeze({
-    id: "paper_app_route_health_status",
-    title: "Paper App Route Health Status",
-    subtitle: "Read-only paper app route health status.",
-    description: "Summarizes paper, broker, runtime, safety, readiness, operator, and Alpaca app route coverage without route execution, broker contact, order submit, retry, reset, or account mutation controls.",
-    category: "paper_lifecycle",
-    href: "/app/paper-app-route-health-status",
-    diagnosticHref: "/app/paper-app-route-health-status",
-    routeHref: "/app/paper-app-route-health-status",
-    displayState: "PAPER_APP_ROUTE_HEALTH_STATUS_READONLY",
-    refreshFriendly: true,
-  }),
-  Object.freeze({
-    id: "paper_app_safety_lock_status",
-    title: "Paper App Safety Lock Status",
-    subtitle: "Read-only paper app safety lock status.",
-    description: "Summarizes closed safety locks across paper app routes without route execution, broker contact, order submit, retry, reset, or account mutation controls.",
-    category: "paper_lifecycle",
-    href: "/app/paper-app-safety-lock-status",
-    diagnosticHref: "/app/paper-app-safety-lock-status",
-    routeHref: "/app/paper-app-safety-lock-status",
-    displayState: "PAPER_APP_SAFETY_LOCK_STATUS_READONLY",
-    refreshFriendly: true,
-  }),
-
-  Object.freeze({
     id: "paper_broker_runtime_environment_preflight",
     title: "Paper Broker Runtime Environment Preflight",
     subtitle: "Read-only runtime environment and one-shot blocker status.",
@@ -532,8 +507,6 @@ function renderNavigationSummary(nav = {}) {
   const categoryCount = groups.size;
   const entryCount = entries.length;
   const quickLinks = [
-    "/app/paper-app-route-health-status",
-    "/app/paper-app-safety-lock-status",
   ].filter((href) => entries.some((entry) => entry.href === href)).length;
   const categoryLinks = [...groups.entries()]
     .map(([category, groupEntries]) => `<li><a href="#${esc(categoryAnchor(category))}">${esc(formatCategoryLabel(category))}</a> <small>${esc(groupEntries.length)} entries</small></li>`)
@@ -554,8 +527,6 @@ function renderReadinessQuickLinks(entries = []) {
   const links = [
     { href: "/app/alpaca-paper-account-dashboard", label: "Alpaca Paper Account Dashboard" },
     { href: "/app/alpaca-operator-key-entry", label: "Alpaca Operator Key Entry" },
-    { href: "/app/paper-app-route-health-status", label: "Route Health Status" },
-    { href: "/app/paper-app-safety-lock-status", label: "Safety Lock Status" },
   ];
 
   const rendered = links

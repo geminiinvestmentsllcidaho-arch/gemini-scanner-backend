@@ -145,7 +145,7 @@ export function renderPaperOrderReadonlyStatusAppScreenHtml(screen = {}) {
       <p><a href="${esc(links.panelHref || "/diagnostics/paper-order-readonly-status-dashboard-panel")}">Diagnostic HTML panel</a></p>
       <p><a href="${esc(links.lifecycleHref || "/app/paper-lifecycle-dashboard")}">Paper lifecycle dashboard</a></p>
     </section>
-  <section class="safety"><h2>Related Broker Readiness Routes</h2><p><a href="/app/paper-app-route-health-status">Paper App Route Health Status</a></p><p><a href="/app/paper-app-safety-lock-status">Paper App Safety Lock Status</a></p></section></main>
+  <section class="safety"><h2>Related Broker Readiness Routes</h2></section></main>
 </body>
 </html>`;
 }

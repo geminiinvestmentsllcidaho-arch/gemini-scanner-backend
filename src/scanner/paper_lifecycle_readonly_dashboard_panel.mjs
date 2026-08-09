@@ -23,7 +23,6 @@ function escHtml(value) {
 const RELATED_BROKER_READINESS_ROUTES = Object.freeze([
   ["/app/paper-broker-runtime-environment-preflight", "Paper Broker Runtime Environment Preflight"],
   ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
-  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"],
 ]);
 
 function renderRelatedBrokerReadinessRoutes() {

@@ -15,8 +15,6 @@ test("app navigation renders related broker readiness quick links read-only", ()
 
   assert.ok(html.includes("Related Broker Readiness Routes"));
   assert.ok(html.includes("data-paper-readiness-quick-links"));
-  assert.ok(html.includes("/app/paper-app-route-health-status"));
-  assert.ok(html.includes("/app/paper-app-safety-lock-status"));
   assert.ok(html.includes("no broker contact"));
   assert.ok(html.includes("no order placement"));
   assert.ok(html.includes("no account mutation"));

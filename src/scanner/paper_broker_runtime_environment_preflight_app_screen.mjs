@@ -34,7 +34,6 @@ function renderBool(value) {
 
 const RELATED_ROUTES = Object.freeze([
   ["/app/paper-readiness-gate", "Paper Trading Readiness Gate"],
-  ["/app/paper-app-safety-lock-status", "Paper App Safety Lock Status"]
 ]);
 
 function renderRelatedRoutes() {

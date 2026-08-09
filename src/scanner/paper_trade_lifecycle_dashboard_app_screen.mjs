@@ -179,7 +179,7 @@ export function renderPaperTradeLifecycleDashboardAppScreenHtml(screen = buildPa
     </section>
 
     <p><a href="${esc(panel.route)}">Open diagnostics payload</a></p>
-  <section class="safety"><h2>Related Broker Readiness Routes</h2><p><a href="/app/paper-app-route-health-status">Paper App Route Health Status</a></p><p><a href="/app/paper-app-safety-lock-status">Paper App Safety Lock Status</a></p></section></main>
+  <section class="safety"><h2>Related Broker Readiness Routes</h2></section></main>
 </body>
 </html>`;
 }
