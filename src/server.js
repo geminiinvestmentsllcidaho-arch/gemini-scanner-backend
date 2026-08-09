@@ -1477,21 +1477,8 @@ app.get('/app/paper-lifecycle-evidence-bundle', async (req, res) => {
 // Paper app lifecycle diagnostic aliases.
 // Read-only JSON/panel mirrors for app screens already backed by server routes.
 const PAPER_APP_LIFECYCLE_DIAGNOSTIC_ALIASES = Object.freeze([
-  { route: '/diagnostics/paper-lifecycle-completion-seal', module: './scanner/paper_lifecycle_completion_seal_readonly_panel.mjs', build: 'buildPaperLifecycleCompletionSealReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-dashboard', module: './scanner/paper_lifecycle_readonly_dashboard_panel.mjs', build: 'buildPaperLifecycleReadOnlyDashboardPanel' },
-  { route: '/diagnostics/paper-lifecycle-evidence-bundle', module: './scanner/paper_lifecycle_evidence_bundle_readonly_panel.mjs', build: 'buildPaperLifecycleEvidenceBundleReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-evidence-index', module: './scanner/paper_lifecycle_evidence_index_readonly_panel.mjs', build: 'buildPaperLifecycleEvidenceIndexReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-final-status', module: './scanner/paper_lifecycle_final_status_readonly_panel.mjs', build: 'buildPaperLifecycleFinalStatusReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-handoff', module: './scanner/paper_lifecycle_operator_handoff_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-handoff-packet', module: './scanner/paper_lifecycle_operator_handoff_packet_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffPacketReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-handoff-packet-digest', module: './scanner/paper_lifecycle_operator_handoff_packet_digest_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffPacketDigestReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-handoff-packet-digest-seal', module: './scanner/paper_lifecycle_operator_handoff_packet_digest_seal_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorHandoffPacketDigestSealReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-review-checklist', module: './scanner/paper_lifecycle_operator_review_checklist_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorReviewChecklistReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-review-packet', module: './scanner/paper_lifecycle_operator_review_packet_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorReviewPacketReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-operator-summary', module: './scanner/paper_lifecycle_operator_summary_readonly_panel.mjs', build: 'buildPaperLifecycleOperatorSummaryReadOnlyPanel' },
-  { route: '/diagnostics/paper-lifecycle-route-registry', module: './scanner/paper_lifecycle_route_registry_readonly_panel.mjs', build: 'buildPaperLifecycleRouteRegistryReadOnlyPanel' }
+  { route: '/diagnostics/paper-lifecycle-dashboard', module: './scanner/paper_lifecycle_readonly_dashboard_panel.mjs', build: 'buildPaperLifecycleReadOnlyDashboardPanel' }
 ]);
-
 function summarizePaperAppDiagnosticAliasPayload(payload = {}, route = '') {
   return {
     ok: payload.ok ?? true,
