@@ -31,7 +31,6 @@ const hits = [];
 const READONLY_OPEN_ORDERS_FILE = "src/scanner/alpaca_paper_account_readonly_fetch.mjs";
 const APPROVED_ISOLATED_PAPER_ORDER_FILES = new Map([
   ["src/scanner/paper_auto_execution_alpaca_paper_adapter.mjs", { method: "POST", exactEndpoint: "/v2/orders" }],
-  ["src/scanner/stage1_unattended_one_share_paper_transport.mjs", { method: "POST", exactEndpoint: "/v2/orders" }],
   ["src/scanner/paper_auto_execution_mechanical_enter_only_cli.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
   ["src/scanner/paper_auto_execution_exit_only_runner.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
 ]);
