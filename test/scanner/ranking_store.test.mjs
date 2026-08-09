@@ -3270,7 +3270,7 @@ test("readScannerRankings exposes capital user decision packet stack", () => {
   assert.ok(out.reviewCheckpointScore >= 0);
   assert.ok(out.reviewCheckpointScore <= 1);
   assert.ok(["review_failed", "review_restricted", "review_passed", "review_conditional", "review_watch"].includes(out.reviewCheckpointState));
-  assert.ok(["new_cycle_required", "manual_micro_review_required", "review_complete", "extra_review_required", "monitor_review"].includes(out.reviewRequirement));
+  assert.ok(["new_cycle_required", "micro_only", "review_complete", "conditional_wait", "monitor_review"].includes(out.reviewRequirement));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.reviewPermission));
   assert.ok(Array.isArray(out.reviewCheckpointIssues));
 
@@ -3283,7 +3283,7 @@ test("readScannerRankings exposes capital user decision packet stack", () => {
   assert.ok(out.userDecisionPacketScore >= 0);
   assert.ok(out.userDecisionPacketScore <= 1);
   assert.ok(["packet_stand_down", "packet_restricted", "packet_actionable", "packet_conditional", "packet_watch"].includes(out.userDecisionPacketState));
-  assert.ok(["DO_NOT_ENTER", "MICRO_ONLY_IF_CONFIRMED", "MANUAL_ACTION_ALLOWED", "WAIT_FOR_CONFIRMATION", "WATCH_ONLY"].includes(out.userDecisionSummary));
+  assert.ok(["DO_NOT_ENTER", "MICRO_ONLY", "ACTION_ALLOWED", "WAIT", "WATCH_ONLY"].includes(out.userDecisionSummary));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.userDecisionPermission));
   assert.ok(Array.isArray(out.userDecisionPacketIssues));
 });
@@ -3371,7 +3371,7 @@ test("readScannerRankings exposes capital decision assist output stack", () => {
   assert.ok(out.decisionAssistOutputScore >= 0);
   assert.ok(out.decisionAssistOutputScore <= 1);
   assert.ok(["assist_stand_down", "assist_restricted", "assist_actionable", "assist_conditional", "assist_watch"].includes(out.decisionAssistOutputState));
-  assert.ok(["DO_NOT_TRADE", "MICRO_ONLY_IF_CONFIRMED", "MANUAL_DECISION_ALLOWED", "WAIT_FOR_CONFIRMATION", "WATCH_ONLY"].includes(out.decisionAssistCommand));
+  assert.ok(["DO_NOT_TRADE", "MICRO_ONLY", "ACTION_ALLOWED", "WAIT", "WATCH_ONLY"].includes(out.decisionAssistCommand));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.decisionAssistPermission));
   assert.ok(Array.isArray(out.decisionAssistOutputIssues));
 });
@@ -3462,7 +3462,7 @@ test("readScannerRankings exposes capital stage 2 final command stack", () => {
   assert.ok(out.stage2FinalCommandScore >= 0);
   assert.ok(out.stage2FinalCommandScore <= 1);
   assert.ok(["stage2_final_denied", "stage2_final_restricted", "stage2_final_allowed", "stage2_final_conditional", "stage2_final_watch"].includes(out.stage2FinalCommandState));
-  assert.ok(["DO_NOT_TRADE", "MICRO_ONLY_IF_CONFIRMED", "MANUAL_DECISION_ALLOWED", "WAIT_FOR_CONFIRMATION", "WATCH_ONLY"].includes(out.stage2FinalCommand));
+  assert.ok(["DO_NOT_TRADE", "MICRO_ONLY", "ACTION_ALLOWED", "WAIT", "WATCH_ONLY"].includes(out.stage2FinalCommand));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.stage2FinalPermission));
   assert.ok(Array.isArray(out.stage2FinalCommandIssues));
 });
@@ -3528,7 +3528,6 @@ test('readScannerRankings exposes stage 2 app display output for UI consumption'
   assert.equal(result.stage2AppDisplay.appPermission, 'denied')
   assert.equal(result.stage2AppDisplay.appDecision, 'DO_NOT_ENTER')
   assert.equal(result.stage2AppDisplay.appTradeAllowed, false)
-  assert.equal(result.stage2AppDisplay.appRequiresUserDecision, true)
   assert.equal(result.stage2AppDisplay.appSafetyMode, 'protection_locked')
   assert.equal(result.stage2AppDisplay.appRiskBanner, 'Capital protection active')
 })
@@ -3622,7 +3621,7 @@ test('readScannerRankings supports stage 2 app endpoint payload shape', async ()
   }
 
   assert.equal(payload.endpointVersion, 'scanner_stage2_app_v1')
-  assert.ok(['DO_NOT_TRADE', 'MICRO_ONLY_IF_CONFIRMED'].includes(payload.stage2FinalCommand))
+  assert.ok(['DO_NOT_TRADE', 'MICRO_ONLY'].includes(payload.stage2FinalCommand))
   assert.ok(['denied', 'restricted'].includes(payload.stage2FinalPermission))
   assert.equal(payload.stage2AppScreenPayload.screenVersion, 'stage2_app_screen_v1')
   assert.equal(payload.stage2MobileDecisionCard.cardVersion, 'stage2_mobile_card_v1')

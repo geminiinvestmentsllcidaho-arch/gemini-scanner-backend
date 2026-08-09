@@ -5055,11 +5055,11 @@ function computeCapitalReviewCheckpointIntelligence(inputs = {}) {
     reviewCheckpointState === "review_failed"
       ? "new_cycle_required"
       : reviewCheckpointState === "review_restricted"
-        ? "manual_micro_review_required"
+        ? "micro_only"
         : reviewCheckpointState === "review_passed"
           ? "review_complete"
           : reviewCheckpointState === "review_conditional"
-            ? "extra_review_required"
+            ? "conditional_wait"
             : "monitor_review";
 
   const reviewPermission =
@@ -5819,11 +5819,11 @@ function computeCapitalStage2FinalCommandIntelligence(inputs = {}) {
     stage2FinalCommandState === "stage2_final_denied"
       ? "DO_NOT_TRADE"
       : stage2FinalCommandState === "stage2_final_restricted"
-        ? "MICRO_ONLY_IF_CONFIRMED"
+        ? "MICRO_ONLY"
         : stage2FinalCommandState === "stage2_final_allowed"
-          ? "MANUAL_DECISION_ALLOWED"
+          ? "ACTION_ALLOWED"
           : stage2FinalCommandState === "stage2_final_conditional"
-            ? "WAIT_FOR_CONFIRMATION"
+            ? "WAIT"
             : "WATCH_ONLY";
 
   const stage2FinalPermission =
@@ -5896,11 +5896,11 @@ function computeCapitalDecisionAssistOutputIntelligence(inputs = {}) {
     decisionAssistOutputState === "assist_stand_down"
       ? "DO_NOT_TRADE"
       : decisionAssistOutputState === "assist_restricted"
-        ? "MICRO_ONLY_IF_CONFIRMED"
+        ? "MICRO_ONLY"
         : decisionAssistOutputState === "assist_actionable"
-          ? "MANUAL_DECISION_ALLOWED"
+          ? "ACTION_ALLOWED"
           : decisionAssistOutputState === "assist_conditional"
-            ? "WAIT_FOR_CONFIRMATION"
+            ? "WAIT"
             : "WATCH_ONLY";
 
   const decisionAssistPermission =
@@ -5973,11 +5973,11 @@ function computeCapitalUserDecisionPacketIntelligence(inputs = {}) {
     userDecisionPacketState === "packet_stand_down"
       ? "DO_NOT_ENTER"
       : userDecisionPacketState === "packet_restricted"
-        ? "MICRO_ONLY_IF_CONFIRMED"
+        ? "MICRO_ONLY"
         : userDecisionPacketState === "packet_actionable"
-          ? "MANUAL_ACTION_ALLOWED"
+          ? "ACTION_ALLOWED"
           : userDecisionPacketState === "packet_conditional"
-            ? "WAIT_FOR_CONFIRMATION"
+            ? "WAIT"
             : "WATCH_ONLY";
 
   const userDecisionPermission =
@@ -7824,17 +7824,16 @@ function computeStage2AppDisplayOutput(inputs = {}) {
   return {
     appDisplayVersion: 'stage2_app_display_v1',
     appPrimaryCommand: allowed ? stage2FinalCommand : 'DO_NOT_TRADE',
-    appPermission: allowed ? 'approved' : 'denied',
-    appDecision: allowed ? 'REVIEW_SETUP' : 'DO_NOT_ENTER',
-    appHeadline: allowed ? 'Setup requires review' : 'Capital protection active',
-    appPrimaryAction: allowed ? 'REVIEW SETUP' : 'DO NOT ENTER',
+    appPermission: allowed ? 'allowed' : 'denied',
+    appDecision: allowed ? 'ENTER' : 'DO_NOT_ENTER',
+    appHeadline: allowed ? 'Stage 2 entry eligible' : 'Capital protection active',
+    appPrimaryAction: allowed ? 'ENTER ELIGIBLE' : 'DO NOT ENTER',
     appNarrative: allowed
-      ? 'Scanner conditions require user review before any action.'
+      ? 'Scanner conditions satisfy Stage 2 algorithmic entry criteria.'
       : 'Defensive capital protection is active. No entry is authorized until scanner conditions improve.',
-    appRiskBanner: allowed ? 'Trade setup requires user review' : 'Capital protection active',
+    appRiskBanner: allowed ? 'Stage 2 entry eligible' : 'Capital protection active',
     appTradeAllowed: allowed,
-    appRequiresUserDecision: true,
-    appSafetyMode: allowed ? 'review_required' : 'protection_locked',
+    appSafetyMode: allowed ? 'entry_eligible' : 'protection_locked',
     appSourceState: stage2FinalCommandState,
     appIssues: Array.isArray(inputs.issues) ? inputs.issues : []
   }
@@ -7850,13 +7849,13 @@ function computeStage2MobileDecisionCard(appDisplay = {}) {
 
   return {
     cardVersion: 'stage2_mobile_card_v1',
-    cardType: allowed ? 'trade_review' : 'capital_protection',
+    cardType: allowed ? 'entry_eligible' : 'capital_protection',
     cardSeverity: allowed ? 'warning' : 'critical',
     cardStatus: permission,
     cardCommand: command,
-    cardTitle: allowed ? 'Review setup before action' : 'Capital protection active',
-    cardSubtitle: allowed ? 'Scanner requires user confirmation' : 'No entry is authorized right now',
-    cardPrimaryButton: allowed ? 'Review Setup' : 'Do Not Enter',
+    cardTitle: allowed ? 'Stage 2 entry eligible' : 'Capital protection active',
+    cardSubtitle: allowed ? 'Scanner conditions satisfy algorithmic entry criteria' : 'No entry is authorized right now',
+    cardPrimaryButton: allowed ? 'Entry Eligible' : 'Do Not Enter',
     cardSecondaryButton: 'View Details',
     cardPrimaryDisabled: !allowed,
     buyEnabled: allowed,
@@ -7875,8 +7874,8 @@ function computeStage2AppScreenPayload(appDisplay = {}, mobileCard = {}) {
 
   return {
     screenVersion: 'stage2_app_screen_v1',
-    screenState: allowed ? 'review_required' : 'protection_locked',
-    screenMode: allowed ? 'decision_review' : 'capital_protection',
+    screenState: allowed ? 'entry_eligible' : 'protection_locked',
+    screenMode: allowed ? 'decision_assist' : 'capital_protection',
     heroTitle: String(mobileCard.cardTitle || appDisplay.appHeadline || 'Capital protection active'),
     heroSubtitle: String(mobileCard.cardSubtitle || 'No entry is authorized right now'),
     primaryCommand: String(appDisplay.appPrimaryCommand || 'DO_NOT_TRADE'),
