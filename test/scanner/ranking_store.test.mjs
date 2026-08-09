@@ -3185,14 +3185,14 @@ test("readScannerRankings exposes capital final decision directive stack", () =>
   assert.ok(out.actionChecklistScore >= 0);
   assert.ok(out.actionChecklistScore <= 1);
   assert.ok(["checklist_failed", "checklist_restricted", "checklist_passed", "checklist_conditional", "checklist_watch"].includes(out.actionChecklistState));
-  assert.ok(["stand_down_required", "micro_size_check_required", "standard_check_passed", "extra_confirmation_required", "continue_monitoring"].includes(out.checklistRequirement));
+  assert.ok(["stand_down_required", "micro_size_check_required", "standard_check_passed", "conditional_wait", "continue_monitoring"].includes(out.checklistRequirement));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.checklistPermission));
   assert.ok(Array.isArray(out.actionChecklistIssues));
 
   assert.ok(out.decisionDirectiveScore >= 0);
   assert.ok(out.decisionDirectiveScore <= 1);
   assert.ok(["directive_stand_down", "directive_micro_only", "directive_authorized", "directive_conditional", "directive_watch"].includes(out.decisionDirectiveState));
-  assert.ok(["do_not_enter", "micro_size_only", "manual_entry_allowed", "manual_entry_conditional", "watch_only"].includes(out.decisionDirective));
+  assert.ok(["do_not_enter", "micro_size_only", "entry_allowed", "entry_conditional", "watch_only"].includes(out.decisionDirective));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.decisionPermission));
   assert.ok(Array.isArray(out.decisionDirectiveIssues));
 });
@@ -3256,14 +3256,14 @@ test("readScannerRankings exposes capital user decision packet stack", () => {
   assert.ok(out.directiveReasoningScore >= 0);
   assert.ok(out.directiveReasoningScore <= 1);
   assert.ok(["reasoning_defensive", "reasoning_restricted", "reasoning_clear", "reasoning_conditional", "reasoning_watch"].includes(out.directiveReasoningState));
-  assert.ok(["capital_protection_overrides_entry", "risk_controls_limit_action", "controls_support_action", "confirmation_required_before_action", "continue_monitoring"].includes(out.directiveReason));
+  assert.ok(["capital_protection_overrides_entry", "risk_controls_limit_action", "controls_support_action", "conditions_incomplete_before_action", "continue_monitoring"].includes(out.directiveReason));
   assert.ok(["critical", "high", "normal", "watch"].includes(out.explanationPriority));
   assert.ok(Array.isArray(out.directiveReasoningIssues));
 
   assert.ok(out.operatorGuidanceScore >= 0);
   assert.ok(out.operatorGuidanceScore <= 1);
   assert.ok(["operator_stand_down", "operator_micro_only", "operator_ready", "operator_conditional", "operator_watch"].includes(out.operatorGuidanceState));
-  assert.ok(["do_not_enter_wait_for_reset", "only_consider_micro_size_after_confirmation", "manual_plan_ready", "manual_plan_requires_confirmation", "monitor_without_action"].includes(out.operatorInstruction));
+  assert.ok(["do_not_enter_wait_for_reset", "only_consider_micro_size", "standard_plan_ready", "conditional_wait", "monitor_without_action"].includes(out.operatorInstruction));
   assert.ok(["defensive", "restricted", "constructive", "cautious"].includes(out.operatorRiskPosture));
   assert.ok(Array.isArray(out.operatorGuidanceIssues));
 
@@ -3441,7 +3441,7 @@ test("readScannerRankings exposes capital stage 2 final command stack", () => {
   assert.ok(out.lcmDeliveryScore >= 0);
   assert.ok(out.lcmDeliveryScore <= 1);
   assert.ok(["delivery_defensive", "delivery_restricted", "delivery_clear", "delivery_conditional", "delivery_watch"].includes(out.lcmDeliveryState));
-  assert.ok(["deliver_stand_down", "deliver_restricted_guidance", "deliver_actionable_guidance", "deliver_confirmation_guidance", "deliver_watch_guidance"].includes(out.lcmDeliveryMode));
+  assert.ok(["deliver_stand_down", "deliver_restricted_guidance", "deliver_actionable_guidance", "deliver_conditional_guidance", "deliver_watch_guidance"].includes(out.lcmDeliveryMode));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.lcmDeliveryPermission));
   assert.ok(Array.isArray(out.lcmDeliveryIssues));
 
@@ -3455,7 +3455,7 @@ test("readScannerRankings exposes capital stage 2 final command stack", () => {
   assert.ok(out.stage2ControlScore >= 0);
   assert.ok(out.stage2ControlScore <= 1);
   assert.ok(["stage2_locked", "stage2_restricted", "stage2_clear", "stage2_conditional", "stage2_watch"].includes(out.stage2ControlState));
-  assert.ok(["capital_protection_mode", "restricted_decision_mode", "decision_assist_ready", "confirmation_mode", "monitor_mode"].includes(out.stage2ControlMode));
+  assert.ok(["capital_protection_mode", "restricted_decision_mode", "decision_assist_ready", "conditional_mode", "monitor_mode"].includes(out.stage2ControlMode));
   assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.stage2ControlPermission));
   assert.ok(Array.isArray(out.stage2ControlIssues));
 

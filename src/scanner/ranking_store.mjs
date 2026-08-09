@@ -4817,7 +4817,7 @@ function computeCapitalActionChecklistIntelligence(inputs = {}) {
         : actionChecklistState === "checklist_passed"
           ? "standard_check_passed"
           : actionChecklistState === "checklist_conditional"
-            ? "extra_confirmation_required"
+            ? "conditional_wait"
             : "continue_monitoring";
 
   const checklistPermission =
@@ -4913,7 +4913,7 @@ function computeCapitalDirectiveReasoningIntelligence(inputs = {}) {
         : directiveReasoningState === "reasoning_clear"
           ? "controls_support_action"
           : directiveReasoningState === "reasoning_conditional"
-            ? "confirmation_required_before_action"
+            ? "conditions_incomplete_before_action"
             : "continue_monitoring";
 
   const explanationPriority =
@@ -4982,11 +4982,11 @@ function computeCapitalOperatorGuidanceIntelligence(inputs = {}) {
     operatorGuidanceState === "operator_stand_down"
       ? "do_not_enter_wait_for_reset"
       : operatorGuidanceState === "operator_micro_only"
-        ? "only_consider_micro_size_after_confirmation"
+        ? "only_consider_micro_size"
         : operatorGuidanceState === "operator_ready"
-          ? "manual_plan_ready"
+          ? "standard_plan_ready"
           : operatorGuidanceState === "operator_conditional"
-            ? "manual_plan_requires_confirmation"
+            ? "conditional_wait"
             : "monitor_without_action";
 
   const operatorRiskPosture =
@@ -5593,7 +5593,7 @@ function computeCapitalLCMDeliveryGateIntelligence(inputs = {}) {
         : lcmDeliveryState === "delivery_clear"
           ? "deliver_actionable_guidance"
           : lcmDeliveryState === "delivery_conditional"
-            ? "deliver_confirmation_guidance"
+            ? "deliver_conditional_guidance"
             : "deliver_watch_guidance";
 
   const lcmDeliveryPermission =
@@ -5744,7 +5744,7 @@ function computeCapitalStage2ControlSurfaceIntelligence(inputs = {}) {
         : stage2ControlState === "stage2_clear"
           ? "decision_assist_ready"
           : stage2ControlState === "stage2_conditional"
-            ? "confirmation_mode"
+            ? "conditional_mode"
             : "monitor_mode";
 
   const stage2ControlPermission =
@@ -6052,9 +6052,9 @@ function computeCapitalDecisionDirectiveIntelligence(inputs = {}) {
       : decisionDirectiveState === "directive_micro_only"
         ? "micro_size_only"
         : decisionDirectiveState === "directive_authorized"
-          ? "manual_entry_allowed"
+          ? "entry_allowed"
           : decisionDirectiveState === "directive_conditional"
-            ? "manual_entry_conditional"
+            ? "entry_conditional"
             : "watch_only";
 
   const decisionPermission =
