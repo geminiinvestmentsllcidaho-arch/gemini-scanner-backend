@@ -392,3 +392,32 @@ test("preserves snapshot-derived compatibility metrics when fill ledger is not s
   assert.equal(report.trades.tradesWithRealizedPnl, 1);
   assert.equal(report.trades.completedRoundTrips, null);
 });
+
+test("real Alpaca PAPER fill history does not fabricate legacy source-intent replay audit", async () => {
+  const { buildCustomerReportModel } = await import("../src/scanner/customer_report_model.mjs");
+  const report = buildCustomerReportModel({
+    period: "lifetime",
+    now: new Date("2026-08-09T20:00:00Z"),
+    timeZone: "UTC",
+    paperAccount: { positions: [], summary: {} },
+    paperLedgerHistory: [],
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [{
+      fillId: "broker-order-1",
+      brokerOrderId: "broker-order-1",
+      clientOrderId: "paper-auto-enter-1",
+      symbol: "AAPL",
+      side: "buy",
+      qty: 1,
+      fillPrice: 100,
+      filledAt: "2026-08-09T18:00:00Z",
+      createdAt: "2026-08-09T18:00:00Z",
+      source: "alpaca_paper_order_history",
+      paperOnly: true,
+      brokerConfirmed: true,
+    }],
+  });
+  assert.equal(report.trades.lifecycleSourceAvailable, true);
+  assert.equal(report.trades.sourceIntentReplayAuditAvailable, false);
+  assert.equal(report.trades.sourceIntentReplayAudit, null);
+})

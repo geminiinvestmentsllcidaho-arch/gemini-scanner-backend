@@ -208,7 +208,7 @@ export function buildCustomerReportModel(options = {}) {
         range,
       })
     : null;
-  const sourceIntentReplayAudit = Array.isArray(options.fillLedgerHistory)
+  const sourceIntentReplayAudit = Array.isArray(options.fillLedgerHistory) && options.fillLedgerHistorySource !== "alpaca_paper_order_history"
     ? auditPaperTradeFillSourceIntentReplays({
         fillRecords: options.fillLedgerHistory,
       })
