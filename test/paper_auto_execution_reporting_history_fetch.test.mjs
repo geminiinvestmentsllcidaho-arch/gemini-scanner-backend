@@ -40,3 +40,41 @@ test('reporting history fetch rejects non-PAPER host before fetch', async () => 
   )
   assert.equal(called, false)
 })
+
+test('reporting history fetch prefers established ALPACA_KEY credentials over stale APCA aliases', async () => {
+  const calls = []
+  await fetchAlpacaPaperHistoricalOrdersReadonly({
+    env: {
+      APCA_API_BASE_URL: 'https://paper-api.alpaca.markets',
+      ALPACA_KEY: 'current-key',
+      ALPACA_SECRET: 'current-secret',
+      APCA_API_KEY_ID: 'stale-key',
+      APCA_API_SECRET_KEY: 'stale-secret',
+    },
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init })
+      return { ok: true, status: 200, json: async () => [] }
+    },
+  })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].init.headers['APCA-API-KEY-ID'], 'current-key')
+  assert.equal(calls[0].init.headers['APCA-API-SECRET-KEY'], 'current-secret')
+})
+
+test('reporting history fetch retains APCA credential aliases as fallback', async () => {
+  const calls = []
+  await fetchAlpacaPaperHistoricalOrdersReadonly({
+    env: {
+      APCA_API_BASE_URL: 'https://paper-api.alpaca.markets',
+      APCA_API_KEY_ID: 'fallback-key',
+      APCA_API_SECRET_KEY: 'fallback-secret',
+    },
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init })
+      return { ok: true, status: 200, json: async () => [] }
+    },
+  })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].init.headers['APCA-API-KEY-ID'], 'fallback-key')
+  assert.equal(calls[0].init.headers['APCA-API-SECRET-KEY'], 'fallback-secret')
+})
