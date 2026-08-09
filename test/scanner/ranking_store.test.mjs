@@ -3260,19 +3260,19 @@ test("readScannerRankings exposes capital user decision packet stack", () => {
   assert.ok(["critical", "high", "normal", "watch"].includes(out.explanationPriority));
   assert.ok(Array.isArray(out.directiveReasoningIssues));
 
-  assert.ok(out.operatorGuidanceScore >= 0);
-  assert.ok(out.operatorGuidanceScore <= 1);
-  assert.ok(["operator_stand_down", "operator_micro_only", "operator_ready", "operator_conditional", "operator_watch"].includes(out.operatorGuidanceState));
-  assert.ok(["do_not_enter_wait_for_reset", "only_consider_micro_size", "standard_plan_ready", "conditional_wait", "monitor_without_action"].includes(out.operatorInstruction));
-  assert.ok(["defensive", "restricted", "constructive", "cautious"].includes(out.operatorRiskPosture));
-  assert.ok(Array.isArray(out.operatorGuidanceIssues));
+  assert.ok(out.decisionGuidanceScore >= 0);
+  assert.ok(out.decisionGuidanceScore <= 1);
+  assert.ok(["guidance_stand_down", "guidance_micro_only", "guidance_ready", "guidance_conditional", "guidance_watch"].includes(out.decisionGuidanceState));
+  assert.ok(["do_not_enter_wait_for_reset", "only_consider_micro_size", "standard_plan_ready", "conditional_wait", "monitor_without_action"].includes(out.guidanceInstruction));
+  assert.ok(["defensive", "restricted", "constructive", "cautious"].includes(out.guidanceRiskPosture));
+  assert.ok(Array.isArray(out.decisionGuidanceIssues));
 
-  assert.ok(out.reviewCheckpointScore >= 0);
-  assert.ok(out.reviewCheckpointScore <= 1);
-  assert.ok(["review_failed", "review_restricted", "review_passed", "review_conditional", "review_watch"].includes(out.reviewCheckpointState));
-  assert.ok(["new_cycle_required", "micro_only", "review_complete", "conditional_wait", "monitor_review"].includes(out.reviewRequirement));
-  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.reviewPermission));
-  assert.ok(Array.isArray(out.reviewCheckpointIssues));
+  assert.ok(out.riskCheckpointScore >= 0);
+  assert.ok(out.riskCheckpointScore <= 1);
+  assert.ok(["checkpoint_failed", "checkpoint_restricted", "checkpoint_passed", "checkpoint_conditional", "checkpoint_watch"].includes(out.riskCheckpointState));
+  assert.ok(["new_cycle_required", "micro_only", "checkpoint_complete", "conditional_wait", "monitor"].includes(out.checkpointRequirement));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.checkpointPermission));
+  assert.ok(Array.isArray(out.riskCheckpointIssues));
 
   assert.ok(out.auditTrailScore >= 0);
   assert.ok(out.auditTrailScore <= 1);
@@ -3280,12 +3280,12 @@ test("readScannerRankings exposes capital user decision packet stack", () => {
   assert.ok(["record_protection_override", "record_restricted_action", "record_standard_decision", "record_conditional_decision", "record_watch_state"].includes(out.auditMode));
   assert.ok(Array.isArray(out.auditTrailIssues));
 
-  assert.ok(out.userDecisionPacketScore >= 0);
-  assert.ok(out.userDecisionPacketScore <= 1);
-  assert.ok(["packet_stand_down", "packet_restricted", "packet_actionable", "packet_conditional", "packet_watch"].includes(out.userDecisionPacketState));
-  assert.ok(["DO_NOT_ENTER", "MICRO_ONLY", "ACTION_ALLOWED", "WAIT", "WATCH_ONLY"].includes(out.userDecisionSummary));
-  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.userDecisionPermission));
-  assert.ok(Array.isArray(out.userDecisionPacketIssues));
+  assert.ok(out.decisionPacketScore >= 0);
+  assert.ok(out.decisionPacketScore <= 1);
+  assert.ok(["packet_stand_down", "packet_restricted", "packet_actionable", "packet_conditional", "packet_watch"].includes(out.decisionPacketState));
+  assert.ok(["DO_NOT_ENTER", "MICRO_ONLY", "ACTION_ALLOWED", "WAIT", "WATCH_ONLY"].includes(out.decisionSummary));
+  assert.ok(["denied", "restricted", "allowed", "conditional"].includes(out.decisionPacketPermission));
+  assert.ok(Array.isArray(out.decisionPacketIssues));
 });
 
 test("readScannerRankings emits defensive user decision packet after directive stand down", () => {
@@ -3316,14 +3316,14 @@ test("readScannerRankings emits defensive user decision packet after directive s
   assert.equal(out.directiveReasoningState, "reasoning_defensive");
   assert.equal(out.directiveReason, "capital_protection_overrides_entry");
   assert.equal(out.explanationPriority, "critical");
-  assert.equal(out.operatorGuidanceState, "operator_stand_down");
-  assert.equal(out.operatorInstruction, "do_not_enter_wait_for_reset");
-  assert.equal(out.reviewCheckpointState, "review_failed");
-  assert.equal(out.reviewPermission, "denied");
+  assert.equal(out.decisionGuidanceState, "guidance_stand_down");
+  assert.equal(out.guidanceInstruction, "do_not_enter_wait_for_reset");
+  assert.equal(out.riskCheckpointState, "checkpoint_failed");
+  assert.equal(out.checkpointPermission, "denied");
   assert.equal(out.auditTrailState, "audit_defensive");
-  assert.equal(out.userDecisionPacketState, "packet_stand_down");
-  assert.equal(out.userDecisionSummary, "DO_NOT_ENTER");
-  assert.equal(out.userDecisionPermission, "denied");
+  assert.equal(out.decisionPacketState, "packet_stand_down");
+  assert.equal(out.decisionSummary, "DO_NOT_ENTER");
+  assert.equal(out.decisionPacketPermission, "denied");
 });
 
 test("readScannerRankings exposes capital decision assist output stack", () => {
@@ -3399,8 +3399,8 @@ test("readScannerRankings emits stand-down decision assist output after user pac
     configuredSymbols: ["AAPL"],
   });
 
-  assert.equal(out.userDecisionPacketState, "packet_stand_down");
-  assert.equal(out.userDecisionPermission, "denied");
+  assert.equal(out.decisionPacketState, "packet_stand_down");
+  assert.equal(out.decisionPacketPermission, "denied");
   assert.equal(out.lcmMessageState, "lcm_stand_down");
   assert.equal(out.lcmHeadline, "Capital protection active");
   assert.equal(out.lcmSeverity, "critical");

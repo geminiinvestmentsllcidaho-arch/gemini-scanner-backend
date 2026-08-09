@@ -116,7 +116,7 @@ export function normalizeCandidates(payload = {}) {
     envelope.finalGatePermission,
     envelope.executionPlanPermission,
     envelope.stage2FinalPermission,
-    envelope.userDecisionPermission,
+    envelope.decisionPacketPermission,
   ].some((value) => clean(value).toLowerCase() === 'denied')
   const blocked =
     clean(envelope.scannerReadiness).toLowerCase() === 'blocked' ||
