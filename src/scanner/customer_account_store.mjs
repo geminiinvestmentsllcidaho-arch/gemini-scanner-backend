@@ -49,7 +49,7 @@ export function validateSignupInput(input = {}) {
   if (!firstName) errors.push("first_name_required");
   if (!lastName) errors.push("last_name_required");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push("valid_email_required");
-  if (password.length < 12) errors.push("password_too_short");
+  if (password.length < 8) errors.push("password_too_short");
   if (password !== confirmPassword) errors.push("passwords_do_not_match");
   if (input.termsAccepted !== true && input.termsAccepted !== "on") errors.push("terms_required");
 
@@ -176,7 +176,7 @@ export function updateCustomerPassword(accountId, currentPassword, newPassword, 
   if (!verifyCustomerPassword(currentPassword, account.password)) {
     return Object.freeze({ ok: false, reason: "current_password_incorrect" });
   }
-  if (String(newPassword ?? "").length < 12) {
+  if (String(newPassword ?? "").length < 8) {
     return Object.freeze({ ok: false, reason: "new_password_too_short" });
   }
   if (verifyCustomerPassword(newPassword, account.password)) {
@@ -211,7 +211,7 @@ export function resetCustomerPassword(accountId, newPassword, options = {}) {
   if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
 
   const account = records[index];
-  if (String(newPassword ?? "").length < 12) {
+  if (String(newPassword ?? "").length < 8) {
     return Object.freeze({ ok: false, reason: "new_password_too_short" });
   }
   if (verifyCustomerPassword(newPassword, account.password)) {

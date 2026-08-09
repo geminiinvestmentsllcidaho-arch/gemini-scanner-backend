@@ -929,10 +929,10 @@ ${notice}
 <form method="post" action="/reset-password">
 <input name="token" type="hidden" value="${safeToken}">
 <label>New password
-<input name="newPassword" type="password" minlength="12" autocomplete="new-password" required>
+<input name="newPassword" type="password" minlength="8" autocomplete="new-password" required>
 </label>
 <label>Confirm new password
-<input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required>
+<input name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required>
 </label>
 <button type="submit">Reset password</button>
 </form>
@@ -1021,7 +1021,7 @@ app.post('/reset-password', requireCustomerSameOrigin, (req, res) => {
   if (!changed.ok) {
     recordCustomerSecurityAudit(req, 'password_reset', 'failure', changed.reason ?? 'password_reset_failed', verified.accountId);
     const message = changed.reason === 'new_password_too_short'
-      ? 'New password must be at least 12 characters.'
+      ? 'New password must be at least 8 characters.'
       : changed.reason === 'new_password_must_differ'
         ? 'New password must differ from the current password.'
         : 'Password could not be reset.';
@@ -3492,9 +3492,9 @@ ${account?.authenticatorEnabled ? `
 <p><label for="currentPassword">Current password</label><br>
 <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
 <p><label for="newPassword">New password</label><br>
-<input id="newPassword" name="newPassword" type="password" minlength="12" autocomplete="new-password" required></p>
+<input id="newPassword" name="newPassword" type="password" minlength="8" autocomplete="new-password" required></p>
 <p><label for="confirmPassword">Confirm new password</label><br>
-<input id="confirmPassword" name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required></p>
+<input id="confirmPassword" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></p>
 <p><button type="submit" style="background:#3d72d9">Change password</button></p>
 </form>
 </section>
@@ -4293,7 +4293,7 @@ app.post('/customer/settings/password', requireCustomerSession, requireCustomerS
     const message = result.reason === 'current_password_incorrect'
       ? 'Current password is incorrect.'
       : result.reason === 'new_password_too_short'
-        ? 'New password must contain at least 12 characters.'
+        ? 'New password must contain at least 8 characters.'
         : result.reason === 'new_password_must_differ'
           ? 'New password must be different from the current password.'
           : 'Password could not be changed.';
