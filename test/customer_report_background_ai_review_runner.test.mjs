@@ -199,7 +199,7 @@ test("runner creates and persists a read-only AI review", async () => {
         responseId: "resp-1",
         reviewText: "Observe and backtest only.",
         requiresBacktest: true,
-        requiresOperatorApproval: true,
+        requiresOperatorApproval: false,
       };
     },
   });
@@ -397,7 +397,7 @@ test("runner persists a manual-adjustment recommendation while all mutation lock
       responseId: "manual-adjustment-response",
       reviewText: "Test a narrower WAIT window after three open sessions.",
       requiresBacktest: true,
-      requiresOperatorApproval: true,
+      requiresOperatorApproval: false,
     }),
     persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "reviews-memory" }),
     persistManualAdjustmentRecommendation: (record) => {
@@ -412,7 +412,7 @@ test("runner persists a manual-adjustment recommendation while all mutation lock
   assert.equal(result.monitoringContinues, true);
   assert.equal(result.minimumOpenSessionsBeforeAdjustment, 3);
   assert.equal(persistedManualRecord.requiresBacktest, true);
-  assert.equal(persistedManualRecord.requiresOperatorApproval, true);
+  assert.equal(persistedManualRecord.requiresOperatorApproval, false);
   assert.equal(persistedManualRecord.automaticLearningAllowed, false);
   assert.equal(persistedManualRecord.scannerLogicMutationAllowed, false);
   assert.equal(persistedManualRecord.thresholdMutationAllowed, false);
@@ -503,7 +503,7 @@ test("runner treats an unavailable fill ledger as unavailable lifecycle evidence
         status: "completed_readonly",
         reviewText: "No lifecycle source.",
         requiresBacktest: true,
-        requiresOperatorApproval: true,
+        requiresOperatorApproval: false,
         automaticLogicMutationAllowed: false,
         orderPlacementAllowed: false,
       };

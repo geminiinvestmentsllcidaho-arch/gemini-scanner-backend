@@ -3051,7 +3051,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       readOnly: true,
       paperOnly: true,
       requiresBacktest: true,
-      requiresOperatorApproval: true,
+      requiresOperatorApproval: false,
       automaticLogicMutationAllowed: false,
       orderPlacementAllowed: false,
       brokerContactAllowed: false,
@@ -3087,7 +3087,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
   } catch (_error) {
     res.set('Cache-Control', 'no-store');
     return res.status(500).type('html').send(
-      renderThemedStatusPage({ surface: 'customer', title: 'Reports unavailable', message: 'Paper analytics could not be loaded. Read-only. No order placement, broker contact, or account mutation.', href: '/customer' }),
+      renderThemedStatusPage({ surface: 'customer', title: 'Reports unavailable', message: 'Paper analytics could not be loaded. No order placement or account mutation was performed.', href: '/customer' }),
     );
   }
 });
@@ -3571,7 +3571,7 @@ ${[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly
 <div class="about-ai-grid">
 <article><h3>What AI does</h3><p>Reviews available information, summarizes patterns, highlights potential risks, and helps identify areas that may deserve a closer look.</p></article>
 <article><h3>What AI does not do by itself</h3><p>AI does not independently place trades, change your brokerage account, or change GeminiScanner strategy rules or safety limits.</p></article>
-<article><h3>How changes are handled</h3><p>Any suggested strategy change must be tested and separately approved before it can be used.</p></article>
+<article><h3>How changes are handled</h3><p>Any suggested strategy change must be tested before it can be used.</p></article>
 <article><h3>Why technical details stay in the background</h3><p>Diagnostic and audit information is retained for reliability, testing, and support while everyday screens focus on useful customer information.</p></article>
 </div>
 </section>

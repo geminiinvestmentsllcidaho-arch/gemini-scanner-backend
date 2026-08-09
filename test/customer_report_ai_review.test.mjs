@@ -42,7 +42,7 @@ test("creates proposals without mutating scanner logic", () => {
   });
   assert.equal(review.automaticLogicMutationAllowed, false);
   assert.equal(review.requiresBacktest, true);
-  assert.equal(review.requiresOperatorApproval, true);
+  assert.equal(review.requiresOperatorApproval, false);
   assert.equal(review.generatedAt, "2026-07-15T12:00:00Z");
   assert.ok(review.proposals.some((proposal) => proposal.id === "drawdown_risk_review"));
   assert.ok(review.proposals.length >= 5);

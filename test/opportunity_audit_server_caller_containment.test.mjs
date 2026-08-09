@@ -56,7 +56,7 @@ test("customer reports contains strict opportunity audit failures before deferre
   assert.doesNotMatch(block, /requestCustomerReportRealtimeAiReview\(\{/);
   assert.match(block, /return res\.status\(500\)\.type\('html'\)\.send\(/);
   assert.match(block, /renderThemedStatusPage\(\{ surface: 'customer', title: 'Reports unavailable'/);
-  assert.match(block, /Read-only\. No order placement, broker contact, or account mutation\./);
+  assert.match(block, /No order placement or account mutation was performed\./);
 });
 
 test("server strict-reader containment adds no execution or account mutation capability", () => {

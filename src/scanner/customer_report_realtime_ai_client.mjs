@@ -157,7 +157,7 @@ export async function requestCustomerReportRealtimeAiReview({
       readOnly: true,
       paperOnly: true,
       requiresBacktest: true,
-      requiresOperatorApproval: true,
+      requiresOperatorApproval: false,
       automaticLogicMutationAllowed: false,
       orderPlacementAllowed: false,
       brokerContactAllowed: false,

@@ -53,7 +53,7 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
       },
       aiReview: {
         requiresBacktest: true,
-        requiresOperatorApproval: true,
+        requiresOperatorApproval: false,
         proposals: [{
           category: "ranking_logic",
           severity: "medium",
@@ -93,7 +93,7 @@ test("builds customer reports page as lifetime read-only paper analytics", () =>
   assert.match(html, /Data status: Paper-trading data is current/);
   assert.match(html, /AI-assisted review/);
   assert.match(html, /Testing required before changes:<\/strong> Yes/);
-  assert.match(html, /Manual approval required:<\/strong> Yes/);
+  assert.doesNotMatch(html, /Manual approval required/);
   assert.match(html, /Backtest a higher confidence floor before approval/);
   assert.match(html, /Ranking quality · Review/);
   assert.match(html, /What we found:/);
@@ -130,9 +130,9 @@ test("renders optional real-time AI review without mutation controls", () => {
       aiReview: { proposals: [] },
       realtimeAiReview: {
         status: "completed_readonly",
-        reviewText: "Backtest tighter confidence thresholds before manual approval.",
+        reviewText: "Backtest tighter confidence thresholds before use.",
         requiresBacktest: true,
-        requiresOperatorApproval: true,
+        requiresOperatorApproval: false,
         automaticLogicMutationAllowed: false,
         orderPlacementAllowed: false,
       },
@@ -147,7 +147,7 @@ test("renders optional real-time AI review without mutation controls", () => {
   assert.match(html, /class="ai-technical-notes"/);
   assert.match(html, /Backtest tighter confidence thresholds/);
   assert.match(html, /Any suggested strategy change must be tested before use/);
-  assert.match(html, /Your approval is also required before any change can be made/);
+  assert.doesNotMatch(html, /Your approval is also required before any change can be made/);
   assert.doesNotMatch(html, /Apply AI changes/);
 });
 

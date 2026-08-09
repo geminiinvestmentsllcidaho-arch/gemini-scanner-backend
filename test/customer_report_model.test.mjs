@@ -54,7 +54,7 @@ test("builds lifetime read-only report scanner summary from in-range events", ()
   assert.equal(report.accountMutationAllowed, false);
   assert.equal(report.aiReview.automaticLogicMutationAllowed, false);
   assert.equal(report.aiReview.requiresBacktest, true);
-  assert.equal(report.aiReview.requiresOperatorApproval, true);
+  assert.equal(report.aiReview.requiresOperatorApproval, false);
   assert.ok(Array.isArray(report.aiReview.proposals));
 });
 

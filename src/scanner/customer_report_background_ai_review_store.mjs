@@ -85,7 +85,7 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     responseId: review.responseId ?? null,
     reviewText: safeText(review.reviewText),
     requiresBacktest: review.requiresBacktest !== false,
-    requiresOperatorApproval: review.requiresOperatorApproval !== false,
+    requiresOperatorApproval: review.requiresOperatorApproval === true,
     readOnly: true,
     paperOnly: true,
     automaticLearningAllowed: false,

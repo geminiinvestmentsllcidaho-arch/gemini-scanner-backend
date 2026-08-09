@@ -376,7 +376,7 @@ ${metric("Best price range", scanner.bestPriceRange ?? "No data yet")}
 <section class="card panel" id="ai-review">
 <h2>AI-assisted review</h2>
 <p>AI reviews scanner evidence and summarizes patterns, risks, and missing information. It cannot change scanner logic, approve its own proposals, bypass deterministic safety gates, contact a broker, or place trades.</p>
-<p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")} · <strong>Manual approval required:</strong> ${esc(aiReview.requiresOperatorApproval === true ? "Yes" : "No")}</p>
+<p><strong>Testing required before changes:</strong> ${esc(aiReview.requiresBacktest === true ? "Yes" : "No")}</p>
 ${aiProposals.length
   ? aiProposals.map((proposal) => `<article class="report-row"><h3>${esc(({ data_quality: "Data freshness", signal_quality: "Signal quality", entry_logic: "Entry quality", exit_logic: "Exit timing", risk_logic: "Risk controls", ranking_logic: "Ranking quality", observation: "Review status" })[proposal?.category] ?? "Review item")} · ${esc(({ high: "Important", medium: "Review", low: "Informational" })[proposal?.severity] ?? "Informational")}</h3><p><strong>What we found:</strong> ${esc(proposal?.observation ?? "")}</p><p><strong>Suggested next step:</strong> ${esc(proposal?.proposal ?? "")}</p></article>`).join("")
   : "<p>No improvement suggestions are available for this report yet.</p>"}
@@ -394,7 +394,7 @@ ${metric("Automatic learning", decisionQualityProposals.automaticLearningAllowed
 ${proposalCards}
 <div class="safety-locks">
 <span>Human review required</span>
-<span>Separate approval required</span>
+<span>Review only</span>
 <span>No implementation included</span>
 <span>No automatic patching</span>
 </div>
@@ -467,7 +467,7 @@ ${calibrationHistoryRows.length
 ${realtimeAiText
   ? `<details class="ai-review-details"><summary>View detailed AI notes</summary><article class="report-row"><p class="muted">Advanced review details for transparency and support.</p><ul class="ai-technical-notes">${realtimeAiNotesHtml}</ul></article></details>`
   : "<p>No AI review is available yet. The standard report information above is still available.</p>"}
-<p class="ai-review-note">${realtimeAiReview.status === "deferred_nonblocking" ? "Real-time provider review is not run synchronously while this page opens, so report loading is not delayed by the AI request. " : ""}${realtimeAiReview.requiresBacktest === true ? "Any suggested strategy change must be tested before use." : "No strategy test is currently flagged by this review."}${realtimeAiReview.requiresOperatorApproval === true ? " Your approval is also required before any change can be made." : ""}</p>
+<p class="ai-review-note">${realtimeAiReview.status === "deferred_nonblocking" ? "Real-time provider review is not run synchronously while this page opens, so report loading is not delayed by the AI request. " : ""}${realtimeAiReview.requiresBacktest === true ? "Any suggested strategy change must be tested before use." : "No strategy test is currently flagged by this review."}</p>
 </section>
 
 <section class="card panel" id="detailed-activity">

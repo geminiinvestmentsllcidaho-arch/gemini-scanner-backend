@@ -388,7 +388,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     readOnly: true,
     paperOnly: true,
     requiresBacktest: true,
-    requiresOperatorApproval: true,
+    requiresOperatorApproval: false,
     automaticLearningAllowed: false,
     scannerLogicMutationAllowed: false,
     thresholdMutationAllowed: false,

@@ -53,7 +53,7 @@ test("calls Responses API and returns bounded review text", async () => {
           return {
             id: "resp_test",
             model: "test-model",
-            output_text: "Backtest a higher confidence floor before manual approval.",
+            output_text: "Backtest a higher confidence floor before use.",
           };
         },
       };

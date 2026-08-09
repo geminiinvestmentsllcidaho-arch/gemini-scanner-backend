@@ -276,7 +276,7 @@ export function buildDeterministicLogicProposals(report = {}) {
     proposals: Object.freeze(proposals.map((item) => Object.freeze(item))),
     automaticLogicMutationAllowed: false,
     requiresBacktest: true,
-    requiresOperatorApproval: true,
+    requiresOperatorApproval: false,
     readOnly: true,
     paperOnly: true,
   });
