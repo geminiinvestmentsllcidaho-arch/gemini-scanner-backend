@@ -227,12 +227,6 @@ app.get('/customer-portfolio-owned-assets.js', (_req, res) => {
   res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/customer-portfolio-owned-assets.js');
 });
 
-app.get('/assets/customer-stage1-exit-alerts.js', (_req, res) => {
-  res.set('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  return res.sendFile('/home/gemini/apps/gemini-scanner-backend/public/assets/customer-stage1-exit-alerts.js');
-});
-
 app.get('/assets/customer-exit-notification-settings.js', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.type('application/javascript');
