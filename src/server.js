@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   renderBackgroundLogoLayer,
   renderGlobalFooter,
@@ -56,7 +57,7 @@ import { validateCustomerSessionSecret } from './scanner/customer_session_secret
 import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
 import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
 import { createAdminLoginRateLimiter } from './scanner/admin_login_rate_limit.mjs';
-import { evaluateAdminPassword } from './scanner/admin_password_auth.mjs';
+import { evaluateAdminPassword, isStrongAdminPassword } from './scanner/admin_password_auth.mjs';
 import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
 import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
 import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
@@ -1821,6 +1822,74 @@ app.post('/admin/login', requireCustomerSameOrigin, (req, res) => {
 app.post('/admin/logout', requireCustomerSameOrigin, (req, res) => {
   res.clearCookie(ADMIN_SESSION_COOKIE_NAME, buildAdminSessionCookieClearOptions());
   return res.redirect(303, '/admin/login');
+});
+
+function adminSecurityHtml(message = '', error = false) {
+  const notice = message ? `<div class="${error ? 'error' : 'notice'}">${escapeHtml(message)}</div>` : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Security · GeminiScanner</title>${renderGlobalThemeCss()}</head>
+<body>${renderBackgroundLogoLayer()}${renderGlobalHeader({ surface: 'admin', homeHref: '/admin', label: 'GeminiScanner Admin' })}
+<main><section class="card auth-card"><h1>Admin Security</h1>
+<p class="sub">Change the password used for GeminiScanner administrator sign in.</p>${notice}
+<form method="post" action="/admin/security/password">
+<label>Current admin password<input type="password" name="currentPassword" autocomplete="current-password" required></label>
+<label>New admin password<input type="password" name="newPassword" autocomplete="new-password" required></label>
+<label>Confirm new admin password<input type="password" name="confirmPassword" autocomplete="new-password" required></label>
+<button type="submit">Change admin password</button></form>
+<p class="sub">Changing the password signs out existing admin browser sessions.</p>
+<p><a href="/admin">Back to Admin Dashboard</a></p></section></main></body></html>`;
+}
+
+app.get('/admin/security', requireAdminAuthorization, (req, res) => {
+  return res.type('html').send(adminSecurityHtml());
+});
+
+app.post('/admin/security/password', requireAdminAuthorization, requireCustomerSameOrigin, (req, res) => {
+  const currentPassword = String(req.body?.currentPassword ?? '');
+  const newPassword = String(req.body?.newPassword ?? '');
+  const confirmPassword = String(req.body?.confirmPassword ?? '');
+
+  if (!evaluateAdminPassword(currentPassword).allowed) {
+    return res.status(401).type('html').send(adminSecurityHtml('Current admin password is incorrect.', true));
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).type('html').send(adminSecurityHtml('New password and confirmation do not match.', true));
+  }
+  if (!isStrongAdminPassword(newPassword)) {
+    return res.status(400).type('html').send(adminSecurityHtml('New admin password must be at least 12 characters and cannot be an obvious weak password.', true));
+  }
+
+  const envPath = path.join(process.cwd(), '.env');
+  const envText = fs.readFileSync(envPath, 'utf8');
+  const lines = envText.split(/\r?\n/);
+  const next = [];
+  let replaced = false;
+  for (const line of lines) {
+    if (line.startsWith('ADMIN_PASSWORD=')) {
+      if (!replaced) {
+        next.push(`ADMIN_PASSWORD=${newPassword}`);
+        replaced = true;
+      }
+      continue;
+    }
+    next.push(line);
+  }
+  if (!replaced) next.push(`ADMIN_PASSWORD=${newPassword}`);
+  const tempPath = `${envPath}.admin-password-change.tmp`;
+  const normalized = next.filter((line, index, all) => !(index === all.length - 1 && line === '')).join('\n') + '\n';
+  fs.writeFileSync(tempPath, normalized, { mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, envPath);
+  fs.chmodSync(envPath, 0o600);
+
+  const sessionTokenPath = '/home/gemini/.gemini-scanner-operator-token';
+  const rotatedSessionSecret = randomBytes(32).toString('hex');
+  fs.writeFileSync(sessionTokenPath, `${rotatedSessionSecret}\n`, { mode: 0o600 });
+  fs.chmodSync(sessionTokenPath, 0o600);
+
+  process.env.ADMIN_PASSWORD = newPassword;
+  res.clearCookie(ADMIN_SESSION_COOKIE_NAME, buildAdminSessionCookieClearOptions());
+  return res.redirect(303, '/admin/login?passwordChanged=1');
 });
 
 app.get('/admin', requireAdminAuthorization, async (_req, res) => {

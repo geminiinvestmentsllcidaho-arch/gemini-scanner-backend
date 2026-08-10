@@ -16,7 +16,7 @@ test("admin browser login validates the configured admin password and creates is
   assert.match(server, /app\.post\('\/admin\/login', requireCustomerSameOrigin/);
   assert.match(server, /import \{ createRequireAdminAuthorization, evaluateAdminAuthorization \} from '\.\/scanner\/admin_authorization\.mjs';/);
   assert.match(server, /import \{ createAdminLoginRateLimiter \} from '\.\/scanner\/admin_login_rate_limit\.mjs';/);
-  assert.match(server, /import \{ evaluateAdminPassword \} from '\.\/scanner\/admin_password_auth\.mjs';/);
+  assert.match(server, /import \{ evaluateAdminPassword(?:, isStrongAdminPassword)? \} from '\.\/scanner\/admin_password_auth\.mjs';/);
   assert.match(server, /const adminLoginRateLimiter = createAdminLoginRateLimiter\(\);/);
   assert.doesNotMatch(server, /const adminLoginRateLimiter = createCustomerLoginRateLimiter\(\);/);
   assert.match(server, /evaluateAdminPassword\(req\.body\?\.password\)/);
