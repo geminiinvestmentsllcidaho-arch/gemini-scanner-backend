@@ -1,8 +1,6 @@
 import { buildCustomerReportModel } from "./customer_report_model.mjs";
 import { fetchAlpacaPaperAccountReadonly } from "./alpaca_paper_account_readonly_fetch.mjs";
 import { buildCustomerZeroPaperAccountBridge } from "./customer_zero_paper_account_bridge.mjs";
-import { readPaperTradePositionStateStoreDashboard } from "./paper_trade_position_state_store.mjs";
-import { readPaperTradeFillSimulationRecordsIfAvailable } from "./paper_trade_fill_simulation_store.mjs";
 import {
   listOpportunityFunnelAuditRecords,
   listOpportunityFunnelAuditRecordsFiltered,
@@ -166,8 +164,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now ?? Date.now());
   const fetchPaperAccount = options.fetchPaperAccount ?? fetchAlpacaPaperAccountReadonly;
   const buildPaperAccount = options.buildPaperAccount ?? buildCustomerZeroPaperAccountBridge;
-  const readPositionStore = options.readPositionStore ?? readPaperTradePositionStateStoreDashboard;
-  const readFillRecords = options.readFillRecords ?? readPaperTradeFillSimulationRecordsIfAvailable;
+  const fetchBrokerPerformanceEvidence = options.fetchBrokerPerformanceEvidence ?? null;
   const listScans = options.listScans ?? listOpportunityFunnelAuditRecords;
   const listPremarketScans = Object.prototype.hasOwnProperty.call(
     options,
@@ -224,19 +221,25 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     });
   }
 
-  const fetchedPaperAccount = await fetchPaperAccount();
+  const brokerEvidence = typeof fetchBrokerPerformanceEvidence === "function"
+    ? await fetchBrokerPerformanceEvidence({ now })
+    : null;
+  const fetchedPaperAccount = brokerEvidence?.fetchedPaperAccount ?? await fetchPaperAccount();
   const paperAccount = buildPaperAccount(fetchedPaperAccount);
-  const positionStore = readPositionStore();
-  const paperLedgerHistory = Array.isArray(positionStore?.records) ? positionStore.records : [];
-  const fillLedgerHistory = readFillRecords(options.fillLedgerPath);
+  const fillLedgerHistory = Array.isArray(brokerEvidence?.fillLedgerHistory)
+    ? brokerEvidence.fillLedgerHistory
+    : null;
   const scannerEvents = flattenOpportunityFunnelScans(scans);
   const report = buildCustomerReportModel({
     period: "lifetime",
     now,
     weekStartsOn: 1,
     paperAccount,
-    paperLedgerHistory,
+    paperLedgerHistory: [],
     fillLedgerHistory,
+    fillLedgerHistorySource: brokerEvidence?.fillLedgerHistorySource ?? null,
+    fillLedgerHistoryCompleteness: brokerEvidence?.fillLedgerHistoryCompleteness ?? null,
+    brokerObservationTs: brokerEvidence?.brokerObservationTs ?? null,
     scannerEvents,
   });
 

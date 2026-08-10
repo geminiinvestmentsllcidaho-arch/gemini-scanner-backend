@@ -73,6 +73,10 @@ test("server persists time-based strategy observations after completed post-mark
     source,
     /const backgroundAiReview = appendedCount > 0\s*\? await customerReportBackgroundAiReviewWorker\.runNow\(\)\s*:\s*Object\.freeze\(\{/,
   );
+  assert.match(
+    source,
+    /fetchBrokerPerformanceEvidence:\s*\(\{ now: reviewNow \} = \{\}\) => fetchCustomerBrokerPerformanceEvidence\(\{ now: reviewNow \}\)/,
+  );
   assert.match(source, /status: "no_strategy_observation_changes"/);
   assert.match(source, /backgroundAiReviewTriggered: appendedCount > 0/);
   assert.doesNotMatch(

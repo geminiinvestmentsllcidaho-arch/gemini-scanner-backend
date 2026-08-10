@@ -81,7 +81,6 @@ test("runner includes premarket evidence with source-specific metadata", async (
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     requestAiReview: async ({ input }) => {
       capturedInput = input;
       return {
@@ -125,7 +124,6 @@ test("runner preserves dedicated premarket evidence when recent scans are under-
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     listStrategyObservations: () => [],
     requestAiReview: async ({ input, timeoutMs }) => {
       capturedInput = input;
@@ -189,7 +187,6 @@ test("runner creates and persists a read-only AI review", async () => {
       readOnly: true,
       paperOnly: true,
     }),
-    readPositionStore: () => ({ records: [] }),
     requestAiReview: async ({ input }) => {
       assert.equal(input.scanner.signalsGenerated, 2);
       return {
@@ -232,7 +229,6 @@ test("store deduplicates identical completed review records", async () => {
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     requestAiReview: async () => ({
       status: "completed_readonly",
       provider: "openai",
@@ -300,7 +296,6 @@ test("runner includes bounded post-market evidence and persists completed provid
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     getPostMarketResult: () => ({
       generatedAt: "2026-07-17T21:00:00.000Z",
       status: "completed_readonly",
@@ -357,7 +352,6 @@ test("runner does not persist failed provider calls so evidence remains retryabl
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     requestAiReview: async () => ({
       status: "timeout",
       provider: "openai",
@@ -389,7 +383,6 @@ test("runner persists a manual-adjustment recommendation while all mutation lock
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     requestAiReview: async () => ({
       status: "completed_readonly",
       provider: "openai",
@@ -447,7 +440,6 @@ test("runner includes bounded strategy observation evidence and persists source 
     }],
     fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
     buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
-    readPositionStore: () => ({ records: [] }),
     requestAiReview: async ({ input }) => {
       capturedInput = input;
       return {
@@ -481,6 +473,83 @@ test("runner includes bounded strategy observation evidence and persists source 
 });
 
 
+test("runner uses broker-confirmed PAPER lifecycle evidence and does not consult legacy position snapshots", async () => {
+  let capturedInput = null;
+  let legacyPositionStoreCalled = false;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-07-20T15:00:00.000Z"),
+    listScans: () => [{
+      scanId: "scan-broker-history",
+      scanType: "under_five",
+      eventAt: "2026-07-20T14:59:00.000Z",
+      candidates: [{ symbol: "AAA", decision: "WAIT" }],
+    }],
+    listPremarketScans: () => [],
+    fetchBrokerPerformanceEvidence: async () => ({
+      fetchedPaperAccount: {},
+      fillLedgerHistory: [{
+        source: "alpaca_paper_order_history",
+        sourceOrderId: "buy-1",
+        symbol: "AAA",
+        side: "buy",
+        qty: 1,
+        fillPrice: 10,
+        filledAt: "2026-07-20T14:00:00.000Z",
+      }, {
+        source: "alpaca_paper_order_history",
+        sourceOrderId: "sell-1",
+        symbol: "AAA",
+        side: "sell",
+        qty: 1,
+        fillPrice: 12,
+        filledAt: "2026-07-20T14:30:00.000Z",
+      }],
+      fillLedgerHistorySource: "alpaca_paper_order_history",
+      fillLedgerHistoryCompleteness: {
+        historyLimit: 500,
+        sourceRecordCount: 2,
+        historyLimitReached: false,
+        historyComplete: true,
+        historyPossiblyTruncated: false,
+      },
+      brokerObservationTs: "2026-07-20T15:00:00.000Z",
+    }),
+    fetchPaperAccount: async () => {
+      throw new Error("fallback account fetch must not run");
+    },
+    buildPaperAccount: () => ({
+      account: {},
+      summary: { totalUnrealizedPl: 0 },
+      readOnly: true,
+      paperOnly: true,
+    }),
+    readPositionStore: () => {
+      legacyPositionStoreCalled = true;
+      return { records: [{ realizedPl: 999999 }] };
+    },
+    listStrategyObservations: () => [],
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        reviewText: "Broker lifecycle reviewed.",
+        requiresBacktest: true,
+        requiresOperatorApproval: false,
+        automaticLogicMutationAllowed: false,
+        orderPlacementAllowed: false,
+      };
+    },
+    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "memory" }),
+    persistManualAdjustmentRecommendation: () => ({ appended: false, duplicateSkipped: false, ledgerPath: null }),
+  });
+
+  assert.equal(result.status, "completed_readonly");
+  assert.equal(legacyPositionStoreCalled, false);
+  assert.equal(capturedInput.trades.lifecycleSourceAvailable, true);
+  assert.equal(capturedInput.trades.completedRoundTrips, 1);
+  assert.equal(capturedInput.performance.realizedPl, 2);
+});
+
 test("runner treats an unavailable fill ledger as unavailable lifecycle evidence", async () => {
   let capturedInput = null;
   const result = await runCustomerReportBackgroundAiReview({
@@ -492,10 +561,14 @@ test("runner treats an unavailable fill ledger as unavailable lifecycle evidence
       candidates: [{ symbol: "AAA", decision: "WAIT" }],
     }],
     listPremarketScans: () => [],
-    fetchPaperAccount: async () => ({}),
+    fetchBrokerPerformanceEvidence: async () => ({
+      fetchedPaperAccount: {},
+      fillLedgerHistory: null,
+      fillLedgerHistorySource: "alpaca_paper_order_history",
+      fillLedgerHistoryCompleteness: null,
+      brokerObservationTs: "2026-07-20T15:00:00.000Z",
+    }),
     buildPaperAccount: () => ({}),
-    readPositionStore: () => ({ records: [] }),
-    readFillRecords: () => null,
     listStrategyObservations: () => [],
     requestAiReview: async ({ input }) => {
       capturedInput = input;

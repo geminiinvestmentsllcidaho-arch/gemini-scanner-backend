@@ -2470,6 +2470,7 @@ const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh()
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
   runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
     now,
+    fetchBrokerPerformanceEvidence: ({ now: reviewNow } = {}) => fetchCustomerBrokerPerformanceEvidence({ now: reviewNow }),
     getPostMarketResult: () => postMarketRuntimeWorker.getStatus().lastResult,
   }),
 });
