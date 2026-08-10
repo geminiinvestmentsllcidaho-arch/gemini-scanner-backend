@@ -238,8 +238,17 @@ export function buildCustomerReportModel(options = {}) {
   const performance = performanceSummary(paperRecords, baseline, {
     ...options,
     realizedPl: brokerBackedFillHistory ? brokerRealizedPl : undefined,
-    preferDerivedStartingBalance: brokerBackedFillHistory,
+    startingBalance: brokerBackedFillHistory ? null : options.startingBalance,
+    preferDerivedStartingBalance: false,
   });
+  const brokerBackedPerformance = brokerBackedFillHistory
+    ? Object.freeze({
+        ...performance,
+        startingBalance: null,
+        totalReturnPct: null,
+        maxDrawdown: null,
+      })
+    : performance;
   const currentBrokerPositions = Object.freeze(
     list(options.paperAccount?.positions).map((position) => Object.freeze({
       symbol: String(position?.symbol ?? "").trim().toUpperCase() || null,
@@ -275,7 +284,7 @@ export function buildCustomerReportModel(options = {}) {
     maxAgeSec,
     freshnessSource: brokerBackedFillHistory ? "alpaca_paper_readonly_observation" : "paper_position_snapshot",
     paperRecordCount: paperRecords.length,
-    performance,
+    performance: brokerBackedPerformance,
     currentBrokerPositions,
     trades: Object.freeze({
       ...trades,

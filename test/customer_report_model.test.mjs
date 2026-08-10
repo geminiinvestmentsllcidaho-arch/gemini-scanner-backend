@@ -393,6 +393,66 @@ test("preserves snapshot-derived compatibility metrics when fill ledger is not s
   assert.equal(report.trades.completedRoundTrips, null);
 });
 
+
+test("broker-backed period performance does not fabricate starting balance return or max drawdown from mixed sources", () => {
+  const report = buildCustomerReportModel({
+    period: "daily",
+    now: new Date("2026-08-09T20:00:00Z"),
+    timeZone: "UTC",
+    paperAccount: {
+      account: { equity: 100050 },
+      summary: { totalUnrealizedPl: 25 },
+      positions: [],
+    },
+    paperLedgerHistory: [
+      { createdAt: "2026-08-09T10:00:00Z", endingEquity: 99900, totalRealizedPnl: 900, totalCostBasis: 500, positions: [] },
+      { createdAt: "2026-08-09T19:00:00Z", endingEquity: 100000, totalRealizedPnl: 1000, totalCostBasis: 600, positions: [] },
+    ],
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { fillId: "buy-1", createdAt: "2026-08-09T14:00:00Z", symbol: "AAA", side: "buy", qty: 1, fillPrice: 100 },
+      { fillId: "sell-1", createdAt: "2026-08-09T15:00:00Z", symbol: "AAA", side: "sell", qty: 1, fillPrice: 125 },
+    ],
+    brokerObservationTs: "2026-08-09T20:00:00Z",
+  });
+  assert.equal(report.performance.realizedPl, 25);
+  assert.equal(report.performance.unrealizedPl, 25);
+  assert.equal(report.performance.totalPl, 50);
+  assert.equal(report.performance.endingBalance, 100050);
+  assert.equal(report.performance.startingBalance, null);
+  assert.equal(report.performance.totalReturnPct, null);
+  assert.equal(report.performance.maxDrawdown, null);
+});
+
+test("broker-backed lifetime performance avoids inferring starting capital without broker cash-flow history", () => {
+  const report = buildCustomerReportModel({
+    period: "lifetime",
+    now: new Date("2026-08-09T20:00:00Z"),
+    timeZone: "UTC",
+    paperAccount: {
+      account: { equity: 100050 },
+      summary: { totalUnrealizedPl: 25 },
+      positions: [],
+    },
+    paperLedgerHistory: [
+      { createdAt: "2026-07-01T10:00:00Z", endingEquity: 100000, totalRealizedPnl: 0, positions: [] },
+    ],
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { fillId: "buy-1", createdAt: "2026-08-09T14:00:00Z", symbol: "AAA", side: "buy", qty: 1, fillPrice: 100 },
+      { fillId: "sell-1", createdAt: "2026-08-09T15:00:00Z", symbol: "AAA", side: "sell", qty: 1, fillPrice: 125 },
+    ],
+    brokerObservationTs: "2026-08-09T20:00:00Z",
+  });
+  assert.equal(report.performance.realizedPl, 25);
+  assert.equal(report.performance.unrealizedPl, 25);
+  assert.equal(report.performance.totalPl, 50);
+  assert.equal(report.performance.endingBalance, 100050);
+  assert.equal(report.performance.startingBalance, null);
+  assert.equal(report.performance.totalReturnPct, null);
+  assert.equal(report.performance.maxDrawdown, null);
+});
+
 test("real Alpaca PAPER fill history does not fabricate legacy source-intent replay audit", async () => {
   const { buildCustomerReportModel } = await import("../src/scanner/customer_report_model.mjs");
   const report = buildCustomerReportModel({
