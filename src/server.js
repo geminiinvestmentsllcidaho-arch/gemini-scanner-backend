@@ -718,43 +718,80 @@ ${renderGlobalFooter()}
 </html>`;
 }
 
+async function fetchCustomerBrokerPerformanceEvidence(options = {}) {
+  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
+  const historyFetch = await import('./scanner/paper_auto_execution_reporting_history_fetch.mjs');
+  const historyAdapter = await import('./scanner/paper_auto_execution_reporting_history.mjs');
+  const now = options.now instanceof Date ? options.now : new Date();
+  const [fetchedPaperAccount, historicalOrderResult] = await Promise.all([
+    options.fetchedPaperAccount
+      ? Promise.resolve(options.fetchedPaperAccount)
+      : accountData.fetchAlpacaPaperAccountReadonly(),
+    historyFetch.fetchAlpacaPaperHistoricalOrdersReadonly(),
+  ]);
+  const adapted = historyAdapter.adaptAlpacaPaperFilledOrderHistory({
+    historicalOrders: historicalOrderResult.historicalOrders,
+  });
+  return Object.freeze({
+    fetchedPaperAccount,
+    fillLedgerHistory: adapted.fillRecords,
+    fillLedgerHistorySource: 'alpaca_paper_order_history',
+    fillLedgerHistoryCompleteness: Object.freeze({
+      historyLimit: historicalOrderResult.historyLimit,
+      sourceRecordCount: historicalOrderResult.sourceRecordCount,
+      historyLimitReached: historicalOrderResult.historyLimitReached,
+      historyComplete: historicalOrderResult.historyComplete,
+      historyPossiblyTruncated: historicalOrderResult.historyPossiblyTruncated,
+    }),
+    brokerObservationTs: now.toISOString(),
+  });
+}
+
+async function buildCustomerBrokerPerformanceReport(options = {}) {
+  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+  const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
+  const evidence = options.evidence ?? await fetchCustomerBrokerPerformanceEvidence({
+    fetchedPaperAccount: options.fetchedPaperAccount,
+    now: options.now,
+  });
+  const paperAccount = options.paperAccount ?? accountBridge.buildCustomerZeroPaperAccountBridge(evidence.fetchedPaperAccount);
+  const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
+    period: options.period,
+    defaultPeriod: options.defaultPeriod,
+    year: options.year,
+    timeZone: options.timeZone,
+    weekStartsOn: options.weekStartsOn,
+    now: options.now,
+    paperAccount,
+    fillLedgerHistory: evidence.fillLedgerHistory,
+    fillLedgerHistorySource: evidence.fillLedgerHistorySource,
+    fillLedgerHistoryCompleteness: evidence.fillLedgerHistoryCompleteness,
+    brokerObservationTs: evidence.brokerObservationTs,
+  });
+  return Object.freeze({ evidence, paperAccount, performanceReport });
+}
+
 async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath = '', requestContext = null) {
   try {
     const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
-    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
-    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
-    const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
     const clockMod = await import('./scanner/alpaca_market_clock_readonly.mjs');
     const now = new Date();
-    const [fetchedPaperAccount, marketClockResult] = await Promise.all([
-      accountData.fetchAlpacaPaperAccountReadonly(),
+    const [brokerPerformance, marketClockResult] = await Promise.all([
+      buildCustomerBrokerPerformanceReport({ period: 'lifetime', defaultPeriod: 'lifetime', now }),
       clockMod.fetchAlpacaMarketClockReadonly(),
     ]);
     if (requestContext && typeof requestContext === 'object') {
-      requestContext.fetchedPaperAccount = fetchedPaperAccount;
+      requestContext.fetchedPaperAccount = brokerPerformance.evidence.fetchedPaperAccount;
+      requestContext.customerBrokerPerformanceEvidence = brokerPerformance.evidence;
     }
-    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
-    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-    const paperLedger = paperPositionLedger.latestRecord ?? {};
-    const lifetimePerformance = performanceMod.buildCustomerZeroPerformanceReport({
-      period: 'lifetime',
-      sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
-      paperAccount,
-      paperLedger,
-      paperLedgerHistory: paperPositionLedger.records,
-      now,
-    });
-    return bannerMod.renderCustomerLifetimeEarningsBanner(lifetimePerformance, {
+    return bannerMod.renderCustomerLifetimeEarningsBanner(brokerPerformance.performanceReport, {
       locale: account?.locale ?? 'en-US',
       detailed: reqPath === '/customer/portfolio' || reqPath === '/customer/reports',
       marketClock: marketClockResult?.marketClock ?? null,
     });
   } catch {
     const bannerMod = await import('./scanner/customer_lifetime_earnings_banner.mjs');
-    return bannerMod.renderCustomerLifetimeEarningsBanner(null, {
-      locale: account?.locale ?? 'en-US',
-    });
+    return bannerMod.renderCustomerLifetimeEarningsBanner(null, { locale: account?.locale ?? 'en-US' });
   }
 }
 
@@ -771,6 +808,7 @@ async function requireCustomerSession(req, res, next) {
   const requestContext = {};
   const bannerHtml = await buildAuthenticatedCustomerLifetimeEarningsBanner(result.account, req.path, requestContext);
   req.customerPaperAccountFetch = requestContext.fetchedPaperAccount ?? null;
+  req.customerBrokerPerformanceEvidence = requestContext.customerBrokerPerformanceEvidence ?? null;
   const originalSend = res.send.bind(res);
   res.send = (body) => {
     const contentType = String(res.getHeader('Content-Type') ?? '');
@@ -2779,22 +2817,15 @@ app.get('/app/alpaca-under-five-universe', async (req, res) => {
 
 app.get('/customer', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
-  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-  const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
-  const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
-  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
-  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
-  const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-  const paperLedger = paperPositionLedger.latestRecord ?? {};
-  const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
-    period: req.query.period ?? "lifetime",
-    sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
-    paperAccount,
-    paperLedger,
-    paperLedgerHistory: paperPositionLedger.records,
-    now: new Date(),
+  const now = new Date();
+  const brokerPerformance = await buildCustomerBrokerPerformanceReport({
+    evidence: req.customerBrokerPerformanceEvidence,
+    fetchedPaperAccount: req.customerPaperAccountFetch,
+    period: req.query.period ?? 'lifetime',
+    defaultPeriod: 'lifetime',
+    now,
   });
+  const performanceReport = brokerPerformance.performanceReport;
   const premarketCache = await premarketSharedCachePromise;
   const premarketAutoStatus = premarketCache?.getDiagnostics?.() ?? null;
   const postMarketAutoStatus = postMarketRuntimeWorker.getStatus();
@@ -2815,12 +2846,10 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
     const portfolioPageMod = await import('./scanner/customer_portfolio_page.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
-    const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
     const ownedAssetStore = await import('./scanner/customer_owned_asset_store.mjs');
     const windDownPolicy = await import('./scanner/customer_portfolio_wind_down_policy.mjs');
 
-    const rawFetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
+    const rawFetchedPaperAccount = req.customerPaperAccountFetch ?? await accountData.fetchAlpacaPaperAccountReadonly();
     const now = new Date();
     const fetchedPaperAccount = rawFetchedPaperAccount?.status === 'connected_readonly'
       && Array.isArray(rawFetchedPaperAccount?.positions)
@@ -2842,16 +2871,14 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       sourceTs: now.toISOString(),
       now,
     });
-    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-    const paperLedger = paperPositionLedger.latestRecord ?? {};
-    const lifetimePerformance = performanceMod.buildCustomerZeroPerformanceReport({
+    const lifetimePerformance = (await buildCustomerBrokerPerformanceReport({
+      evidence: req.customerBrokerPerformanceEvidence,
+      fetchedPaperAccount,
+      paperAccount: brokerPaperAccount,
       period: 'lifetime',
-      sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
-      paperAccount,
-      paperLedger,
-      paperLedgerHistory: paperPositionLedger.records,
+      defaultPeriod: 'lifetime',
       now,
-    });
+    })).performanceReport;
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -2976,8 +3003,6 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const reportPageMod = await import('./scanner/customer_reports_page.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-    const reportingHistoryFetch = await import('./scanner/paper_auto_execution_reporting_history_fetch.mjs');
-    const reportingHistory = await import('./scanner/paper_auto_execution_reporting_history.mjs');
     const timeMod = await import('./scanner/customer_time.mjs');
     const realtimeAiMod = await import('./scanner/customer_report_realtime_ai_client.mjs');
     const qualityProposalMod = await import('./scanner/decision_quality_proposal_generation.mjs');
@@ -2985,17 +3010,13 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const calibrationHistoryMod = await import('./scanner/proposal_calibration_history_store.mjs');
 
     const now = new Date();
-    const [fetchedPaperAccount, historicalOrderResult] = await Promise.all([
-      req.customerPaperAccountFetch
-        ? Promise.resolve(req.customerPaperAccountFetch)
-        : accountData.fetchAlpacaPaperAccountReadonly(),
-      reportingHistoryFetch.fetchAlpacaPaperHistoricalOrdersReadonly(),
-    ]);
-    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
-    const adaptedReportingHistory = reportingHistory.adaptAlpacaPaperFilledOrderHistory({
-      historicalOrders: historicalOrderResult.historicalOrders,
+    const brokerEvidence = req.customerBrokerPerformanceEvidence ?? await fetchCustomerBrokerPerformanceEvidence({
+      fetchedPaperAccount: req.customerPaperAccountFetch,
+      now,
     });
-    const fillLedgerHistory = adaptedReportingHistory.fillRecords;
+    const fetchedPaperAccount = brokerEvidence.fetchedPaperAccount;
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const fillLedgerHistory = brokerEvidence.fillLedgerHistory;
     const liveScanRecords = listOpportunityFunnelAuditRecords({ maxRecords: 120 });
     const scannerEvents = liveScanRecords.flatMap((scan) => {
       const eventAt = scan?.eventAt ?? null;
@@ -3019,15 +3040,9 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       weekStartsOn: 1,
       paperAccount,
       fillLedgerHistory,
-      fillLedgerHistorySource: 'alpaca_paper_order_history',
-      fillLedgerHistoryCompleteness: {
-        historyLimit: historicalOrderResult.historyLimit,
-        sourceRecordCount: historicalOrderResult.sourceRecordCount,
-        historyLimitReached: historicalOrderResult.historyLimitReached,
-        historyComplete: historicalOrderResult.historyComplete,
-        historyPossiblyTruncated: historicalOrderResult.historyPossiblyTruncated,
-      },
-      brokerObservationTs: now.toISOString(),
+      fillLedgerHistorySource: brokerEvidence.fillLedgerHistorySource,
+      fillLedgerHistoryCompleteness: brokerEvidence.fillLedgerHistoryCompleteness,
+      brokerObservationTs: brokerEvidence.brokerObservationTs,
       scannerEvents,
     });
     const decisionQualityProposals = qualityProposalMod.readDecisionQualityProposalReport({
@@ -3135,9 +3150,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
   const watchlistOnly = allowedModes.includes('watchlist') && !allowedModes.includes('intraday');
 
   const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
-  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
   const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-  const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
   let source;
   if (watchlistOnly) {
     const watchlist = getCustomerWatchlist(req.customerAccount?.id);
@@ -3156,10 +3169,19 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
   } else {
     source = await getUnderFiveSharedSource({ refresh: true });
   }
-  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
-  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
-  const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-  const paperLedger = paperPositionLedger.latestRecord ?? {};
+  const now = new Date();
+  const brokerEvidence = req.customerBrokerPerformanceEvidence ?? await fetchCustomerBrokerPerformanceEvidence({
+    fetchedPaperAccount: req.customerPaperAccountFetch,
+    now,
+  });
+  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(brokerEvidence.fetchedPaperAccount);
+  const performanceReport = (await buildCustomerBrokerPerformanceReport({
+    evidence: brokerEvidence,
+    paperAccount,
+    period: 'lifetime',
+    defaultPeriod: 'lifetime',
+    now,
+  })).performanceReport;
   const resultFilters = states.length ? { states } : getCustomerZeroResultFilters(req.customerAccount?.id).filters;
   const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
     route: '/customer/scanner/run',
@@ -3167,9 +3189,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
     maxPrice,
     noPriceCeiling: watchlistOnly,
     paperAccount,
-    paperLedger,
-    paperLedgerHistory: paperPositionLedger.records,
-    performanceSourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+    performanceReport,
     equity: paperAccount.accountHealthy ? paperAccount.account.equity : null,
     buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
     role: 'customer',
@@ -4378,13 +4398,12 @@ app.get('/customer/scanner/under-five/:symbol', requireCustomerSession, async (r
 app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res) => {
   try {
     const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
-    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
     const ownedMonitorSourceMod = await import('./scanner/customer_owned_position_monitor_source.mjs');
     const source = await getUnderFiveSharedSource();
-    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
-    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const now = new Date();
+    const brokerEvidence = req.customerBrokerPerformanceEvidence ?? await fetchCustomerBrokerPerformanceEvidence({ fetchedPaperAccount: req.customerPaperAccountFetch, now });
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(brokerEvidence.fetchedPaperAccount);
     const ownedMarketSourceMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const ownedMonitorSource = await ownedMonitorSourceMod.fetchCustomerOwnedPositionMonitorSource({
       paperAccount,
@@ -4393,8 +4412,12 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
         env: process.env,
       }),
     });
-    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-    const paperLedger = paperPositionLedger.latestRecord ?? {};
+    const performanceReport = (await buildCustomerBrokerPerformanceReport({
+      evidence: brokerEvidence,
+      paperAccount,
+      period: req.query.period,
+      now,
+    })).performanceReport;
     const resultFilters = getCustomerZeroResultFilters(req.customerAccount?.id).filters;
     const requestedMaxPrice = Number(req.query.maxPrice);
     const maxPrice = [5, 10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 5;
@@ -4403,10 +4426,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       resultFilters,
       paperAccount,
       ownedPositionCandidates: ownedMonitorSource.candidates,
-      paperLedger,
-      paperLedgerHistory: paperPositionLedger.records,
-      performancePeriod: req.query.period,
-      performanceSourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+      performanceReport,
       equity: paperAccount.accountHealthy ? paperAccount.account.equity : null,
       buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
       role: 'customer',
@@ -4416,7 +4436,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       title: `$0–$${maxPrice.toLocaleString('en-US')} Scanner`,
       maxPrice,
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
-      now: new Date(),
+      now,
     });
     res.set('Cache-Control', 'no-store');
     res.type('html').send(viewMod.renderCustomerUnderFiveDashboardHtml(dashboard, req.customerAccount));
@@ -4429,26 +4449,16 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
 
 async function renderCustomerZeroPortfolioHub(req, res) {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
-  const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
-  const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
   const portfolioMod = await import('./scanner/customer_zero_portfolio_summary.mjs');
-  const performanceMod = await import('./scanner/customer_zero_performance_report.mjs');
-  const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
-
-  const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
-  const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
-  const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-  const paperLedger = paperPositionLedger.latestRecord ?? {};
-  const portfolioSummary = portfolioMod.buildCustomerZeroPortfolioSummary({ paperAccount });
-  const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
+  const now = new Date();
+  const brokerPerformance = await buildCustomerBrokerPerformanceReport({
     period: req.query.period ?? 'lifetime',
     defaultPeriod: 'lifetime',
-    sourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
-    paperAccount,
-    paperLedger,
-    paperLedgerHistory: paperPositionLedger.records,
-    now: new Date(),
+    now,
   });
+  const paperAccount = brokerPerformance.paperAccount;
+  const portfolioSummary = portfolioMod.buildCustomerZeroPortfolioSummary({ paperAccount });
+  const performanceReport = brokerPerformance.performanceReport;
   const hub = mod.buildCustomerScannerHub({
     tenant: 'customer-zero',
     portfolioSummary,
@@ -4493,13 +4503,12 @@ app.get('/customer-zero/under-five-scanner/:symbol', async (req, res) => {
 app.get('/customer-zero/under-five-scanner', async (req, res) => {
   try {
     const viewMod = await import('./scanner/customer_under_five_dashboard.mjs');
-    const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
     const ownedMonitorSourceMod = await import('./scanner/customer_owned_position_monitor_source.mjs');
     const source = await getUnderFiveSharedSource();
-    const fetchedPaperAccount = await accountData.fetchAlpacaPaperAccountReadonly();
-    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
+    const now = new Date();
+    const brokerEvidence = await fetchCustomerBrokerPerformanceEvidence({ now });
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(brokerEvidence.fetchedPaperAccount);
     const ownedMarketSourceMod = await import('./scanner/alpaca_under_five_universe_readonly.mjs');
     const ownedMonitorSource = await ownedMonitorSourceMod.fetchCustomerOwnedPositionMonitorSource({
       paperAccount,
@@ -4508,18 +4517,19 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
         env: process.env,
       }),
     });
-    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-    const paperLedger = paperPositionLedger.latestRecord ?? {};
+    const performanceReport = (await buildCustomerBrokerPerformanceReport({
+      evidence: brokerEvidence,
+      paperAccount,
+      period: req.query.period,
+      now,
+    })).performanceReport;
     const requestedMaxPrice = Number(req.query.maxPrice);
     const maxPrice = [5, 10, 50, 100, 1000].includes(requestedMaxPrice) ? requestedMaxPrice : 5;
     const dashboard = viewMod.buildCustomerZeroUnderFiveDashboard(source, {
       route: '/customer-zero/under-five-scanner',
       paperAccount,
       ownedPositionCandidates: ownedMonitorSource.candidates,
-      paperLedger,
-      paperLedgerHistory: paperPositionLedger.records,
-      performancePeriod: req.query.period,
-      performanceSourceTs: paperLedger.lastUpdatedAt ?? paperLedger.createdAt ?? null,
+      performanceReport,
       equity: paperAccount.accountHealthy ? paperAccount.account.equity : null,
       buyingPower: paperAccount.accountHealthy ? paperAccount.account.buyingPower : null,
       role: 'customer',
@@ -4528,7 +4538,7 @@ app.get('/customer-zero/under-five-scanner', async (req, res) => {
       title: `$0–$${maxPrice.toLocaleString('en-US')} Scanner`,
       maxPrice,
       refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
-      now: new Date(),
+      now,
     });
     res.set('Cache-Control', 'no-store');
     res.type('html').send(viewMod.renderCustomerZeroUnderFiveDashboardHtml(dashboard));

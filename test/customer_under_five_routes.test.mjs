@@ -316,7 +316,7 @@ test("customer scanner routes fetch and bridge paper account read-only", () => {
     const end = server.indexOf("\\napp.get(", start + 1);
     const block = server.slice(start, end === -1 ? server.length : end);
     assert.match(block, /fetchAlpacaPaperAccountReadonly\(\)/);
-    assert.match(block, /buildCustomerZeroPaperAccountBridge\(fetchedPaperAccount\)/);
+    assert.match(block, /buildCustomerZeroPaperAccountBridge\(brokerEvidence\.fetchedPaperAccount\)/);
     assert.match(block, /buyingPower: paperAccount\.accountHealthy \? paperAccount\.account\.buyingPower : null/);
     assert.match(block, /paperAccount,/);
   }
@@ -420,9 +420,8 @@ test("customer under-five scanner omits earnings after move to customer main pag
 });
 
 
-test("customer scanner routes load read-only paper ledger performance source", () => {
+test("customer scanner routes use broker-confirmed PAPER performance without legacy snapshot fallback", () => {
   const server = fs.readFileSync("src/server.js", "utf8");
-
   for (const route of [
     "app.get('/customer/scanner/under-five', requireCustomerSession",
     "app.get('/customer-zero/under-five-scanner'",
@@ -431,13 +430,11 @@ test("customer scanner routes load read-only paper ledger performance source", (
     assert.notEqual(start, -1, route);
     const end = server.indexOf("\napp.get(", start + 1);
     const block = server.slice(start, end === -1 ? server.length : end);
-    assert.match(block, /paper_trade_position_state_store\.mjs/);
-    assert.match(block, /readPaperTradePositionStateStoreDashboard\(\)/);
-    assert.match(block, /const paperLedger = paperPositionLedger\.latestRecord \?\? \{\}/);
-    assert.match(block, /paperLedger,/);
-    assert.match(block, /paperLedgerHistory: paperPositionLedger\.records/);
-    assert.match(block, /performancePeriod: req\.query\.period/);
-    assert.match(block, /performanceSourceTs: paperLedger\.lastUpdatedAt \?\? paperLedger\.createdAt \?\? null/);
+    assert.doesNotMatch(block, /paper_trade_position_state_store\.mjs/);
+    assert.doesNotMatch(block, /readPaperTradePositionStateStoreDashboard\(\)/);
+    assert.doesNotMatch(block, /paperLedgerHistory/);
+    assert.match(block, /performanceReport/);
+    assert.match(block, /buildCustomerBrokerPerformanceReport/);
   }
 });
 

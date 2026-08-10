@@ -83,6 +83,6 @@ test("customer reports broker-backed route does not read legacy paper position s
   assert.doesNotMatch(block, /paper_trade_position_state_store\.mjs/);
   assert.doesNotMatch(block, /readPaperTradePositionStateStoreDashboard/);
   assert.doesNotMatch(block, /paperLedgerHistory/);
-  assert.match(block, /fillLedgerHistorySource: 'alpaca_paper_order_history'/);
-  assert.match(block, /fetchAlpacaPaperHistoricalOrdersReadonly/);
+  assert.match(block, /fillLedgerHistorySource: brokerEvidence\.fillLedgerHistorySource/);
+  assert.match(block, /customerBrokerPerformanceEvidence|fetchCustomerBrokerPerformanceEvidence/);
 });

@@ -10,8 +10,10 @@ test("customer-session middleware builds and injects lifetime earnings into auth
   assert.ok(start >= 0 && end > start);
   const block = server.slice(start, end);
   assert.match(block, /period: 'lifetime'/);
-  assert.match(block, /readPaperTradePositionStateStoreDashboard/);
-  assert.match(block, /buildCustomerZeroPerformanceReport/);
+  assert.doesNotMatch(block, /readPaperTradePositionStateStoreDashboard/);
+  assert.match(block, /buildCustomerBrokerPerformanceReport/);
+  assert.match(block, /customerBrokerPerformanceEvidence/);
+  assert.match(block, /buildCustomerBrokerPerformanceReport/);
   assert.match(block, /injectCustomerLifetimeEarningsBanner/);
   assert.match(block, /renderCustomerLifetimeEarningsBanner\(null/);
   assert.match(block, /marketClockResult\?\.marketClock/);

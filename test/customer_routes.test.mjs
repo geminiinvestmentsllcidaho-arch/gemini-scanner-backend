@@ -16,7 +16,7 @@ test("customer main route defaults earnings period to lifetime", () => {
   const routeStart = source.indexOf("app.get('/customer', requireCustomerSession");
   const routeEnd = source.indexOf("app.get('/customer/scanner'", routeStart);
   const route = source.slice(routeStart, routeEnd);
-  assert.match(route, /period: req\.query\.period \?\? "lifetime"/);
+  assert.match(route, /period: req\.query\.period \?\? [\'"]lifetime[\'"]/);
 });
 
 test("customer routes render the shared customer interface without admin middleware", () => {
