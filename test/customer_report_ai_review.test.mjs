@@ -122,7 +122,29 @@ test("broker-backed AI semantics do not describe excluded snapshot evidence as a
     },
   });
   assert.match(input.dataSemantics.activity, /excluded from broker-backed reports/);
+  assert.match(input.dataSemantics.totalTrades, /broker-confirmed Alpaca PAPER filled-order history/);
+  assert.match(input.dataSemantics.historicalSimulatedOpenPositions, /broker-confirmed Alpaca PAPER filled-order history/);
+  assert.doesNotMatch(input.dataSemantics.historicalSimulatedOpenPositions, /local simulated fill ledger/);
   assert.match(input.dataSemantics.tradesWithRealizedPnl, /broker-confirmed completed Alpaca PAPER round trips/);
   assert.match(input.dataSemantics.completedRoundTrips, /broker-confirmed Alpaca PAPER filled-order history/);
   assert.match(input.dataSemantics.equityCurve, /Historical equity points are unavailable/);
+});
+test("broker-backed low-win-rate proposal uses broker-confirmed lifecycle wording", () => {
+  const review = buildDeterministicLogicProposals({
+    freshnessSource: "alpaca_paper_readonly_observation",
+    stale: false,
+    performance: {},
+    trades: {
+      lifecycleSourceAvailable: true,
+      totalTrades: 5,
+      winRatePct: 20,
+      averageGain: 1,
+      averageLoss: -1,
+    },
+    scanner: {},
+  });
+  const proposal = review.proposals.find((item) => item.id === "raise_entry_quality_review");
+  assert.ok(proposal);
+  assert.match(proposal.observation, /broker-confirmed Alpaca PAPER completed round trips/);
+  assert.doesNotMatch(proposal.observation, /completed fill-ledger round trips/);
 });

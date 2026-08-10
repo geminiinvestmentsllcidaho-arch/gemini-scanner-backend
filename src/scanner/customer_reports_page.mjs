@@ -466,7 +466,9 @@ ${calibrationHistoryRows.length
       : "<p>No current paper positions are reported right now.</p>"}
   </article>
   ${historicalSimulatedOpenPositions.length
-    ? `<article class="ai-consumer-card"><h3>Historical simulation data</h3><p>${esc(number(historicalSimulatedOpenPositions.length, locale))} historical simulated position${historicalSimulatedOpenPositions.length === 1 ? "" : "s"} ${historicalSimulatedOpenPositions.length === 1 ? "is" : "are"} stored for testing and audit history. ${historicalSimulatedOpenPositions.length === 1 ? "It is" : "They are"} not part of your current Alpaca paper holdings.</p></article>`
+    ? brokerBackedPerformance
+      ? `<article class="ai-consumer-card"><h3>Historical order-lifecycle positions</h3><p>${esc(number(historicalSimulatedOpenPositions.length, locale))} open position${historicalSimulatedOpenPositions.length === 1 ? "" : "s"} ${historicalSimulatedOpenPositions.length === 1 ? "is" : "are"} reconstructed from broker-confirmed Alpaca PAPER filled-order history. ${historicalSimulatedOpenPositions.length === 1 ? "It is" : "They are"} historical order evidence, not your current Alpaca paper holdings.</p></article>`
+      : `<article class="ai-consumer-card"><h3>Historical simulation data</h3><p>${esc(number(historicalSimulatedOpenPositions.length, locale))} historical simulated position${historicalSimulatedOpenPositions.length === 1 ? "" : "s"} ${historicalSimulatedOpenPositions.length === 1 ? "is" : "are"} stored for testing and audit history. ${historicalSimulatedOpenPositions.length === 1 ? "It is" : "They are"} not part of your current Alpaca paper holdings.</p></article>`
     : ""}
 </div>
 ${realtimeAiText

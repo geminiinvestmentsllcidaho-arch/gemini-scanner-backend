@@ -480,3 +480,20 @@ test("warns when broker history reaches the fetch limit", () => {
   assert.match(html, /Broker order history reached the 500-order fetch limit/)
   assert.match(html, /Older paper orders may not be included/)
 })
+test("broker-backed open lifecycle positions are not labeled historical simulation data", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    report: {
+      period: "lifetime",
+      freshnessSource: "alpaca_paper_readonly_observation",
+      performance: {},
+      currentBrokerPositions: [],
+      historicalSimulatedOpenPositions: [{ symbol: "SOFI", qty: 2, averageEntryPrice: 10.1 }],
+      trades: { lifecycleSourceAvailable: true, totalTrades: 0 },
+      scanner: {},
+      activity: [],
+    },
+  }));
+  assert.match(html, /Historical order-lifecycle positions/);
+  assert.match(html, /broker-confirmed Alpaca PAPER filled-order history/);
+  assert.doesNotMatch(html, /Historical simulation data/);
+});

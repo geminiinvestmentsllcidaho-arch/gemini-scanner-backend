@@ -156,12 +156,16 @@ export function buildCustomerReportAiReviewInput(report = {}) {
       activity: report?.freshnessSource === "alpaca_paper_readonly_observation"
         ? "Legacy local paper position-snapshot activity is excluded from broker-backed reports."
         : "Historical local paper position-snapshot activity. These rows are not current broker holdings and may be stale or diverge from the connected Alpaca paper account.",
-      historicalSimulatedOpenPositions: "Positions reconstructed only from the local simulated fill ledger. They are historical/simulated evidence and must never be described as current Alpaca holdings.",
+      historicalSimulatedOpenPositions: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? "Open long positions reconstructed from broker-confirmed Alpaca PAPER filled-order history. They are historical order-lifecycle evidence and must never be described as current Alpaca holdings."
+        : "Positions reconstructed only from the local simulated fill ledger. They are historical/simulated evidence and must never be described as current Alpaca holdings.",
       lastFillPrice: "Execution price of the latest recorded fill; it is not a current market quote.",
       unrealizedPl: "Current paper-account mark-to-market P/L; it may differ from lastFillPrice without inconsistency.",
-      totalTrades: report?.trades?.lifecycleSourceAvailable === true
-        ? "Count of completed long round trips reconstructed deterministically from the local simulated fill ledger and attributed by close timestamp."
-        : "Legacy alias for tradesWithRealizedPnl. Compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period; not fills, closed positions, or completed round trips.",
+      totalTrades: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? "Count of completed long round trips reconstructed deterministically from broker-confirmed Alpaca PAPER filled-order history and attributed by close timestamp."
+        : report?.trades?.lifecycleSourceAvailable === true
+          ? "Count of completed long round trips reconstructed deterministically from the local simulated fill ledger and attributed by close timestamp."
+          : "Legacy alias for tradesWithRealizedPnl. Compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period; not fills, closed positions, or completed round trips.",
       tradesWithRealizedPnl: report?.freshnessSource === "alpaca_paper_readonly_observation"
         ? "Count of broker-confirmed completed Alpaca PAPER round trips with non-zero realized P/L during the report period."
         : "Snapshot-derived compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period.",
@@ -222,9 +226,11 @@ export function buildDeterministicLogicProposals(report = {}) {
       id: "raise_entry_quality_review",
       category: "entry_logic",
       severity: "high",
-      observation: t.lifecycleSourceAvailable
-        ? `Win rate is ${t.winRatePct}% across ${t.totalTrades} completed fill-ledger round trips.`
-        : `Win rate is ${t.winRatePct}% across ${t.totalTrades} symbols with non-zero realized P/L changes.`,
+      observation: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? `Win rate is ${t.winRatePct}% across ${t.totalTrades} broker-confirmed Alpaca PAPER completed round trips.`
+        : t.lifecycleSourceAvailable
+          ? `Win rate is ${t.winRatePct}% across ${t.totalTrades} completed fill-ledger round trips.`
+          : `Win rate is ${t.winRatePct}% across ${t.totalTrades} symbols with non-zero realized P/L changes.`,
       proposal: "Backtest a higher minimum composite confidence and quality threshold using historical paper results.",
       suggestedPatch: null,
     });
