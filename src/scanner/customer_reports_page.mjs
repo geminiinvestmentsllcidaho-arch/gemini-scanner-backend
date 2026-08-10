@@ -132,7 +132,10 @@ export function renderCustomerReportsPageHtml(page = {}) {
         .filter(Boolean)
         .map((line) => line
           .replaceAll("currentBrokerPositions", "current broker positions")
-          .replaceAll("historicalSimulatedOpenPositions", "historical simulated positions")
+          .replaceAll(
+            "historicalSimulatedOpenPositions",
+            brokerBackedPerformance ? "historical order-lifecycle positions" : "historical simulated positions",
+          )
           .replaceAll("averagePotentialScore", "average potential score")
           .replaceAll("possibleReplayCount", "possible replay count")
           .replaceAll("sourceIntentReplayAudit", "source intent replay audit"))
@@ -319,7 +322,7 @@ ${metric(brokerBackedPerformance ? "Completed-trade entry capital" : "Capital us
 
 <section class="card panel" id="current-broker-holdings">
 <h2>Current broker holdings</h2>
-<p class="muted">Current positions fetched read-only from the connected Alpaca paper account. Historical simulated-ledger activity is shown separately below.</p>
+<p class="muted">Current positions fetched read-only from the connected Alpaca paper account. ${brokerBackedPerformance ? "Historical broker order-lifecycle evidence is shown separately below." : "Historical simulated-ledger activity is shown separately below."}</p>
 <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Qty</th><th>Side</th><th>Avg entry</th><th>Current price</th><th>Market value</th><th>Unrealized P/L</th></tr></thead><tbody>${currentBrokerPositionRows}</tbody></table></div>
 </section>
 

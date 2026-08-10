@@ -110,7 +110,7 @@ export async function requestCustomerReportRealtimeAiReview({
           "Return concise observations and testing proposals only.",
           "Honor input.dataSemantics exactly and distinguish verified evidence from hypotheses.",
           "Treat input.currentBrokerPositions as the only current Alpaca paper-account holdings.",
-          "Never describe input.activity or input.trades.historicalSimulatedOpenPositions as current Alpaca holdings; they are historical local simulated-ledger evidence and may diverge from the broker.",
+          "Never describe input.activity or input.trades.historicalSimulatedOpenPositions as current Alpaca holdings. Honor input.dataSemantics for their source: broker-backed historicalSimulatedOpenPositions are broker-confirmed Alpaca PAPER order-lifecycle evidence, while legacy/non-broker values are historical local simulated-ledger evidence.",
           "If currentBrokerPositions conflicts with historical local evidence, state the divergence and prefer currentBrokerPositions for current-holdings claims.",
           "Treat null or unavailable values as missing data, never as zero.",
           "Use input.calibrationContext only as bounded historical evidence; stale or mixed-source groups must be described as provisional.",

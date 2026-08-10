@@ -135,3 +135,20 @@ test("supports a bounded per-request timeout override", async () => {
   assert.equal(capturedSignal.aborted, true);
   assert.equal(result.status, "timeout");
 });
+
+
+test("realtime AI instructions distinguish broker-backed order lifecycle from legacy simulated evidence", async () => {
+  let request;
+  const result = await requestCustomerReportRealtimeAiReview({
+    input: { dataSemantics: {}, trades: { historicalSimulatedOpenPositions: [] } },
+    env: { OPENAI_API_KEY: "test-key", GS_REALTIME_AI_ENABLED: "true" },
+    fetchImpl: async (_url, options) => {
+      request = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ output_text: "Review complete." }) };
+    },
+  });
+  assert.equal(result.status, "completed_readonly");
+  assert.match(request.instructions, /broker-backed historicalSimulatedOpenPositions are broker-confirmed Alpaca PAPER order-lifecycle evidence/);
+  assert.match(request.instructions, /legacy\/non-broker values are historical local simulated-ledger evidence/);
+  assert.doesNotMatch(request.instructions, /they are historical local simulated-ledger evidence and may diverge from the broker/);
+});

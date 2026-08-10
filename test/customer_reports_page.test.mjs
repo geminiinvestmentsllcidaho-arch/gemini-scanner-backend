@@ -480,6 +480,51 @@ test("warns when broker history reaches the fetch limit", () => {
   assert.match(html, /Broker order history reached the 500-order fetch limit/)
   assert.match(html, /Older paper orders may not be included/)
 })
+
+test("broker-backed current holdings copy and AI-note field normalization use order-lifecycle wording", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    report: {
+      period: "lifetime",
+      freshnessSource: "alpaca_paper_readonly_observation",
+      performance: {},
+      currentBrokerPositions: [],
+      trades: {},
+      scanner: {},
+      activity: [],
+      realtimeAiReview: {
+        status: "completed_readonly",
+        reviewText: "historicalSimulatedOpenPositions remain historical evidence.",
+        requiresBacktest: false,
+      },
+    },
+  }));
+  assert.match(html, /Historical broker order-lifecycle evidence is shown separately below/);
+  assert.match(html, /Historical order-lifecycle positions remain historical evidence/);
+  assert.doesNotMatch(html, /Historical simulated-ledger activity is shown separately below/);
+  assert.doesNotMatch(html, /Historical simulated positions remain historical evidence/);
+});
+
+test("legacy current holdings copy and AI-note field normalization preserve simulated wording", () => {
+  const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
+    report: {
+      period: "lifetime",
+      freshnessSource: "paper_position_snapshot",
+      performance: {},
+      currentBrokerPositions: [],
+      trades: {},
+      scanner: {},
+      activity: [],
+      realtimeAiReview: {
+        status: "completed_readonly",
+        reviewText: "historicalSimulatedOpenPositions remain historical evidence.",
+        requiresBacktest: false,
+      },
+    },
+  }));
+  assert.match(html, /Historical simulated-ledger activity is shown separately below/);
+  assert.match(html, /Historical simulated positions remain historical evidence/);
+});
+
 test("broker-backed open lifecycle positions are not labeled historical simulation data", () => {
   const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
     report: {
