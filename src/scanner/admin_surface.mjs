@@ -34,11 +34,9 @@ export function buildAdminSurface(options = {}) {
     subtitle: "Protected operations, diagnostics, security, and customer management.",
     navigation: Object.freeze([
       Object.freeze({ label: "Overview", href: "/admin" }),
-      Object.freeze({ label: "Scanners", href: "/admin/scanners" }),
-      Object.freeze({ label: "Shared Cache", href: "/admin/shared-cache" }),
       Object.freeze({ label: "System Health", href: "/admin/system-health" }),
+      Object.freeze({ label: "Trading Engine", href: "/admin/trading-engine" }),
       Object.freeze({ label: "Security", href: "/admin/security" }),
-      Object.freeze({ label: "Customers", href: "/admin/customers" }),
     ]),
     readOnly: true,
     decisionAssistOnly: true,
@@ -52,7 +50,7 @@ export function buildAdminSurface(options = {}) {
 
 export function renderAdminSurfaceHtml(surface = buildAdminSurface()) {
   const nav = surface.navigation
-    .map((item) => `<a href="${esc(item.href)}">${esc(item.label)}</a>`)
+    .map((item) => `<a class="admin-action" href="${esc(item.href)}">${esc(item.label)}</a>`)
     .join("");
 
   return `<!doctype html>
@@ -88,6 +86,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 14px rgba(57,255,20,.55)}
 button{background:#000;color:#00ffff;border:1px solid #00ffff;cursor:pointer} button:hover,button:focus-visible{background:#00ffff;color:#000;outline:none;box-shadow:0 0 16px rgba(0,255,255,.65)}
 hr{border:0;border-top:1px solid #39ff14}
 .status,.badge,.pill{background:#000!important;color:#39ff14!important;border:1px solid #39ff14!important}
+.admin-action{display:inline-block;background:#00ffff;color:#000;border:1px solid #00ffff;border-radius:10px;padding:10px 14px;font-weight:800;text-decoration:none;line-height:1.2;cursor:pointer}.admin-action:hover,.admin-action:focus-visible{background:#b6ffff;outline:2px solid #00ffff;outline-offset:2px}
 </style>
 </head>
 <body>
@@ -99,14 +98,14 @@ hr{border:0;border-top:1px solid #39ff14}
 <p>${esc(surface.subtitle)}</p>
 </section>
 <section class="ops-group"><h2>System &amp; Infrastructure Health</h2><div class="grid">
-<div class="card"><h3>Server Status Panel</h3><p>CPU usage, memory, disk space, and network traffic.</p><p><strong>Memory:</strong> ${esc(surface.systemHealth?.host?.memoryPct ?? "Unavailable")}% · <strong>Disk:</strong> ${esc(surface.systemHealth?.host?.diskPct ?? "Unavailable")}% · <strong>Load/CPU:</strong> ${esc(surface.systemHealth?.host?.load ?? "Unavailable")}</p><a href="/admin/system-health">Open system health</a></div>
+<div class="card"><h3>Server Status Panel</h3><p>CPU usage, memory, disk space, and network traffic.</p><p><strong>Memory:</strong> ${esc(surface.systemHealth?.host?.memoryPct ?? "Unavailable")}% · <strong>Disk:</strong> ${esc(surface.systemHealth?.host?.diskPct ?? "Unavailable")}% · <strong>Load/CPU:</strong> ${esc(surface.systemHealth?.host?.load ?? "Unavailable")}</p><a class="admin-action" href="/admin/system-health">Open system health</a></div>
 <div class="card"><h3>Uptime &amp; Latency Monitor</h3><p>Server uptime and local API response times.</p><p><strong>/health:</strong> ${esc(surface.systemHealth?.latency?.health?.ms ?? "Unavailable")} ms · <strong>/readiness:</strong> ${esc(surface.systemHealth?.latency?.readiness?.ms ?? "Unavailable")} ms</p></div>
-<div class="card"><h3>Error Log Stream</h3><p>Recent server errors and watchdog incidents.</p><p><strong>Recent errors:</strong> ${esc(surface.systemHealth?.errors?.length ?? "Unavailable")} · <strong>Infrastructure:</strong> ${esc(surface.systemHealth?.infra ?? "Unavailable")} · <strong>Ops AI:</strong> ${esc(surface.systemHealth?.ops ?? "Unavailable")}</p><a href="/admin/system-health">Open error stream</a></div>
+<div class="card"><h3>Error Log Stream</h3><p>Recent server errors and watchdog incidents.</p><p><strong>Recent errors:</strong> ${esc(surface.systemHealth?.errors?.length ?? "Unavailable")} · <strong>Infrastructure:</strong> ${esc(surface.systemHealth?.infra ?? "Unavailable")} · <strong>Ops AI:</strong> ${esc(surface.systemHealth?.ops ?? "Unavailable")}</p><a class="admin-action" href="/admin/system-health">Open error stream</a></div>
 </div></section>
 <section class="ops-group"><h2>Trading Engine &amp; Execution</h2><div class="grid">
-<div class="card"><h3>Active Orders &amp; Queue</h3><p>Stored PAPER order evidence; not a live broker queue.</p><p><strong>Stored active:</strong> ${esc(surface.tradingEngine?.orderEvidence?.activeStoredCount ?? "Unavailable")} · <strong>Latest:</strong> ${esc(surface.tradingEngine?.orderEvidence?.latestStatus ?? "Unavailable")} · <strong>Symbol:</strong> ${esc(surface.tradingEngine?.orderEvidence?.order?.symbol ?? "Unavailable")}</p><a href="/admin/trading-engine">Open trading engine</a></div>
-<div class="card"><h3>Brokerage API Status</h3><p>Local configuration and stored broker-read evidence only.</p><p><strong>Read access:</strong> ${surface.tradingEngine?.brokerage?.alpacaReadAccessEnabled ? "ON" : "OFF"} · <strong>Last stored HTTP:</strong> ${esc(surface.tradingEngine?.brokerage?.lastStoredResponseStatus ?? "Unavailable")}</p><a href="/admin/trading-engine">Open brokerage status</a></div>
-<div class="card"><h3>Execution Latency Panel</h3><p>Stored order timestamps only.</p><p><strong>Submit → fill:</strong> ${esc(surface.tradingEngine?.execution?.submitToFillMs ?? "Unavailable")} ms · <strong>Signal → submit:</strong> Not yet instrumented</p><a href="/admin/trading-engine">Open latency detail</a></div>
+<div class="card"><h3>Active Orders &amp; Queue</h3><p>Stored PAPER order evidence; not a live broker queue.</p><p><strong>Stored active:</strong> ${esc(surface.tradingEngine?.orderEvidence?.activeStoredCount ?? "Unavailable")} · <strong>Latest:</strong> ${esc(surface.tradingEngine?.orderEvidence?.latestStatus ?? "Unavailable")} · <strong>Symbol:</strong> ${esc(surface.tradingEngine?.orderEvidence?.order?.symbol ?? "Unavailable")}</p><a class="admin-action" href="/admin/trading-engine">Open trading engine</a></div>
+<div class="card"><h3>Brokerage API Status</h3><p>Local configuration and stored broker-read evidence only.</p><p><strong>Read access:</strong> ${surface.tradingEngine?.brokerage?.alpacaReadAccessEnabled ? "ON" : "OFF"} · <strong>Last stored HTTP:</strong> ${esc(surface.tradingEngine?.brokerage?.lastStoredResponseStatus ?? "Unavailable")}</p><a class="admin-action" href="/admin/trading-engine">Open brokerage status</a></div>
+<div class="card"><h3>Execution Latency Panel</h3><p>Stored order timestamps only.</p><p><strong>Submit → fill:</strong> ${esc(surface.tradingEngine?.execution?.submitToFillMs ?? "Unavailable")} ms · <strong>Signal → submit:</strong> Not yet instrumented</p><a class="admin-action" href="/admin/trading-engine">Open latency detail</a></div>
 </div></section>
 <section class="ops-group"><h2>Financial &amp; Risk Management</h2><div class="grid">
 <div class="card"><h3>Portfolio &amp; Liquidity Dashboard</h3><p>Cash, buying power, equity, open positions, market value, and margin usage.</p><p><strong>Status:</strong> Read-only PAPER account evidence only.</p></div>
@@ -114,14 +113,14 @@ hr{border:0;border-top:1px solid #39ff14}
 <div class="card"><h3>P&amp;L Tracker</h3><p>Realized, unrealized, per-position, and platform-level PAPER P&amp;L.</p><p><strong>Status:</strong> Read-only stored/account evidence only.</p></div>
 </div></section>
 <section class="ops-group"><h2>Security &amp; User Activity</h2><div class="grid">
-<div class="card"><h3>Security &amp; Failed Logins</h3><p>Failed sign-ins, blocked attempts, suspicious activity, and security audit events.</p><p><strong>Status:</strong> Security audit wiring pending.</p><a href="/admin/security">Open security</a></div>
+<div class="card"><h3>Security &amp; Failed Logins</h3><p>Failed sign-ins, blocked attempts, suspicious activity, and security audit events.</p><p><strong>Status:</strong> Security audit wiring pending.</p><a class="admin-action" href="/admin/security">Open security</a></div>
 <div class="card"><h3>Active User Sessions</h3><p>Current and recent customer/admin sessions.</p><p><strong>Status:</strong> Exact concurrent-session counting not yet instrumented.</p></div>
 <div class="card"><h3>Database &amp; Queue Backups</h3><p>Backup, snapshot, audit-ledger, and transaction-log protection status.</p><p><strong>Status:</strong> Automatic backup scheduler verification pending.</p></div>
 </div></section>
 <section class="ops-group"><h2>Administration</h2><div class="grid">
-<div class="card"><h3>Scanners</h3><p>Scanner status and operational review.</p><a href="/admin/scanners">Open</a></div>
-<div class="card"><h3>Shared Cache</h3><p>Centralized under-$5 shared cache diagnostics.</p><a href="/admin/shared-cache">Open</a></div>
-<div class="card"><h3>Customers</h3><p>Customer and tenant administration shell.</p><a href="/admin/customers">Open</a></div>
+<div class="card"><h3>Scanners</h3><p>Scanner status and operational review.</p><p><strong>Status:</strong> Dedicated Admin scanner page not yet built.</p></div>
+<div class="card"><h3>Shared Cache</h3><p>Centralized under-$5 shared cache diagnostics.</p><p><strong>Status:</strong> Dedicated Admin shared-cache page not yet built.</p></div>
+<div class="card"><h3>Customers</h3><p>Customer and tenant administration shell.</p><p><strong>Status:</strong> Dedicated Admin customer page not yet built.</p></div>
 <div class="card"><h3>Alpaca account access</h3>
 <p>Status: <strong>${esc(surface.alpacaAccess?.enabled ? "ON" : "OFF")}</strong></p>
 <p>ON allows GeminiScanner to resolve encrypted Alpaca credentials for existing read-only account, positions, open-orders, market-clock, and scanner data reads. OFF denies that encrypted credential resolution path.</p>

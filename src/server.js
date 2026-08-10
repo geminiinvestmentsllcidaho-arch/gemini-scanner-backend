@@ -1873,6 +1873,7 @@ table { max-width: 100%; }
 .table-wrap, .table-scroll, .admin-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 @media (max-width: 900px) { main { width: 100%; padding-inline: 14px; } .card, .panel, section, article { width: 100%; max-width: 100%; } }
 @media (orientation: landscape) and (max-height: 700px) and (min-width: 600px) { main { width: 100%; padding-inline: 18px; } }
+.admin-action { display:inline-block; background:#00ffff; color:#000; border:1px solid #00ffff; border-radius:10px; padding:10px 14px; font-weight:800; text-decoration:none; }
 </style></head>
 <body>${renderBackgroundLogoLayer()}${renderGlobalHeader({ surface: 'admin', homeHref: '/admin', label: 'GeminiScanner Admin' })}
 <main><section class="card auth-card admin-security-card"><h1>Admin Security</h1>
@@ -1884,7 +1885,7 @@ table { max-width: 100%; }
 <label class="admin-security-toggle"><input type="checkbox" data-show-passwords> Show passwords</label>
 <button class="admin-security-submit" type="submit">Change admin password</button></form>
 <p class="sub">Changing the password signs out existing admin browser sessions.</p>
-<p><a href="/admin">Back to Admin Dashboard</a></p></section></main>
+<p><a class="admin-action" href="/admin">Back to Admin Dashboard</a></p></section></main>
 <script src="/assets/password-visibility.js" defer></script></body></html>`;
 }
 

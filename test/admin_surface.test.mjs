@@ -29,11 +29,9 @@ test("builds isolated read-only admin surface", () => {
     surface.navigation.map((item) => item.href),
     [
       "/admin",
-      "/admin/scanners",
-      "/admin/shared-cache",
       "/admin/system-health",
+      "/admin/trading-engine",
       "/admin/security",
-      "/admin/customers",
     ]
   );
 });
@@ -58,7 +56,6 @@ test("renders admin-only navigation without customer interface links", () => {
 
   assert.match(html, /data-role="admin"/);
   assert.match(html, /Protected admin operations/);
-  assert.match(html, /\/admin\/shared-cache/);
   assert.match(html, /Decision assist only/);
   assert.match(html, /Alpaca account access/);
   assert.match(html, /Status: <strong>ON<\/strong>/);
@@ -115,4 +112,14 @@ test("admin layout uses responsive full-width viewport rules for portrait and la
   assert.match(server, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*700px\)\s*and\s*\(min-width:\s*600px\)/);
   assert.match(server, /overflow-x:\s*hidden/);
   assert.match(server, /overflow-x:\s*auto/);
+});
+
+
+test("dead Admin destinations stay non-clickable and valid links render as cyan actions", () => {
+  const html = renderAdminSurfaceHtml(buildAdminSurface({}));
+  assert.doesNotMatch(html, /href="\/admin\/(?:scanners|shared-cache|customers)"/);
+  assert.match(html, /class="admin-action" href="\/admin\/system-health"/);
+  assert.match(html, /class="admin-action" href="\/admin\/trading-engine"/);
+  assert.match(html, /class="admin-action" href="\/admin\/security"/);
+  assert.match(html, /background:#00ffff|background:\s*#00ffff/);
 });
