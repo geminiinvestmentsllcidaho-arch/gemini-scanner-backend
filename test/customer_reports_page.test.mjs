@@ -231,6 +231,95 @@ test("renders current report performance field names", () => {
 });
 
 
+
+test("labels broker-backed selected-period and current account performance scopes explicitly", () => {
+  const page = buildCustomerReportsPage({
+    report: {
+      period: "daily",
+      range: { label: "Daily" },
+      stale: false,
+      status: "current_readonly",
+      freshnessSource: "alpaca_paper_readonly_observation",
+      performance: {
+        startingBalance: null,
+        endingBalance: 100050,
+        totalPl: 50,
+        realizedPl: 25,
+        unrealizedPl: 25,
+        totalReturnPct: null,
+        maxDrawdown: null,
+        totalCapitalUsed: 600,
+      },
+      trades: {},
+      scanner: {},
+      activity: [],
+      largestWinners: [],
+      largestLosers: [],
+      equityCurve: [],
+      aiReview: {},
+      readOnly: true,
+      paperOnly: true,
+      decisionAssistOnly: true,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false,
+    },
+    account: { displayPreferences: { locale: "en-US", timeZone: "America/Denver" } },
+  });
+  const html = renderCustomerReportsPageHtml(page);
+  assert.match(html, /Broker-backed realized P\/L follows the selected report period/);
+  assert.match(html, /Current account equity/);
+  assert.match(html, /Selected-period realized \+ current unrealized P\/L/);
+  assert.match(html, /Realized P\/L \(selected period\)/);
+  assert.match(html, /Current unrealized P\/L/);
+  assert.match(html, /Historical simulated capital used/);
+  assert.doesNotMatch(html, />Ending balance</);
+  assert.doesNotMatch(html, />Total P\/L</);
+});
+
+test("preserves legacy performance labels when broker-backed history is absent", () => {
+  const page = buildCustomerReportsPage({
+    report: {
+      period: "daily",
+      range: { label: "Daily" },
+      stale: false,
+      status: "current_readonly",
+      freshnessSource: "paper_position_snapshot",
+      performance: {
+        startingBalance: 1000,
+        endingBalance: 1010,
+        totalPl: 10,
+        realizedPl: 8,
+        unrealizedPl: 2,
+        totalReturnPct: 1,
+        maxDrawdown: 3,
+        totalCapitalUsed: 500,
+      },
+      trades: {},
+      scanner: {},
+      activity: [],
+      largestWinners: [],
+      largestLosers: [],
+      equityCurve: [],
+      aiReview: {},
+      readOnly: true,
+      paperOnly: true,
+      decisionAssistOnly: true,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false,
+    },
+    account: { displayPreferences: { locale: "en-US", timeZone: "America/Denver" } },
+  });
+  const html = renderCustomerReportsPageHtml(page);
+  assert.match(html, />Ending balance</);
+  assert.match(html, />Total P\/L</);
+  assert.match(html, />Realized P\/L</);
+  assert.match(html, />Unrealized P\/L</);
+  assert.match(html, />Capital used</);
+  assert.doesNotMatch(html, /Broker-backed realized P\/L follows the selected report period/);
+});
+
 test("renders historical decision-quality proposals and calibration review read only", () => {
   const html = renderCustomerReportsPageHtml(buildCustomerReportsPage({
     account: { displayPreferences: { locale: "en-US", timezone: "America/Denver" } },

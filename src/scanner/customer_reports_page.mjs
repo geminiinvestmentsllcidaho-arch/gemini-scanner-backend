@@ -153,6 +153,7 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
   const activePeriod = String(report.period || "lifetime");
+  const brokerBackedPerformance = report.freshnessSource === "alpaca_paper_readonly_observation";
   const periodLinks = PERIODS.map(([value, label]) =>
     `<a href="/customer/reports?period=${value}"${value === activePeriod ? ' aria-current="page" class="active"' : ""}>${label}</a>`
   ).join("");
@@ -300,15 +301,16 @@ ${renderCustomerPrimaryNavigation({ active: "reports" })}
 
 <section class="card panel" id="performance-summary">
 <h2>Performance summary</h2>
+${brokerBackedPerformance ? '<p class="muted">Broker-backed realized P/L follows the selected report period. Account equity and unrealized P/L are current Alpaca paper-account values, so the combined P/L is not a period return.</p>' : ""}
 <div class="grid">
 ${metric("Starting balance", money(performance.startingBalance ?? performance.startingEquity, locale))}
-${metric("Ending balance", money(performance.endingBalance ?? performance.endingEquity, locale))}
-${metric("Total P/L", money(performance.totalPl ?? performance.totalPnl, locale))}
-${metric("Realized P/L", money(performance.realizedPl ?? performance.realizedPnl, locale))}
-${metric("Unrealized P/L", money(performance.unrealizedPl ?? performance.unrealizedPnl, locale))}
+${metric(brokerBackedPerformance ? "Current account equity" : "Ending balance", money(performance.endingBalance ?? performance.endingEquity, locale))}
+${metric(brokerBackedPerformance ? "Selected-period realized + current unrealized P/L" : "Total P/L", money(performance.totalPl ?? performance.totalPnl, locale))}
+${metric(brokerBackedPerformance ? "Realized P/L (selected period)" : "Realized P/L", money(performance.realizedPl ?? performance.realizedPnl, locale))}
+${metric(brokerBackedPerformance ? "Current unrealized P/L" : "Unrealized P/L", money(performance.unrealizedPl ?? performance.unrealizedPnl, locale))}
 ${metric("Total return", number(performance.totalReturnPct, locale, "%"))}
 ${metric("Max drawdown", money(performance.maxDrawdown, locale))}
-${metric("Capital used", money(performance.totalCapitalUsed, locale))}
+${metric(brokerBackedPerformance ? "Historical simulated capital used" : "Capital used", money(performance.totalCapitalUsed, locale))}
 </div>
 </section>
 
