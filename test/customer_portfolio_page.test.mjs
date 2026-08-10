@@ -207,6 +207,8 @@ test("renders Lifetime Earnings at the top of the portfolio page", () => {
   assert.match(html, /\$12\.50/);
   assert.match(html, /Unrealized/);
   assert.match(html, /\$2\.50/);
+  assert.match(html, /broker-confirmed Alpaca PAPER filled-order history and current broker marks/);
+  assert.doesNotMatch(html, /GeminiScanner's recorded position ledger/);
   assert.ok(html.indexOf('data-lifetime-earnings') < html.indexOf('<h1>Portfolio<\/h1>'));
 });
 

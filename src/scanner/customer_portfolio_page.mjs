@@ -192,7 +192,7 @@ ${renderCustomerPrimaryNavigation({ active: "portfolio" })}
 <div><span>Combined</span><strong>${esc(money(lifetimePerformance?.totalPl, locale))}</strong></div>
 <div><span>Return</span><strong>${esc(amount(lifetimePerformance?.totalReturnPct, locale, "%"))}</strong></div>
 </div>
-<p class="lifetime-note">${lifetimePerformance ? "Read-only lifetime paper performance from GeminiScanner's recorded position ledger and current paper-account marks." : "Lifetime performance data is not available yet."}</p>
+<p class="lifetime-note">${lifetimePerformance ? "Read-only lifetime paper performance from broker-confirmed Alpaca PAPER filled-order history and current broker marks." : "Lifetime performance data is not available yet."}</p>
 </section>
 
 <section class="card panel">

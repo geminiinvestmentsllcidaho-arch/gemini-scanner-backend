@@ -99,6 +99,31 @@ test("customer main page renders read-only earnings and period links", () => {
   assert.doesNotMatch(html, /Place order|Buy now/);
 });
 
+test("customer main page renders unavailable broker net-after-costs without synthetic zero", () => {
+  const performanceReport = {
+    period: "lifetime",
+    tone: "positive",
+    realizedPl: 7.5,
+    unrealizedPl: 2.5,
+    totalPl: 10,
+    netAfterCosts: null,
+    winners: 1,
+    losers: 0,
+    winRatePct: 100,
+    sourceTs: "2026-08-09T22:00:00.000Z",
+    stale: false,
+  };
+  const hub = buildCustomerScannerHub({ performanceReport });
+  const html = renderCustomerScannerHubHtml(hub);
+
+  assert.match(html, /<span>LIFETIME EARNINGS<\/span><strong>\$10<\/strong>/);
+  assert.match(html, /Realized: \$7\.5/);
+  assert.match(html, /Unrealized: \$2\.5/);
+  assert.match(html, /Combined: \$10/);
+  assert.match(html, /Net after costs: Unavailable/);
+  assert.doesNotMatch(html, /Net after costs: \$0(?:\D|$)/);
+});
+
 test("renders customer scanner hub with shared global neon theme and fixed background logo", () => {
   const html = renderCustomerScannerHubHtml(
     buildCustomerScannerHub(),
