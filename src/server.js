@@ -1791,7 +1791,10 @@ app.get('/admin/login', (req, res) => {
   const session = verifyAdminSessionToken(adminCookieValue(req), { secret: sessionSecret });
   if (session.ok) return res.redirect(303, '/admin');
   res.set('Cache-Control', 'no-store');
-  return res.status(200).type('html').send(adminLoginHtml());
+  const message = String(req.query?.passwordChanged ?? '') === '1'
+    ? 'Admin password changed successfully. Sign in with your new password.'
+    : '';
+  return res.status(200).type('html').send(adminLoginHtml(message));
 });
 
 app.post('/admin/login', requireCustomerSameOrigin, (req, res) => {
@@ -1871,17 +1874,7 @@ function adminSecurityHtml(message = '', error = false) {
 <button class="admin-security-submit" type="submit">Change admin password</button></form>
 <p class="sub">Changing the password signs out existing admin browser sessions.</p>
 <p><a href="/admin">Back to Admin Dashboard</a></p></section></main>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const toggle = document.querySelector('[data-show-passwords]');
-  if (!toggle) return;
-  const fields = Array.from(document.querySelectorAll('input[name="currentPassword"], input[name="newPassword"], input[name="confirmPassword"]'));
-  toggle.addEventListener('change', () => {
-    const nextType = toggle.checked ? 'text' : 'password';
-    for (const field of fields) field.type = nextType;
-  });
-});
-</script></body></html>`;
+<script src="/assets/password-visibility.js" defer></script></body></html>`;
 }
 
 app.get('/admin/security', requireAdminAuthorization, (req, res) => {

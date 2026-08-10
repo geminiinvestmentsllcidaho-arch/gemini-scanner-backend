@@ -14,6 +14,11 @@ test("admin exposes authenticated self-service password change surface", () => {
   assert.match(server, /isStrongAdminPassword\(newPassword\)/);
   assert.match(server, /class=\"admin-security-form\"/);
   assert.match(server, /data-show-passwords/);
+  assert.match(server, /<script src="\/assets\/password-visibility\.js" defer><\/script>/);
+  const start = server.indexOf("function adminSecurityHtml");
+  const end = server.indexOf("app.get('/admin'", start);
+  const block = server.slice(start, end === -1 ? undefined : end);
+  assert.doesNotMatch(block, /<script>\s*document\.addEventListener/);
 });
 
 test("admin password change persists protected env and invalidates sessions", () => {
@@ -31,4 +36,11 @@ test("admin password change block adds no broker or execution action", () => {
   const end = server.indexOf("app.get('/admin'", start);
   const block = server.slice(start, end === -1 ? undefined : end);
   assert.doesNotMatch(block, /\/v2\/orders|submitPaperOrder|cancelOrder|replaceOrder|PAPER_AUTO_|brokerMutationAllowed\s*:\s*true/);
+});
+
+
+test("admin password change success redirect surfaces confirmation on admin login", () => {
+  assert.match(server, /req\.query\?\.passwordChanged/);
+  assert.match(server, /Admin password changed successfully\. Sign in with your new password\./);
+  assert.match(server, /res\.redirect\(303, '\/admin\/login\?passwordChanged=1'\)/);
 });
