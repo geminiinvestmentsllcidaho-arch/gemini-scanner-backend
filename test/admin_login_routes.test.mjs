@@ -11,14 +11,19 @@ test("public splash page exposes dedicated admin sign-in link", () => {
   assert.match(homepage, />Admin sign in<\/a>/);
 });
 
-test("admin browser login validates the protected operator token and creates isolated session cookie", () => {
+test("admin browser login validates the configured admin password and creates isolated session cookie", () => {
   assert.match(server, /app\.get\('\/admin\/login'/);
   assert.match(server, /app\.post\('\/admin\/login', requireCustomerSameOrigin/);
   assert.match(server, /import \{ createRequireAdminAuthorization, evaluateAdminAuthorization \} from '\.\/scanner\/admin_authorization\.mjs';/);
   assert.match(server, /import \{ createAdminLoginRateLimiter \} from '\.\/scanner\/admin_login_rate_limit\.mjs';/);
+  assert.match(server, /import \{ evaluateAdminPassword \} from '\.\/scanner\/admin_password_auth\.mjs';/);
   assert.match(server, /const adminLoginRateLimiter = createAdminLoginRateLimiter\(\);/);
   assert.doesNotMatch(server, /const adminLoginRateLimiter = createCustomerLoginRateLimiter\(\);/);
-  assert.match(server, /evaluateAdminAuthorization\(req\.body\?\.token\)/);
+  assert.match(server, /evaluateAdminPassword\(req\.body\?\.password\)/);
+  assert.match(server, /Admin password is incorrect\./);
+  assert.match(server, /Admin password login is not configured\./);
+  assert.doesNotMatch(server, /name="token" autocomplete="current-password" required/);
+  assert.match(server, /name="password" autocomplete="current-password" required/);
   assert.match(server, /createAdminSessionToken\(\{/);
   assert.match(server, /res\.cookie\(ADMIN_SESSION_COOKIE_NAME, token, buildAdminSessionCookieOptions\(\)\)/);
   assert.match(server, /app\.post\('\/admin\/logout', requireCustomerSameOrigin/);

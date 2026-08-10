@@ -56,6 +56,7 @@ import { validateCustomerSessionSecret } from './scanner/customer_session_secret
 import { buildCustomerSessionCookieOptions, buildCustomerSessionCookieClearOptions } from './scanner/customer_session_cookie.mjs';
 import { createCustomerLoginRateLimiter } from './scanner/customer_login_rate_limit.mjs';
 import { createAdminLoginRateLimiter } from './scanner/admin_login_rate_limit.mjs';
+import { evaluateAdminPassword } from './scanner/admin_password_auth.mjs';
 import { createCustomerSignupRateLimiter } from './scanner/customer_signup_rate_limit.mjs';
 import { createCustomerPasswordResetRateLimiter } from './scanner/customer_password_reset_rate_limit.mjs';
 import { createCustomerSensitiveSettingsRateLimiter } from './scanner/customer_sensitive_settings_rate_limit.mjs';
@@ -1755,11 +1756,11 @@ ${renderBackgroundLogoLayer()}
 ${renderGlobalHeader({ surface: 'public', homeHref: '/', label: 'GeminiScanner Admin' })}
 <main><section class="card auth-card">
 <h1>Admin sign in</h1>
-<p class="sub">Use the protected GeminiScanner operator access key. Admin sessions are isolated from customer accounts.</p>
+<p class="sub">Enter your GeminiScanner admin password. Admin sessions are isolated from customer accounts.</p>
 ${notice}
 <form method="post" action="/admin/login">
-<label>Admin access key
-<input type="password" name="token" autocomplete="current-password" required>
+<label>Admin password
+<input type="password" name="password" autocomplete="current-password" required>
 </label>
 <button type="submit">Sign in as admin</button>
 </form>
@@ -1799,9 +1800,12 @@ app.post('/admin/login', requireCustomerSameOrigin, (req, res) => {
     return res.status(429).type('html').send(adminLoginHtml('Too many admin sign-in attempts. Try again later.'));
   }
 
-  const decision = evaluateAdminAuthorization(req.body?.token);
+  const decision = evaluateAdminPassword(req.body?.password);
   if (!decision.allowed) {
-    return res.status(401).type('html').send(adminLoginHtml('Admin access key is incorrect.'));
+    const message = decision.reason === 'admin_password_disabled'
+      ? 'Admin password login is not configured.'
+      : 'Admin password is incorrect.';
+    return res.status(decision.reason === 'admin_password_disabled' ? 503 : 401).type('html').send(adminLoginHtml(message));
   }
 
   const sessionSecret = resolveOperatorDashboardToken();
