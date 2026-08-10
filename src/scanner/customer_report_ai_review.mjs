@@ -153,18 +153,26 @@ export function buildCustomerReportAiReviewInput(report = {}) {
     }),
     dataSemantics: Object.freeze({
       currentBrokerPositions: "Current holdings fetched read-only from the connected Alpaca paper account. This is the only report field that represents current broker positions.",
-      activity: "Historical local paper position-snapshot activity. These rows are not current broker holdings and may be stale or diverge from the connected Alpaca paper account.",
+      activity: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? "Legacy local paper position-snapshot activity is excluded from broker-backed reports."
+        : "Historical local paper position-snapshot activity. These rows are not current broker holdings and may be stale or diverge from the connected Alpaca paper account.",
       historicalSimulatedOpenPositions: "Positions reconstructed only from the local simulated fill ledger. They are historical/simulated evidence and must never be described as current Alpaca holdings.",
       lastFillPrice: "Execution price of the latest recorded fill; it is not a current market quote.",
       unrealizedPl: "Current paper-account mark-to-market P/L; it may differ from lastFillPrice without inconsistency.",
       totalTrades: report?.trades?.lifecycleSourceAvailable === true
         ? "Count of completed long round trips reconstructed deterministically from the local simulated fill ledger and attributed by close timestamp."
         : "Legacy alias for tradesWithRealizedPnl. Compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period; not fills, closed positions, or completed round trips.",
-      tradesWithRealizedPnl: "Snapshot-derived compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period.",
-      completedRoundTrips: "Long-only completed position lifecycles reconstructed from ordered local simulated fills. Open positions and partial exits are not counted as completed trades.",
+      tradesWithRealizedPnl: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? "Count of broker-confirmed completed Alpaca PAPER round trips with non-zero realized P/L during the report period."
+        : "Snapshot-derived compatibility count of symbol activity rows with a non-zero realized P/L delta during the report period.",
+      completedRoundTrips: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? "Long-only completed position lifecycles reconstructed from broker-confirmed Alpaca PAPER filled-order history. Open positions and partial exits are not counted as completed trades."
+        : "Long-only completed position lifecycles reconstructed from ordered local simulated fills. Open positions and partial exits are not counted as completed trades.",
       winRatePct: "Winning completed trades divided by winning plus losing completed trades. Break-even trades are reported separately and excluded from the denominator.",
       fillCount: "Cumulative recorded executions for the symbol, including partial fills.",
-      equityCurve: "Built only from ledger endingEquity values; null means unavailable and must never be interpreted as zero.",
+      equityCurve: report?.freshnessSource === "alpaca_paper_readonly_observation"
+        ? "Historical equity points are unavailable in broker-backed reports because order history does not establish an account equity curve."
+        : "Built only from ledger endingEquity values; null means unavailable and must never be interpreted as zero.",
       scannerEvents: "Scanner-event evidence is independent from fill-ledger evidence and may be absent for legacy or external fills.",
       staleEvidence: "Stale report evidence limits conclusions and must be described as provisional.",
     }),

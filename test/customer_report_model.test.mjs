@@ -424,6 +424,49 @@ test("broker-backed period performance does not fabricate starting balance retur
   assert.equal(report.performance.maxDrawdown, null);
 });
 
+test("broker-backed reports ignore legacy snapshot performance and activity evidence", () => {
+  const report = buildCustomerReportModel({
+    period: "daily",
+    now: new Date("2026-08-09T20:00:00Z"),
+    timeZone: "UTC",
+    paperAccount: {
+      account: { equity: 100050 },
+      summary: { totalUnrealizedPl: 25 },
+      positions: [],
+    },
+    paperLedgerHistory: [
+      {
+        createdAt: "2026-08-09T19:00:00Z",
+        endingEquity: 123456,
+        totalRealizedPnl: 9999,
+        totalCostBasis: 999999,
+        positions: [{ symbol: "LEGACY", qty: 1, costBasis: 999999, realizedPnl: 9999, fillCount: 99 }],
+      },
+    ],
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { fillId: "buy-win", createdAt: "2026-08-09T14:00:00Z", symbol: "AAA", side: "buy", qty: 2, fillPrice: 100 },
+      { fillId: "sell-win", createdAt: "2026-08-09T15:00:00Z", symbol: "AAA", side: "sell", qty: 2, fillPrice: 110 },
+      { fillId: "buy-loss", createdAt: "2026-08-09T16:00:00Z", symbol: "BBB", side: "buy", qty: 1, fillPrice: 50 },
+      { fillId: "sell-loss", createdAt: "2026-08-09T17:00:00Z", symbol: "BBB", side: "sell", qty: 1, fillPrice: 45 },
+    ],
+    brokerObservationTs: "2026-08-09T20:00:00Z",
+  });
+
+  assert.equal(report.paperRecordCount, 0);
+  assert.deepEqual(report.activity, []);
+  assert.deepEqual(report.equityCurve, []);
+  assert.equal(report.performance.totalCapitalUsed, 250);
+  assert.equal(report.trades.averageDollarsPerTrade, 125);
+  assert.equal(report.trades.tradesWithRealizedPnl, 2);
+  assert.equal(report.trades.largestWinner.symbol, "AAA");
+  assert.equal(report.trades.largestLoser.symbol, "BBB");
+  assert.equal(report.largestWinners[0].symbol, "AAA");
+  assert.equal(report.largestLosers[0].symbol, "BBB");
+  assert.equal(report.largestWinners.some((row) => row.symbol === "LEGACY"), false);
+  assert.equal(report.largestLosers.some((row) => row.symbol === "LEGACY"), false);
+});
+
 test("broker-backed lifetime performance avoids inferring starting capital without broker cash-flow history", () => {
   const report = buildCustomerReportModel({
     period: "lifetime",

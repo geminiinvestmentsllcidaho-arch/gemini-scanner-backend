@@ -203,6 +203,7 @@ export function buildCustomerReportModel(options = {}) {
   const latest = paperRecords.at(-1) ?? null;
   const activity = latest ? positionRows(baseline, latest) : [];
   const snapshotTrades = tradeSummary(activity);
+  const brokerBackedFillHistory = options.fillLedgerHistorySource === "alpaca_paper_order_history";
   const lifecycleTrades = Array.isArray(options.fillLedgerHistory)
     ? reconstructCustomerReportTradeLifecycle({
         fillRecords: options.fillLedgerHistory,
@@ -217,18 +218,27 @@ export function buildCustomerReportModel(options = {}) {
   const trades = lifecycleTrades
     ? Object.freeze({
         totalTrades: lifecycleTrades.completedRoundTrips,
-        tradesWithRealizedPnl: snapshotTrades.tradesWithRealizedPnl,
+        tradesWithRealizedPnl: brokerBackedFillHistory
+          ? lifecycleTrades.winningTrades + lifecycleTrades.losingTrades
+          : snapshotTrades.tradesWithRealizedPnl,
         winningTrades: lifecycleTrades.winningTrades,
         losingTrades: lifecycleTrades.losingTrades,
         breakevenTrades: lifecycleTrades.breakevenTrades,
         winRatePct: lifecycleTrades.winRatePct,
         averageGain: lifecycleTrades.averageGain,
         averageLoss: lifecycleTrades.averageLoss,
-        largestWinner: snapshotTrades.largestWinner,
-        largestLoser: snapshotTrades.largestLoser,
+        largestWinner: brokerBackedFillHistory
+          ? list(lifecycleTrades.completedTrades)
+              .filter((trade) => finite(trade?.realizedPnl) > 0)
+              .sort((a, b) => (finite(b?.realizedPnl) ?? 0) - (finite(a?.realizedPnl) ?? 0))[0] ?? null
+          : snapshotTrades.largestWinner,
+        largestLoser: brokerBackedFillHistory
+          ? list(lifecycleTrades.completedTrades)
+              .filter((trade) => finite(trade?.realizedPnl) < 0)
+              .sort((a, b) => (finite(a?.realizedPnl) ?? 0) - (finite(b?.realizedPnl) ?? 0))[0] ?? null
+          : snapshotTrades.largestLoser,
       })
     : snapshotTrades;
-  const brokerBackedFillHistory = options.fillLedgerHistorySource === "alpaca_paper_order_history";
   const historyCompletenessInput = options.fillLedgerHistoryCompleteness ?? {};
   const brokerHistoryCompleteness = brokerBackedFillHistory
     ? Object.freeze({
@@ -251,14 +261,40 @@ export function buildCustomerReportModel(options = {}) {
     startingBalance: brokerBackedFillHistory ? null : options.startingBalance,
     preferDerivedStartingBalance: false,
   });
+  const brokerCompletedTrades = brokerBackedFillHistory
+    ? list(lifecycleTrades?.completedTrades)
+    : [];
+  const brokerTotalCapitalUsed = brokerBackedFillHistory && lifecycleTrades
+    ? round2(brokerCompletedTrades.reduce(
+        (sum, trade) => sum + (finite(trade?.entryNotional) ?? 0),
+        0,
+      ))
+    : null;
   const brokerBackedPerformance = brokerBackedFillHistory
     ? Object.freeze({
         ...performance,
         startingBalance: null,
         totalReturnPct: null,
+        totalCapitalUsed: brokerTotalCapitalUsed,
         maxDrawdown: null,
       })
     : performance;
+  const brokerLargestWinners = brokerBackedFillHistory
+    ? Object.freeze(
+        brokerCompletedTrades
+          .filter((trade) => finite(trade?.realizedPnl) > 0)
+          .sort((a, b) => (finite(b?.realizedPnl) ?? 0) - (finite(a?.realizedPnl) ?? 0))
+          .slice(0, 5)
+      )
+    : null;
+  const brokerLargestLosers = brokerBackedFillHistory
+    ? Object.freeze(
+        brokerCompletedTrades
+          .filter((trade) => finite(trade?.realizedPnl) < 0)
+          .sort((a, b) => (finite(a?.realizedPnl) ?? 0) - (finite(b?.realizedPnl) ?? 0))
+          .slice(0, 5)
+      )
+    : null;
   const currentBrokerPositions = Object.freeze(
     list(options.paperAccount?.positions).map((position) => Object.freeze({
       symbol: String(position?.symbol ?? "").trim().toUpperCase() || null,
@@ -293,7 +329,7 @@ export function buildCustomerReportModel(options = {}) {
     sourceAgeSec,
     maxAgeSec,
     freshnessSource: brokerBackedFillHistory ? "alpaca_paper_readonly_observation" : "paper_position_snapshot",
-    paperRecordCount: paperRecords.length,
+    paperRecordCount: brokerBackedFillHistory ? 0 : paperRecords.length,
     brokerHistoryCompleteness,
     performance: brokerBackedPerformance,
     currentBrokerPositions,
@@ -324,23 +360,29 @@ export function buildCustomerReportModel(options = {}) {
       sourceIntentReplayAuditAvailable: sourceIntentReplayAudit !== null,
       sourceIntentReplayAudit,
     }),
-    largestWinners: Object.freeze(
-      (lifecycleTrades ? list(lifecycleTrades.completedTrades) : activity)
-        .filter((row) => finite(row?.realizedPnl) > 0)
-        .sort((a, b) => (finite(b?.realizedPnl) ?? 0) - (finite(a?.realizedPnl) ?? 0))
-        .slice(0, 5)
-    ),
-    largestLosers: Object.freeze(
-      (lifecycleTrades ? list(lifecycleTrades.completedTrades) : activity)
-        .filter((row) => finite(row?.realizedPnl) < 0)
-        .sort((a, b) => (finite(a?.realizedPnl) ?? 0) - (finite(b?.realizedPnl) ?? 0))
-        .slice(0, 5)
-    ),
-    activity: Object.freeze(activity),
-    equityCurve: Object.freeze(paperRecords.map((record) => Object.freeze({
-      timestamp: timestamp(record),
-      equity: round2(record?.endingEquity),
-    }))),
+    largestWinners: brokerBackedFillHistory
+      ? brokerLargestWinners
+      : Object.freeze(
+          (lifecycleTrades ? list(lifecycleTrades.completedTrades) : activity)
+            .filter((row) => finite(row?.realizedPnl) > 0)
+            .sort((a, b) => (finite(b?.realizedPnl) ?? 0) - (finite(a?.realizedPnl) ?? 0))
+            .slice(0, 5)
+        ),
+    largestLosers: brokerBackedFillHistory
+      ? brokerLargestLosers
+      : Object.freeze(
+          (lifecycleTrades ? list(lifecycleTrades.completedTrades) : activity)
+            .filter((row) => finite(row?.realizedPnl) < 0)
+            .sort((a, b) => (finite(a?.realizedPnl) ?? 0) - (finite(b?.realizedPnl) ?? 0))
+            .slice(0, 5)
+        ),
+    activity: brokerBackedFillHistory ? Object.freeze([]) : Object.freeze(activity),
+    equityCurve: brokerBackedFillHistory
+      ? Object.freeze([])
+      : Object.freeze(paperRecords.map((record) => Object.freeze({
+          timestamp: timestamp(record),
+          equity: round2(record?.endingEquity),
+        }))),
     scanner: scannerSummary(options.scannerEvents, range),
     readOnly: true,
     paperOnly: true,

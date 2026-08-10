@@ -108,3 +108,21 @@ test("marks unavailable equity evidence without converting null to zero", () => 
   assert.equal(input.completeness.equityPointCount, 2);
   assert.equal(input.completeness.equityAvailablePointCount, 0);
 });
+
+test("broker-backed AI semantics do not describe excluded snapshot evidence as active report data", () => {
+  const input = buildCustomerReportAiReviewInput({
+    freshnessSource: "alpaca_paper_readonly_observation",
+    paperRecordCount: 0,
+    activity: [],
+    equityCurve: [],
+    trades: {
+      lifecycleSourceAvailable: true,
+      tradesWithRealizedPnl: 1,
+      completedRoundTrips: 1,
+    },
+  });
+  assert.match(input.dataSemantics.activity, /excluded from broker-backed reports/);
+  assert.match(input.dataSemantics.tradesWithRealizedPnl, /broker-confirmed completed Alpaca PAPER round trips/);
+  assert.match(input.dataSemantics.completedRoundTrips, /broker-confirmed Alpaca PAPER filled-order history/);
+  assert.match(input.dataSemantics.equityCurve, /Historical equity points are unavailable/);
+});

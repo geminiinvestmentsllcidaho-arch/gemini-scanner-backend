@@ -272,7 +272,10 @@ test("labels broker-backed selected-period and current account performance scope
   assert.match(html, /Selected-period realized \+ current unrealized P\/L/);
   assert.match(html, /Realized P\/L \(selected period\)/);
   assert.match(html, /Current unrealized P\/L/);
-  assert.match(html, /Historical simulated capital used/);
+  assert.match(html, /Completed-trade entry capital/);
+  assert.doesNotMatch(html, /Historical simulated capital used/);
+  assert.match(html, /Legacy snapshot activity/);
+  assert.match(html, /Legacy local position-snapshot activity is not used by this broker-backed report/);
   assert.doesNotMatch(html, />Ending balance</);
   assert.doesNotMatch(html, />Total P\/L</);
 });

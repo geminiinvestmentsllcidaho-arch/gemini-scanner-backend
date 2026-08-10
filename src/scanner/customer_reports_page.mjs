@@ -313,7 +313,7 @@ ${metric(brokerBackedPerformance ? "Realized P/L (selected period)" : "Realized 
 ${metric(brokerBackedPerformance ? "Current unrealized P/L" : "Unrealized P/L", money(performance.unrealizedPl ?? performance.unrealizedPnl, locale))}
 ${metric("Total return", number(performance.totalReturnPct, locale, "%"))}
 ${metric("Max drawdown", money(performance.maxDrawdown, locale))}
-${metric(brokerBackedPerformance ? "Historical simulated capital used" : "Capital used", money(performance.totalCapitalUsed, locale))}
+${metric(brokerBackedPerformance ? "Completed-trade entry capital" : "Capital used", money(performance.totalCapitalUsed, locale))}
 </div>
 </section>
 
@@ -476,8 +476,8 @@ ${realtimeAiText
 </section>
 
 <section class="card panel" id="detailed-activity">
-<h2>Historical simulated-ledger activity</h2>
-<p class="muted">Historical local paper snapshots only. These rows are not current Alpaca holdings.</p>
+<h2>${brokerBackedPerformance ? "Legacy snapshot activity" : "Historical simulated-ledger activity"}</h2>
+<p class="muted">${brokerBackedPerformance ? "Legacy local position-snapshot activity is not used by this broker-backed report." : "Historical local paper snapshots only. These rows are not current Alpaca holdings."}</p>
 <div class="table-wrap">
 <table>
 <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>P/L</th><th>Status</th></tr></thead>

@@ -33,6 +33,7 @@ const APPROVED_ISOLATED_PAPER_ORDER_FILES = new Map([
   ["src/scanner/paper_auto_execution_alpaca_paper_adapter.mjs", { method: "POST", exactEndpoint: "/v2/orders" }],
   ["src/scanner/paper_auto_execution_mechanical_enter_only_cli.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
   ["src/scanner/paper_auto_execution_exit_only_runner.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
+  ["src/scanner/paper_auto_execution_reporting_history_fetch.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=${HISTORICAL_ORDER_LIMIT}&direction=desc" }],
 ]);
 
 function allowedReadonlyOpenOrdersEndpoint(file, text, pattern) {
@@ -52,7 +53,8 @@ function allowedIsolatedPaperOrderEndpoint(file, text, pattern) {
   const endpointCount = text.split(rule.exactEndpoint).length - 1;
   const exactPaperHostRequired =
     /hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text) ||
-    /parsedBase\.hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text);
+    /parsedBase\.hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text) ||
+    /baseUrl\s*!==\s*['"]https:\/\/paper-api\.alpaca\.markets['"]/.test(text);
   const methodPattern = new RegExp(`method\\s*:\\s*['"]${rule.method}['"]`, "i");
   const expectedMethodPresent = methodPattern.test(text);
   const liveHostPresent = /api\.alpaca\.markets/.test(text.replace(/paper-api\.alpaca\.markets/g, ""));

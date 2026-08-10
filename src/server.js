@@ -2976,7 +2976,6 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const reportPageMod = await import('./scanner/customer_reports_page.mjs');
     const accountData = await import('./scanner/alpaca_paper_account_readonly_fetch.mjs');
     const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
-    const positionStore = await import('./scanner/paper_trade_position_state_store.mjs');
     const reportingHistoryFetch = await import('./scanner/paper_auto_execution_reporting_history_fetch.mjs');
     const reportingHistory = await import('./scanner/paper_auto_execution_reporting_history.mjs');
     const timeMod = await import('./scanner/customer_time.mjs');
@@ -2993,10 +2992,6 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       reportingHistoryFetch.fetchAlpacaPaperHistoricalOrdersReadonly(),
     ]);
     const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(fetchedPaperAccount);
-    const paperPositionLedger = positionStore.readPaperTradePositionStateStoreDashboard();
-    const paperLedgerHistory = Array.isArray(paperPositionLedger.records)
-      ? paperPositionLedger.records
-      : [];
     const adaptedReportingHistory = reportingHistory.adaptAlpacaPaperFilledOrderHistory({
       historicalOrders: historicalOrderResult.historicalOrders,
     });
@@ -3023,7 +3018,6 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       timeZone: timeMod.customerTimezone(req.customerAccount),
       weekStartsOn: 1,
       paperAccount,
-      paperLedgerHistory,
       fillLedgerHistory,
       fillLedgerHistorySource: 'alpaca_paper_order_history',
       fillLedgerHistoryCompleteness: {

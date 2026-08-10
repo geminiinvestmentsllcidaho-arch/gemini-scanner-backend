@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import fs from "node:fs";
 
 const source = await readFile(new URL("../src/server.js", import.meta.url), "utf8");
 
@@ -70,4 +71,18 @@ test("server strict-reader containment adds no execution or account mutation cap
     ),
     /submitOrder|placeOrder|cancelOrder|accountMutationAllowed:\s*true/,
   );
+});
+
+
+test("customer reports broker-backed route does not read legacy paper position state", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  const start = server.indexOf("app.get('/customer/reports', requireCustomerSession, async (req, res) => {");
+  assert.notEqual(start, -1);
+  const end = server.indexOf("\napp.get('/customer/scanner'", start);
+  const block = server.slice(start, end === -1 ? server.length : end);
+  assert.doesNotMatch(block, /paper_trade_position_state_store\.mjs/);
+  assert.doesNotMatch(block, /readPaperTradePositionStateStoreDashboard/);
+  assert.doesNotMatch(block, /paperLedgerHistory/);
+  assert.match(block, /fillLedgerHistorySource: 'alpaca_paper_order_history'/);
+  assert.match(block, /fetchAlpacaPaperHistoricalOrdersReadonly/);
 });
