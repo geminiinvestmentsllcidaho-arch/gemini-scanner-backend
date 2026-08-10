@@ -14,6 +14,9 @@ test("admin exposes authenticated self-service password change surface", () => {
   assert.match(server, /isStrongAdminPassword\(newPassword\)/);
   assert.match(server, /class=\"admin-security-form\"/);
   assert.match(server, /data-show-passwords/);
+  assert.match(server, /groupToggle\.addEventListener\('change'/);
+  assert.match(server, /groupToggle\.checked \? 'text' : 'password'/);
+  assert.match(server, /input\[name="currentPassword"\], input\[name="newPassword"\], input\[name="confirmPassword"\]/);
   assert.match(server, /<script src="\/assets\/password-visibility\.js" defer><\/script>/);
   const start = server.indexOf("function adminSecurityHtml");
   const end = server.indexOf("app.get('/admin'", start);

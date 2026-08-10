@@ -3414,6 +3414,18 @@ app.get(['/assets/password-visibility.js', '/customer/assets/password-visibility
       input.insertAdjacentElement('afterend', button);
     };
     document.querySelectorAll('input[type="password"]').forEach(enhance);
+    const groupToggle = document.querySelector('[data-show-passwords]');
+    if (groupToggle instanceof HTMLInputElement && groupToggle.type === 'checkbox') {
+      const groupFields = Array.from(document.querySelectorAll(
+        'input[name="currentPassword"], input[name="newPassword"], input[name="confirmPassword"]'
+      ));
+      groupToggle.addEventListener('change', () => {
+        const nextType = groupToggle.checked ? 'text' : 'password';
+        for (const field of groupFields) {
+          if (field instanceof HTMLInputElement) field.type = nextType;
+        }
+      });
+    }
   })();`);
 });
 
