@@ -19,6 +19,11 @@ test('reporting history fetch uses PAPER GET orders only', async () => {
   assert.equal(calls[0].url, 'https://paper-api.alpaca.markets/v2/orders?status=all&limit=500&direction=desc')
   assert.equal(calls[0].init.method, 'GET')
   assert.deepEqual(result.historicalOrders, [{ id: 'order-1' }])
+  assert.equal(result.historyLimit, 500)
+  assert.equal(result.sourceRecordCount, 1)
+  assert.equal(result.historyLimitReached, false)
+  assert.equal(result.historyComplete, true)
+  assert.equal(result.historyPossiblyTruncated, false)
   assert.equal(result.readOnly, true)
   assert.equal(result.paperOnly, true)
   assert.equal(result.orderPlacementAllowed, false)
@@ -77,4 +82,20 @@ test('reporting history fetch retains APCA credential aliases as fallback', asyn
   assert.equal(calls.length, 1)
   assert.equal(calls[0].init.headers['APCA-API-KEY-ID'], 'fallback-key')
   assert.equal(calls[0].init.headers['APCA-API-SECRET-KEY'], 'fallback-secret')
+})
+
+
+test('reporting history fetch marks exact limit hit as possibly truncated without another call', async () => {
+  const calls = []
+  const orders = Array.from({ length: 500 }, (_, index) => ({ id: `order-${index}` }))
+  const result = await fetchAlpacaPaperHistoricalOrdersReadonly({
+    env: { APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', APCA_API_KEY_ID: 'paper-key', APCA_API_SECRET_KEY: 'paper-secret' },
+    fetchImpl: async (url, init) => { calls.push({ url: String(url), init }); return { ok: true, status: 200, json: async () => orders } },
+  })
+  assert.equal(calls.length, 1)
+  assert.equal(result.historyLimit, 500)
+  assert.equal(result.sourceRecordCount, 500)
+  assert.equal(result.historyLimitReached, true)
+  assert.equal(result.historyComplete, false)
+  assert.equal(result.historyPossiblyTruncated, true)
 })

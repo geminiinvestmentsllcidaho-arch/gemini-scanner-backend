@@ -112,6 +112,9 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const timeZone = page.timeZone || customerTimezone(account);
   const performance = report.performance ?? {};
   const trades = report.trades ?? {};
+  const brokerBackedPerformance = report.freshnessSource === "alpaca_paper_readonly_observation";
+  const brokerHistoryCompleteness = report.brokerHistoryCompleteness ?? null;
+  const brokerHistoryPossiblyTruncated = brokerBackedPerformance && brokerHistoryCompleteness?.historyPossiblyTruncated === true;
   const scanner = report.scanner ?? {};
   const aiReview = report.aiReview ?? {};
   const aiProposals = Array.isArray(aiReview.proposals) ? aiReview.proposals : [];
@@ -153,7 +156,6 @@ export function renderCustomerReportsPageHtml(page = {}) {
   const winners = Array.isArray(report.largestWinners) ? report.largestWinners : [];
   const losers = Array.isArray(report.largestLosers) ? report.largestLosers : [];
   const activePeriod = String(report.period || "lifetime");
-  const brokerBackedPerformance = report.freshnessSource === "alpaca_paper_readonly_observation";
   const periodLinks = PERIODS.map(([value, label]) =>
     `<a href="/customer/reports?period=${value}"${value === activePeriod ? ' aria-current="page" class="active"' : ""}>${label}</a>`
   ).join("");
@@ -302,6 +304,7 @@ ${renderCustomerPrimaryNavigation({ active: "reports" })}
 <section class="card panel" id="performance-summary">
 <h2>Performance summary</h2>
 ${brokerBackedPerformance ? '<p class="muted">Broker-backed realized P/L follows the selected report period. Account equity and unrealized P/L are current Alpaca paper-account values, so the combined P/L is not a period return.</p>' : ""}
+${brokerHistoryPossiblyTruncated ? `<p class="status stale">Broker order history reached the ${esc(number(brokerHistoryCompleteness.historyLimit, locale))}-order fetch limit. Older paper orders may not be included, so selected-period realized P/L and trade statistics may be incomplete.</p>` : ""}
 <div class="grid">
 ${metric("Starting balance", money(performance.startingBalance ?? performance.startingEquity, locale))}
 ${metric(brokerBackedPerformance ? "Current account equity" : "Ending balance", money(performance.endingBalance ?? performance.endingEquity, locale))}

@@ -1,4 +1,5 @@
 export const VERSION = 'paper_auto_execution_reporting_history_fetch_v1'
+export const HISTORICAL_ORDER_LIMIT = 500
 
 const clean = (value) => String(value ?? '').trim()
 const pick = (env, keys) => keys.map((key) => clean(env?.[key])).find(Boolean) ?? ''
@@ -12,7 +13,7 @@ export async function fetchAlpacaPaperHistoricalOrdersReadonly(options = {}) {
   if (baseUrl !== 'https://paper-api.alpaca.markets') throw new Error('paper_reporting_history_paper_host_required')
   if (!apiKey || !apiSecret) throw new Error('paper_reporting_history_credentials_required')
   if (typeof fetchImpl !== 'function') throw new Error('paper_reporting_history_fetch_required')
-  const response = await fetchImpl(new URL('/v2/orders?status=all&limit=500&direction=desc', baseUrl), {
+  const response = await fetchImpl(new URL(`/v2/orders?status=all&limit=${HISTORICAL_ORDER_LIMIT}&direction=desc`, baseUrl), {
     method: 'GET',
     headers: {
       'APCA-API-KEY-ID': apiKey,
@@ -22,9 +23,16 @@ export async function fetchAlpacaPaperHistoricalOrdersReadonly(options = {}) {
   })
   const body = await response.json().catch(() => null)
   if (!response.ok || !Array.isArray(body)) throw new Error(`paper_reporting_history_fetch_failed:${response.status}`)
+  const sourceRecordCount = body.length
+  const historyLimitReached = sourceRecordCount >= HISTORICAL_ORDER_LIMIT
   return Object.freeze({
     version: VERSION,
     historicalOrders: Object.freeze(body),
+    historyLimit: HISTORICAL_ORDER_LIMIT,
+    sourceRecordCount,
+    historyLimitReached,
+    historyComplete: !historyLimitReached,
+    historyPossiblyTruncated: historyLimitReached,
     readOnly: true,
     paperOnly: true,
     brokerContactType: 'readonly_get',

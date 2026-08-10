@@ -481,3 +481,23 @@ test("real Alpaca PAPER fill history does not fabricate legacy source-intent rep
   assert.equal(report.trades.sourceIntentReplayAuditAvailable, false);
   assert.equal(report.trades.sourceIntentReplayAudit, null);
 })
+
+
+test("propagates broker history truncation metadata", () => {
+  const report = buildCustomerReportModel({
+    period: "lifetime", now: new Date("2026-08-09T20:00:00Z"), timeZone: "UTC",
+    paperAccount: { account: { equity: 100050 }, summary: { totalUnrealizedPl: 25 }, positions: [] },
+    paperLedgerHistory: [],
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { fillId: "buy-1", createdAt: "2026-08-09T14:00:00Z", symbol: "AAA", side: "buy", qty: 1, fillPrice: 100 },
+      { fillId: "sell-1", createdAt: "2026-08-09T15:00:00Z", symbol: "AAA", side: "sell", qty: 1, fillPrice: 125 },
+    ],
+    fillLedgerHistoryCompleteness: { historyLimit: 500, sourceRecordCount: 500, historyLimitReached: true, historyComplete: false, historyPossiblyTruncated: true },
+    brokerObservationTs: "2026-08-09T20:00:00Z",
+  })
+  assert.deepEqual(report.brokerHistoryCompleteness, { historyLimit: 500, sourceRecordCount: 500, historyLimitReached: true, historyComplete: false, historyPossiblyTruncated: true })
+  assert.equal(report.performance.startingBalance, null)
+  assert.equal(report.performance.totalReturnPct, null)
+  assert.equal(report.performance.maxDrawdown, null)
+})

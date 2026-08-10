@@ -463,3 +463,17 @@ test("customer reports exposes focused in-page section navigation", () => {
   assert.match(html, /id="realtime-ai-review"/);
   assert.match(html, /id="detailed-activity"/);
 });
+
+
+test("warns when broker history reaches the fetch limit", () => {
+  const page = buildCustomerReportsPage({ report: {
+    period: "lifetime", range: { label: "Lifetime" }, stale: false, status: "current_readonly",
+    freshnessSource: "alpaca_paper_readonly_observation",
+    brokerHistoryCompleteness: { historyLimit: 500, sourceRecordCount: 500, historyLimitReached: true, historyComplete: false, historyPossiblyTruncated: true },
+    performance: { startingBalance: null, endingBalance: 100000, realizedPl: 10, unrealizedPl: 5, totalPl: 15, totalReturnPct: null, totalCapitalUsed: 0, maxDrawdown: null },
+    currentBrokerPositions: [], trades: {}, scanner: {}, largestWinners: [], largestLosers: [], activity: [], equityCurve: []
+  }})
+  const html = renderCustomerReportsPageHtml(page)
+  assert.match(html, /Broker order history reached the 500-order fetch limit/)
+  assert.match(html, /Older paper orders may not be included/)
+})

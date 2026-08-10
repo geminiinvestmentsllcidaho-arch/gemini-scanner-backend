@@ -3026,6 +3026,13 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       paperLedgerHistory,
       fillLedgerHistory,
       fillLedgerHistorySource: 'alpaca_paper_order_history',
+      fillLedgerHistoryCompleteness: {
+        historyLimit: historicalOrderResult.historyLimit,
+        sourceRecordCount: historicalOrderResult.sourceRecordCount,
+        historyLimitReached: historicalOrderResult.historyLimitReached,
+        historyComplete: historicalOrderResult.historyComplete,
+        historyPossiblyTruncated: historicalOrderResult.historyPossiblyTruncated,
+      },
       brokerObservationTs: now.toISOString(),
       scannerEvents,
     });

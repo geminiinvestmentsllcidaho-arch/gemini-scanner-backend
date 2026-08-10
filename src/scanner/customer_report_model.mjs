@@ -229,6 +229,16 @@ export function buildCustomerReportModel(options = {}) {
       })
     : snapshotTrades;
   const brokerBackedFillHistory = options.fillLedgerHistorySource === "alpaca_paper_order_history";
+  const historyCompletenessInput = options.fillLedgerHistoryCompleteness ?? {};
+  const brokerHistoryCompleteness = brokerBackedFillHistory
+    ? Object.freeze({
+        historyLimit: finite(historyCompletenessInput.historyLimit),
+        sourceRecordCount: finite(historyCompletenessInput.sourceRecordCount),
+        historyLimitReached: historyCompletenessInput.historyLimitReached === true,
+        historyComplete: historyCompletenessInput.historyComplete === true,
+        historyPossiblyTruncated: historyCompletenessInput.historyPossiblyTruncated === true,
+      })
+    : null;
   const brokerRealizedPl = lifecycleTrades
     ? round2(list(lifecycleTrades.completedTrades).reduce(
         (sum, trade) => sum + (finite(trade?.realizedPnl) ?? 0),
@@ -284,6 +294,7 @@ export function buildCustomerReportModel(options = {}) {
     maxAgeSec,
     freshnessSource: brokerBackedFillHistory ? "alpaca_paper_readonly_observation" : "paper_position_snapshot",
     paperRecordCount: paperRecords.length,
+    brokerHistoryCompleteness,
     performance: brokerBackedPerformance,
     currentBrokerPositions,
     trades: Object.freeze({
