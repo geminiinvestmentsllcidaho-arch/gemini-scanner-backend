@@ -6,7 +6,7 @@ const server = fs.readFileSync("src/server.js", "utf8");
 
 test("admin exposes authenticated self-service password change surface", () => {
   assert.match(server, /app\.get\('\/admin\/security', requireAdminAuthorization/);
-  assert.match(server, /app\.post\('\/admin\/security\/password', requireAdminAuthorization, \(req, res\) =>/);
+  assert.match(server, /app\.post\('\/admin\/security\/password', requireAdminAuthorization, requireCustomerSameOrigin, \(req, res\) =>/);
   assert.match(server, /name="currentPassword"/);
   assert.match(server, /name="newPassword"/);
   assert.match(server, /name="confirmPassword"/);

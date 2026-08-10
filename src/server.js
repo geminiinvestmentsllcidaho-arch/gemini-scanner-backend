@@ -1888,7 +1888,7 @@ app.get('/admin/security', requireAdminAuthorization, (req, res) => {
   return res.type('html').send(adminSecurityHtml());
 });
 
-app.post('/admin/security/password', requireAdminAuthorization, (req, res) => {
+app.post('/admin/security/password', requireAdminAuthorization, requireCustomerSameOrigin, (req, res) => {
   const currentPassword = String(req.body?.currentPassword ?? '');
   const newPassword = String(req.body?.newPassword ?? '');
   const confirmPassword = String(req.body?.confirmPassword ?? '');
