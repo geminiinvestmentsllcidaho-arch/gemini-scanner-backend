@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import {
@@ -102,4 +103,16 @@ test("renders admin-only navigation without customer interface links", () => {
   assert.doesNotMatch(html, /href="\/customer(?:["/])/);
   assert.doesNotMatch(html, /\/customer-zero\b/);
   assert.doesNotMatch(html, /\bDELETE\b|XMLHttpRequest|\bfetch\s*\(/);
+});
+
+
+test("admin layout uses responsive full-width viewport rules for portrait and landscape", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  assert.match(server, /Admin responsive viewport repair/);
+  assert.match(server, /width:\s*min\(100%,\s*1600px\)/);
+  assert.match(server, /padding-inline:\s*clamp\(14px,\s*2\.5vw,\s*36px\)/);
+  assert.match(server, /@media\s*\(max-width:\s*900px\)/);
+  assert.match(server, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*700px\)\s*and\s*\(min-width:\s*600px\)/);
+  assert.match(server, /overflow-x:\s*hidden/);
+  assert.match(server, /overflow-x:\s*auto/);
 });

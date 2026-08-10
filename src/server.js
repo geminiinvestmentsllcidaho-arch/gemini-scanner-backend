@@ -1862,6 +1862,17 @@ function adminSecurityHtml(message = '', error = false) {
 @media (max-width: 640px) {
   .admin-security-card { padding: 24px 18px; }
 }
+
+/* Admin responsive viewport repair */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+body { margin: 0; }
+main { width: min(100%, 1600px); max-width: none; box-sizing: border-box; margin-inline: auto; padding-inline: clamp(14px, 2.5vw, 36px); }
+main > * { min-width: 0; }
+.card, .panel, section, article { max-width: 100%; box-sizing: border-box; }
+table { max-width: 100%; }
+.table-wrap, .table-scroll, .admin-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 900px) { main { width: 100%; padding-inline: 14px; } .card, .panel, section, article { width: 100%; max-width: 100%; } }
+@media (orientation: landscape) and (max-height: 700px) and (min-width: 600px) { main { width: 100%; padding-inline: 18px; } }
 </style></head>
 <body>${renderBackgroundLogoLayer()}${renderGlobalHeader({ surface: 'admin', homeHref: '/admin', label: 'GeminiScanner Admin' })}
 <main><section class="card auth-card admin-security-card"><h1>Admin Security</h1>
