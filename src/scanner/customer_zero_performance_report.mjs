@@ -3,6 +3,7 @@ import {
   customerReportTimestampInRange,
   normalizeCustomerReportPeriod,
 } from "./customer_report_periods.mjs";
+import { reconstructCustomerReportTradeLifecycle } from "./customer_report_trade_lifecycle.mjs";
 
 export const VERSION = "customer_zero_performance_report_v1";
 
@@ -11,8 +12,19 @@ function finite(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function round2(value) {
   return Number(finite(value).toFixed(2));
+}
+
+function round2OrNull(value) {
+  const number = finiteOrNull(value);
+  return number === null ? null : Number(number.toFixed(2));
 }
 
 function tone(value) {
@@ -82,6 +94,22 @@ function realizedStatistics(paperLedger = {}) {
   };
 }
 
+function brokerStatistics(lifecycle = {}) {
+  const trades = Array.isArray(lifecycle.completedTrades) ? lifecycle.completedTrades : [];
+  const gains = trades.map((trade) => round2OrNull(trade?.realizedPnl)).filter((value) => value !== null && value > 0);
+  const losses = trades.map((trade) => round2OrNull(trade?.realizedPnl)).filter((value) => value !== null && value < 0);
+  return {
+    winners: Number(lifecycle.winningTrades ?? gains.length),
+    losers: Number(lifecycle.losingTrades ?? losses.length),
+    closedTrades: Number(lifecycle.completedRoundTrips ?? trades.length),
+    winRatePct: round2(lifecycle.winRatePct),
+    averageGain: round2(lifecycle.averageGain),
+    averageLoss: round2(lifecycle.averageLoss),
+    largestGain: gains.length ? round2(Math.max(...gains)) : 0,
+    largestLoss: losses.length ? round2(Math.min(...losses)) : 0,
+  };
+}
+
 export function buildCustomerZeroPerformanceReport(options = {}) {
   const paperAccount = options.paperAccount ?? {};
   const now = options.now instanceof Date ? options.now : new Date();
@@ -93,6 +121,72 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     weekStartsOn: options.weekStartsOn ?? 1,
     year: options.year,
   });
+  const brokerBacked = options.fillLedgerHistorySource === "alpaca_paper_order_history"
+    && Array.isArray(options.fillLedgerHistory);
+
+  if (brokerBacked) {
+    const lifecycle = reconstructCustomerReportTradeLifecycle({
+      fillRecords: options.fillLedgerHistory,
+      range: periodRange,
+    });
+    const completedTrades = Array.isArray(lifecycle.completedTrades) ? lifecycle.completedTrades : [];
+    const realizedPl = round2(completedTrades.reduce((sum, trade) => sum + finite(trade?.realizedPnl), 0));
+    const unrealizedPl = round2(paperAccount?.summary?.totalUnrealizedPl);
+    const totalPl = round2(realizedPl + unrealizedPl);
+    const sourceTs = options.brokerObservationTs ?? options.sourceTs ?? null;
+    const parsedSourceTs = Date.parse(sourceTs);
+    const maxAgeSec = Number.isFinite(Number(options.maxAgeSec)) ? Math.max(0, Number(options.maxAgeSec)) : 120;
+    const sourceAgeSec = Number.isFinite(parsedSourceTs) ? Math.max(0, Math.floor((now.getTime() - parsedSourceTs) / 1000)) : null;
+    const stale = options.stale === true || sourceAgeSec === null || sourceAgeSec > maxAgeSec;
+    const endingEquity = round2OrNull(options.endingEquity ?? paperAccount?.account?.equity);
+    return {
+      version: VERSION,
+      period,
+      periodRange: {
+        startIso: periodRange.startIso,
+        endIso: periodRange.endIso,
+        timeZone: periodRange.timeZone,
+        weekStartsOn: periodRange.weekStartsOn,
+      },
+      periodRecordCount: completedTrades.length,
+      periodStartTs: completedTrades[0]?.closedAt ?? null,
+      periodEndTs: completedTrades.at(-1)?.closedAt ?? null,
+      realizedPl,
+      unrealizedPl,
+      totalPl,
+      tone: tone(totalPl),
+      ...brokerStatistics(lifecycle),
+      fees: null,
+      slippage: null,
+      netAfterCosts: null,
+      startingEquity: null,
+      endingEquity,
+      peakEquity: null,
+      drawdown: null,
+      drawdownPct: null,
+      totalReturnPct: null,
+      sourceTs,
+      sourceAgeSec,
+      maxAgeSec,
+      stale,
+      status: stale ? "stale_readonly" : "current_readonly",
+      freshnessSource: "alpaca_paper_readonly_observation",
+      performanceSource: "alpaca_paper_order_history",
+      brokerHistoryComplete: options.fillLedgerHistoryCompleteness?.historyComplete === true,
+      brokerHistoryPossiblyTruncated: options.fillLedgerHistoryCompleteness?.historyPossiblyTruncated === true,
+      readOnly: true,
+      paperOnly: true,
+      decisionAssistOnly: true,
+      scannerEstimateUsed: false,
+      brokerOrPaperLedgerOnly: true,
+      liveTradingAllowed: false,
+      autoTradingAllowed: false,
+      orderPlacementAllowed: false,
+      brokerContactAllowed: false,
+      accountMutationAllowed: false,
+    };
+  }
+
   const paperLedger = periodLedger(options.paperLedgerHistory, periodRange)
     ?? options.paperLedger
     ?? {};

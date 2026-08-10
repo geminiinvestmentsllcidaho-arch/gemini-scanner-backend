@@ -186,3 +186,69 @@ test("performance report can default to lifetime without fabricating a lower bou
   assert.equal(report.realizedPl, 50);
   assert.equal(report.orderPlacementAllowed, false);
 });
+
+
+test("broker-backed performance uses completed Alpaca PAPER round trips and ignores legacy snapshots", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "weekly",
+    now: new Date("2026-08-09T22:00:00.000Z"),
+    brokerObservationTs: "2026-08-09T21:59:30.000Z",
+    paperAccount: { account: { equity: 10025 }, summary: { totalUnrealizedPl: 5 } },
+    paperLedger: { totalRealizedPnl: 9999, totalFees: 12, totalSlippage: 8, startingEquity: 1, peakEquity: 99999 },
+    paperLedgerHistory: [{ createdAt: "2026-08-09T21:59:00.000Z", totalRealizedPnl: 9999, endingEquity: 99999 }],
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistoryCompleteness: { historyComplete: true, historyPossiblyTruncated: false },
+    fillLedgerHistory: [
+      { fillId: "b1", symbol: "AAPL", side: "buy", qty: 2, fillPrice: 100, createdAt: "2026-08-09T20:00:00.000Z" },
+      { fillId: "s1", symbol: "AAPL", side: "sell", qty: 2, fillPrice: 104, createdAt: "2026-08-09T21:00:00.000Z" },
+      { fillId: "b2", symbol: "MSFT", side: "buy", qty: 1, fillPrice: 200, createdAt: "2026-08-09T21:10:00.000Z" },
+      { fillId: "s2", symbol: "MSFT", side: "sell", qty: 1, fillPrice: 197, createdAt: "2026-08-09T21:20:00.000Z" },
+    ],
+  });
+  assert.equal(report.realizedPl, 5);
+  assert.equal(report.unrealizedPl, 5);
+  assert.equal(report.totalPl, 10);
+  assert.equal(report.winners, 1);
+  assert.equal(report.losers, 1);
+  assert.equal(report.closedTrades, 2);
+  assert.equal(report.winRatePct, 50);
+  assert.equal(report.largestGain, 8);
+  assert.equal(report.largestLoss, -3);
+  assert.equal(report.sourceTs, "2026-08-09T21:59:30.000Z");
+  assert.equal(report.sourceAgeSec, 30);
+  assert.equal(report.freshnessSource, "alpaca_paper_readonly_observation");
+  assert.equal(report.performanceSource, "alpaca_paper_order_history");
+  assert.equal(report.startingEquity, null);
+  assert.equal(report.endingEquity, 10025);
+  assert.equal(report.peakEquity, null);
+  assert.equal(report.drawdown, null);
+  assert.equal(report.drawdownPct, null);
+  assert.equal(report.totalReturnPct, null);
+  assert.equal(report.fees, null);
+  assert.equal(report.slippage, null);
+  assert.equal(report.netAfterCosts, null);
+  assert.equal(report.brokerHistoryComplete, true);
+});
+
+test("broker-backed performance attributes realized P/L to completed trades closed inside the selected period", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "daily",
+    now: new Date("2026-08-09T22:00:00.000Z"),
+    timeZone: "UTC",
+    brokerObservationTs: "2026-08-09T21:59:00.000Z",
+    paperAccount: { summary: { totalUnrealizedPl: 0 } },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { symbol: "OLD", side: "buy", qty: 1, fillPrice: 10, createdAt: "2026-08-08T20:00:00.000Z" },
+      { symbol: "OLD", side: "sell", qty: 1, fillPrice: 20, createdAt: "2026-08-08T21:00:00.000Z" },
+      { symbol: "NEW", side: "buy", qty: 1, fillPrice: 30, createdAt: "2026-08-08T23:00:00.000Z" },
+      { symbol: "NEW", side: "sell", qty: 1, fillPrice: 34, createdAt: "2026-08-09T01:00:00.000Z" },
+    ],
+  });
+  assert.equal(report.realizedPl, 4);
+  assert.equal(report.closedTrades, 1);
+  assert.equal(report.winners, 1);
+  assert.equal(report.periodRecordCount, 1);
+  assert.equal(report.periodStartTs, "2026-08-09T01:00:00.000Z");
+  assert.equal(report.periodEndTs, "2026-08-09T01:00:00.000Z");
+});
