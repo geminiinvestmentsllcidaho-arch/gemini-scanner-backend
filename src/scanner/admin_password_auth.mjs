@@ -13,7 +13,10 @@ function safeEqual(left, right) {
 }
 
 export function resolveAdminPassword(options = {}) {
-  return clean(options.password) || clean(process.env.ADMIN_PASSWORD);
+  if (Object.prototype.hasOwnProperty.call(options, "password")) {
+    return clean(options.password);
+  }
+  return clean(process.env.ADMIN_PASSWORD);
 }
 
 export function isStrongAdminPassword(password) {
