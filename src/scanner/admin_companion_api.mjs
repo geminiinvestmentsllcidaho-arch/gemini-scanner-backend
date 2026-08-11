@@ -25,6 +25,7 @@ export function buildAdminCompanionStatus({
   tradingEngine = {},
   infrastructureIncident = null,
   opsAiIncident = null,
+  operationalIncident = null,
 } = {}) {
   const processes = Array.isArray(systemHealth?.processes)
     ? systemHealth.processes.map((row) => Object.freeze({
@@ -45,11 +46,13 @@ export function buildAdminCompanionStatus({
   const incidents = Object.freeze({
     infrastructure: incidentSummary(infrastructureIncident, "infrastructure"),
     opsAi: incidentSummary(opsAiIncident, "ops_ai"),
+    operational: incidentSummary(operationalIncident, clean(operationalIncident?.category) || "operational"),
   });
 
   const degraded =
     incidents.infrastructure.open ||
     incidents.opsAi.open ||
+    incidents.operational.open ||
     processes.some((row) => row.status !== "online" && row.name !== "gemini-dry-scanner");
 
   return Object.freeze({

@@ -1986,12 +1986,14 @@ app.get('/admin/api/companion/status', requireAdminAuthorization, async (_req, r
   const infrastructureIncident = readLastJsonl('runs/infrastructure_website_watchdog_incidents.jsonl');
   const opsAiIncident = readLastJsonl('runs/ops_ai_scanner_watchdog_incidents.jsonl')
     || readLastJsonl('runs/ops_ai_scanner_watchdog_incident_ledger.jsonl');
+  const operationalIncident = readLastJsonl('runs/admin_operational_incidents.jsonl');
   const alertPolicyMod = await import('./scanner/admin_incident_alert_policy.mjs');
   const payload = companionMod.buildAdminCompanionStatus({
     systemHealth,
     tradingEngine,
     infrastructureIncident,
     opsAiIncident,
+    operationalIncident,
   });
   const alerts = alertPolicyMod.buildAdminIncidentAlertSummary({
     infrastructureIncident,
