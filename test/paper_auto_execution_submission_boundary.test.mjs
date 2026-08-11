@@ -40,8 +40,12 @@ test('confirmed enter persists deterministic and broker identities', async () =>
 test('exception becomes enter unknown and replay is blocked by state', async () => {
   const { dir, store } = fixture('MSFT')
   try {
-    const result = await submitPaperAutoOrder({ lifecycleStore: store, phase: 'enter', env, submitPaperOrder: async () => { throw new Error('timeout_after_send') } })
+    const incidents = []
+    const result = await submitPaperAutoOrder({ lifecycleStore: store, phase: 'enter', env, incidentEmitter: async (incident) => { incidents.push(incident) }, submitPaperOrder: async () => { throw new Error('timeout_after_send') } })
     assert.equal(result.lifecycle.state, S.ENTER_UNKNOWN)
+    assert.equal(incidents.length, 1)
+    assert.equal(incidents[0].source, 'paper_execution')
+    assert.equal(incidents[0].failureCode, 'submission_exception_requires_reconciliation')
     await assert.rejects(submitPaperAutoOrder({ lifecycleStore: store, phase: 'enter', env, submitPaperOrder: async () => ({ orderSubmitted: true, orderId: 'duplicate' }) }), /paper_auto_enter_submission_invalid_state:ENTER_UNKNOWN/)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
@@ -54,4 +58,22 @@ test('exact exit quantity is enforced', async () => {
     store.transition(S.MONITORING)
     await assert.rejects(submitPaperAutoOrder({ lifecycleStore: store, phase: 'exit', quantity: 1, env, submitPaperOrder: async () => ({}) }), /paper_auto_exit_quantity_mismatch/)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+
+test('rejected and ambiguous submissions emit fail-open Admin incidents without changing statuses', async () => {
+  for (const scenario of [
+    { broker: { rejected: true }, status: 'SUBMISSION_REJECTED', failureCode: 'submission_rejected_requires_review' },
+    { broker: { orderSubmitAttempted: true, ambiguous: true }, status: 'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED', failureCode: 'ambiguous_submission_requires_reconciliation' },
+    { broker: {}, status: 'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED', failureCode: 'submission_unclassified_requires_reconciliation' },
+  ]) {
+    const { dir, store } = fixture('AMD')
+    try {
+      const incidents = []
+      const result = await submitPaperAutoOrder({ lifecycleStore: store, phase: 'enter', env, incidentEmitter: async (incident) => { incidents.push(incident) }, submitPaperOrder: async () => scenario.broker })
+      assert.equal(result.status, scenario.status)
+      assert.equal(incidents.length, 1)
+      assert.equal(incidents[0].failureCode, scenario.failureCode)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  }
 })

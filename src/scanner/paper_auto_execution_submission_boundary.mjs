@@ -1,3 +1,4 @@
+import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 import { STATES as S } from './paper_auto_execution_state_machine.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
 
@@ -25,7 +26,13 @@ function classify(result = {}) {
   return { kind: 'blocked', brokerOrderId: null }
 }
 
-export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, submitPaperOrder, env = process.env } = {}) {
+async function emitIncidentFailOpen(incidentEmitter, incident) {
+  try {
+    if (typeof incidentEmitter === 'function') await incidentEmitter(incident)
+  } catch {}
+}
+
+export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, submitPaperOrder, env = process.env, incidentEmitter = emitAdminPaperOperationalIncident } = {}) {
   if (!lifecycleStore || typeof lifecycleStore.load !== 'function' || typeof lifecycleStore.transition !== 'function') throw new Error('paper_auto_submission_store_required')
   const lifecycle = lifecycleStore.load()
   if (!lifecycle) throw new Error('paper_auto_submission_lifecycle_missing')
@@ -65,6 +72,7 @@ export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, su
     result = await submitPaperOrder(Object.freeze({ symbol: identity.symbol, qty: identity.quantity, side: identity.side, type: 'market', timeInForce: 'day', clientOrderId: identity.clientOrderId, paperOnly: true }), Object.freeze({ lifecycleId: identity.lifecycleId, phase: identity.phase, deterministicIdentity: identity, liveTradingAllowed: false }))
   } catch (error) {
     next = lifecycleStore.transition(normalizedPhase === 'enter' ? S.ENTER_UNKNOWN : S.EXIT_UNKNOWN, { reconciliation: [...(next.reconciliation ?? []), { kind: 'submission_exception', phase: normalizedPhase, clientOrderId: identity.clientOrderId, message: error?.message ?? String(error) }] })
+    await emitIncidentFailOpen(incidentEmitter, { source: 'paper_execution', severity: 'critical', failureCode: 'submission_exception_requires_reconciliation', summary: 'PAPER order submission raised an exception and requires broker-authoritative reconciliation.', phase: normalizedPhase, process: 'paper_auto_execution_submission_boundary' })
     return Object.freeze({ ok: true, version: VERSION, status: 'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED', adapterInvoked: true, identity, lifecycle: next, result: null, blockers: Object.freeze(['submission_exception_requires_reconciliation']), safety: safety({ brokerContactAllowed: true, orderPlacementAllowed: true, accountMutationAllowed: true, reconciliationRequired: true }) })
   }
 
@@ -73,6 +81,11 @@ export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, su
   else if (classification.kind === 'ambiguous') next = lifecycleStore.transition(normalizedPhase === 'enter' ? S.ENTER_UNKNOWN : S.EXIT_UNKNOWN, normalizedPhase === 'enter' ? { enterBrokerOrderId: classification.brokerOrderId } : { exitBrokerOrderId: classification.brokerOrderId })
   else if (classification.kind === 'rejected') next = lifecycleStore.transition(S.FAILED_NEEDS_REVIEW, { reconciliation: [...(next.reconciliation ?? []), { kind: 'submission_rejected', phase: normalizedPhase, clientOrderId: identity.clientOrderId }] })
   else next = lifecycleStore.transition(normalizedPhase === 'enter' ? S.ENTER_UNKNOWN : S.EXIT_UNKNOWN, { reconciliation: [...(next.reconciliation ?? []), { kind: 'submission_unclassified', phase: normalizedPhase, clientOrderId: identity.clientOrderId }] })
+
+  if (classification.kind !== 'confirmed') {
+    const failureCode = classification.kind === 'rejected' ? 'submission_rejected_requires_review' : classification.kind === 'ambiguous' ? 'ambiguous_submission_requires_reconciliation' : 'submission_unclassified_requires_reconciliation'
+    await emitIncidentFailOpen(incidentEmitter, { source: 'paper_execution', severity: 'critical', failureCode, summary: classification.kind === 'rejected' ? 'PAPER order submission was rejected and requires review.' : 'PAPER order submission outcome is ambiguous and requires broker-authoritative reconciliation.', phase: normalizedPhase, process: 'paper_auto_execution_submission_boundary' })
+  }
 
   return Object.freeze({
     ok: true, version: VERSION,

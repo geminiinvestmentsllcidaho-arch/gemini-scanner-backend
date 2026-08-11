@@ -52,6 +52,7 @@ test('blocks without mutating lifecycle when snapshot is stale or unsafe', async
     store.create({ selectedSymbol: 'AAPL' })
     store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'cid-enter' })
     const before = store.load()
+    const incidents = []
     const result = await runPaperAutoExecutionReconciliation({
       lifecycleStore: store,
       accountSnapshot: snapshot({
@@ -60,8 +61,11 @@ test('blocks without mutating lifecycle when snapshot is stale or unsafe', async
         runtime: { readOnly: false, allowedMethods: ['GET', 'POST'] },
       }),
       nowMs: Date.parse('2026-08-04T04:40:30.000Z'),
+      incidentEmitter: async (incident) => { incidents.push(incident) },
     })
     assert.equal(result.status, 'BLOCKED_SNAPSHOT_NOT_READY')
+    assert.equal(incidents.length, 1)
+    assert.equal(incidents[0].source, 'paper_reconciliation')
     assert.equal(result.changed, false)
     assert.deepEqual(store.load(), before)
     assert.ok(result.blockers.includes('paper_only_snapshot_required'))
@@ -100,12 +104,16 @@ test('persists unresolved state and never performs broker contact', async () => 
   try {
     store.create({ selectedSymbol: 'AAPL' })
     store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'cid-missing' })
+    const incidents = []
     const result = await runPaperAutoExecutionReconciliation({
       lifecycleStore: store,
       accountSnapshot: snapshot(),
       nowMs: Date.parse('2026-08-04T04:40:30.000Z'),
+      incidentEmitter: async (incident) => { incidents.push(incident) },
     })
     assert.equal(result.status, 'UNRESOLVED_NEEDS_RECONCILIATION')
+    assert.equal(incidents.length, 1)
+    assert.equal(incidents[0].failureCode, 'enter_identity_not_found')
     assert.equal(result.changed, true)
     assert.equal(result.lifecycle.state, S.UNRESOLVED_NEEDS_RECONCILIATION)
     assert.deepEqual(result.blockers, ['enter_identity_not_found'])
