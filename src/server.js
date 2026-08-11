@@ -2715,7 +2715,9 @@ app.listen(PORT, HOST, async () => {
     lastStatus: paperAutoExitStatus.lastStatus,
   });
   try {
+    const paperAutoExitMonitoringSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
     await startMarketDataStream({
+      runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
       onMarketDataEvent: (event) => paperAutoExitMonitorWorker.onMarketDataEvent(event),
     });
     console.log('[server] market data stream started');

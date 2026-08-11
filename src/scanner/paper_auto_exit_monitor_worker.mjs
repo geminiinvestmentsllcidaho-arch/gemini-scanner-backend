@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
 import { fetchCustomerOwnedPositionMonitorSource } from './customer_owned_position_monitor_source.mjs'
 import { fetchAlpacaUnderFiveUniverseReadonly } from './alpaca_under_five_universe_readonly.mjs'
@@ -14,15 +13,19 @@ const enabled = env => clean(env?.PAPER_AUTO_EXIT_MONITOR_ENABLED) === '1'
 
 export function readConfiguredMonitoringLifecycle({ lifecycleFile } = {}) {
   const file = clean(lifecycleFile)
-  if (!file || !fs.existsSync(file)) return null
+  if (!file) return { status: 'LIFECYCLE_PATH_REQUIRED', file: null, lifecycle: null }
+  if (!fs.existsSync(file)) return { status: 'LIFECYCLE_FILE_MISSING', file, lifecycle: null }
+  let lifecycle
   try {
-    const lifecycle = JSON.parse(fs.readFileSync(file, 'utf8'))
-    if (lifecycle?.state !== 'MONITORING') return null
-    if (!lifecycle?.lifecycleId || !lifecycle?.selectedSymbol || !(Number(lifecycle?.filledQuantity) > 0) || !lifecycle?.brokerPositionIdentity) return null
-    return { file, lifecycle }
+    lifecycle = JSON.parse(fs.readFileSync(file, 'utf8'))
   } catch {
-    return null
+    return { status: 'LIFECYCLE_FILE_CORRUPT', file, lifecycle: null }
   }
+  if (lifecycle?.state !== 'MONITORING') return { status: 'LIFECYCLE_NOT_MONITORING', file, lifecycle }
+  if (!lifecycle?.lifecycleId || !lifecycle?.selectedSymbol || !(Number(lifecycle?.filledQuantity) > 0) || !lifecycle?.brokerPositionIdentity) {
+    return { status: 'LIFECYCLE_MONITORING_INVALID', file, lifecycle }
+  }
+  return { status: 'MONITORING', file, lifecycle }
 }
 
 export function createPaperAutoExitMonitorWorker(options = {}) {
@@ -31,7 +34,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const now = options.now ?? Date.now
   const setIntervalFn = options.setIntervalFn ?? setInterval
   const clearIntervalFn = options.clearIntervalFn ?? clearInterval
-  const configuredLifecycleFile = clean(options.lifecycleFile ?? env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH)
+  const configuredLifecycleFile = clean(options.lifecycleFile ?? env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH ?? env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH)
   const readLifecycle = options.readConfiguredMonitoringLifecycle ?? (() => readConfiguredMonitoringLifecycle({ lifecycleFile: configuredLifecycleFile }))
   const fetchAccount = options.fetchAccount ?? (args => fetchAlpacaPaperAccountReadonly(args))
   const fetchOwned = options.fetchOwnedMonitor ?? (args => fetchCustomerOwnedPositionMonitorSource(args))
@@ -84,7 +87,15 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         return diagnostics()
       }
       const row = await readLifecycle()
-      if (!row) {
+      if (!row || row.status === 'LIFECYCLE_FILE_MISSING') {
+        lastStatus = 'ACTIVE_LIFECYCLE_FILE_MISSING'
+        lastResult = []
+        return diagnostics()
+      }
+      if (row.status === 'LIFECYCLE_FILE_CORRUPT' || row.status === 'LIFECYCLE_MONITORING_INVALID') {
+        throw new Error(`paper_auto_exit_monitor_${String(row.status).toLowerCase()}`)
+      }
+      if (row.status !== 'MONITORING') {
         lastStatus = 'ACTIVE_LIFECYCLE_NOT_MONITORING'
         lastResult = []
         return diagnostics()
@@ -184,13 +195,19 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     return diagnostics()
   }
 
+  function configuredMonitoringSymbol() {
+    if (!configuredLifecycleFile) return null
+    const row = readConfiguredMonitoringLifecycle({ lifecycleFile: configuredLifecycleFile })
+    return row?.status === 'MONITORING' ? (upper(row?.lifecycle?.selectedSymbol) || null) : null
+  }
+
   function onMarketDataEvent(event = {}) {
     const symbol = upper(event.symbol ?? event.S)
     if (symbol && enabled(env)) void runOnce({ eventSymbol: symbol })
     return diagnostics()
   }
 
-  return { start, stop, runOnce, onMarketDataEvent, diagnostics }
+  return { start, stop, runOnce, onMarketDataEvent, diagnostics, configuredMonitoringSymbol }
 }
 
 export default { VERSION, DEFAULT_INTERVAL_MS, readConfiguredMonitoringLifecycle, createPaperAutoExitMonitorWorker }

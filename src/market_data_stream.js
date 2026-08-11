@@ -128,6 +128,8 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {}, 
   const marketOpenFn = runtime.marketOpenFn || isMarketOpen;
   const envSymbols = parseSymbolsEnv(process.env.ALPACA_SYMBOLS);
   if (envSymbols) symbols = envSymbols;
+  const additionalSymbols = parseSymbolsEnv(runtime.additionalSymbols?.join?.(',') ?? runtime.additionalSymbols);
+  if (additionalSymbols) symbols = Array.from(new Set([...symbols, ...additionalSymbols]));
 
   let marketOpen = runtime.skipInitialFetches ? false : await marketOpenFn();
   markStreamMarketSession(marketOpen, { nowMs: nowFn() });
