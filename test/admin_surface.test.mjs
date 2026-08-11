@@ -119,6 +119,8 @@ test("dead Admin destinations stay non-clickable and valid links render as cyan 
   const html = renderAdminSurfaceHtml(buildAdminSurface({}));
   assert.doesNotMatch(html, /href="\/admin\/(?:scanners|shared-cache|customers)"/);
   assert.match(html, /class="admin-action" href="\/admin\/system-health"/);
+  assert.doesNotMatch(html, /Open error stream/);
+  assert.match(html, /Included in System &amp; Infrastructure Health\./);
   assert.match(html, /class="admin-action" href="\/admin\/trading-engine"/);
   assert.match(html, /class="admin-action" href="\/admin\/security"/);
   assert.match(html, /background:#00ffff|background:\s*#00ffff/);
