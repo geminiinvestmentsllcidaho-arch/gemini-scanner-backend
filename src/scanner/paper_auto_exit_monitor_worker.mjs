@@ -62,6 +62,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   let lastReconciliationStatus = null
   let lastBrokerSubmittedAt = null
   let lastBrokerFilledAt = null
+  let lastIncidentCode = null
 
   const diagnostics = () => ({
     ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles, eventCycles, fallbackCycles,
@@ -73,9 +74,16 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   })
 
   async function incident(code) {
+    const failureCode = clean(code)
+    if (!failureCode || failureCode === lastIncidentCode) return
+    lastIncidentCode = failureCode
     try {
-      await incidentEmitter?.({ source: 'paper_execution', severity: 'critical', failureCode: code, summary: 'Continuous PAPER auto-EXIT monitor failed closed.', phase: 'exit', process: 'paper_auto_exit_monitor_worker' })
+      await incidentEmitter?.({ source: 'paper_execution', severity: 'critical', failureCode, summary: 'Continuous PAPER auto-EXIT monitor failed closed.', phase: 'exit', process: 'paper_auto_exit_monitor_worker' })
     } catch {}
+  }
+
+  function clearIncidentLatch() {
+    lastIncidentCode = null
   }
 
   async function runOnce({ eventSymbol = null, source = null } = {}) {
@@ -91,12 +99,14 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
       if (!configuredLifecycleFile) {
         lastStatus = 'ACTIVE_LIFECYCLE_PATH_REQUIRED'
         lastResult = []
+        await incident('paper_auto_exit_monitor_lifecycle_path_required')
         return diagnostics()
       }
       const row = await readLifecycle()
       if (!row || row.status === 'LIFECYCLE_FILE_MISSING') {
         lastStatus = 'ACTIVE_LIFECYCLE_FILE_MISSING'
         lastResult = []
+        await incident('paper_auto_exit_monitor_lifecycle_file_missing')
         return diagnostics()
       }
       if (row.status === 'LIFECYCLE_FILE_CORRUPT' || row.status === 'LIFECYCLE_MONITORING_INVALID') {
@@ -105,8 +115,10 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
       if (row.status !== 'MONITORING') {
         lastStatus = 'ACTIVE_LIFECYCLE_NOT_MONITORING'
         lastResult = []
+        await incident('paper_auto_exit_monitor_lifecycle_not_monitoring')
         return diagnostics()
       }
+      clearIncidentLatch()
       const wanted = upper(eventSymbol)
       if (wanted && upper(row.lifecycle.selectedSymbol) !== wanted) {
         lastStatus = 'EVENT_SYMBOL_NOT_MONITORED'

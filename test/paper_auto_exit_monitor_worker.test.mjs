@@ -267,3 +267,54 @@ test('records broker timestamps returned by exact exit runner evidence', async (
   assert.equal(r.lastBrokerSubmittedAt,'2026-08-11T15:00:00.000Z')
   assert.equal(r.lastBrokerFilledAt,'2026-08-11T15:00:00.250Z')
 })
+
+test('enabled monitor emits one deduplicated critical incident when lifecycle path is missing', async () => {
+  const incidents=[]
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1'},
+    incidentEmitter:async incident=>incidents.push(incident),
+  })
+  await w.runOnce()
+  await w.runOnce()
+  assert.equal(w.diagnostics().lastStatus,'ACTIVE_LIFECYCLE_PATH_REQUIRED')
+  assert.equal(incidents.length,1)
+  assert.equal(incidents[0].failureCode,'paper_auto_exit_monitor_lifecycle_path_required')
+  assert.equal(incidents[0].severity,'critical')
+})
+
+test('enabled monitor emits one deduplicated critical incident when configured lifecycle file is missing', async () => {
+  const incidents=[]
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1'},
+    lifecycleFile:'/tmp/definitely-missing-paper-auto-exit-lifecycle.json',
+    readConfiguredMonitoringLifecycle:async()=>({status:'LIFECYCLE_FILE_MISSING',file:'/tmp/definitely-missing-paper-auto-exit-lifecycle.json',lifecycle:null}),
+    incidentEmitter:async incident=>incidents.push(incident),
+  })
+  await w.runOnce()
+  await w.runOnce()
+  assert.equal(w.diagnostics().lastStatus,'ACTIVE_LIFECYCLE_FILE_MISSING')
+  assert.equal(incidents.length,1)
+  assert.equal(incidents[0].failureCode,'paper_auto_exit_monitor_lifecycle_file_missing')
+})
+
+test('incident dedupe latch resets after a healthy monitoring cycle so a later recurrence alerts again', async () => {
+  const incidents=[]
+  let mode='missing'
+  const row={status:'MONITORING',file:'/tmp/lifecycle.json',lifecycle:{lifecycleId:'life-reset',state:'MONITORING',selectedSymbol:'BTG',filledQuantity:1,brokerPositionIdentity:'BTG:1'}}
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1'},
+    lifecycleFile:'/tmp/lifecycle.json',
+    readConfiguredMonitoringLifecycle:async()=>mode==='missing'?{status:'LIFECYCLE_FILE_MISSING',file:'/tmp/lifecycle.json',lifecycle:null}:row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',ownedExitReviewTriggered:false,resultState:'WATCH',sourceStale:false}]}),
+    incidentEmitter:async incident=>incidents.push(incident),
+  })
+  await w.runOnce()
+  mode='healthy'
+  await w.runOnce()
+  mode='missing'
+  await w.runOnce()
+  assert.equal(incidents.length,2)
+  assert.equal(incidents[0].failureCode,'paper_auto_exit_monitor_lifecycle_file_missing')
+  assert.equal(incidents[1].failureCode,'paper_auto_exit_monitor_lifecycle_file_missing')
+})
