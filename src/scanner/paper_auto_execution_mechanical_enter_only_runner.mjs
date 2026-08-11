@@ -1,3 +1,4 @@
+import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 import { STATES as S } from './paper_auto_execution_state_machine.mjs'
 import { createPaperAutoExecutionComposition } from './paper_auto_execution_composition.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
@@ -16,6 +17,7 @@ export function createPaperAutoExecutionMechanicalEnterOnlyRunner(options = {}) 
     getAccountSnapshot,
     getHistoricalOrders = async () => [],
     now = () => Date.now(),
+    incidentEmitter = emitAdminPaperOperationalIncident,
   } = options
   if (!lifecycleStore?.load) throw new Error('paper_auto_enter_only_runner_lifecycle_store_required')
   if (typeof wait !== 'function') throw new Error('paper_auto_enter_only_runner_wait_required')
@@ -52,6 +54,10 @@ export function createPaperAutoExecutionMechanicalEnterOnlyRunner(options = {}) 
       if (cycle < cycleLimit) await wait(intervalMs)
     }
     const lifecycle = lifecycleStore.load()
+    const failureCode = failure.has(lifecycle?.state) ? 'mechanical_enter_only_lifecycle_failed_needs_review' : 'mechanical_enter_only_bounded_not_completed'
+    try {
+      if (typeof incidentEmitter === 'function') await incidentEmitter({ source: 'paper_execution', severity: 'critical', failureCode, summary: 'Mechanical PAPER ENTER-only runner did not complete and failed closed.', phase: 'enter', process: 'paper_auto_execution_mechanical_enter_only_runner' })
+    } catch {}
     return Object.freeze({ ok: false, version: VERSION, status: 'MECHANICAL_ENTER_ONLY_INCOMPLETE_FAIL_CLOSED', completed: false, cycles: timeline.length, lifecycle, timeline: Object.freeze(timeline), blockers: Object.freeze([failure.has(lifecycle?.state) ? 'lifecycle_failed_needs_review' : 'bounded_enter_only_not_completed']), safety: Object.freeze({ paperOnly: true, enterOnly: true, exitAuthorized: false, exitSubmissionEnabled: false, failClosed: true, blindRetryAllowed: false, additionalEntryAllowed: false, automaticStartAllowed: false, scheduledExecutionAllowed: false, liveTradingAllowed: false }) })
   }
   return Object.freeze({ run })

@@ -34,3 +34,23 @@ test('submits one ENTER, reconciles the position, and never prepares EXIT', asyn
     assert.equal(result.safety.exitAuthorized, false)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
+
+test('emits fail-open Admin incident when ENTER-only run stays incomplete', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'enter-only-incident-'))
+  try {
+    const store = new PaperAutoExecutionLifecycleStore({ filePath: path.join(dir, 'lifecycle.json') })
+    const incidents = []
+    const runner = createPaperAutoExecutionMechanicalEnterOnlyRunner({
+      lifecycleStore: store,
+      env: { PAPER_AUTO_COMPOSITION_ENABLED: '0' },
+      getScanSnapshot: async () => ({ candidates: [] }),
+      incidentEmitter: async (incident) => { incidents.push(incident); throw new Error('notification_down') },
+      wait: async () => {}, maxCycles: 2, pollIntervalMs: 250,
+    })
+    const result = await runner.run()
+    assert.equal(result.status, 'MECHANICAL_ENTER_ONLY_INCOMPLETE_FAIL_CLOSED')
+    assert.equal(result.ok, false)
+    assert.equal(incidents.length, 1)
+    assert.equal(incidents[0].failureCode, 'mechanical_enter_only_bounded_not_completed')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
