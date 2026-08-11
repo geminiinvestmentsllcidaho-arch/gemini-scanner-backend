@@ -130,6 +130,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {}, 
   if (envSymbols) symbols = envSymbols;
   const additionalSymbols = parseSymbolsEnv(runtime.additionalSymbols?.join?.(',') ?? runtime.additionalSymbols);
   if (additionalSymbols) symbols = Array.from(new Set([...symbols, ...additionalSymbols]));
+  const subscribedSymbols = new Set(symbols);
 
   let marketOpen = runtime.skipInitialFetches ? false : await marketOpenFn();
   markStreamMarketSession(marketOpen, { nowMs: nowFn() });
@@ -209,7 +210,8 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {}, 
         if (m.T === 'success' || m.T === 'error' || m.T === 'subscription') {
           console.log('[md]', m);
           if (m.T === 'success' && m.msg === 'authenticated') {
-            const sub = { action: 'subscribe', quotes: symbols, bars: symbols };
+            const currentSymbols = Array.from(subscribedSymbols);
+            const sub = { action: 'subscribe', quotes: currentSymbols, bars: currentSymbols };
             ws.send(JSON.stringify(sub));
             console.log('[md] subscribed', sub);
           }
@@ -284,6 +286,18 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {}, 
     // close handler schedules reconnect
   }, watchdogEveryMs);
 
+  function addSymbols(nextSymbols = []) {
+    const requested = parseSymbolsEnv(nextSymbols?.join?.(',') ?? nextSymbols) ?? [];
+    const added = requested.filter((symbol) => !subscribedSymbols.has(symbol));
+    for (const symbol of added) subscribedSymbols.add(symbol);
+    if (added.length && ws?.readyState === WebSocket.OPEN) {
+      const sub = { action: 'subscribe', quotes: added, bars: added };
+      ws.send(JSON.stringify(sub));
+      console.log('[md] dynamically subscribed', sub);
+    }
+    return { added, symbols: Array.from(subscribedSymbols) };
+  }
+
   return {
     get ws() {
       return ws;
@@ -291,6 +305,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {}, 
     get open() {
       return marketOpen;
     },
+    addSymbols,
     stop() {
       closedManually = true;
       if (reconnectTimer) clearTimeoutFn(reconnectTimer);

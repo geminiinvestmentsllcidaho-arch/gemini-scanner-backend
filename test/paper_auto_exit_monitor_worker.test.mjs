@@ -51,6 +51,31 @@ test('fresh EXIT invokes exact runner once', async () => {
   assert.equal('lastReconciliationAt' in r,false)
 })
 
+
+test('unrelated market events are rejected before runOnce and do not alter monitor diagnostics', async () => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'paper-auto-exit-prefilter-'))
+  const lifecycleFile=path.join(dir,'lifecycle.json')
+  fs.writeFileSync(lifecycleFile,JSON.stringify(life))
+  try {
+    let accounts=0
+    const w=createPaperAutoExitMonitorWorker({
+      env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:lifecycleFile},
+      fetchAccount:async()=>{accounts++;return {ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}},
+    })
+    const before=w.diagnostics()
+    const returned=w.onMarketDataEvent({symbol:'AAPL'})
+    await new Promise(resolve=>setImmediate(resolve))
+    const after=w.diagnostics()
+    assert.equal(returned.cycles,before.cycles)
+    assert.equal(after.cycles,before.cycles)
+    assert.equal(after.eventCycles,before.eventCycles)
+    assert.equal(after.lastStatus,before.lastStatus)
+    assert.equal(accounts,0)
+  } finally {
+    fs.rmSync(dir,{recursive:true,force:true})
+  }
+})
+
 test('missing exact broker position fails closed', async () => {
   let exits=0
   const w=createPaperAutoExitMonitorWorker({
@@ -237,22 +262,28 @@ test('monitor-specific lifecycle path takes precedence over execution fallback p
 
 
 test('uses 15-second authoritative fallback while market events remain immediate', async () => {
-  let scheduledMs=null
-  const w=createPaperAutoExitMonitorWorker({
-    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
-    readConfiguredMonitoringLifecycle:async()=>row,
-    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[]}),
-    setIntervalFn:(fn,ms)=>{scheduledMs=ms;return {unref(){}}},
-    clearIntervalFn:()=>{},
-  })
-  w.start()
-  await new Promise(resolve=>setImmediate(resolve))
-  assert.equal(scheduledMs,15000)
-  assert.ok(w.diagnostics().fallbackCycles>=1)
-  w.onMarketDataEvent({symbol:'BTG'})
-  await new Promise(resolve=>setImmediate(resolve))
-  assert.ok(w.diagnostics().eventCycles>=1)
-  w.stop()
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'paper-auto-exit-fallback-'))
+  const lifecycleFile=path.join(dir,'lifecycle.json')
+  fs.writeFileSync(lifecycleFile,JSON.stringify(life))
+  try {
+    let scheduledMs=null
+    const w=createPaperAutoExitMonitorWorker({
+      env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:lifecycleFile},
+      fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[]}),
+      setIntervalFn:(fn,ms)=>{scheduledMs=ms;return {unref(){}}},
+      clearIntervalFn:()=>{},
+    })
+    w.start()
+    await new Promise(resolve=>setImmediate(resolve))
+    assert.equal(scheduledMs,15000)
+    assert.ok(w.diagnostics().fallbackCycles>=1)
+    w.onMarketDataEvent({symbol:'BTG'})
+    await new Promise(resolve=>setImmediate(resolve))
+    assert.ok(w.diagnostics().eventCycles>=1)
+    w.stop()
+  } finally {
+    fs.rmSync(dir,{recursive:true,force:true})
+  }
 })
 
 test('records broker timestamps returned by exact exit runner evidence', async () => {

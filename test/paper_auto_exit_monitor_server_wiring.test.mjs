@@ -7,7 +7,7 @@ test('server constructs and starts disabled-by-default PAPER auto-exit monitor a
   assert.match(source, /createPaperAutoExitMonitorWorker/)
   assert.match(source, /const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker\(\)/)
   assert.match(source, /paperAutoExitMonitorWorker\.start\(\)/)
-  assert.match(source, /onMarketDataEvent:\s*\(event\)\s*=>\s*paperAutoExitMonitorWorker\.onMarketDataEvent\(event\)/)
+  assert.match(source, /paperAutoExitMonitorWorker\.onMarketDataEvent\(event\)/)
   assert.match(source, /\/diagnostics\/paper-auto-exit-monitor/)
 })
 
@@ -30,4 +30,12 @@ test('market stream merges optional additional symbols with configured base symb
   const source = fs.readFileSync(new URL('../src/market_data_stream.js', import.meta.url), 'utf8')
   assert.match(source, /runtime\.additionalSymbols/)
   assert.match(source, /new Set\(\[\.\.\.symbols,\s*\.\.\.additionalSymbols\]\)/)
+})
+
+
+test('server dynamically follows the active PAPER auto-exit lifecycle symbol after startup', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /let marketDataStream = null/)
+  assert.match(source, /configuredMonitoringSymbol\(\)/)
+  assert.match(source, /marketDataStream\?\.addSymbols\?\.\(\[activePaperExitSymbol\]\)/)
 })

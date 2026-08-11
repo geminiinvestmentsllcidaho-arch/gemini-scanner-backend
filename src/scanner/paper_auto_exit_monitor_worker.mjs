@@ -226,7 +226,10 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
 
   function onMarketDataEvent(event = {}) {
     const symbol = upper(event.symbol ?? event.S)
-    if (symbol && enabled(env)) void runOnce({ eventSymbol: symbol, source: 'market_event' })
+    if (!symbol || !enabled(env)) return diagnostics()
+    const monitoredSymbol = configuredMonitoringSymbol()
+    if (!monitoredSymbol || symbol !== monitoredSymbol) return diagnostics()
+    void runOnce({ eventSymbol: symbol, source: 'market_event' })
     return diagnostics()
   }
 

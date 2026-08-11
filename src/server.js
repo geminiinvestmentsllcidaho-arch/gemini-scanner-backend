@@ -2716,10 +2716,17 @@ app.listen(PORT, HOST, async () => {
   });
   try {
     const paperAutoExitMonitoringSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
-    await startMarketDataStream({
+    let marketDataStream = null;
+    marketDataStream = await startMarketDataStream({
       runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
-      onMarketDataEvent: (event) => paperAutoExitMonitorWorker.onMarketDataEvent(event),
+      onMarketDataEvent: (event) => {
+        paperAutoExitMonitorWorker.onMarketDataEvent(event);
+        const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
+        if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
+      },
     });
+    const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
+    if (activePaperExitSymbol) marketDataStream.addSymbols?.([activePaperExitSymbol]);
     console.log('[server] market data stream started');
   } catch (e) {
     console.error('[server] market data stream failed to start:', e);

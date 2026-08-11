@@ -75,3 +75,18 @@ test('authoritative market clock refresh updates exposed session state and clear
   assert.equal(intervals.every((token) => token.cleared), true);
   assert.equal(timeouts.length, 0);
 });
+
+
+test('dynamically subscribes newly requested symbols without reconnecting', async () => {
+  FakeWS.instances.length=0; const r=runtime()
+  const stream=await startMarketDataStream({symbols:['AAPL'],runtime:r.api})
+  const ws=FakeWS.instances.at(-1)
+  ws.open()
+  ws.emit('message',JSON.stringify([{T:'success',msg:'authenticated'}]))
+  const before=ws.sent.length
+  const result=stream.addSymbols(['BTG','AAPL'])
+  assert.deepEqual(result.added,['BTG'])
+  assert.equal(ws.sent.length,before+1)
+  assert.deepEqual(ws.sent.at(-1),{action:'subscribe',quotes:['BTG'],bars:['BTG']})
+  stream.stop()
+})
