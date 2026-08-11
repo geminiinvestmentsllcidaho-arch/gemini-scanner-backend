@@ -1962,6 +1962,38 @@ app.get('/admin/system-health', requireAdminAuthorization, async (_req, res) => 
 
 app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_trading_engine.mjs'); const accessMod = await import('./scanner/alpaca_master_access_switch.mjs'); const alpacaAccess = await accessMod.getAlpacaMasterAccessSwitchState(); const x = m.collectAdminTradingEngine({ alpacaAccess }); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminTradingEngine(x)); });
 
+app.get('/admin/api/companion/status', requireAdminAuthorization, async (_req, res) => {
+  const [healthMod, tradingMod, accessMod, companionMod] = await Promise.all([
+    import('./scanner/admin_system_health.mjs'),
+    import('./scanner/admin_trading_engine.mjs'),
+    import('./scanner/alpaca_master_access_switch.mjs'),
+    import('./scanner/admin_companion_api.mjs'),
+  ]);
+  const [systemHealth, alpacaAccess] = await Promise.all([
+    healthMod.collectAdminSystemHealth(),
+    accessMod.getAlpacaMasterAccessSwitchState(),
+  ]);
+  const tradingEngine = tradingMod.collectAdminTradingEngine({ alpacaAccess });
+  const fs = await import('node:fs');
+  const readLastJsonl = (file) => {
+    try {
+      const lines = fs.readFileSync(file, 'utf8').trim().split(/\n+/).filter(Boolean);
+      return lines.length ? JSON.parse(lines.at(-1)) : null;
+    } catch {
+      return null;
+    }
+  };
+  const payload = companionMod.buildAdminCompanionStatus({
+    systemHealth,
+    tradingEngine,
+    infrastructureIncident: readLastJsonl('runs/infrastructure_website_watchdog_incidents.jsonl'),
+    opsAiIncident: readLastJsonl('runs/ops_ai_scanner_watchdog_incidents.jsonl')
+      || readLastJsonl('runs/ops_ai_scanner_watchdog_incident_ledger.jsonl'),
+  });
+  res.set('Cache-Control', 'no-store');
+  return res.status(200).json(payload);
+});
+
 app.post('/admin/alpaca-access', requireAdminAuthorization, requireCustomerSameOrigin, async (req, res) => {
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
   const enabled = String(req.body?.enabled ?? '').trim() === '1';
