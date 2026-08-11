@@ -5,6 +5,7 @@ import { createPaperAutoExecutionAlpacaPaperAdapter } from './paper_auto_executi
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
 import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
+import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 
 export const VERSION = 'paper_auto_execution_exit_only_runner_v1'
 const clean = (value) => String(value ?? '').trim()
@@ -45,6 +46,21 @@ async function fetchHistoricalOrders({ env, fetchImpl }) {
 }
 
 export async function runPaperAutoExecutionExitOnly(options = {}) {
+  const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
+  const emitFailOpen = async (failureCode, summary) => {
+    try {
+      if (typeof incidentEmitter === 'function') {
+        await incidentEmitter({
+          source: 'paper_execution',
+          severity: 'critical',
+          failureCode,
+          summary,
+          phase: 'exit',
+          process: 'paper_auto_execution_exit_only_runner',
+        })
+      }
+    } catch {}
+  }
   const env = options.env ?? process.env
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   const args = options.args ?? {}
@@ -59,6 +75,7 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   if (typeof fetchImpl !== 'function') blockers.push('fetch_required')
   if (blockers.length) return { ok: false, version: VERSION, status: 'EXIT_ONLY_BLOCKED', blockers }
 
+  try {
   const store = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
   const lifecycle = store.load()
   const lifecycleId = clean(args.lifecycleId ?? args['lifecycle-id'])
@@ -154,6 +171,14 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     fs.writeFileSync(options.reportFile, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 })
   }
   return result
+  } catch (error) {
+    const failureCode = clean(error?.message).split(':')[0] || 'paper_exit_only_runner_failed'
+    await emitFailOpen(
+      failureCode,
+      'Exact-position PAPER EXIT-only runner failed outside the submission boundary or reconciliation runner.',
+    )
+    throw error
+  }
 }
 
 export default { VERSION, runPaperAutoExecutionExitOnly }

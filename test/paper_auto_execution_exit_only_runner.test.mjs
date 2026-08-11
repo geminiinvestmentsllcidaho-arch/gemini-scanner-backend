@@ -268,3 +268,58 @@ test('submits one exact sell and reconciles the lifecycle closed', async () => {
     fs.rmSync(f.dir, { recursive: true, force: true })
   }
 })
+
+
+test('emits fail-open Admin incident for EXIT-only operational failure without changing thrown error', async () => {
+  const f = fixture()
+  const incidents = []
+  try {
+    await assert.rejects(
+      runPaperAutoExecutionExitOnly({
+        args: f.args,
+        env: f.env,
+        nowMs: f.nowMs,
+        incidentEmitter: async (incident) => {
+          incidents.push(incident)
+          throw new Error('notification_down')
+        },
+        accountCredentialResolver: f.accountCredentialResolver,
+        fetchImpl: async (url, init = {}) => {
+          const target = String(url)
+          if (target.includes('/v2/clock')) {
+            return new Response(JSON.stringify({ is_open: false }), { status: 200, headers: { 'content-type': 'application/json' } })
+          }
+          throw new Error(`unexpected:${target}`)
+        },
+      }),
+      /paper_exit_only_market_open_required/,
+    )
+    assert.equal(incidents.length, 1)
+    assert.equal(incidents[0].source, 'paper_execution')
+    assert.equal(incidents[0].phase, 'exit')
+    assert.equal(incidents[0].failureCode, 'paper_exit_only_market_open_required')
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f.lifecycleFile }).load().state, S.MONITORING)
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true })
+  }
+})
+
+test('does not emit Admin incident for ordinary EXIT-only local authorization blockers', async () => {
+  const f = fixture()
+  const incidents = []
+  let calls = 0
+  try {
+    const result = await runPaperAutoExecutionExitOnly({
+      args: { ...f.args, execute: 'false' },
+      env: f.env,
+      nowMs: f.nowMs,
+      incidentEmitter: async (incident) => incidents.push(incident),
+      fetchImpl: async () => { calls += 1; throw new Error('network forbidden') },
+    })
+    assert.equal(result.status, 'EXIT_ONLY_BLOCKED')
+    assert.equal(incidents.length, 0)
+    assert.equal(calls, 0)
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true })
+  }
+})
