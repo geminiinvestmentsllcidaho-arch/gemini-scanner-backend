@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createAdminOperationalEmailDelivery } from "../src/scanner/admin_operational_notification_delivery.mjs";
 const execFileAsync=promisify(execFile);
 const ledger=path.resolve("runs/infrastructure_website_watchdog_incidents.jsonl");
 const interval=Math.max(60000,Number(process.env.GS_INFRA_WATCHDOG_INTERVAL_MS||60000));
@@ -14,7 +15,18 @@ const parse=(v)=>{try{return JSON.parse(v)}catch{return null}};
 async function probe(url){const started=Date.now();const c=new AbortController();const t=setTimeout(()=>c.abort(),10000);t.unref?.();try{const r=await fetch(url,{redirect:"follow",signal:c.signal});const body=await r.text();return{url,ok:r.ok,statusCode:r.status,latencyMs:Date.now()-started,body:body.slice(0,700)}}catch(e){return{url,ok:false,statusCode:null,latencyMs:Date.now()-started,errorCode:clean(e?.name||"FETCH_FAILED",120)}}finally{clearTimeout(t)}}
 function latest(){try{return parse(fs.readFileSync(ledger,"utf8").trim().split(/\r?\n/).filter(Boolean).at(-1))??null}catch{return null}}
 function append(row){fs.mkdirSync(path.dirname(ledger),{recursive:true,mode:0o700});fs.appendFileSync(ledger,JSON.stringify(row)+"\n",{mode:0o600});try{fs.chmodSync(ledger,0o600)}catch{}}
-async function send(report,state){const provider=clean(process.env.CUSTOMER_EMAIL_PROVIDER).toLowerCase();const key=clean(process.env.RESEND_API_KEY);const from=clean(process.env.CUSTOMER_EMAIL_FROM);const to=clean(process.env.GS_WATCHDOG_ALERT_RECIPIENT);if(provider!=="resend"||!key||!from||!to)return{attempted:false,delivered:false,reason:"email_not_configured"};const kind=state.alertKind==="recovery"?"RECOVERY":"FAILURE";const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({from,to:[to],subject:`[GeminiScanner Infrastructure] ${kind}: ${report.status}`,text:`GeminiScanner Infrastructure and Website Watchdog ${kind}\n\nGenerated: ${report.generatedAt}\nStatus: ${report.status}\nFailure codes: ${report.failureCodes.join(", ")||"none"}\n\nRead-only monitoring only. No remediation or trading action was performed.`})});const b=await r.json().catch(()=>({}));return{attempted:true,delivered:r.ok&&Boolean(b?.id),provider:"resend",deliveryId:clean(b?.id)||null,statusCode:r.status}}
+async function send(report,state){
+ const delivery=createAdminOperationalEmailDelivery();
+ return delivery.send({
+  source:"infrastructure",
+  severity:state.alertKind==="recovery"?"recovery":"critical",
+  transition:state.transition,
+  reportStatus:report.status,
+  failureCodes:report.failureCodes,
+  generatedAt:report.generatedAt,
+ });
+}
+
 async function cycle(){
  const [root,publicHealth,localHealth,localReadiness,pm2Raw,dfRaw]=await Promise.all([
   probe("https://geminiscanner.net/"),probe("https://geminiscanner.net/health"),
