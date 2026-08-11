@@ -65,3 +65,14 @@ test('snapshot adapter performs no network or broker mutation', () => {
   assert.equal(result.safety.brokerMutationAllowed, false)
   assert.deepEqual(result.safety.allowedMethods, ['GET'])
 })
+
+
+test('retains historical order broker timestamps', () => {
+  const r=adaptPaperAutoExecutionSnapshot({
+    accountSnapshot:{status:'connected_readonly',mode:'PAPER_ONLY',observedAt:'2026-08-11T15:00:01Z',runtime:{readOnly:true,allowedMethods:['GET']},positions:[],openOrders:[]},
+    historicalOrders:[{id:'x',client_order_id:'cid-x',symbol:'BTG',side:'sell',status:'filled',filled_qty:'1',submitted_at:'2026-08-11T15:00:00Z',filled_at:'2026-08-11T15:00:00.250Z'}],
+    nowMs:Date.parse('2026-08-11T15:00:01Z'),
+  })
+  assert.equal(r.orders[0].submittedAt,'2026-08-11T15:00:00.000Z')
+  assert.equal(r.orders[0].filledAt,'2026-08-11T15:00:00.250Z')
+})

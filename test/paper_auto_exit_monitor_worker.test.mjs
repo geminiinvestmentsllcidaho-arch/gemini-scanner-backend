@@ -234,3 +234,36 @@ test('monitor-specific lifecycle path takes precedence over execution fallback p
     fs.rmSync(dir,{recursive:true,force:true})
   }
 })
+
+
+test('uses 15-second authoritative fallback while market events remain immediate', async () => {
+  let scheduledMs=null
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[]}),
+    setIntervalFn:(fn,ms)=>{scheduledMs=ms;return {unref(){}}},
+    clearIntervalFn:()=>{},
+  })
+  w.start()
+  await new Promise(resolve=>setImmediate(resolve))
+  assert.equal(scheduledMs,15000)
+  assert.ok(w.diagnostics().fallbackCycles>=1)
+  w.onMarketDataEvent({symbol:'BTG'})
+  await new Promise(resolve=>setImmediate(resolve))
+  assert.ok(w.diagnostics().eventCycles>=1)
+  w.stop()
+})
+
+test('records broker timestamps returned by exact exit runner evidence', async () => {
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',submission:{status:'SUBMISSION_CONFIRMED_RECONCILIATION_REQUIRED',result:{brokerOrderId:'bo-1',submittedAt:'2026-08-11T15:00:00.000Z'}},reconciliation:{status:'RECONCILED_STATE_UPDATED'},lifecycle:{state:'ROUND_TRIP_COMPLETED',exitBrokerOrderId:'bo-1',exitBrokerFilledAt:'2026-08-11T15:00:00.250Z'},brokerTiming:{submittedAt:'2026-08-11T15:00:00.000Z',filledAt:'2026-08-11T15:00:00.250Z'}}),
+  })
+  const r=await w.runOnce({source:'market_event',eventSymbol:'BTG'})
+  assert.equal(r.lastBrokerSubmittedAt,'2026-08-11T15:00:00.000Z')
+  assert.equal(r.lastBrokerFilledAt,'2026-08-11T15:00:00.250Z')
+})

@@ -146,6 +146,10 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     nowMs: Date.now(),
   })
   const finalLifecycle = store.load()
+  const brokerTiming = {
+    submittedAt: clean(finalLifecycle?.exitBrokerSubmittedAt ?? submission?.result?.submittedAt) || null,
+    filledAt: clean(finalLifecycle?.exitBrokerFilledAt ?? submission?.result?.filledAt) || null,
+  }
   const result = {
     ok: finalLifecycle?.state === 'ROUND_TRIP_COMPLETED',
     version: VERSION,
@@ -155,6 +159,7 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     submission,
     reconciliation,
     lifecycle: finalLifecycle,
+    brokerTiming,
     safety: {
       paperOnly: true,
       exitOnly: true,

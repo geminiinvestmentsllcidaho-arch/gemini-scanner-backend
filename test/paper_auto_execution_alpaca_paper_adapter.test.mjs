@@ -126,3 +126,14 @@ test('source has no runtime, scheduling, PM2, or live endpoint integration', () 
   assert.match(source, /automaticStartAllowed: false/)
   assert.match(source, /retryAllowed: false/)
 })
+
+
+test('preserves Alpaca broker submitted and filled timestamps', async () => {
+  const adapter=createPaperAutoExecutionAlpacaPaperAdapter({
+    env:{PAPER_AUTO_ALPACA_ADAPTER_ENABLED:'1',PAPER_AUTO_ALPACA_PAPER_BASE_URL:'https://paper-api.alpaca.markets',PAPER_AUTO_ALPACA_PAPER_KEY:'k',PAPER_AUTO_ALPACA_PAPER_SECRET:'s'},
+    fetchImpl:async()=>new Response(JSON.stringify({id:'broker-time-1',submitted_at:'2026-08-11T15:00:00Z',filled_at:'2026-08-11T15:00:00.250Z'}),{status:200}),
+  })
+  const r=await adapter.submitPaperOrder({symbol:'BTG',quantity:1,side:'sell',type:'market',timeInForce:'day',clientOrderId:'cid-time',paperOnly:true})
+  assert.equal(r.submittedAt,'2026-08-11T15:00:00.000Z')
+  assert.equal(r.filledAt,'2026-08-11T15:00:00.250Z')
+})

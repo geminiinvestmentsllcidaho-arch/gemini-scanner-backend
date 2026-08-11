@@ -2,6 +2,7 @@ export const VERSION = 'paper_auto_execution_alpaca_paper_adapter_v1'
 
 const clean = (value) => String(value ?? '').trim()
 const enabled = (env, key) => clean(env?.[key]) === '1'
+const timestamp = (value) => { const ms = Date.parse(clean(value)); return Number.isFinite(ms) ? new Date(ms).toISOString() : null }
 
 function pick(env, names) {
   for (const name of names) {
@@ -24,6 +25,8 @@ function blocked(blockers) {
     orderId: null,
     clientOrderId: null,
     httpStatus: null,
+    submittedAt: null,
+    filledAt: null,
   })
 }
 
@@ -117,6 +120,8 @@ export function createPaperAutoExecutionAlpacaPaperAdapter({
     } catch {}
 
     const brokerOrderId = clean(body?.id) || null
+    const submittedAt = timestamp(body?.submitted_at ?? body?.submittedAt)
+    const filledAt = timestamp(body?.filled_at ?? body?.filledAt)
     const submitted = response.ok === true && Boolean(brokerOrderId)
     return Object.freeze({
       ok: response.ok === true,
@@ -131,6 +136,8 @@ export function createPaperAutoExecutionAlpacaPaperAdapter({
       orderId: brokerOrderId,
       clientOrderId,
       httpStatus: Number(response.status),
+      submittedAt,
+      filledAt,
     })
   }
 

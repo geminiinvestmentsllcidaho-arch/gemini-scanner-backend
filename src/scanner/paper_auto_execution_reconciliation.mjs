@@ -6,6 +6,7 @@ const clean = (value) => String(value ?? '').trim()
 const upper = (value) => clean(value).toUpperCase()
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null
 const unique = (values = []) => [...new Set(values.filter(Boolean))]
+const timestamp = (value) => { const ms = Date.parse(clean(value)); return Number.isFinite(ms) ? new Date(ms).toISOString() : null }
 
 function normalizeOrder(order = {}) {
   return Object.freeze({
@@ -16,6 +17,8 @@ function normalizeOrder(order = {}) {
     status: clean(order.status).toLowerCase(),
     filledQty: finite(order.filled_qty ?? order.filledQty),
     filledAvgPrice: finite(order.filled_avg_price ?? order.filledAvgPrice),
+    submittedAt: timestamp(order.submitted_at ?? order.submittedAt),
+    filledAt: timestamp(order.filled_at ?? order.filledAt),
   })
 }
 
@@ -45,6 +48,10 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
 
   let nextState = lifecycle.state
   const patch = { reconciliation: [...(lifecycle.reconciliation ?? [])] }
+  if (enterOrder?.submittedAt) patch.enterBrokerSubmittedAt = enterOrder.submittedAt
+  if (enterOrder?.filledAt) patch.enterBrokerFilledAt = enterOrder.filledAt
+  if (exitOrder?.submittedAt) patch.exitBrokerSubmittedAt = exitOrder.submittedAt
+  if (exitOrder?.filledAt) patch.exitBrokerFilledAt = exitOrder.filledAt
 
   if ([S.ENTER_SUBMITTING, S.ENTER_UNKNOWN, S.ENTER_OPEN, S.ENTER_PARTIALLY_FILLED, S.UNRESOLVED_NEEDS_RECONCILIATION].includes(lifecycle.state)) {
     if (position) {
@@ -91,6 +98,10 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     exitOrderFound: Boolean(exitOrder),
     positionFound: Boolean(position),
     blockers: unique(blockers),
+    enterSubmittedAt: enterOrder?.submittedAt ?? null,
+    enterFilledAt: enterOrder?.filledAt ?? null,
+    exitSubmittedAt: exitOrder?.submittedAt ?? null,
+    exitFilledAt: exitOrder?.filledAt ?? null,
   }))
 
   return Object.freeze({

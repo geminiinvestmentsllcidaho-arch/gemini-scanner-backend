@@ -3,6 +3,7 @@ export const VERSION = 'paper_auto_execution_snapshot_adapter_v1'
 const clean = (value) => String(value ?? '').trim()
 const upper = (value) => clean(value).toUpperCase()
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null
+const timestamp = (value) => { const ms = Date.parse(clean(value)); return Number.isFinite(ms) ? new Date(ms).toISOString() : null }
 
 function normalizeOrder(order = {}) {
   return Object.freeze({
@@ -13,6 +14,8 @@ function normalizeOrder(order = {}) {
     status: clean(order.status).toLowerCase(),
     filledQty: finite(order.filledQty ?? order.filled_qty),
     filledAvgPrice: finite(order.filledAvgPrice ?? order.filled_avg_price),
+    submittedAt: timestamp(order.submittedAt ?? order.submitted_at),
+    filledAt: timestamp(order.filledAt ?? order.filled_at),
   })
 }
 

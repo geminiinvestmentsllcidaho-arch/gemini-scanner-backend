@@ -238,7 +238,7 @@ test('submits one exact sell and reconciles the lifecycle closed', async () => {
             { id: 'enter-broker', client_order_id: life.enterClientOrderId, symbol: 'BTG', side: 'buy', status: 'filled', filled_qty: '1', filled_avg_price: '4.12' },
           ]
           if (life.exitClientOrderId) {
-            orders.push({ id: 'exit-broker', client_order_id: life.exitClientOrderId, symbol: 'BTG', side: 'sell', status: 'filled', filled_qty: '1', filled_avg_price: '4.13' })
+            orders.push({ id: 'exit-broker', client_order_id: life.exitClientOrderId, symbol: 'BTG', side: 'sell', status: 'filled', filled_qty: '1', filled_avg_price: '4.13', submitted_at: '2026-08-11T15:00:00Z', filled_at: '2026-08-11T15:00:00.250Z' })
           }
           return new Response(JSON.stringify(orders), { status: 200, headers: { 'content-type': 'application/json' } })
         }
@@ -252,7 +252,7 @@ test('submits one exact sell and reconciles the lifecycle closed', async () => {
           assert.equal(payload.time_in_force, 'day')
           assert.match(payload.client_order_id, /^gs-pa-exit-/)
           submitted = true
-          return new Response(JSON.stringify({ id: 'exit-broker' }), { status: 200, headers: { 'content-type': 'application/json' } })
+          return new Response(JSON.stringify({ id: 'exit-broker', submitted_at: '2026-08-11T15:00:00Z' }), { status: 200, headers: { 'content-type': 'application/json' } })
         }
         throw new Error(`unexpected:${target}`)
       },
@@ -260,6 +260,8 @@ test('submits one exact sell and reconciles the lifecycle closed', async () => {
     assert.equal(postCalls, 1)
     assert.equal(result.ok, true)
     assert.equal(result.status, 'EXACT_POSITION_PAPER_EXIT_COMPLETED')
+    assert.equal(result.brokerTiming.submittedAt, '2026-08-11T15:00:00.000Z')
+    assert.equal(result.brokerTiming.filledAt, '2026-08-11T15:00:00.250Z')
     assert.equal(result.lifecycle.state, S.ROUND_TRIP_COMPLETED)
     assert.equal(result.safety.enterAllowed, false)
     assert.equal(result.safety.liveTradingAllowed, false)

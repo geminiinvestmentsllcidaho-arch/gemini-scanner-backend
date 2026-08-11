@@ -6,7 +6,7 @@ import { runPaperAutoExecutionExitOnly } from './paper_auto_execution_exit_only_
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 
 export const VERSION = 'paper_auto_exit_monitor_worker_v1'
-export const DEFAULT_INTERVAL_MS = 1000
+export const DEFAULT_INTERVAL_MS = 15000
 const clean = v => String(v ?? '').trim()
 const upper = v => clean(v).toUpperCase()
 const enabled = env => clean(env?.PAPER_AUTO_EXIT_MONITOR_ENABLED) === '1'
@@ -46,6 +46,8 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   let running = false
   let busy = false
   let cycles = 0
+  let eventCycles = 0
+  let fallbackCycles = 0
   let exitTriggers = 0
   let exitAttempts = 0
   let lastStatus = 'NOT_STARTED'
@@ -58,13 +60,15 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   let lastBrokerOrderId = null
   let lastSubmissionStatus = null
   let lastReconciliationStatus = null
+  let lastBrokerSubmittedAt = null
+  let lastBrokerFilledAt = null
 
   const diagnostics = () => ({
-    ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles,
+    ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles, eventCycles, fallbackCycles,
     configuredLifecycleFile: configuredLifecycleFile || null,
     exitTriggers, exitAttempts, lastStatus, lastError, lastResult, lastTriggerDetectedAt,
     lastRunnerCompletedAt, lastSubmissionConfirmedObservedAt, lastReconciliationCompletedObservedAt,
-    lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus,
+    lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus, lastBrokerSubmittedAt, lastBrokerFilledAt,
     safety: { paperOnly: true, liveTradingAllowed: false, disabledByDefault: true, exactPositionExitOnly: true, blindRetryAllowed: false }
   })
 
@@ -74,8 +78,11 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     } catch {}
   }
 
-  async function runOnce({ eventSymbol = null } = {}) {
+  async function runOnce({ eventSymbol = null, source = null } = {}) {
     cycles += 1
+    const cycleSource = clean(source) || (eventSymbol ? 'market_event' : 'authoritative_fallback')
+    if (cycleSource === 'market_event') eventCycles += 1
+    else fallbackCycles += 1
     if (!enabled(env)) { lastStatus = 'DISABLED_BY_ENV'; return diagnostics() }
     if (busy) { lastStatus = 'CYCLE_ALREADY_RUNNING'; return diagnostics() }
     busy = true
@@ -139,6 +146,8 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         lastRunnerCompletedAt = new Date(now()).toISOString()
         lastSubmissionStatus = clean(result?.submission?.status) || null
         lastReconciliationStatus = clean(result?.reconciliation?.status) || null
+        lastBrokerSubmittedAt = clean(result?.brokerTiming?.submittedAt ?? result?.submission?.result?.submittedAt) || null
+        lastBrokerFilledAt = clean(result?.brokerTiming?.filledAt ?? result?.lifecycle?.exitBrokerFilledAt) || null
         lastBrokerOrderId = clean(
           result?.submission?.result?.brokerOrderId ??
           result?.submission?.result?.orderId ??
@@ -162,6 +171,8 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
           brokerOrderId: lastBrokerOrderId,
           submissionStatus: lastSubmissionStatus,
           reconciliationStatus: lastReconciliationStatus,
+          brokerSubmittedAt: lastBrokerSubmittedAt,
+          brokerFilledAt: lastBrokerFilledAt,
         })
       }
       lastResult = results
@@ -180,8 +191,8 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     if (running) return diagnostics()
     if (!enabled(env)) { lastStatus = 'DISABLED_BY_ENV'; return diagnostics() }
     running = true
-    void runOnce()
-    timer = setIntervalFn(() => { void runOnce() }, intervalMs)
+    void runOnce({ source: 'authoritative_fallback' })
+    timer = setIntervalFn(() => { void runOnce({ source: 'authoritative_fallback' }) }, intervalMs)
     timer?.unref?.()
     lastStatus = 'RUNNING'
     return diagnostics()
@@ -203,7 +214,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
 
   function onMarketDataEvent(event = {}) {
     const symbol = upper(event.symbol ?? event.S)
-    if (symbol && enabled(env)) void runOnce({ eventSymbol: symbol })
+    if (symbol && enabled(env)) void runOnce({ eventSymbol: symbol, source: 'market_event' })
     return diagnostics()
   }
 

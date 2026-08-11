@@ -61,3 +61,12 @@ test('reconciliation performs no broker contact or mutation', () => {
     globalThis.fetch = originalFetch
   }
 })
+
+
+test('preserves broker submitted and filled timestamps in reconciliation patch', () => {
+  const lifecycle={state:'EXIT_UNKNOWN',selectedSymbol:'SPY',enterClientOrderId:'enter-1',exitClientOrderId:'exit-1',reconciliation:[]}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'broker-exit-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'filled',filled_qty:'1',filled_avg_price:'631.10',submitted_at:'2026-08-11T15:00:00Z',filled_at:'2026-08-11T15:00:00.300Z'}],positions:[]})
+  assert.equal(r.patch.exitBrokerSubmittedAt,'2026-08-11T15:00:00.000Z')
+  assert.equal(r.patch.exitBrokerFilledAt,'2026-08-11T15:00:00.300Z')
+  assert.equal(r.patch.reconciliation.at(-1).exitFilledAt,'2026-08-11T15:00:00.300Z')
+})
