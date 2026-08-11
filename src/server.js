@@ -3096,6 +3096,17 @@ app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustome
     return res.status(200).type('html').send(`<!doctype html><html><body><main><h1>PAPER ${saved.mode} lifecycle ready</h1><p><strong>${saved.symbol}</strong> · quantity ${saved.quantity}</p><p>Preparation ID: ${saved.preparationId}</p><p>Lifecycle ID: ${handoff.lifecycleId}</p><p>Client order ID: ${handoff.order.clientOrderId}</p><p>Status: ${handoff.status}</p><p>GeminiScanner created or resolved the exact PAPER lifecycle and deterministic order handoff at the retained submission boundary. This request did not contact Alpaca, submit an order, or mutate the account.</p>${localMockControl}<p><a href="/customer/scanner/under-five">Back to scanner</a> · <a href="/customer/portfolio">Back to portfolio</a></p></main></body></html>`);
   } catch (error) {
     console.error('[customer-paper-order-prepare]', error);
+    try {
+      const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
+      await incidentMod.emitAdminPaperOperationalIncident({
+        source: 'paper_reconciliation',
+        severity: 'critical',
+        failureCode: String(error?.message ?? 'customer_paper_order_prepare_failed'),
+        summary: 'Customer PAPER order preparation failed before broker submission.',
+        route: '/customer/paper-order/prepare',
+        process: 'server',
+      });
+    } catch {}
     const conflictErrors = new Set([
       'paper_enter_customer_preparation_in_progress',
       'paper_enter_active_customer_lifecycle_exists',

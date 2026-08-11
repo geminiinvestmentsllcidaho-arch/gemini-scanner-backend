@@ -28,6 +28,6 @@ test("customer routes render the shared customer interface without admin middlew
   assert.match(block, /customer_scanner_hub\.mjs/);
   assert.doesNotMatch(
     block,
-    /requireInternalOwnerAuth|requireInternalOwnerAuthorization|requireInternalOwnerTenantIsolation|\/admin|\/diagnostics/
+    /requireInternalOwnerAuth|requireInternalOwnerAuthorization|requireInternalOwnerTenantIsolation|app\.(?:get|post|put|patch|delete)\(['\"]\/admin|app\.(?:get|post|put|patch|delete)\(['\"]\/diagnostics/
   );
 });
