@@ -15,8 +15,9 @@ export async function runControlledPaperAutoExitProof(options = {}) {
   if (!lifecycleFile) throw new Error('controlled_auto_exit_proof_lifecycle_file_required')
   if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error('controlled_auto_exit_proof_symbol_required')
 
+  const proofEnv = { ...env, PAPER_AUTO_EXIT_MONITOR_ENABLED:'1' }
   const worker = createPaperAutoExitMonitorWorker({
-    env,
+    env:proofEnv,
     lifecycleFile,
     fetchImpl: options.fetchImpl ?? globalThis.fetch,
     fetchAccount: options.fetchAccount,

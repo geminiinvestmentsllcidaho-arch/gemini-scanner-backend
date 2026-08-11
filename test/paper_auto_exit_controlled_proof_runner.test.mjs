@@ -24,7 +24,7 @@ test('blocked unless explicitly executed', async () => {
 test('controlled proof drives exact monitored symbol through production worker to exit runner once', async () => {
   let calls = 0
   const r = await runControlledPaperAutoExitProof({
-    execute:true, env, lifecycleFile:lifecycleFile(), symbol:'BTG',
+    execute:true, env:{}, lifecycleFile:lifecycleFile(), symbol:'BTG',
     fetchAccount: async () => ({ ok:true, status:'connected_readonly', positions:[{symbol:'BTG',qty:1}] }),
     exitRunner: async ({ args }) => {
       calls += 1
