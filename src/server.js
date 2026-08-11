@@ -65,6 +65,7 @@ import { appendCustomerSecurityAuditRecord } from './scanner/customer_security_a
 import { listCustomerSecurityActivity } from './scanner/customer_security_activity_reader.mjs';
 import { formatCustomerDate, formatCustomerDateTime } from './scanner/customer_time.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
+import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_monitor_worker.mjs';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
 import { buildRuntimeHealthState, health, readiness } from './utils/health.js';
@@ -2634,6 +2635,7 @@ app.get("/app", (req, res) => {
 
 
 const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
+const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker();
 
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
   runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
@@ -2705,8 +2707,17 @@ app.listen(PORT, HOST, async () => {
     intervalMs: paperPositionRefresh.intervalMs,
     status: paperPositionRefresh.lastStatus
   });
+  const paperAutoExitStatus = paperAutoExitMonitorWorker.start();
+  console.log('[paper-auto-exit-monitor] worker status', {
+    enabled: paperAutoExitStatus.enabled,
+    running: paperAutoExitStatus.running,
+    intervalMs: paperAutoExitStatus.intervalMs,
+    lastStatus: paperAutoExitStatus.lastStatus,
+  });
   try {
-    await startMarketDataStream();
+    await startMarketDataStream({
+      onMarketDataEvent: (event) => paperAutoExitMonitorWorker.onMarketDataEvent(event),
+    });
     console.log('[server] market data stream started');
   } catch (e) {
     console.error('[server] market data stream failed to start:', e);
@@ -2790,6 +2801,10 @@ app.get('/app/paper-trading-readiness-gate', (_req, res) => res.redirect(302, '/
 
 app.get('/diagnostics/paper-trade-position-state-auto-refresh', (_req, res) => {
   res.json(paperPositionStateAutoRefresh.diagnostics());
+});
+
+app.get('/diagnostics/paper-auto-exit-monitor', (_req, res) => {
+  res.json(paperAutoExitMonitorWorker.diagnostics());
 });
 
 app.get('/diagnostics/paper-trade-position-state-store', (_req, res) => {

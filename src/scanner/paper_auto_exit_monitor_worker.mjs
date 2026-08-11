@@ -1,0 +1,196 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
+import { fetchCustomerOwnedPositionMonitorSource } from './customer_owned_position_monitor_source.mjs'
+import { fetchAlpacaUnderFiveUniverseReadonly } from './alpaca_under_five_universe_readonly.mjs'
+import { runPaperAutoExecutionExitOnly } from './paper_auto_execution_exit_only_runner.mjs'
+import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
+
+export const VERSION = 'paper_auto_exit_monitor_worker_v1'
+export const DEFAULT_INTERVAL_MS = 1000
+const clean = v => String(v ?? '').trim()
+const upper = v => clean(v).toUpperCase()
+const enabled = env => clean(env?.PAPER_AUTO_EXIT_MONITOR_ENABLED) === '1'
+
+export function readConfiguredMonitoringLifecycle({ lifecycleFile } = {}) {
+  const file = clean(lifecycleFile)
+  if (!file || !fs.existsSync(file)) return null
+  try {
+    const lifecycle = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (lifecycle?.state !== 'MONITORING') return null
+    if (!lifecycle?.lifecycleId || !lifecycle?.selectedSymbol || !(Number(lifecycle?.filledQuantity) > 0) || !lifecycle?.brokerPositionIdentity) return null
+    return { file, lifecycle }
+  } catch {
+    return null
+  }
+}
+
+export function createPaperAutoExitMonitorWorker(options = {}) {
+  const env = options.env ?? process.env
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch
+  const now = options.now ?? Date.now
+  const setIntervalFn = options.setIntervalFn ?? setInterval
+  const clearIntervalFn = options.clearIntervalFn ?? clearInterval
+  const configuredLifecycleFile = clean(options.lifecycleFile ?? env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH)
+  const readLifecycle = options.readConfiguredMonitoringLifecycle ?? (() => readConfiguredMonitoringLifecycle({ lifecycleFile: configuredLifecycleFile }))
+  const fetchAccount = options.fetchAccount ?? (args => fetchAlpacaPaperAccountReadonly(args))
+  const fetchOwned = options.fetchOwnedMonitor ?? (args => fetchCustomerOwnedPositionMonitorSource(args))
+  const fetchSymbols = options.fetchSymbols ?? (args => fetchAlpacaUnderFiveUniverseReadonly(args))
+  const exitRunner = options.exitRunner ?? runPaperAutoExecutionExitOnly
+  const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
+  const intervalMs = Math.max(250, Number(options.intervalMs ?? env.PAPER_AUTO_EXIT_MONITOR_INTERVAL_MS ?? DEFAULT_INTERVAL_MS) || DEFAULT_INTERVAL_MS)
+  let timer = null
+  let running = false
+  let busy = false
+  let cycles = 0
+  let exitTriggers = 0
+  let exitAttempts = 0
+  let lastStatus = 'NOT_STARTED'
+  let lastError = null
+  let lastResult = null
+  let lastTriggerDetectedAt = null
+  let lastRunnerCompletedAt = null
+  let lastSubmissionConfirmedObservedAt = null
+  let lastReconciliationCompletedObservedAt = null
+  let lastBrokerOrderId = null
+  let lastSubmissionStatus = null
+  let lastReconciliationStatus = null
+
+  const diagnostics = () => ({
+    ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles,
+    configuredLifecycleFile: configuredLifecycleFile || null,
+    exitTriggers, exitAttempts, lastStatus, lastError, lastResult, lastTriggerDetectedAt,
+    lastRunnerCompletedAt, lastSubmissionConfirmedObservedAt, lastReconciliationCompletedObservedAt,
+    lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus,
+    safety: { paperOnly: true, liveTradingAllowed: false, disabledByDefault: true, exactPositionExitOnly: true, blindRetryAllowed: false }
+  })
+
+  async function incident(code) {
+    try {
+      await incidentEmitter?.({ source: 'paper_execution', severity: 'critical', failureCode: code, summary: 'Continuous PAPER auto-EXIT monitor failed closed.', phase: 'exit', process: 'paper_auto_exit_monitor_worker' })
+    } catch {}
+  }
+
+  async function runOnce({ eventSymbol = null } = {}) {
+    cycles += 1
+    if (!enabled(env)) { lastStatus = 'DISABLED_BY_ENV'; return diagnostics() }
+    if (busy) { lastStatus = 'CYCLE_ALREADY_RUNNING'; return diagnostics() }
+    busy = true
+    lastError = null
+    try {
+      if (!configuredLifecycleFile) {
+        lastStatus = 'ACTIVE_LIFECYCLE_PATH_REQUIRED'
+        lastResult = []
+        return diagnostics()
+      }
+      const row = await readLifecycle()
+      if (!row) {
+        lastStatus = 'ACTIVE_LIFECYCLE_NOT_MONITORING'
+        lastResult = []
+        return diagnostics()
+      }
+      const wanted = upper(eventSymbol)
+      if (wanted && upper(row.lifecycle.selectedSymbol) !== wanted) {
+        lastStatus = 'EVENT_SYMBOL_NOT_MONITORED'
+        lastResult = []
+        return diagnostics()
+      }
+      const scoped = [row]
+
+      const account = await fetchAccount({ env, fetchImpl })
+      if (account?.ok !== true || account?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_fresh_account_required')
+      const results = []
+
+      for (const row of scoped) {
+        const life = row.lifecycle
+        const symbol = upper(life.selectedSymbol)
+        const quantity = Number(life.filledQuantity)
+        const position = (account.positions ?? []).find(p => upper(p?.symbol) === symbol && Number(p?.qty ?? p?.quantity) === quantity)
+        if (!position) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_EXACT_POSITION_NOT_PRESENT' }); continue }
+        if (clean(life.brokerPositionIdentity) !== `${symbol}:${quantity}`) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_POSITION_IDENTITY_MISMATCH' }); continue }
+
+        const owned = await fetchOwned({
+          paperAccount: { positions: [position] },
+          fetchSymbols: args => fetchSymbols({ ...args, env, fetchImpl, nowMs: Number(now()) }),
+          nowMs: Number(now()), maxAssets: 1
+        })
+        const candidate = (owned?.candidates ?? []).find(c => upper(c?.symbol) === symbol)
+        const exitRequired = candidate?.ownedExitReviewTriggered === true && upper(candidate?.resultState ?? candidate?.decision) === 'EXIT' && candidate?.sourceStale !== true
+        if (!exitRequired) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT' }); continue }
+
+        exitTriggers += 1
+        lastTriggerDetectedAt = new Date(now()).toISOString()
+        exitAttempts += 1
+        const result = await exitRunner({
+          args: { execute: 'true', lifecycleFile: row.file, lifecycleId: life.lifecycleId, symbol, quantity: String(quantity) },
+          env, fetchImpl, nowMs: Number(now())
+        })
+        lastRunnerCompletedAt = new Date(now()).toISOString()
+        lastSubmissionStatus = clean(result?.submission?.status) || null
+        lastReconciliationStatus = clean(result?.reconciliation?.status) || null
+        lastBrokerOrderId = clean(
+          result?.submission?.result?.brokerOrderId ??
+          result?.submission?.result?.orderId ??
+          result?.submission?.result?.id ??
+          result?.submission?.lifecycle?.exitBrokerOrderId ??
+          result?.lifecycle?.exitBrokerOrderId
+        ) || null
+        if (lastSubmissionStatus === 'SUBMISSION_CONFIRMED_RECONCILIATION_REQUIRED' && lastBrokerOrderId) {
+          lastSubmissionConfirmedObservedAt = lastRunnerCompletedAt
+        }
+        if (
+          result?.status === 'EXACT_POSITION_PAPER_EXIT_COMPLETED' &&
+          result?.lifecycle?.state === 'ROUND_TRIP_COMPLETED'
+        ) {
+          lastReconciliationCompletedObservedAt = lastRunnerCompletedAt
+        }
+        results.push({
+          lifecycleId: life.lifecycleId,
+          symbol,
+          status: result?.status ?? 'EXIT_RUNNER_COMPLETED',
+          brokerOrderId: lastBrokerOrderId,
+          submissionStatus: lastSubmissionStatus,
+          reconciliationStatus: lastReconciliationStatus,
+        })
+      }
+      lastResult = results
+      lastStatus = results.some(r => /^EXACT_POSITION_PAPER_EXIT_/.test(r.status)) ? 'EXIT_TRIGGERED' : 'MONITORING'
+    } catch (error) {
+      lastError = error?.message ?? String(error)
+      lastStatus = 'WORKER_ERROR_FAIL_CLOSED'
+      await incident(clean(lastError).split(':')[0] || 'paper_auto_exit_monitor_worker_failed')
+    } finally {
+      busy = false
+    }
+    return diagnostics()
+  }
+
+  function start() {
+    if (running) return diagnostics()
+    if (!enabled(env)) { lastStatus = 'DISABLED_BY_ENV'; return diagnostics() }
+    running = true
+    void runOnce()
+    timer = setIntervalFn(() => { void runOnce() }, intervalMs)
+    timer?.unref?.()
+    lastStatus = 'RUNNING'
+    return diagnostics()
+  }
+
+  function stop() {
+    if (timer) clearIntervalFn(timer)
+    timer = null
+    running = false
+    lastStatus = 'STOPPED'
+    return diagnostics()
+  }
+
+  function onMarketDataEvent(event = {}) {
+    const symbol = upper(event.symbol ?? event.S)
+    if (symbol && enabled(env)) void runOnce({ eventSymbol: symbol })
+    return diagnostics()
+  }
+
+  return { start, stop, runOnce, onMarketDataEvent, diagnostics }
+}
+
+export default { VERSION, DEFAULT_INTERVAL_MS, readConfiguredMonitoringLifecycle, createPaperAutoExitMonitorWorker }

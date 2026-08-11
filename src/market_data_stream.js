@@ -118,7 +118,7 @@ async function backfillBars({ symbol, limit = 200 }) {
   return bars.length;
 }
 
-export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} } = {}) {
+export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {}, onMarketDataEvent = null } = {}) {
   const WebSocketImpl = runtime.WebSocketImpl || WebSocket;
   const nowFn = runtime.nowFn || Date.now;
   const setTimeoutFn = runtime.setTimeoutFn || setTimeout;
@@ -220,6 +220,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
           markStreamEvent(ts);
 
           updateQuote(m.S, { t: m.t, bp: m.bp, bs: m.bs, ap: m.ap, as: m.as });
+          try { onMarketDataEvent?.({ type: 'quote', symbol: m.S, event: m, tsMs: Number.isFinite(ts) ? ts : nowFn() }); } catch {}
           continue;
         }
 
@@ -229,6 +230,7 @@ export async function startMarketDataStream({ symbols = ['AAPL'], runtime = {} }
           markStreamEvent(ts);
 
           updateBar(m.S, { t: m.t, o: m.o, h: m.h, l: m.l, c: m.c, v: m.v, vw: m.vw });
+          try { onMarketDataEvent?.({ type: 'bar', symbol: m.S, event: m, tsMs: Number.isFinite(ts) ? ts : nowFn() }); } catch {}
           continue;
         }
       }
