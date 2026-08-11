@@ -44,3 +44,19 @@ test("renders system panels", () => {
   assert.match(h, /#39ff14/);
   assert.match(h, /#00ffff/);
 });
+
+
+test("scopes cyan styling to the Admin action link without styling every anchor", () => {
+  const html = renderAdminSystemHealth({
+    generatedAt: "2026-08-10T23:30:00.000Z",
+    host: { memoryPct: 1, diskPct: 2, load: 0.1, rx: 3, tx: 4 },
+    latency: { health: { ms: 1 }, readiness: { ms: 2 } },
+    processes: [],
+    errors: [],
+    infra: "ok",
+    ops: "ok",
+  });
+  assert.match(html, /class="admin-action" href="\/admin"/);
+  assert.match(html, /\.admin-action\{display:inline-block;background:#00ffff/);
+  assert.doesNotMatch(html, /(?:^|[;}])a\{display:inline-block;background:#00ffff/);
+});
