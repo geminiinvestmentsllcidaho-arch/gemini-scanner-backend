@@ -43,6 +43,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const fetchMarketClock = options.fetchMarketClock ?? (args => fetchAlpacaMarketClockReadonly(args))
   const exitRunner = options.exitRunner ?? runPaperAutoExecutionExitOnly
   const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
+  const accountCredentialResolver = options.accountCredentialResolver
   const intervalMs = Math.max(250, Number(options.intervalMs ?? env.PAPER_AUTO_EXIT_MONITOR_INTERVAL_MS ?? DEFAULT_INTERVAL_MS) || DEFAULT_INTERVAL_MS)
   let timer = null
   let running = false
@@ -172,7 +173,8 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         exitAttempts += 1
         const result = await exitRunner({
           args: { execute: 'true', lifecycleFile: row.file, lifecycleId: life.lifecycleId, symbol, quantity: String(quantity) },
-          env, fetchImpl, nowMs: Number(now())
+          env, fetchImpl, nowMs: Number(now()),
+          ...(typeof accountCredentialResolver === 'function' ? { accountCredentialResolver } : {})
         })
         lastRunnerCompletedAt = new Date(now()).toISOString()
         lastSubmissionStatus = clean(result?.submission?.status) || null

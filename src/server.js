@@ -66,6 +66,7 @@ import { listCustomerSecurityActivity } from './scanner/customer_security_activi
 import { formatCustomerDate, formatCustomerDateTime } from './scanner/customer_time.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_monitor_worker.mjs';
+import { resolveInternalOwnerAlpacaReadonlyCredentials } from './scanner/internal_owner_alpaca_readonly_credentials.mjs';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
 import { buildRuntimeHealthState, health, readiness } from './utils/health.js';
@@ -2635,7 +2636,7 @@ app.get("/app", (req, res) => {
 
 
 const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
-const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker();
+const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({ accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials });
 
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
   runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
