@@ -3097,6 +3097,53 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
 });
 
 
+
+app.post('/customer/portfolio/manual-exit', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const symbol = String(req.body?.symbol ?? '').trim().toUpperCase();
+  const quantity = Number(req.body?.quantity);
+  const paperOnly = String(req.body?.paperOnly ?? '').toLowerCase() === 'true';
+  try {
+    if (!paperOnly) throw new Error('customer_manual_exit_paper_only_required');
+    if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error('customer_manual_exit_exact_symbol_required');
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('customer_manual_exit_exact_positive_quantity_required');
+    const fsMod = await import('node:fs');
+    const pathMod = await import('node:path');
+    const runsDir = pathMod.resolve(process.cwd(), 'runs');
+    const matches = [];
+    for (const name of fsMod.readdirSync(runsDir)) {
+      if (!name.endsWith('.json')) continue;
+      const file = pathMod.join(runsDir, name);
+      let lifecycle;
+      try { lifecycle = JSON.parse(fsMod.readFileSync(file, 'utf8')); } catch { continue; }
+      if (lifecycle?.state === 'MONITORING'
+        && String(lifecycle?.selectedSymbol ?? '').trim().toUpperCase() === symbol
+        && Number(lifecycle?.filledQuantity) === quantity
+        && String(lifecycle?.brokerPositionIdentity ?? '').trim() === `${symbol}:${quantity}`
+        && lifecycle?.lifecycleId) matches.push({ file, lifecycle });
+    }
+    if (matches.length !== 1) {
+      const code = matches.length === 0 ? 'customer_manual_exit_monitoring_lifecycle_not_found' : 'customer_manual_exit_monitoring_lifecycle_ambiguous';
+      return res.status(409).type('html').send(renderThemedStatusPage({ surface:'customer', title:'PAPER EXIT blocked', message:`${code}. GeminiScanner requires exactly one MONITORING PAPER lifecycle matching the broker-confirmed symbol and quantity before manual EXIT can run.`, href:'/customer/portfolio' }));
+    }
+    const target = matches[0];
+    const runnerMod = await import('./scanner/paper_auto_execution_exit_only_runner.mjs');
+    const result = await runnerMod.runPaperAutoExecutionExitOnly({
+      args: { execute:'true', lifecycleFile:target.file, lifecycleId:target.lifecycle.lifecycleId, symbol, quantity:String(quantity) },
+      env: process.env, fetchImpl: globalThis.fetch, nowMs: Date.now(),
+    });
+    if (result?.status === 'EXACT_POSITION_PAPER_EXIT_COMPLETED') {
+      return res.status(200).type('html').send(renderThemedStatusPage({ surface:'customer', title:'PAPER EXIT completed', message:`${symbol} quantity ${quantity} exited through GeminiScanner exact-position PAPER execution and reconciliation.`, href:'/customer/portfolio' }));
+    }
+    const detail = String(result?.status ?? result?.blockers?.join(', ') ?? 'unknown_result');
+    return res.status(409).type('html').send(renderThemedStatusPage({ surface:'customer', title:'PAPER EXIT not completed', message:`${detail}. GeminiScanner remained fail-closed unless the exact-position PAPER EXIT and reconciliation completed.`, href:'/customer/portfolio' }));
+  } catch (error) {
+    console.error('[customer-portfolio-manual-exit]', error);
+    return res.status(409).type('html').send(renderThemedStatusPage({ surface:'customer', title:'PAPER EXIT blocked', message:`GeminiScanner failed closed: ${String(error?.message ?? error ?? 'manual_exit_failed')}`, href:'/customer/portfolio' }));
+  }
+});
+
+
 app.post('/customer/paper-order/prepare', requireCustomerSession, requireCustomerSameOrigin, async (req, res) => {
   try {
     const mod = await import('./scanner/customer_paper_user_initiated_order_preparation.mjs');

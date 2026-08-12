@@ -158,6 +158,22 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.match(html, /will not contact a broker, place an order, or modify an account/);
 });
 
+test("renders broker-confirmed positions with executable exact-position PAPER EXIT form", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    connectedPositions: [{ symbol: "BTG", qty: 1, averageEntryPrice: 2.5, currentPrice: 2.6 }],
+    ownedAssets: { positions: [{ symbol: "AAPL", qty: 2, averageEntryPrice: 190, brokerLabel: "Other broker" }], updatedAt: null },
+    brokerConnected: true,
+  }));
+  assert.match(html, /action="\/customer\/portfolio\/manual-exit"/);
+  assert.match(html, /name="symbol" value="BTG"/);
+  assert.match(html, /name="quantity" value="1"/);
+  assert.match(html, /name="paperOnly" value="true"/);
+  assert.match(html, />EXIT PAPER POSITION<\/button>/);
+  assert.equal((html.match(/action="\/customer\/portfolio\/manual-exit"/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /Prepare PAPER EXIT/);
+});
+
 test("renders one empty manual position row when no positions are saved", () => {
   const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
     model: { account: {}, summary: {}, positions: [], warnings: [] },

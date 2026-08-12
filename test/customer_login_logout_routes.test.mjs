@@ -994,6 +994,17 @@ test('customer settings renders shared customer neon theme and fixed background 
 
 test('customer scanner run button stays authenticated and routes only to read-only customer surfaces', () => {
   assert.match(source, /app\.post\('\/customer\/scanner\/run', requireCustomerSession, requireCustomerSameOrigin, async \(req, res\) =>/);
+
+  assert.match(source, /app\.post\('\/customer\/portfolio\/manual-exit', requireCustomerSession, requireCustomerSameOrigin, async \(req, res\) =>/);
+  assert.match(source, /customer_manual_exit_paper_only_required/);
+  assert.match(source, /lifecycle\?\.state === 'MONITORING'/);
+  assert.match(source, /String\(lifecycle\?\.selectedSymbol \?\? ''\)\.trim\(\)\.toUpperCase\(\) === symbol/);
+  assert.match(source, /Number\(lifecycle\?\.filledQuantity\) === quantity/);
+  assert.match(source, /String\(lifecycle\?\.brokerPositionIdentity \?\? ''\)\.trim\(\) === `\$\{symbol\}:\$\{quantity\}`/);
+  assert.match(source, /matches\.length !== 1/);
+  assert.match(source, /runPaperAutoExecutionExitOnly\(\{/);
+  assert.match(source, /execute:'true'/);
+
   assert.match(source, /\['intraday', 'watchlist'\]\.includes\(mode\)/);
   assert.doesNotMatch(source, /\['intraday', 'premarket', 'watchlist'\]\.includes\(mode\)/);
   assert.match(source, /res\.redirect\(303, '\/customer\/watchlist'\)/);
