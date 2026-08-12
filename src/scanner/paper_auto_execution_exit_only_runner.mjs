@@ -52,16 +52,32 @@ async function fetchPaperClock({ env, fetchImpl, credentialResolver }) {
   return { is_open: result.marketClock.isOpen }
 }
 
-async function fetchHistoricalOrders({ env, fetchImpl }) {
+async function fetchHistoricalOrders({ env, fetchImpl, credentialResolver }) {
   const parsed = new URL(clean(env.APCA_API_BASE_URL))
   if (parsed.protocol !== 'https:' || parsed.hostname !== 'paper-api.alpaca.markets') {
     throw new Error('paper_exit_only_paper_host_required')
   }
+  const directKey = clean(env.APCA_API_KEY_ID)
+  const directSecret = clean(env.APCA_API_SECRET_KEY)
+  const directCredentialResult = directKey && directSecret
+    ? {
+        readyForReadonlyBrokerRead: true,
+        credentialSource: 'runtime_env_legacy',
+        env: { ALPACA_KEY: directKey, ALPACA_SECRET: directSecret },
+      }
+    : null
+  const resolved = typeof credentialResolver === 'function'
+    ? await credentialResolver({ env, purpose: 'paper_exit_only_historical_orders_readonly' })
+    : null
+  const credentials = resolved?.readyForReadonlyBrokerRead === true ? resolved : directCredentialResult
+  const key = clean(credentials?.env?.ALPACA_KEY)
+  const secret = clean(credentials?.env?.ALPACA_SECRET)
+  if (!key || !secret) throw new Error('paper_exit_only_order_history_credentials_required')
   const response = await fetchImpl(new URL('/v2/orders?status=all&limit=500&direction=desc', parsed), {
     method: 'GET',
     headers: {
-      'APCA-API-KEY-ID': clean(env.APCA_API_KEY_ID),
-      'APCA-API-SECRET-KEY': clean(env.APCA_API_SECRET_KEY),
+      'APCA-API-KEY-ID': key,
+      'APCA-API-SECRET-KEY': secret,
       Accept: 'application/json',
     },
   })
@@ -149,10 +165,35 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   )
   if (conflictingOrder) throw new Error('paper_exit_only_conflicting_open_order')
 
-  const adapter = createPaperAutoExecutionAlpacaPaperAdapter( {
-    env: { ...env, PAPER_AUTO_ALPACA_ADAPTER_ENABLED: '1' },
+  const directSubmissionKey = clean(env.APCA_API_KEY_ID)
+  const directSubmissionSecret = clean(env.APCA_API_SECRET_KEY)
+  const directSubmissionCredentials = directSubmissionKey && directSubmissionSecret
+    ? {
+        readyForReadonlyBrokerRead: true,
+        credentialSource: 'runtime_env_legacy',
+        env: { ALPACA_KEY: directSubmissionKey, ALPACA_SECRET: directSubmissionSecret },
+      }
+    : null
+  const resolvedSubmissionCredentials = typeof options.accountCredentialResolver === 'function'
+    ? await options.accountCredentialResolver({ env, purpose: 'paper_exit_only_submission_credentials' })
+    : null
+  const submissionCredentials = resolvedSubmissionCredentials?.readyForReadonlyBrokerRead === true
+    ? resolvedSubmissionCredentials
+    : directSubmissionCredentials
+  const submissionKey = clean(submissionCredentials?.env?.ALPACA_KEY)
+  const submissionSecret = clean(submissionCredentials?.env?.ALPACA_SECRET)
+  if (!submissionKey || !submissionSecret) throw new Error('paper_exit_only_submission_credentials_required')
+
+  const adapter = createPaperAutoExecutionAlpacaPaperAdapter({
+    env: {
+      ...env,
+      ALPACA_KEY: submissionKey,
+      ALPACA_SECRET: submissionSecret,
+      PAPER_AUTO_ALPACA_ADAPTER_ENABLED: '1',
+    },
     fetchImpl,
   })
+
   const submission = await submitPaperAutoOrder({
     lifecycleStore: store,
     phase: 'exit',
@@ -165,7 +206,13 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     },
   })
 
-  const historicalOrders = await fetchHistoricalOrders({ env, fetchImpl })
+  const historicalOrders = await fetchHistoricalOrders({
+    env,
+    fetchImpl,
+    ...(typeof options.accountCredentialResolver === 'function'
+      ? { credentialResolver: options.accountCredentialResolver }
+      : {}),
+  })
   const accountAfter = await fetchAlpacaPaperAccountReadonly({
     env,
     fetchImpl,

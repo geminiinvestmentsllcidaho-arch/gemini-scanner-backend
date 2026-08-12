@@ -369,3 +369,57 @@ test('does not emit Admin incident for ordinary EXIT-only local authorization bl
     fs.rmSync(f.dir, { recursive: true, force: true })
   }
 })
+
+test('historical-order read uses resolver-backed PAPER credentials when direct APCA keys are absent', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-exit-history-resolver-'))
+  const file = path.join(dir, 'lifecycle.json')
+  const store = new PaperAutoExecutionLifecycleStore({ filePath: file })
+  const life = store.create({ lifecycleId: 'life-history-resolver', selectedSymbol: 'BTG', intendedQuantity: 1 })
+  store.transition('ENTER_SUBMITTING', { enterClientOrderId: 'enter-history-resolver' })
+  store.transition('POSITION_CONFIRMED', { filledQuantity: 1, averageFillPrice: 1, brokerPositionIdentity: 'BTG:1' })
+  store.transition('MONITORING')
+
+  const seen = []
+  let exitSubmitted = false
+  let exitPostHeaders = null
+  const fetchImpl = async (url, init = {}) => {
+    const u = String(url)
+    seen.push({ url: u, headers: init.headers ?? {} })
+    if (u.includes('/v2/clock')) return new Response(JSON.stringify({ is_open: true }), { status: 200, headers: { 'content-type': 'application/json' } })
+    if (u.includes('/v2/positions')) return new Response(JSON.stringify(exitSubmitted ? [] : [{ symbol: 'BTG', qty: '1', asset_id: 'BTG-ASSET', avg_entry_price: '1' }]), { status: 200, headers: { 'content-type': 'application/json' } })
+    if (u.includes('/v2/orders?status=open')) return new Response(JSON.stringify([]), { status: 200, headers: { 'content-type': 'application/json' } })
+    if (u.endsWith('/v2/orders') && init.method === 'POST') {
+      const body = JSON.parse(init.body)
+      exitPostHeaders = init.headers ?? {}
+      exitSubmitted = true
+      return new Response(JSON.stringify({ id: 'exit-history-resolver-broker', client_order_id: body.client_order_id, status: 'accepted', submitted_at: '2026-08-12T19:00:00Z' }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    if (u.includes('/v2/orders?status=all')) {
+      const current = store.load()
+      return new Response(JSON.stringify([{ id: 'exit-history-resolver-broker', client_order_id: current.exitClientOrderId, symbol: 'BTG', side: 'sell', status: 'filled', qty: '1', filled_qty: '1', submitted_at: '2026-08-12T19:00:00Z', filled_at: '2026-08-12T19:00:01Z' }]), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    if (u.includes('/v2/account')) return new Response(JSON.stringify({ status: 'ACTIVE', buying_power: '10000', cash: '10000', portfolio_value: '10000', equity: '10000' }), { status: 200, headers: { 'content-type': 'application/json' } })
+    throw new Error(`unexpected_fetch:${u}`)
+  }
+
+  const resolver = async () => ({
+    readyForReadonlyBrokerRead: true,
+    credentialSource: 'test_resolver',
+    env: { ALPACA_KEY: 'resolver-key', ALPACA_SECRET: 'resolver-secret', APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_PAPER_TRADING: 'true' },
+  })
+
+  const result = await runPaperAutoExecutionExitOnly({
+    args: { execute: 'true', lifecycleFile: file, lifecycleId: life.lifecycleId, symbol: 'BTG', quantity: '1' },
+    env: { APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_PAPER_TRADING: 'true', PAPER_AUTO_EXECUTION_ENABLED: '1', PAPER_AUTO_EXIT_ENABLED: '1' },
+    fetchImpl,
+    accountCredentialResolver: resolver,
+    incidentEmitter: async () => {},
+  })
+  const history = seen.find((x) => x.url.includes('/v2/orders?status=all'))
+  assert.equal(exitPostHeaders?.['APCA-API-KEY-ID'], 'resolver-key')
+  assert.equal(exitPostHeaders?.['APCA-API-SECRET-KEY'], 'resolver-secret')
+  assert.equal(history?.headers?.['APCA-API-KEY-ID'], 'resolver-key')
+  assert.equal(history?.headers?.['APCA-API-SECRET-KEY'], 'resolver-secret')
+  assert.equal(result.status, 'EXACT_POSITION_PAPER_EXIT_COMPLETED')
+  assert.equal(result.lifecycle.state, 'ROUND_TRIP_COMPLETED')
+})
