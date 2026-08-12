@@ -66,6 +66,50 @@ test('fails closed before network when explicit execution is absent', async () =
   }
 })
 
+
+test('clock preflight accepts resolver-backed PAPER credentials when direct APCA keys are absent', async () => {
+  const f = fixture()
+  delete f.env.APCA_API_KEY_ID
+  delete f.env.APCA_API_SECRET_KEY
+  const observed = []
+  const accountCredentialResolver = async () => ({
+    readyForReadonlyBrokerRead: true,
+    accessSwitchEnabled: true,
+    credentialSource: 'encrypted_internal_owner_credentials',
+    env: {
+      ALPACA_KEY: 'resolved-paper-key',
+      ALPACA_SECRET: 'resolved-paper-secret',
+    },
+  })
+  try {
+    await assert.rejects(
+      runPaperAutoExecutionExitOnly({
+        args: f.args,
+        env: f.env,
+        nowMs: f.nowMs,
+        accountCredentialResolver,
+        fetchImpl: async (url, init = {}) => {
+          observed.push({ url: String(url), headers: init.headers ?? {} })
+          if (String(url).endsWith('/v2/clock')) {
+            return new Response(
+              JSON.stringify({ is_open: false, timestamp: new Date(f.nowMs).toISOString() }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          }
+          throw new Error('network_after_clock_forbidden')
+        },
+      }),
+      /paper_exit_only_market_open_required/,
+    )
+    const clock = observed.find(row => row.url.endsWith('/v2/clock'))
+    assert.ok(clock)
+    assert.equal(clock.headers['APCA-API-KEY-ID'], 'resolved-paper-key')
+    assert.equal(clock.headers['APCA-API-SECRET-KEY'], 'resolved-paper-secret')
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true })
+  }
+})
+
 test('fails closed before network when exact EXIT identity is missing', async () => {
   const f = fixture()
   let calls = 0

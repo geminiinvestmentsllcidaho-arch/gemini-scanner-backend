@@ -5,26 +5,51 @@ import { createPaperAutoExecutionAlpacaPaperAdapter } from './paper_auto_executi
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
 import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
+import { fetchAlpacaMarketClockReadonly } from './alpaca_market_clock_readonly.mjs'
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 
 export const VERSION = 'paper_auto_execution_exit_only_runner_v1'
 const clean = (value) => String(value ?? '').trim()
 const yes = (value) => ['1', 'true', 'yes', 'on'].includes(clean(value).toLowerCase())
 
-async function fetchPaperClock({ env, fetchImpl }) {
+async function fetchPaperClock({ env, fetchImpl, credentialResolver }) {
   const parsed = new URL(clean(env.APCA_API_BASE_URL))
   if (parsed.protocol !== 'https:' || parsed.hostname !== 'paper-api.alpaca.markets') throw new Error('paper_exit_only_paper_host_required')
-  const response = await fetchImpl(new URL('/v2/clock', parsed), {
-    method: 'GET',
-    headers: {
-      'APCA-API-KEY-ID': clean(env.APCA_API_KEY_ID),
-      'APCA-API-SECRET-KEY': clean(env.APCA_API_SECRET_KEY),
-      Accept: 'application/json',
-    },
+
+  const directKey = clean(env.APCA_API_KEY_ID)
+  const directSecret = clean(env.APCA_API_SECRET_KEY)
+  const directCredentialResult = directKey && directSecret
+    ? {
+        readyForReadonlyBrokerRead: true,
+        credentialSource: 'runtime_env_legacy',
+        env: { ALPACA_KEY: directKey, ALPACA_SECRET: directSecret },
+      }
+    : null
+  const effectiveCredentialResolver = typeof credentialResolver === 'function'
+    ? async (args) => {
+        const resolved = await credentialResolver(args)
+        return resolved?.readyForReadonlyBrokerRead === true
+          ? resolved
+          : (directCredentialResult ?? resolved)
+      }
+    : directCredentialResult
+      ? async () => directCredentialResult
+      : undefined
+  const result = await fetchAlpacaMarketClockReadonly({
+    env,
+    fetchImpl,
+    ...(typeof effectiveCredentialResolver === 'function'
+      ? { credentialResolver: effectiveCredentialResolver }
+      : {}),
   })
-  const body = await response.json().catch(() => null)
-  if (!response.ok || !body || typeof body.is_open !== 'boolean') throw new Error(`paper_exit_only_clock_failed:${response.status}`)
-  return body
+  if (
+    result?.ok !== true ||
+    result?.status !== 'connected_readonly' ||
+    typeof result?.marketClock?.isOpen !== 'boolean'
+  ) {
+    throw new Error(`paper_exit_only_clock_failed:${clean(result?.status) || 'unknown'}`)
+  }
+  return { is_open: result.marketClock.isOpen }
 }
 
 async function fetchHistoricalOrders({ env, fetchImpl }) {
@@ -71,7 +96,10 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   if (!lifecycleFile) blockers.push('lifecycle_file_required')
   if (clean(env.APCA_API_BASE_URL) !== 'https://paper-api.alpaca.markets') blockers.push('alpaca_paper_base_url_required')
   if (clean(env.ALPACA_PAPER_TRADING).toLowerCase() !== 'true') blockers.push('alpaca_paper_trading_flag_required')
-  if (!clean(env.APCA_API_KEY_ID) || !clean(env.APCA_API_SECRET_KEY)) blockers.push('paper_credentials_required')
+  if (
+    (!clean(env.APCA_API_KEY_ID) || !clean(env.APCA_API_SECRET_KEY)) &&
+    typeof options.accountCredentialResolver !== 'function'
+  ) blockers.push('paper_credentials_required')
   if (typeof fetchImpl !== 'function') blockers.push('fetch_required')
   if (blockers.length) return { ok: false, version: VERSION, status: 'EXIT_ONLY_BLOCKED', blockers }
 
@@ -88,7 +116,13 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   if (lifecycle.lifecycleId !== lifecycleId) throw new Error('paper_exit_only_lifecycle_id_mismatch')
   store.assertExitTarget({ symbol, quantity })
 
-  const clock = await fetchPaperClock({ env, fetchImpl })
+  const clock = await fetchPaperClock({
+    env,
+    fetchImpl,
+    ...(typeof options.accountCredentialResolver === 'function'
+      ? { credentialResolver: options.accountCredentialResolver }
+      : {}),
+  })
   if (clock.is_open !== true) throw new Error('paper_exit_only_market_open_required')
 
   const accountBefore = await fetchAlpacaPaperAccountReadonly({
