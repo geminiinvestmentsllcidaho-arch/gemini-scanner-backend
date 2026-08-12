@@ -8,6 +8,8 @@ module.exports = {
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
+        PAPER_AUTO_EXIT_MONITOR_ENABLED: "1",
+        PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH: "/home/gemini/apps/gemini-scanner-backend/runs/paper_auto_exit_controlled_adoption_btg_20260811.json",
       },
     },
     {
