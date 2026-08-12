@@ -115,7 +115,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         throw new Error(`paper_auto_exit_monitor_${String(row.status).toLowerCase()}`)
       }
       if (row.status !== 'MONITORING') {
-        if (row?.lifecycle?.state === 'ROUND_TRIP_COMPLETED' && row?.lifecycle?.scannerEvidence?.forceAutoExitOnNextMarketOpen === true) {
+        if (row?.lifecycle?.state === 'ROUND_TRIP_COMPLETED' && row?.lifecycle?.scannerEvidence?.mechanicalAutoExitProof === true) {
           lastStatus = 'CONTROLLED_EXIT_LIFECYCLE_COMPLETED'
           lastResult = []
           clearIncidentLatch()
@@ -147,13 +147,13 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         if (!position) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_EXACT_POSITION_NOT_PRESENT' }); continue }
         if (clean(life.brokerPositionIdentity) !== `${symbol}:${quantity}`) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_POSITION_IDENTITY_MISMATCH' }); continue }
 
-        const controlledMarketOpenExit = life?.scannerEvidence?.forceAutoExitOnNextMarketOpen === true
+        const controlledMarketOpenExit = life?.scannerEvidence?.mechanicalAutoExitProof === true
         let exitRequired = controlledMarketOpenExit
         if (controlledMarketOpenExit) {
           const clock = await fetchMarketClock({ env, fetchImpl })
           if (clock?.ok !== true || clock?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_market_clock_required')
           if (clock?.marketClock?.isOpen !== true) {
-            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_CONTROLLED_EXIT' })
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_AUTO_EXIT_PROOF' })
             continue
           }
         } else {
