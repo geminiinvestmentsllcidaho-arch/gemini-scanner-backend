@@ -18,7 +18,7 @@ test("scanner and portfolio expose preparation-only controls", () => {
   const cards = fs.readFileSync("src/scanner/customer_zero_decision_cards.mjs", "utf8");
   const portfolio = fs.readFileSync("src/scanner/customer_portfolio_page.mjs", "utf8");
   assert.match(cards, /Prepare 1-share PAPER ENTER/);
-  assert.match(portfolio, /Prepare PAPER EXIT/);
+  assert.match(portfolio, /EXIT PAPER POSITION/);
 });
 
 

@@ -5,7 +5,7 @@ import fs from 'node:fs'
 test('server constructs and starts disabled-by-default PAPER auto-exit monitor and exposes diagnostics', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(source, /createPaperAutoExitMonitorWorker/)
-  assert.match(source, /const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker\(\)/)
+  assert.match(source, /const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker\(\{ accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials \}\)/)
   assert.match(source, /paperAutoExitMonitorWorker\.start\(\)/)
   assert.match(source, /paperAutoExitMonitorWorker\.onMarketDataEvent\(event\)/)
   assert.match(source, /\/diagnostics\/paper-auto-exit-monitor/)

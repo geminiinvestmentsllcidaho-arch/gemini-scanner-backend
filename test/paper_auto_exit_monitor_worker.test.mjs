@@ -352,17 +352,17 @@ test('incident dedupe latch resets after a healthy monitoring cycle so a later r
 
 test('controlled PAPERmarket closed then open exits exact BTG without strategy', async () => {
   let open=false,owned=0,exits=0
-  const cr={...row,lifecycle:{...life,scannerEvidence:{forceAutoExitOnNextMarketOpen:true}}}
+  const cr={...row,lifecycle:{...life,scannerEvidence:{mechanicalAutoExitProof:true}}}
   const w=createPaperAutoExitMonitorWorker({env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/l.json'},readConfiguredMonitoringLifecycle:async()=>cr,fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1},{symbol:'USAS',qty:1}]}),fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:open}}),fetchOwnedMonitor:async()=>{owned++;return {candidates:[]}},exitRunner:async()=>{exits++;return {status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED'}}}})
   let r=await w.runOnce({eventSymbol:'BTG'})
-  assert.equal(r.lastResult[0].status,'WAITING_FOR_MARKET_OPEN_CONTROLLED_EXIT')
+  assert.equal(r.lastResult[0].status,'WAITING_FOR_MARKET_OPEN_AUTO_EXIT_PROOF')
   open=true; r=await w.runOnce({eventSymbol:'BTG'})
   assert.equal(owned,0); assert.equal(exits,1); assert.equal(r.lastStatus,'EXIT_TRIGGERED')
 })
 
 test('completed controlled lifecycle is benign and does not alert or refetch account', async () => {
   let accounts=0,incidents=0
-  const done={status:'LIFECYCLE_NOT_MONITORING',file:'/tmp/l.json',lifecycle:{...life,state:'ROUND_TRIP_COMPLETED',scannerEvidence:{forceAutoExitOnNextMarketOpen:true}}}
+  const done={status:'LIFECYCLE_NOT_MONITORING',file:'/tmp/l.json',lifecycle:{...life,state:'ROUND_TRIP_COMPLETED',scannerEvidence:{mechanicalAutoExitProof:true}}}
   const w=createPaperAutoExitMonitorWorker({env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'t/tmp/l.json'},readConfiguredMonitoringLifecycle:async()=>done,fetchAccount:async()=>{accounts++;return {}},incidentEmitter:async()=>{incidents++}})
   const r=await w.runOnce()
   assert.equal(r.lastStatus,'CONTROLLED_EXIT_LIFECYCLE_COMPLETED')
@@ -372,7 +372,7 @@ test('completed controlled lifecycle is benign and does not alert or refetch acc
 
 test('completed controlled lifecycle is benign and does not alert or refetch account', async () => {
   let accounts=0,incidents=0
-  const done={status:'LIFECYCLE_NOT_MONITORING',file:'/tmp/l.json',lifecycle:{...life,state:'ROUND_TRIP_COMPLETED',scannerEvidence:{forceAutoExitOnNextMarketOpen:true}}}
+  const done={status:'LIFECYCLE_NOT_MONITORING',file:'/tmp/l.json',lifecycle:{...life,state:'ROUND_TRIP_COMPLETED',scannerEvidence:{mechanicalAutoExitProof:true}}}
   const w=createPaperAutoExitMonitorWorker({env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'t/tmp/l.json'},readConfiguredMonitoringLifecycle:async()=>done,fetchAccount:async()=>{accounts++;return {}},incidentEmitter:async()=>{incidents++}})
   const r=await w.runOnce()
   assert.equal(r.lastStatus,'CONTROLLED_EXIT_LIFECYCLE_COMPLETED')
