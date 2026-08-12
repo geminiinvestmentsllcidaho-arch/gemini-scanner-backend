@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
 import { fetchCustomerOwnedPositionMonitorSource } from './customer_owned_position_monitor_source.mjs'
 import { fetchAlpacaUnderFiveUniverseReadonly } from './alpaca_under_five_universe_readonly.mjs'
+import { fetchAlpacaMarketClockReadonly } from './alpaca_market_clock_readonly.mjs'
 import { runPaperAutoExecutionExitOnly } from './paper_auto_execution_exit_only_runner.mjs'
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 
@@ -39,6 +40,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const fetchAccount = options.fetchAccount ?? (args => fetchAlpacaPaperAccountReadonly(args))
   const fetchOwned = options.fetchOwnedMonitor ?? (args => fetchCustomerOwnedPositionMonitorSource(args))
   const fetchSymbols = options.fetchSymbols ?? (args => fetchAlpacaUnderFiveUniverseReadonly(args))
+  const fetchMarketClock = options.fetchMarketClock ?? (args => fetchAlpacaMarketClockReadonly(args))
   const exitRunner = options.exitRunner ?? runPaperAutoExecutionExitOnly
   const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
   const intervalMs = Math.max(250, Number(options.intervalMs ?? env.PAPER_AUTO_EXIT_MONITOR_INTERVAL_MS ?? DEFAULT_INTERVAL_MS) || DEFAULT_INTERVAL_MS)
@@ -113,6 +115,12 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         throw new Error(`paper_auto_exit_monitor_${String(row.status).toLowerCase()}`)
       }
       if (row.status !== 'MONITORING') {
+        if (row?.lifecycle?.state === 'ROUND_TRIP_COMPLETED' && row?.lifecycle?.scannerEvidence?.forceAutoExitOnNextMarketOpen === true) {
+          lastStatus = 'CONTROLLED_EXIT_LIFECYCLE_COMPLETED'
+          lastResult = []
+          clearIncidentLatch()
+          return diagnostics()
+        }
         lastStatus = 'ACTIVE_LIFECYCLE_NOT_MONITORING'
         lastResult = []
         await incident('paper_auto_exit_monitor_lifecycle_not_monitoring')
@@ -139,13 +147,24 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         if (!position) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_EXACT_POSITION_NOT_PRESENT' }); continue }
         if (clean(life.brokerPositionIdentity) !== `${symbol}:${quantity}`) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_POSITION_IDENTITY_MISMATCH' }); continue }
 
-        const owned = await fetchOwned({
-          paperAccount: { positions: [position] },
-          fetchSymbols: args => fetchSymbols({ ...args, env, fetchImpl, nowMs: Number(now()) }),
-          nowMs: Number(now()), maxAssets: 1
-        })
-        const candidate = (owned?.candidates ?? []).find(c => upper(c?.symbol) === symbol)
-        const exitRequired = candidate?.ownedExitReviewTriggered === true && upper(candidate?.resultState ?? candidate?.decision) === 'EXIT' && candidate?.sourceStale !== true
+        const controlledMarketOpenExit = life?.scannerEvidence?.forceAutoExitOnNextMarketOpen === true
+        let exitRequired = controlledMarketOpenExit
+        if (controlledMarketOpenExit) {
+          const clock = await fetchMarketClock({ env, fetchImpl })
+          if (clock?.ok !== true || clock?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_market_clock_required')
+          if (clock?.marketClock?.isOpen !== true) {
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_CONTROLLED_EXIT' })
+            continue
+          }
+        } else {
+          const owned = await fetchOwned({
+            paperAccount: { positions: [position] },
+            fetchSymbols: args => fetchSymbols({ ...args, env, fetchImpl, nowMs: Number(now()) }),
+            nowMs: Number(now()), maxAssets: 1
+          })
+          const candidate = (owned?.candidates ?? []).find(c => upper(c?.symbol) === symbol)
+          exitRequired = candidate?.ownedExitReviewTriggered === true && upper(candidate?.resultState ?? candidate?.decision) === 'EXIT' && candidate?.sourceStale !== true
+        }
         if (!exitRequired) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT' }); continue }
 
         exitTriggers += 1
