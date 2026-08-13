@@ -360,6 +360,25 @@ test('controlled PAPERmarket closed then open exits exact BTG without strategy'
   assert.equal(owned,0); assert.equal(exits,1); assert.equal(r.lastStatus,'EXIT_TRIGGERED')
 })
 
+
+test('dynamic configured lifecycle resolver follows newly active monitoring lifecycle', async () => {
+  let file = '/tmp/old.json'
+  const seen = []
+  const w = createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1'},
+    getConfiguredLifecycleFile:() => file,
+    readConfiguredMonitoringLifecycle:({ lifecycleFile } = {}) => {
+      seen.push(lifecycleFile)
+      const symbol = lifecycleFile.includes('new') ? 'NEW' : 'OLD'
+      return { status:'MONITORING', file:lifecycleFile, lifecycle:{state:'MONITORING',selectedSymbol:symbol,filledQuantity:1,brokerPositionIdentity:`${symbol}:1`} }
+    },
+  })
+  assert.equal(w.configuredMonitoringSymbol(), 'OLD')
+  file = '/tmp/new.json'
+  assert.equal(w.configuredMonitoringSymbol(), 'NEW')
+  assert.deepEqual(seen, ['/tmp/old.json','/tmp/new.json'])
+})
+
 test('completed controlled lifecycle is benign and does not alert or refetch account', async () => {
   let accounts=0,incidents=0
   const done={status:'LIFECYCLE_NOT_MONITORING',file:'/tmp/l.json',lifecycle:{...life,state:'ROUND_TRIP_COMPLETED',scannerEvidence:{mechanicalAutoExitProof:true}}}

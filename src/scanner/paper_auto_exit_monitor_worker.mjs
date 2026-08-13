@@ -36,7 +36,9 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const setIntervalFn = options.setIntervalFn ?? setInterval
   const clearIntervalFn = options.clearIntervalFn ?? clearInterval
   const configuredLifecycleFile = clean(options.lifecycleFile ?? env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH ?? env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH)
-  const readLifecycle = options.readConfiguredMonitoringLifecycle ?? (() => readConfiguredMonitoringLifecycle({ lifecycleFile: configuredLifecycleFile }))
+  const getConfiguredLifecycleFile = options.getConfiguredLifecycleFile ?? (() => configuredLifecycleFile)
+  const resolveConfiguredLifecycleFile = () => clean(getConfiguredLifecycleFile?.() ?? configuredLifecycleFile)
+  const readLifecycle = options.readConfiguredMonitoringLifecycle ?? (() => readConfiguredMonitoringLifecycle({ lifecycleFile: resolveConfiguredLifecycleFile() }))
   const fetchAccount = options.fetchAccount ?? (args => fetchAlpacaPaperAccountReadonly(args))
   const fetchOwned = options.fetchOwnedMonitor ?? (args => fetchCustomerOwnedPositionMonitorSource(args))
   const fetchSymbols = options.fetchSymbols ?? (args => fetchAlpacaUnderFiveUniverseReadonly(args))
@@ -240,8 +242,9 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   }
 
   function configuredMonitoringSymbol() {
-    if (!configuredLifecycleFile) return null
-    const row = readConfiguredMonitoringLifecycle({ lifecycleFile: configuredLifecycleFile })
+    const lifecycleFile = resolveConfiguredLifecycleFile()
+    if (!lifecycleFile) return null
+    const row = readLifecycle({ lifecycleFile })
     return row?.status === 'MONITORING' ? (upper(row?.lifecycle?.selectedSymbol) || null) : null
   }
 
