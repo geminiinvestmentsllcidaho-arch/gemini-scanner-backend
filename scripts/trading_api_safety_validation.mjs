@@ -33,6 +33,7 @@ const APPROVED_ISOLATED_PAPER_ORDER_FILES = new Map([
   ["src/scanner/paper_auto_execution_alpaca_paper_adapter.mjs", { method: "POST", exactEndpoint: "/v2/orders" }],
   ["src/scanner/paper_auto_execution_mechanical_enter_only_cli.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
   ["src/scanner/paper_auto_execution_exit_only_runner.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
+  ["scripts/run_paper_auto_execution_reconciliation_only.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
   ["src/scanner/paper_auto_execution_reporting_history_fetch.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=${HISTORICAL_ORDER_LIMIT}&direction=desc" }],
 ]);
 
