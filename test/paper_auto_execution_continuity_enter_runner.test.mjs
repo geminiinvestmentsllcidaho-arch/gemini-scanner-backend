@@ -100,6 +100,112 @@ test('stale candidate snapshot fails closed before credential resolution or brok
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
+
+test('missing scan snapshot adapter fails closed before credential resolution or broker work', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NOSCAN' })
+    let resolverCalls = 0
+    let brokerReads = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      fetchClock: async () => { brokerReads += 1 },
+      fetchAccount: async () => { brokerReads += 1 },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'FRESH_CANDIDATE_REVALIDATION_REQUIRED')
+    assert.equal(resolverCalls, 0)
+    assert.equal(brokerReads, 0)
+    assert.equal(out.submissions, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('future candidate snapshot fails closed before credential resolution or broker work', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'FUTURE' })
+    const now = Date.now()
+    let resolverCalls = 0
+    let brokerReads = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getScanSnapshot: async () => freshCandidateSnapshot('FUTURE', now + 1),
+      now: () => now,
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      fetchClock: async () => { brokerReads += 1 },
+      fetchAccount: async () => { brokerReads += 1 },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'FRESH_CANDIDATE_REQUIRED')
+    assert.equal(resolverCalls, 0)
+    assert.equal(brokerReads, 0)
+    assert.equal(out.submissions, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+for (const invalid of ['missing_symbol', 'blocked', 'blockers']) {
+  test(`candidate revalidation fails closed for ${invalid}`, async () => {
+    const dir = tmp()
+    try {
+      const file = path.join(dir, 'life.json')
+      new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'EXACT' })
+      const now = Date.now()
+      const candidate = invalid === 'missing_symbol'
+        ? { symbol: 'OTHER', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [] }
+        : invalid === 'blocked'
+          ? { symbol: 'EXACT', state: 'ENTER', buyRecommendation: true, blocked: true, blockers: [] }
+          : { symbol: 'EXACT', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: ['risk'] }
+      let resolverCalls = 0
+      let brokerReads = 0
+      const runner = createPaperAutoExecutionContinuityEnterRunner({
+        env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+        getLifecycleFile: () => file,
+        getScanSnapshot: async () => ({ observedAt: new Date(now).toISOString(), candidates: [candidate] }),
+        now: () => now,
+        accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+        fetchClock: async () => { brokerReads += 1 },
+        fetchAccount: async () => { brokerReads += 1 },
+      })
+      const out = await runner.runOnce()
+      assert.equal(out.lastStatus, 'CANDIDATE_REVALIDATION_FAILED')
+      assert.equal(resolverCalls, 0)
+      assert.equal(brokerReads, 0)
+      assert.equal(out.submissions, 0)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+}
+
+test('fresh eligible candidate reaches credential resolution then closed market stops before submission', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'FRESH' })
+    const now = Date.now()
+    let resolverCalls = 0
+    let submitted = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getScanSnapshot: async () => freshCandidateSnapshot('FRESH', now),
+      now: () => now,
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      fetchClock: async () => ({ ok: true, status: 'connected_readonly', marketClock: { isOpen: false } }),
+      fetchAccount: async () => ({ ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(), account: {}, positions: [], openOrders: [] }),
+      createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
+    })
+    const out = await runner.runOnce()
+    assert.equal(resolverCalls, 1)
+    assert.equal(out.lastStatus, 'MARKET_OPEN_REQUIRED')
+    assert.equal(submitted, 0)
+    assert.equal(out.submissions, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('candidate no longer eligible fails closed before credential resolution or broker work', async () => {
   const dir = tmp()
   try {
@@ -166,6 +272,34 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
     assert.equal(out.lastLifecycle.state, 'MONITORING')
     assert.equal(out.lastLifecycle.filledQuantity, 1)
     assert.equal(out.lastLifecycle.brokerPositionIdentity, 'ABC:1')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+
+test('future PAPER account snapshot fails closed before submission', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'ACCT' })
+    const now = Date.now()
+    let submitted = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getScanSnapshot: async () => freshCandidateSnapshot('ACCT', now),
+      now: () => now,
+      accountCredentialResolver: readyCredentials,
+      fetchClock: clockOpen,
+      fetchAccount: async () => ({
+        ok: true, status: 'connected_readonly', observedAt: new Date(now + 1).toISOString(),
+        account: { tradingBlocked: false, accountBlocked: false }, positions: [], openOrders: [],
+      }),
+      createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'PAPER_ACCOUNT_SNAPSHOT_STALE')
+    assert.equal(submitted, 0)
+    assert.equal(out.submissions, 0)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 

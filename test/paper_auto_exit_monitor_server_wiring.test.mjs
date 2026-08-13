@@ -86,3 +86,15 @@ test('server persists and restores continuity active lifecycle ownership across 
   assert.match(source, /pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE/)
   assert.match(source, /writePaperAutoExecutionActiveLifecyclePointer\(\{[\s\S]*pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,[\s\S]*\}\);[\s\S]*activePaperAutoExecutionLifecycleFile = nextLifecycleFile/)
 })
+
+test('server uses the exact same continuity scan producer for lifecycle selection and ENTER revalidation', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  const runtimeStart = source.indexOf('createPaperAutoExecutionContinuityRuntime({')
+  const enterStart = source.indexOf('createPaperAutoExecutionContinuityEnterRunner({')
+  assert.notEqual(runtimeStart, -1)
+  assert.notEqual(enterStart, -1)
+  const runtimeBlock = source.slice(runtimeStart, enterStart)
+  const enterBlock = source.slice(enterStart, source.indexOf('createPaperAutoExitMonitorWorker({', enterStart))
+  assert.match(runtimeBlock, /getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot/)
+  assert.match(enterBlock, /getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot/)
+})

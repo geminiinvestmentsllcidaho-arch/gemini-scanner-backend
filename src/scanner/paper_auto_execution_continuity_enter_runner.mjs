@@ -99,7 +99,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (typeof getScanSnapshot !== 'function') return fail('FRESH_CANDIDATE_REVALIDATION_REQUIRED', lifecycle)
       const snapshot = await getScanSnapshot()
       const observedAtMs = Date.parse(snapshot?.observedAt ?? '')
-      if (!Number.isFinite(observedAtMs) || Math.abs(Number(now()) - observedAtMs) > CANDIDATE_FRESHNESS_MS) {
+      const candidateAgeMs = Number(now()) - observedAtMs
+      if (!Number.isFinite(observedAtMs) || !Number.isFinite(candidateAgeMs) || candidateAgeMs < 0 || candidateAgeMs > CANDIDATE_FRESHNESS_MS) {
         return fail('FRESH_CANDIDATE_REQUIRED', lifecycle)
       }
       const candidates = Array.isArray(snapshot?.candidates) ? snapshot.candidates : []
@@ -131,7 +132,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       }
       if (account?.ok !== true || account?.status !== 'connected_readonly') return fail('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
       const observedAtMs = Date.parse(account?.observedAt ?? '')
-      if (!Number.isFinite(observedAtMs) || Math.abs(Number(now()) - observedAtMs) > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
+      const accountAgeMs = Number(now()) - observedAtMs
+      if (!Number.isFinite(observedAtMs) || !Number.isFinite(accountAgeMs) || accountAgeMs < 0 || accountAgeMs > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
       if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) return fail('PAPER_ACCOUNT_BLOCKED', lifecycle)
       const symbol = upper(lifecycle.selectedSymbol)
       if ((account?.positions ?? []).some(p => upper(p?.symbol) === symbol && Number(p?.qty ?? p?.quantity) !== 0)) {
