@@ -224,10 +224,34 @@ test("broker-backed performance uses completed Alpaca PAPER round trips and igno
   assert.equal(report.drawdown, null);
   assert.equal(report.drawdownPct, null);
   assert.equal(report.totalReturnPct, null);
-  assert.equal(report.fees, null);
+  assert.equal(report.fees, 0.03);
   assert.equal(report.slippage, null);
-  assert.equal(report.netAfterCosts, null);
+  assert.equal(report.netAfterCosts, 9.97);
+  assert.equal(report.feeModel, "ALPACA_LIVE_EQUIVALENT_REGULATORY_FEES");
+  assert.equal(report.feeScheduleId, "alpaca_brokerage_fee_schedule_2026_07_20");
+  assert.equal(report.feeEstimationOnly, true);
+  assert.equal(report.paperBrokerActualFees, false);
   assert.equal(report.brokerHistoryComplete, true);
+});
+
+test("broker-backed lifetime performance applies live-equivalent fees to BTG across separate trading days", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "lifetime",
+    now: new Date("2026-08-13T16:00:00.000Z"),
+    brokerObservationTs: "2026-08-13T15:59:30.000Z",
+    paperAccount: { summary: { totalUnrealizedPl: 0 } },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { symbol: "BTG", side: "buy", qty: 1, fillPrice: 4.12, createdAt: "2026-08-05T19:29:04.466729Z" },
+      { symbol: "BTG", side: "sell", qty: 1, fillPrice: 5.21, createdAt: "2026-08-12T19:11:56.07754Z" },
+    ],
+  });
+  assert.equal(report.realizedPl, 1.09);
+  assert.equal(report.fees, 0.04);
+  assert.equal(report.netAfterCosts, 1.05);
+  assert.equal(report.feeEstimationOnly, true);
+  assert.equal(report.paperBrokerActualFees, false);
+  assert.equal(report.orderPlacementAllowed, false);
 });
 
 test("broker-backed performance attributes realized P/L to completed trades closed inside the selected period", () => {

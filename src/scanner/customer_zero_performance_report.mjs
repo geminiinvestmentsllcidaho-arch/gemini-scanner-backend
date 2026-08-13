@@ -4,6 +4,7 @@ import {
   normalizeCustomerReportPeriod,
 } from "./customer_report_periods.mjs";
 import { reconstructCustomerReportTradeLifecycle } from "./customer_report_trade_lifecycle.mjs";
+import { estimateAlpacaLiveEquivalentEquityFees } from "./alpaca_live_equivalent_equity_fee_model.mjs";
 
 export const VERSION = "customer_zero_performance_report_v1";
 
@@ -139,6 +140,12 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     const sourceAgeSec = Number.isFinite(parsedSourceTs) ? Math.max(0, Math.floor((now.getTime() - parsedSourceTs) / 1000)) : null;
     const stale = options.stale === true || sourceAgeSec === null || sourceAgeSec > maxAgeSec;
     const endingEquity = round2OrNull(options.endingEquity ?? paperAccount?.account?.equity);
+    const feeEstimate = estimateAlpacaLiveEquivalentEquityFees({
+      fillRecords: options.fillLedgerHistory,
+      range: periodRange,
+    });
+    const fees = feeEstimate.totalFees;
+    const netAfterCosts = round2(totalPl - fees);
     return {
       version: VERSION,
       period,
@@ -156,9 +163,14 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
       totalPl,
       tone: tone(totalPl),
       ...brokerStatistics(lifecycle),
-      fees: null,
+      fees,
       slippage: null,
-      netAfterCosts: null,
+      netAfterCosts,
+      feeModel: feeEstimate.model,
+      feeScheduleId: feeEstimate.scheduleId,
+      feeScheduleRevisedOn: feeEstimate.scheduleRevisedOn,
+      feeEstimationOnly: true,
+      paperBrokerActualFees: false,
       startingEquity: null,
       endingEquity,
       peakEquity: null,
