@@ -66,6 +66,9 @@ import { listCustomerSecurityActivity } from './scanner/customer_security_activi
 import { formatCustomerDate, formatCustomerDateTime } from './scanner/customer_time.mjs';
 import { startMarketDataStream } from './market_data_stream.js';
 import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_monitor_worker.mjs';
+import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
+import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
+import { mapLiveUnderFiveUniverseToRankingEnvelope, normalizeCandidates } from './scanner/paper_auto_execution_mechanical_enter_only_cli.mjs';
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './scanner/internal_owner_alpaca_readonly_credentials.mjs';
 import { marketDataDump } from './utils/market_data_dump.js';
 import { getDiagnostics } from './diagnostics/index.js';
@@ -2636,7 +2639,39 @@ app.get("/app", (req, res) => {
 
 
 const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
-const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({ accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials });
+let activePaperAutoExecutionLifecycleFile = String(
+  process.env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH
+  ?? process.env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH
+  ?? ''
+).trim();
+
+const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
+  getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  setActiveLifecycleFile: (file) => {
+    activePaperAutoExecutionLifecycleFile = String(file ?? '').trim();
+  },
+  getScanSnapshot: async () => {
+    const cache = await underFiveSharedCachePromise;
+    if (!cache) return { candidates: [] };
+    const current = cache.getLatest?.();
+    const wakeRefreshRequired = !current || current?.idleNoDemand === true;
+    cache.noteDemand?.();
+    const source = wakeRefreshRequired ? await cache.refreshNow() : current;
+    const envelope = mapLiveUnderFiveUniverseToRankingEnvelope(source, Date.now());
+    return {
+      observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
+      candidates: normalizeCandidates(envelope),
+    };
+  },
+});
+const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner({
+  getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
+});
+const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
+  accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
+  getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+});
 
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
   runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
@@ -2722,6 +2757,7 @@ app.listen(PORT, HOST, async () => {
       runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
       onMarketDataEvent: (event) => {
         paperAutoExitMonitorWorker.onMarketDataEvent(event);
+        void paperAutoExecutionContinuityRuntime.runOnce().then(() => paperAutoExecutionContinuityEnterRunner.runOnce());
         const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
         if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
       },
@@ -2815,6 +2851,14 @@ app.get('/diagnostics/paper-trade-position-state-auto-refresh', (_req, res) => {
 
 app.get('/diagnostics/paper-auto-exit-monitor', (_req, res) => {
   res.json(paperAutoExitMonitorWorker.diagnostics());
+});
+
+app.get('/diagnostics/paper-auto-execution-continuity', (_req, res) => {
+  res.json(paperAutoExecutionContinuityRuntime.diagnostics());
+});
+
+app.get('/diagnostics/paper-auto-execution-continuity-enter', (_req, res) => {
+  res.json(paperAutoExecutionContinuityEnterRunner.diagnostics());
 });
 
 app.get('/diagnostics/paper-trade-position-state-store', (_req, res) => {

@@ -5,7 +5,9 @@ import fs from 'node:fs'
 test('server constructs and starts disabled-by-default PAPER auto-exit monitor and exposes diagnostics', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(source, /createPaperAutoExitMonitorWorker/)
-  assert.match(source, /const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker\(\{ accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials \}\)/)
+  assert.match(source, /const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker\(\{/)
+  assert.match(source, /accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials/)
+  assert.match(source, /getConfiguredLifecycleFile: \(\) => activePaperAutoExecutionLifecycleFile/)
   assert.match(source, /paperAutoExitMonitorWorker\.start\(\)/)
   assert.match(source, /paperAutoExitMonitorWorker\.onMarketDataEvent\(event\)/)
   assert.match(source, /\/diagnostics\/paper-auto-exit-monitor/)
@@ -38,4 +40,24 @@ test('server dynamically follows the active PAPER auto-exit lifecycle symbol aft
   assert.match(source, /let marketDataStream = null/)
   assert.match(source, /configuredMonitoringSymbol\(\)/)
   assert.match(source, /marketDataStream\?\.addSymbols\?\.\(\[activePaperExitSymbol\]\)/)
+})
+
+
+test('server wires disabled-by-default PAPER continuity through authoritative execution normalization and dynamic lifecycle path', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /createPaperAutoExecutionContinuityRuntime/)
+  assert.match(source, /mapLiveUnderFiveUniverseToRankingEnvelope/)
+  assert.match(source, /normalizeCandidates\(envelope\)/)
+  assert.match(source, /let activePaperAutoExecutionLifecycleFile/)
+  assert.match(source, /setActiveLifecycleFile: \(file\) =>/)
+  assert.match(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)/)
+  assert.match(source, /\/diagnostics\/paper-auto-execution-continuity/)
+})
+
+test('server hands continuity-created lifecycle to disabled-by-default PAPER ENTER runner', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /createPaperAutoExecutionContinuityEnterRunner/)
+  assert.match(source, /getLifecycleFile: \(\) => activePaperAutoExecutionLifecycleFile/)
+  assert.match(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)\.then\(\(\) => paperAutoExecutionContinuityEnterRunner\.runOnce\(\)\)/)
+  assert.match(source, /\/diagnostics\/paper-auto-execution-continuity-enter/)
 })
