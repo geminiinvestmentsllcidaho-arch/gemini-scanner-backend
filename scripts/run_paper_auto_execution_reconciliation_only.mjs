@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { pathToFileURL } from 'node:url'
 import { PaperAutoExecutionLifecycleStore } from '../src/scanner/paper_auto_execution_lifecycle_store.mjs'
 import { fetchAlpacaPaperAccountReadonly } from '../src/scanner/alpaca_paper_account_readonly_fetch.mjs'
