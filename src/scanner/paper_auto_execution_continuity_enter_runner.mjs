@@ -89,7 +89,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     }
 
     const resolved = typeof credentialResolver === 'function'
-      ? await credentialResolver({ env, purpose: 'paper_continuity_enter_credentials' })
+      ? await credentialResolver({
+          env,
+          masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY,
+          purpose: 'paper_continuity_enter_credentials',
+        })
       : null
     if (resolved?.readyForReadonlyBrokerRead !== true) return fail('PAPER_CREDENTIALS_NOT_READY', lifecycle)
     const effectiveEnv = { ...env, ...(resolved.env ?? {}) }

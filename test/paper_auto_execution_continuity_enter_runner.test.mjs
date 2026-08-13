@@ -8,6 +8,53 @@ import { createPaperAutoExecutionContinuityEnterRunner } from '../src/scanner/pa
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'continuity-enter-'))
 const readyCredentials = async () => ({ readyForReadonlyBrokerRead: true, env: { ALPACA_KEY: 'paper-key', ALPACA_SECRET: 'paper-secret', APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_PAPER_TRADING: 'true' } })
+
+test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver without broker work while downstream reads stay injected', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-continuity-enter-master-key-'))
+  const lifecycleFile = path.join(dir, 'lifecycle.json')
+  const store = new PaperAutoExecutionLifecycleStore({ filePath: lifecycleFile })
+  store.create({
+    selectedSymbol: 'KEY',
+    scannerEvidence: { source: 'paper_auto_continuity_scanner_candidate', symbol: 'KEY', state: 'ENTER', score: 99, paperOnly: true },
+  })
+  const expectedMasterKey = 'm'.repeat(64)
+  let resolverArgs = null
+  let downstreamReads = 0
+  const runner = createPaperAutoExecutionContinuityEnterRunner({
+    env: {
+      PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1',
+      GEMINI_CREDENTIAL_MASTER_KEY: expectedMasterKey,
+    },
+    getLifecycleFile: () => lifecycleFile,
+    accountCredentialResolver: async (args) => {
+      resolverArgs = args
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: 'paper-key',
+          ALPACA_SECRET: 'paper-secret',
+          APCA_API_BASE_URL: 'https://paper-api.alpaca.markets',
+          ALPACA_PAPER_TRADING: 'true',
+        },
+      }
+    },
+    fetchClock: async () => {
+      downstreamReads += 1
+      return { ok: true, status: 'connected_readonly', marketClock: { isOpen: false } }
+    },
+    fetchAccount: async () => {
+      downstreamReads += 1
+      throw new Error('account_read_must_not_run_after_closed_clock')
+    },
+  })
+  const out = await runner.runOnce()
+  assert.equal(resolverArgs?.masterKey, expectedMasterKey)
+  assert.equal(resolverArgs?.env?.GEMINI_CREDENTIAL_MASTER_KEY, expectedMasterKey)
+  assert.equal(resolverArgs?.purpose, 'paper_continuity_enter_credentials')
+  assert.equal(out.submissions, 0)
+  assert.equal(out.reconciliations, 0)
+  assert.ok(downstreamReads >= 1)
+})
 const clockOpen = async () => ({ ok: true, status: 'connected_readonly', marketClock: { isOpen: true } })
 
 test('disabled by default never contacts broker or submits', async () => {
