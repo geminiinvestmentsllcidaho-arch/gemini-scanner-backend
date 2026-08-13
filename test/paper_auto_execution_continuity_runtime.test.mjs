@@ -7,3 +7,19 @@ test('terminal preserved and no candidate creates nothing',async()=>{const d=tmp
 test('eligible ENTER creates one fresh lifecycle and preserves terminal evidence',async()=>{const d=tmp(),old=path.join(d,'old.json'),before=terminal(old);let active=old;const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{active=f},getScanSnapshot:async()=>({observedAt:'2026-08-13T01:00:00Z',candidates:[{symbol:'NEW',state:'ENTER',buyRecommendation:true,score:9}]}),idFactory:()=> 'new-life'});const out=await r.runOnce();assert.equal(out.lastStatus,'FRESH_CANDIDATE_LIFECYCLE_CREATED');assert.notEqual(active,old);assert.equal(out.lastLifecycle.state,'CANDIDATE_SELECTED');assert.equal(out.lastLifecycle.selectedSymbol,'NEW');assert.equal(out.lastLifecycle.enterIdentity.phase,'enter');assert.deepEqual(new PaperAutoExecutionLifecycleStore({filePath:old}).load(),before)})
 test('concurrent cycles deduplicate and active nonterminal blocks replacement',async()=>{const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,scans=0;const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{active=f},getScanSnapshot:async()=>{scans++;await new Promise(x=>setTimeout(x,10));return{candidates:[{symbol:'ABC',state:'ENTER',buyRecommendation:true}]}},idFactory:()=> 'only-one'});const[a,b]=await Promise.all([r.runOnce(),r.runOnce()]);assert.equal(scans,1);assert.equal(a.lastLifecycleFile,b.lastLifecycleFile);const c=await r.runOnce();assert.equal(c.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT')})
 test('disabled by default and safety is nonmutating',async()=>{const r=createPaperAutoExecutionContinuityRuntime({env:{},getScanSnapshot:async()=>({candidates:[{symbol:'XYZ',state:'ENTER',buyRecommendation:true}]})});const out=await r.runOnce();assert.equal(out.lastStatus,'CONTINUITY_DISABLED_BY_ENV');assert.equal(out.safety.paperOnly,true);assert.equal(out.safety.brokerContactAllowed,false);assert.equal(out.safety.orderPlacementAllowed,false);assert.equal(out.safety.accountMutationAllowed,false);assert.equal(out.safety.liveTradingAllowed,false)})
+
+
+test('pointer publish failure retains created lifecycle in-process and retry cannot create a duplicate',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,setCalls=0,scans=0
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:()=>{setCalls++;throw new Error('forced_pointer_write_failure')},getScanSnapshot:async()=>{scans++;return{observedAt:'2026-08-13T01:00:00Z',candidates:[{symbol:'SAFE',state:'ENTER',buyRecommendation:true,score:99}]}},idFactory:()=> 'pointer-failure-life'})
+ await assert.rejects(r.runOnce(),/forced_pointer_write_failure/)
+ const created=path.join(d,'paper_auto_execution_pointer-failure-life.json')
+ assert.equal(fs.existsSync(created),true)
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:created}).load().selectedSymbol,'SAFE')
+ const retry=await r.runOnce()
+ assert.equal(retry.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT')
+ assert.equal(retry.lastLifecycleFile,created)
+ assert.equal(setCalls,1)
+ assert.equal(scans,1)
+ assert.equal(fs.readdirSync(d).filter(name=>name.startsWith('paper_auto_execution_')&&name.endsWith('.json')).length,1)
+})

@@ -14,8 +14,11 @@ import {
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'paper-active-pointer-'))
 
-function createLifecycle(file, symbol = 'ABC') {
-  return new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => `life-${symbol}` }).create({ selectedSymbol: symbol })
+function createLifecycle(file, symbol = 'ABC', { continuityOwned = false } = {}) {
+  return new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => `life-${symbol}` }).create({
+    selectedSymbol: symbol,
+    ...(continuityOwned ? { scannerEvidence: { source: 'paper_auto_continuity_scanner_candidate', symbol, state: 'ENTER', score: 99, paperOnly: true } } : {}),
+  })
 }
 
 test('writes and reloads a private atomic active lifecycle pointer', () => {
@@ -48,7 +51,7 @@ test('restart resolver recovers exactly one nonterminal continuity lifecycle whe
   const runsDir = tmp()
   const fresh = path.join(runsDir, 'paper_auto_execution_recovered.json')
   const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')
-  createLifecycle(fresh, 'REC')
+  createLifecycle(fresh, 'REC', { continuityOwned: true })
   assert.equal(discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir, pointerFile }), path.resolve(fresh))
   assert.equal(resolvePaperAutoExecutionActiveLifecycleFile({ pointerFile, configuredLifecycleFile: '/tmp/old.json' }), path.resolve(fresh))
 })
@@ -56,8 +59,8 @@ test('restart resolver recovers exactly one nonterminal continuity lifecycle whe
 test('multiple nonterminal continuity lifecycle files fail closed instead of selecting one', () => {
   const runsDir = tmp()
   const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')
-  createLifecycle(path.join(runsDir, 'paper_auto_execution_a.json'), 'AAA')
-  createLifecycle(path.join(runsDir, 'paper_auto_execution_b.json'), 'BBB')
+  createLifecycle(path.join(runsDir, 'paper_auto_execution_a.json'), 'AAA', { continuityOwned: true })
+  createLifecycle(path.join(runsDir, 'paper_auto_execution_b.json'), 'BBB', { continuityOwned: true })
   assert.throws(
     () => resolvePaperAutoExecutionActiveLifecycleFile({ pointerFile, configuredLifecycleFile: '/tmp/old.json' }),
     /multiple_nonterminal_continuity_lifecycles/,
@@ -91,4 +94,15 @@ test('pointer target is constrained to continuity lifecycle files inside its run
     () => writePaperAutoExecutionActiveLifecyclePointer({ lifecycleFile: outside, pointerFile }),
     /path_outside_runs/,
   )
+})
+
+
+test('discovery ignores unrelated valid and invalid generic paper auto artifacts without claiming ownership', () => {
+  const runsDir = tmp()
+  const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')
+  const owned = path.join(runsDir, 'paper_auto_execution_owned.json')
+  createLifecycle(owned, 'OWN', { continuityOwned: true })
+  createLifecycle(path.join(runsDir, 'paper_auto_execution_unowned.json'), 'OTHER')
+  fs.writeFileSync(path.join(runsDir, 'paper_auto_execution_authorized_run_once_operator_packet_blocked.json'), '{not-a-lifecycle', { mode: 0o600 })
+  assert.equal(discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir, pointerFile }), path.resolve(owned))
 })

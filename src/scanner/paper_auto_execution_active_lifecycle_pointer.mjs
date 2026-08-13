@@ -7,6 +7,12 @@ export const VERSION = 'paper_auto_execution_active_lifecycle_pointer_v1'
 export const DEFAULT_POINTER_FILE = path.join(process.cwd(), 'runs', 'paper_auto_execution_active_lifecycle_pointer.json')
 
 const clean = (value) => String(value ?? '').trim()
+const CONTINUITY_EVIDENCE_SOURCE = 'paper_auto_continuity_scanner_candidate'
+
+function isOwnedContinuityLifecycle(lifecycle) {
+  return lifecycle?.scannerEvidence?.source === CONTINUITY_EVIDENCE_SOURCE
+    && lifecycle?.scannerEvidence?.paperOnly === true
+}
 
 function runsRoot(pointerFile) {
   return path.resolve(path.dirname(pointerFile))
@@ -73,7 +79,8 @@ export function discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir =
     } catch {
       continue
     }
-    if (lifecycle && lifecycle.state !== 'IDLE' && !terminalStates.has(lifecycle.state)) matches.push(file)
+    if (!isOwnedContinuityLifecycle(lifecycle)) continue
+    if (lifecycle.state !== 'IDLE' && !terminalStates.has(lifecycle.state)) matches.push(file)
   }
   if (matches.length > 1) throw new Error('paper_auto_multiple_nonterminal_continuity_lifecycles')
   return matches[0] ?? null
