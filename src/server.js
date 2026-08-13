@@ -2673,6 +2673,18 @@ const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
 });
 
+const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
+const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
+  void paperAutoExecutionContinuityRuntime.runOnce()
+    .then(() => paperAutoExecutionContinuityEnterRunner.runOnce())
+    .catch((error) => {
+      console.error('[paper-auto-execution-continuity] cycle failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+    });
+};
+
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
   runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
     now,
@@ -2750,6 +2762,12 @@ app.listen(PORT, HOST, async () => {
     intervalMs: paperAutoExitStatus.intervalMs,
     lastStatus: paperAutoExitStatus.lastStatus,
   });
+  runPaperAutoExecutionContinuityCycle('startup');
+  const paperAutoExecutionContinuityTimer = setInterval(
+    () => runPaperAutoExecutionContinuityCycle('authoritative_fallback'),
+    PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS,
+  );
+  paperAutoExecutionContinuityTimer.unref?.();
   try {
     const paperAutoExitMonitoringSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
     let marketDataStream = null;
@@ -2757,7 +2775,7 @@ app.listen(PORT, HOST, async () => {
       runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
       onMarketDataEvent: (event) => {
         paperAutoExitMonitorWorker.onMarketDataEvent(event);
-        void paperAutoExecutionContinuityRuntime.runOnce().then(() => paperAutoExecutionContinuityEnterRunner.runOnce());
+        runPaperAutoExecutionContinuityCycle('market_event');
         const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
         if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
       },

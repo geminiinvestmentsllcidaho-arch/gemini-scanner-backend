@@ -58,6 +58,17 @@ test('server hands continuity-created lifecycle to disabled-by-default PAPER ENT
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(source, /createPaperAutoExecutionContinuityEnterRunner/)
   assert.match(source, /getLifecycleFile: \(\) => activePaperAutoExecutionLifecycleFile/)
-  assert.match(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)\.then\(\(\) => paperAutoExecutionContinuityEnterRunner\.runOnce\(\)\)/)
+  assert.match(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
   assert.match(source, /\/diagnostics\/paper-auto-execution-continuity-enter/)
+})
+
+
+test('server contains continuity failures and provides startup plus 15-second fallback cadence', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000/)
+  assert.match(source, /const runPaperAutoExecutionContinuityCycle = \(source = 'runtime'\) =>/)
+  assert.match(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)[\s\S]*paperAutoExecutionContinuityEnterRunner\.runOnce\(\)[\s\S]*\.catch\(\(error\) =>/)
+  assert.match(source, /runPaperAutoExecutionContinuityCycle\('startup'\)/)
+  assert.match(source, /setInterval\([\s\S]*runPaperAutoExecutionContinuityCycle\('authoritative_fallback'\)[\s\S]*PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS/)
+  assert.match(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
 })

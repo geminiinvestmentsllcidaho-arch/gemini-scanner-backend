@@ -101,7 +101,8 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     busy = true
     lastError = null
     try {
-      if (!configuredLifecycleFile) {
+      const lifecycleFile = resolveConfiguredLifecycleFile()
+      if (!lifecycleFile) {
         lastStatus = 'ACTIVE_LIFECYCLE_PATH_REQUIRED'
         lastResult = []
         await incident('paper_auto_exit_monitor_lifecycle_path_required')
