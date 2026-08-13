@@ -67,6 +67,7 @@ import { formatCustomerDate, formatCustomerDateTime } from './scanner/customer_t
 import { startMarketDataStream } from './market_data_stream.js';
 import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_monitor_worker.mjs';
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
+import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
 import { mapLiveUnderFiveUniverseToRankingEnvelope, normalizeCandidates } from './scanner/paper_auto_execution_mechanical_enter_only_cli.mjs';
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './scanner/internal_owner_alpaca_readonly_credentials.mjs';
@@ -2639,16 +2640,25 @@ app.get("/app", (req, res) => {
 
 
 const paperPositionStateAutoRefresh = createPaperTradePositionStateAutoRefresh();
-let activePaperAutoExecutionLifecycleFile = String(
+const configuredPaperAutoExecutionLifecycleFile = String(
   process.env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH
   ?? process.env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH
   ?? ''
 ).trim();
+let activePaperAutoExecutionLifecycleFile = resolvePaperAutoExecutionActiveLifecycleFile({
+  pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,
+  configuredLifecycleFile: configuredPaperAutoExecutionLifecycleFile,
+});
 
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
   getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   setActiveLifecycleFile: (file) => {
-    activePaperAutoExecutionLifecycleFile = String(file ?? '').trim();
+    const nextLifecycleFile = String(file ?? '').trim();
+    writePaperAutoExecutionActiveLifecyclePointer({
+      lifecycleFile: nextLifecycleFile,
+      pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,
+    });
+    activePaperAutoExecutionLifecycleFile = nextLifecycleFile;
   },
   getScanSnapshot: async () => {
     const cache = await underFiveSharedCachePromise;
@@ -2674,15 +2684,30 @@ const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
 });
 
 const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
+let paperAutoExecutionContinuityCycleInFlight = null;
 const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
-  void paperAutoExecutionContinuityRuntime.runOnce()
-    .then(() => paperAutoExecutionContinuityEnterRunner.runOnce())
-    .catch((error) => {
-      console.error('[paper-auto-execution-continuity] cycle failed closed', {
+  if (paperAutoExecutionContinuityCycleInFlight) return paperAutoExecutionContinuityCycleInFlight;
+  paperAutoExecutionContinuityCycleInFlight = (async () => {
+    try {
+      await paperAutoExecutionContinuityRuntime.runOnce();
+    } catch (error) {
+      console.error('[paper-auto-execution-continuity] runtime cycle failed closed', {
         source,
         error: error?.message ?? String(error),
       });
-    });
+    }
+    try {
+      await paperAutoExecutionContinuityEnterRunner.runOnce();
+    } catch (error) {
+      console.error('[paper-auto-execution-continuity-enter] runner cycle failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+    }
+  })().finally(() => {
+    paperAutoExecutionContinuityCycleInFlight = null;
+  });
+  return paperAutoExecutionContinuityCycleInFlight;
 };
 
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
@@ -2762,9 +2787,9 @@ app.listen(PORT, HOST, async () => {
     intervalMs: paperAutoExitStatus.intervalMs,
     lastStatus: paperAutoExitStatus.lastStatus,
   });
-  runPaperAutoExecutionContinuityCycle('startup');
+  void runPaperAutoExecutionContinuityCycle('startup');
   const paperAutoExecutionContinuityTimer = setInterval(
-    () => runPaperAutoExecutionContinuityCycle('authoritative_fallback'),
+    () => void runPaperAutoExecutionContinuityCycle('authoritative_fallback'),
     PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS,
   );
   paperAutoExecutionContinuityTimer.unref?.();
@@ -2775,7 +2800,7 @@ app.listen(PORT, HOST, async () => {
       runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
       onMarketDataEvent: (event) => {
         paperAutoExitMonitorWorker.onMarketDataEvent(event);
-        runPaperAutoExecutionContinuityCycle('market_event');
+        void runPaperAutoExecutionContinuityCycle('market_event');
         const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
         if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
       },

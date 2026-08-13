@@ -125,3 +125,69 @@ test('concurrent enter cycles deduplicate to one submission', async () => {
     assert.equal(b.lastStatus, 'CONTINUITY_ENTER_MONITORING_CONFIRMED')
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
+
+
+for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
+  test(`persisted ${restartState} restart reconciles without blind ENTER resubmission`, async () => {
+    const dir = tmp()
+    try {
+      const file = path.join(dir, 'life.json')
+      const store = new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => `restart-${restartState.toLowerCase()}` })
+      store.create({ selectedSymbol: 'RST' })
+      store.transition('ENTER_SUBMITTING', { enterClientOrderId: `gs-restart-${restartState.toLowerCase()}` })
+      store.transition(restartState, { enterBrokerOrderId: 'restart-order-1' })
+      let submitted = 0
+      let adapterCreates = 0
+      let clockFetches = 0
+      const now = Date.now()
+      const runner = createPaperAutoExecutionContinuityEnterRunner({
+        env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+        getLifecycleFile: () => file,
+        now: () => now,
+        accountCredentialResolver: readyCredentials,
+        fetchClock: async () => { clockFetches += 1; return clockOpen() },
+        fetchAccount: async () => ({
+          ok: true,
+          status: 'connected_readonly',
+          mode: 'PAPER_ONLY',
+          observedAt: new Date(now).toISOString(),
+          runtime: { readOnly: true, allowedMethods: ['GET'] },
+          account: { tradingBlocked: false, accountBlocked: false },
+          positions: [{ symbol: 'RST', qty: 1, averageEntryPrice: 7.5 }],
+          openOrders: [],
+        }),
+        fetchHistoricalOrders: async () => ({
+          historicalOrders: [{
+            id: 'restart-order-1',
+            client_order_id: store.load()?.enterClientOrderId,
+            symbol: 'RST',
+            side: 'buy',
+            status: 'filled',
+            filled_qty: '1',
+            filled_avg_price: '7.5',
+          }],
+        }),
+        createAdapter: () => {
+          adapterCreates += 1
+          return { submitPaperOrder: async () => { submitted += 1 } }
+        },
+        submitOrder: async () => {
+          submitted += 1
+          throw new Error('blind_resubmit_must_not_happen')
+        },
+      })
+      const out = await runner.runOnce()
+      assert.equal(submitted, 0)
+      assert.equal(adapterCreates, 0)
+      assert.equal(clockFetches, 0)
+      assert.equal(out.submissions, 0)
+      assert.equal(out.reconciliations, 1)
+      assert.equal(out.lastStatus, 'CONTINUITY_ENTER_MONITORING_CONFIRMED')
+      assert.equal(out.lastLifecycle.state, 'MONITORING')
+      assert.equal(out.lastLifecycle.filledQuantity, 1)
+      assert.equal(out.lastLifecycle.brokerPositionIdentity, 'RST:1')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+}

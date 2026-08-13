@@ -63,12 +63,26 @@ test('server hands continuity-created lifecycle to disabled-by-default PAPER ENT
 })
 
 
-test('server contains continuity failures and provides startup plus 15-second fallback cadence', () => {
+test('server isolates continuity runtime failures from ENTER recovery and provides deduplicated startup plus 15-second fallback cadence', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(source, /const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000/)
-  assert.match(source, /const runPaperAutoExecutionContinuityCycle = \(source = 'runtime'\) =>/)
-  assert.match(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)[\s\S]*paperAutoExecutionContinuityEnterRunner\.runOnce\(\)[\s\S]*\.catch\(\(error\) =>/)
-  assert.match(source, /runPaperAutoExecutionContinuityCycle\('startup'\)/)
-  assert.match(source, /setInterval\([\s\S]*runPaperAutoExecutionContinuityCycle\('authoritative_fallback'\)[\s\S]*PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS/)
-  assert.match(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
+  assert.match(source, /let paperAutoExecutionContinuityCycleInFlight = null/)
+  assert.match(source, /if \(paperAutoExecutionContinuityCycleInFlight\) return paperAutoExecutionContinuityCycleInFlight/)
+  assert.match(source, /try \{[\s\S]*await paperAutoExecutionContinuityRuntime\.runOnce\(\);[\s\S]*\} catch \(error\) \{[\s\S]*runtime cycle failed closed/)
+  assert.match(source, /try \{[\s\S]*await paperAutoExecutionContinuityEnterRunner\.runOnce\(\);[\s\S]*\} catch \(error\) \{[\s\S]*runner cycle failed closed/)
+  assert.doesNotMatch(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)\s*\.then\(\(\) => paperAutoExecutionContinuityEnterRunner\.runOnce\(\)\)/)
+  assert.match(source, /\.finally\(\(\) => \{[\s\S]*paperAutoExecutionContinuityCycleInFlight = null/)
+  assert.match(source, /void runPaperAutoExecutionContinuityCycle\('startup'\)/)
+  assert.match(source, /setInterval\([\s\S]*void runPaperAutoExecutionContinuityCycle\('authoritative_fallback'\)[\s\S]*PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS/)
+  assert.match(source, /void runPaperAutoExecutionContinuityCycle\('market_event'\)/)
+})
+
+
+test('server persists and restores continuity active lifecycle ownership across restart', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /resolvePaperAutoExecutionActiveLifecycleFile\(\{/)
+  assert.match(source, /configuredLifecycleFile: configuredPaperAutoExecutionLifecycleFile/)
+  assert.match(source, /writePaperAutoExecutionActiveLifecyclePointer\(\{/)
+  assert.match(source, /pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE/)
+  assert.match(source, /writePaperAutoExecutionActiveLifecyclePointer\(\{[\s\S]*pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,[\s\S]*\}\);[\s\S]*activePaperAutoExecutionLifecycleFile = nextLifecycleFile/)
 })
