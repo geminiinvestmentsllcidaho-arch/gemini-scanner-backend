@@ -8,6 +8,7 @@ import { createPaperAutoExecutionContinuityEnterRunner } from '../src/scanner/pa
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'continuity-enter-'))
 const readyCredentials = async () => ({ readyForReadonlyBrokerRead: true, env: { ALPACA_KEY: 'paper-key', ALPACA_SECRET: 'paper-secret', APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_PAPER_TRADING: 'true' } })
+const freshCandidateSnapshot = (symbol, now = Date.now()) => ({ observedAt: new Date(now).toISOString(), candidates: [{ symbol, state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 99 }] })
 
 test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver without broker work while downstream reads stay injected', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-continuity-enter-master-key-'))
@@ -26,6 +27,7 @@ test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver w
       GEMINI_CREDENTIAL_MASTER_KEY: expectedMasterKey,
     },
     getLifecycleFile: () => lifecycleFile,
+    getScanSnapshot: async () => freshCandidateSnapshot('KEY'),
     accountCredentialResolver: async (args) => {
       resolverArgs = args
       return {
@@ -72,6 +74,58 @@ test('disabled by default never contacts broker or submits', async () => {
   assert.equal(out.safety.liveTradingAllowed, false)
 })
 
+test('stale candidate snapshot fails closed before credential resolution or broker work', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'STALE' })
+    const now = Date.now()
+    let resolverCalls = 0
+    let brokerReads = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getScanSnapshot: async () => ({ observedAt: new Date(now - 30001).toISOString(), candidates: [{ symbol: 'STALE', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [] }] }),
+      now: () => now,
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      fetchClock: async () => { brokerReads += 1 },
+      fetchAccount: async () => { brokerReads += 1 },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'FRESH_CANDIDATE_REQUIRED')
+    assert.equal(resolverCalls, 0)
+    assert.equal(brokerReads, 0)
+    assert.equal(out.submissions, 0)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('candidate no longer eligible fails closed before credential resolution or broker work', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'OLD' })
+    const now = Date.now()
+    let resolverCalls = 0
+    let brokerReads = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getScanSnapshot: async () => ({ observedAt: new Date(now).toISOString(), candidates: [{ symbol: 'OLD', state: 'WAIT', buyRecommendation: false, blocked: false, blockers: [] }] }),
+      now: () => now,
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      fetchClock: async () => { brokerReads += 1 },
+      fetchAccount: async () => { brokerReads += 1 },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'CANDIDATE_REVALIDATION_FAILED')
+    assert.equal(resolverCalls, 0)
+    assert.equal(brokerReads, 0)
+    assert.equal(out.submissions, 0)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITORING', async () => {
   const dir = tmp()
   try {
@@ -83,6 +137,7 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getScanSnapshot: async () => freshCandidateSnapshot('ABC', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
@@ -125,6 +180,7 @@ test('existing position or open-order conflict fails closed before submission', 
       const runner = createPaperAutoExecutionContinuityEnterRunner({
         env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
         getLifecycleFile: () => file,
+        getScanSnapshot: async () => freshCandidateSnapshot('XYZ', now),
         now: () => now,
         accountCredentialResolver: readyCredentials,
         fetchClock: clockOpen,
@@ -154,6 +210,7 @@ test('concurrent enter cycles deduplicate to one submission', async () => {
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getScanSnapshot: async () => freshCandidateSnapshot('ONE', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,

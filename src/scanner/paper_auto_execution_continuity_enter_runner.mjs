@@ -14,12 +14,19 @@ const clean = v => String(v ?? '').trim()
 const upper = v => clean(v).toUpperCase()
 const on = (env, key) => clean(env?.[key]) === '1'
 const ENTER_RECONCILE_STATES = new Set([S.ENTER_OPEN, S.ENTER_UNKNOWN, S.ENTER_PARTIALLY_FILLED])
+const CANDIDATE_FRESHNESS_MS = 30000
+const isEligibleCandidate = (candidate, symbol) => upper(candidate?.symbol) === upper(symbol)
+  && upper(candidate?.state ?? candidate?.resultState ?? candidate?.decision) === 'ENTER'
+  && candidate?.buyRecommendation === true
+  && candidate?.blocked !== true
+  && (!Array.isArray(candidate?.blockers) || candidate.blockers.length === 0)
 
 export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const env = options.env ?? process.env
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   const getLifecycleFile = options.getLifecycleFile ?? (() => clean(env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH ?? env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH))
   const credentialResolver = options.accountCredentialResolver ?? resolveInternalOwnerAlpacaReadonlyCredentials
+  const getScanSnapshot = options.getScanSnapshot ?? null
   const fetchAccount = options.fetchAccount ?? ((args) => fetchAlpacaPaperAccountReadonly(args))
   const fetchClock = options.fetchClock ?? ((args) => fetchAlpacaMarketClockReadonly(args))
   const fetchHistory = options.fetchHistoricalOrders ?? ((args) => fetchAlpacaPaperHistoricalOrdersReadonly(args))
@@ -86,6 +93,19 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     }
     if (lifecycle.state !== S.CANDIDATE_SELECTED && !ENTER_RECONCILE_STATES.has(lifecycle.state)) {
       return fail('CONTINUITY_ENTER_STATE_NOT_ACTIONABLE', lifecycle)
+    }
+
+    if (lifecycle.state === S.CANDIDATE_SELECTED) {
+      if (typeof getScanSnapshot !== 'function') return fail('FRESH_CANDIDATE_REVALIDATION_REQUIRED', lifecycle)
+      const snapshot = await getScanSnapshot()
+      const observedAtMs = Date.parse(snapshot?.observedAt ?? '')
+      if (!Number.isFinite(observedAtMs) || Math.abs(Number(now()) - observedAtMs) > CANDIDATE_FRESHNESS_MS) {
+        return fail('FRESH_CANDIDATE_REQUIRED', lifecycle)
+      }
+      const candidates = Array.isArray(snapshot?.candidates) ? snapshot.candidates : []
+      if (!candidates.some(candidate => isEligibleCandidate(candidate, lifecycle.selectedSymbol))) {
+        return fail('CANDIDATE_REVALIDATION_FAILED', lifecycle)
+      }
     }
 
     const resolved = typeof credentialResolver === 'function'

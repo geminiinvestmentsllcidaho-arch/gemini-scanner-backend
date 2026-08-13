@@ -2650,6 +2650,19 @@ let activePaperAutoExecutionLifecycleFile = resolvePaperAutoExecutionActiveLifec
   configuredLifecycleFile: configuredPaperAutoExecutionLifecycleFile,
 });
 
+const getPaperAutoExecutionContinuityScanSnapshot = async () => {
+  const cache = await underFiveSharedCachePromise;
+  if (!cache) return { candidates: [] };
+  const current = cache.getLatest?.();
+  const wakeRefreshRequired = !current || current?.idleNoDemand === true;
+  cache.noteDemand?.();
+  const source = wakeRefreshRequired ? await cache.refreshNow() : current;
+  const envelope = mapLiveUnderFiveUniverseToRankingEnvelope(source, Date.now());
+  return {
+    observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
+    candidates: normalizeCandidates(envelope),
+  };
+};
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
   getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   setActiveLifecycleFile: (file) => {
@@ -2660,22 +2673,11 @@ const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRu
     });
     activePaperAutoExecutionLifecycleFile = nextLifecycleFile;
   },
-  getScanSnapshot: async () => {
-    const cache = await underFiveSharedCachePromise;
-    if (!cache) return { candidates: [] };
-    const current = cache.getLatest?.();
-    const wakeRefreshRequired = !current || current?.idleNoDemand === true;
-    cache.noteDemand?.();
-    const source = wakeRefreshRequired ? await cache.refreshNow() : current;
-    const envelope = mapLiveUnderFiveUniverseToRankingEnvelope(source, Date.now());
-    return {
-      observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
-      candidates: normalizeCandidates(envelope),
-    };
-  },
+  getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
 });
 const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner({
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
 });
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
