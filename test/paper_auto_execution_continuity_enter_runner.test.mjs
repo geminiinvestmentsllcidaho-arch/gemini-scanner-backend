@@ -334,6 +334,36 @@ test('existing position or open-order conflict fails closed before submission', 
   }
 })
 
+test('different-symbol existing PAPER position blocks continuity ENTER under global one-position policy', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NEW' })
+    let submitted = 0
+    const now = Date.now()
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
+      now: () => now,
+      accountCredentialResolver: readyCredentials,
+      fetchClock: clockOpen,
+      fetchAccount: async () => ({
+        ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
+        account: { tradingBlocked: false, accountBlocked: false },
+        positions: [{ symbol: 'USAS', qty: 1 }],
+        openOrders: [],
+      }),
+      createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'GLOBAL_POSITION_CONCURRENCY_LIMIT')
+    assert.equal(submitted, 0)
+    assert.equal(out.submissions, 0)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('concurrent enter cycles deduplicate to one submission', async () => {
   const dir = tmp()
   try {

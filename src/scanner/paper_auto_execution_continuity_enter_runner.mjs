@@ -136,8 +136,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (!Number.isFinite(observedAtMs) || !Number.isFinite(accountAgeMs) || accountAgeMs < 0 || accountAgeMs > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
       if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) return fail('PAPER_ACCOUNT_BLOCKED', lifecycle)
       const symbol = upper(lifecycle.selectedSymbol)
-      if ((account?.positions ?? []).some(p => upper(p?.symbol) === symbol && Number(p?.qty ?? p?.quantity) !== 0)) {
-        return fail('EXISTING_BROKER_POSITION_CONFLICT', lifecycle)
+      const openPositions = (account?.positions ?? []).filter(p => Number(p?.qty ?? p?.quantity) > 0)
+      if (openPositions.length > 0) {
+        return fail(openPositions.some(p => upper(p?.symbol) === symbol)
+          ? 'EXISTING_BROKER_POSITION_CONFLICT'
+          : 'GLOBAL_POSITION_CONCURRENCY_LIMIT', lifecycle)
       }
       if ((account?.openOrders ?? []).some(o => upper(o?.symbol) === symbol && ['buy', 'sell'].includes(clean(o?.side).toLowerCase()))) {
         return fail('CONFLICTING_OPEN_ORDER', lifecycle)
