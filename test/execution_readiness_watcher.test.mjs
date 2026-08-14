@@ -1,8 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {evaluateExecutionReadiness} from "../src/scanner/execution_readiness_watcher.mjs";
-import {selectExecutionRuntimeEnv} from "../src/scanner/execution_readiness_runtime.mjs";
+import {PaperAutoExecutionLifecycleStore} from "../src/scanner/paper_auto_execution_lifecycle_store.mjs";
+import {readExecutionLifecycle,selectExecutionRuntimeEnv} from "../src/scanner/execution_readiness_runtime.mjs";
 
 const good=()=>({
   account:{
@@ -107,6 +110,38 @@ test("missing gemini-scanner runtime fails closed",()=>{
     selectExecutionRuntimeEnv([{name:"other",pm2_env:{ALPACA_KEY:"x"}}]),
     {},
   );
+});
+
+test("readiness lifecycle reader follows durable continuity active pointer",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"execution-readiness-active-pointer-"));
+  try{
+    const lifecycleFile=path.join(dir,"paper_auto_execution_test.json");
+    new PaperAutoExecutionLifecycleStore({filePath:lifecycleFile}).create({
+      selectedSymbol:"SMCI",
+      scannerEvidence:{source:"paper_auto_continuity_scanner_candidate",paperOnly:true},
+    });
+    const pointerFile=path.join(dir,"paper_auto_execution_active_lifecycle_pointer.json");
+    fs.writeFileSync(pointerFile,JSON.stringify({
+      version:"paper_auto_execution_active_lifecycle_pointer_v1",
+      lifecycleFile,
+    }));
+    const lifecycle=readExecutionLifecycle({pointerFile});
+    assert.equal(lifecycle.state,"CANDIDATE_SELECTED");
+    assert.equal(lifecycle.selectedSymbol,"SMCI");
+  }finally{
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
+
+test("readiness lifecycle reader fails closed when durable pointer is corrupt",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"execution-readiness-corrupt-pointer-"));
+  try{
+    const pointerFile=path.join(dir,"paper_auto_execution_active_lifecycle_pointer.json");
+    fs.writeFileSync(pointerFile,"{");
+    assert.equal(readExecutionLifecycle({pointerFile}).state,"FAILED_NEEDS_REVIEW");
+  }finally{
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
 });
 
 test("PM2 runner is unconditional and contains no entrypoint guard",()=>{

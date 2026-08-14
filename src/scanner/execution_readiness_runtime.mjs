@@ -6,6 +6,7 @@ import {fetchAlpacaPaperAccountReadonly} from "./alpaca_paper_account_readonly_f
 import {fetchAlpacaMarketClockReadonly} from "./alpaca_market_clock_readonly.mjs";
 import {createPaperAutoExecutionAlpacaPaperAdapter} from "./paper_auto_execution_alpaca_paper_adapter.mjs";
 import {evaluateExecutionReadiness,writeExecutionReadinessStatus} from "./execution_readiness_watcher.mjs";
+import {resolvePaperAutoExecutionActiveLifecycleFile} from "./paper_auto_execution_active_lifecycle_pointer.mjs";
 
 const execFileAsync=promisify(execFile);
 export const EXECUTION_PROCESS_NAME="gemini-scanner";
@@ -34,11 +35,17 @@ export async function readPm2ExecutionRuntime(){
 }
 
 export function readExecutionLifecycle(options={}){
-  const lifecyclePath=options.lifecyclePath
-    ?? process.env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH
-    ?? path.join(process.cwd(),"runs","paper_auto_execution_active_lifecycle.json");
   try{
-    return fs.existsSync(lifecyclePath)
+    const lifecyclePath=options.lifecyclePath
+      ?? resolvePaperAutoExecutionActiveLifecycleFile({
+        pointerFile:options.pointerFile,
+        configuredLifecycleFile:
+          options.configuredLifecycleFile
+          ?? process.env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH
+          ?? process.env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH
+          ?? "",
+      });
+    return lifecyclePath&&fs.existsSync(lifecyclePath)
       ? JSON.parse(fs.readFileSync(lifecyclePath,"utf8"))
       : null;
   }catch{
