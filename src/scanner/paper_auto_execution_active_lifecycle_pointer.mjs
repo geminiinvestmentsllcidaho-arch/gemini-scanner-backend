@@ -7,10 +7,10 @@ export const VERSION = 'paper_auto_execution_active_lifecycle_pointer_v1'
 export const DEFAULT_POINTER_FILE = path.join(process.cwd(), 'runs', 'paper_auto_execution_active_lifecycle_pointer.json')
 
 const clean = (value) => String(value ?? '').trim()
-const CONTINUITY_EVIDENCE_SOURCE = 'paper_auto_continuity_scanner_candidate'
+const CONTINUITY_EVIDENCE_SOURCES = new Set(['paper_auto_continuity_scanner_candidate','paper_auto_continuity_existing_position_adoption'])
 
 function isOwnedContinuityLifecycle(lifecycle) {
-  return lifecycle?.scannerEvidence?.source === CONTINUITY_EVIDENCE_SOURCE
+  return CONTINUITY_EVIDENCE_SOURCES.has(lifecycle?.scannerEvidence?.source)
     && lifecycle?.scannerEvidence?.paperOnly === true
 }
 

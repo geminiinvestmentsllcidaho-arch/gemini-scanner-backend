@@ -88,6 +88,8 @@ test('multiple nonterminal continuity lifecycle files fail closed instead of sel
   )
 })
 
+test('restart discovery owns canonical adopted PAPER monitoring lifecycle',()=>{const runsDir=tmp(),pointerFile=path.join(runsDir,'paper_auto_execution_active_lifecycle_pointer.json'),f=path.join(runsDir,'paper_auto_execution_adopted.json'),s=new PaperAutoExecutionLifecycleStore({filePath:f,idFactory:()=> 'adopted'});s.create({selectedSymbol:'USAS',scannerEvidence:{source:'paper_auto_continuity_existing_position_adoption',paperOnly:true}});s.transition('ENTER_SUBMITTING',{enterClientOrderId:'cid'});s.transition('ENTER_OPEN',{enterBrokerOrderId:'bo'});s.transition('POSITION_CONFIRMED',{filledQuantity:1,brokerPositionIdentity:'USAS:1'});s.transition('MONITORING');assert.equal(discoverSingleNonterminalPaperAutoExecutionLifecycle({runsDir,pointerFile}),path.resolve(f))})
+
 test('corrupt pointer and missing target fail closed without configured fallback', () => {
   const runsDir = tmp()
   const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')
