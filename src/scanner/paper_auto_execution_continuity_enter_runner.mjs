@@ -142,8 +142,13 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
           ? 'EXISTING_BROKER_POSITION_CONFLICT'
           : 'GLOBAL_POSITION_CONCURRENCY_LIMIT', lifecycle)
       }
-      if ((account?.openOrders ?? []).some(o => upper(o?.symbol) === symbol && ['buy', 'sell'].includes(clean(o?.side).toLowerCase()))) {
-        return fail('CONFLICTING_OPEN_ORDER', lifecycle)
+      const conflictingOpenOrders = (account?.openOrders ?? []).filter(o =>
+        ['buy', 'sell'].includes(clean(o?.side).toLowerCase())
+      )
+      if (conflictingOpenOrders.length > 0) {
+        return fail(conflictingOpenOrders.some(o => upper(o?.symbol) === symbol)
+          ? 'CONFLICTING_OPEN_ORDER'
+          : 'GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT', lifecycle)
       }
       const adapter = createAdapter({
         env: {
