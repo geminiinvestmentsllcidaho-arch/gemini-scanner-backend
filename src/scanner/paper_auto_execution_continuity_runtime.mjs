@@ -31,7 +31,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
     const stillEligible=(Array.isArray(snapshot?.candidates)?snapshot.candidates:[]).some(c=>upper(c?.symbol)===upper(active.selectedSymbol)&&eligible(c))
     if(stillEligible){lastStatus='ACTIVE_CANDIDATE_REVALIDATED';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
     active=storeFactory(activeFile).transition(S.CANDIDATE_EXPIRED,{reconciliation:[...(active.reconciliation??[]),{kind:'candidate_expired',source:'continuity_runtime',observedAt:active?.scannerEvidence?.observedAt??null,revalidatedAt:snapshot?.observedAt??null}]})
-    lastStatus='STALE_CANDIDATE_EXPIRED';lastLifecycleFile=activeFile;lastLifecycle=active
+    lastStatus='STALE_CANDIDATE_EXPIRED';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()
    }else{lastStatus='ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
   }
   if(typeof getScanSnapshot!=='function'&&!snapshot){lastStatus='SCAN_SNAPSHOT_REQUIRED';return diagnostics()}
