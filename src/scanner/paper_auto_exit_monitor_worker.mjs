@@ -46,6 +46,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const exitRunner = options.exitRunner ?? runPaperAutoExecutionExitOnly
   const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
   const accountCredentialResolver = options.accountCredentialResolver
+  const onTerminalLifecycle = options.onTerminalLifecycle ?? null
   const intervalMs = Math.max(250, Number(options.intervalMs ?? env.PAPER_AUTO_EXIT_MONITOR_INTERVAL_MS ?? DEFAULT_INTERVAL_MS) || DEFAULT_INTERVAL_MS)
   let timer = null
   let running = false
@@ -208,6 +209,20 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
           result?.lifecycle?.state === 'ROUND_TRIP_COMPLETED'
         ) {
           lastReconciliationCompletedObservedAt = lastRunnerCompletedAt
+          if (typeof onTerminalLifecycle === 'function') {
+            try {
+              await onTerminalLifecycle({
+                lifecycleFile: row.file,
+                lifecycleId: life.lifecycleId,
+                symbol,
+                result,
+              })
+            } catch (error) {
+              console.error('[paper-auto-exit-monitor] terminal lifecycle callback failed closed', {
+                error: error?.message ?? String(error),
+              })
+            }
+          }
         }
         results.push({
           lifecycleId: life.lifecycleId,

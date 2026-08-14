@@ -428,3 +428,65 @@ test('completed controlled lifecycle is benign and does not alert or refetch acc
   assert.equal(accounts,0)
   assert.equal(incidents,0)
 })
+
+
+test('terminal lifecycle callback fires once only after exact completed strategy exit', async () => {
+  const terminal = []
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
+    exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED',exitBrokerOrderId:'bo-terminal'}}),
+    onTerminalLifecycle:async payload=>terminal.push(payload),
+  })
+  const r=await w.runOnce({source:'market_event',eventSymbol:'BTG'})
+  assert.equal(r.lastStatus,'EXIT_TRIGGERED')
+  assert.equal(terminal.length,1)
+  assert.equal(terminal[0].lifecycleId,'life-1')
+  assert.equal(terminal[0].symbol,'BTG')
+  assert.equal(terminal[0].result.status,'EXACT_POSITION_PAPER_EXIT_COMPLETED')
+})
+
+test('terminal lifecycle callback does not fire for monitoring or incomplete exit results', async () => {
+  let terminal=0
+  const monitoring=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'WATCH',decision:'WATCH',ownedExitReviewTriggered:false,sourceStale:false}]}),
+    onTerminalLifecycle:async()=>{terminal++},
+  })
+  await monitoring.runOnce({source:'market_event',eventSymbol:'BTG'})
+  assert.equal(terminal,0)
+
+  const incomplete=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
+    exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_PENDING',lifecycle:{state:'EXIT_UNKNOWN'}}),
+    onTerminalLifecycle:async()=>{terminal++},
+  })
+  await incomplete.runOnce({source:'market_event',eventSymbol:'BTG'})
+  assert.equal(terminal,0)
+})
+
+test('terminal lifecycle callback failure is contained after completed exit', async () => {
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
+    exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED'}}),
+    onTerminalLifecycle:async()=>{throw new Error('terminal_wake_test_failure')},
+    now:()=>1000000,
+  })
+  const r=await w.runOnce({source:'market_event',eventSymbol:'BTG'})
+  assert.equal(r.lastStatus,'EXIT_TRIGGERED')
+  assert.equal(r.lastError,null)
+  assert.equal(r.lastReconciliationCompletedObservedAt,'1970-01-01T00:16:40.000Z')
+})

@@ -2683,6 +2683,7 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  onTerminalLifecycle: () => runPaperAutoExecutionContinuityCycle('terminal_exit'),
 });
 
 const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
@@ -2802,7 +2803,6 @@ app.listen(PORT, HOST, async () => {
       runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
       onMarketDataEvent: (event) => {
         paperAutoExitMonitorWorker.onMarketDataEvent(event);
-        void runPaperAutoExecutionContinuityCycle('market_event');
         const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
         if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
       },

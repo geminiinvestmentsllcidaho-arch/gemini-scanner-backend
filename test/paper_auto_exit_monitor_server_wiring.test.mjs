@@ -58,7 +58,8 @@ test('server hands continuity-created lifecycle to disabled-by-default PAPER ENT
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(source, /createPaperAutoExecutionContinuityEnterRunner/)
   assert.match(source, /getLifecycleFile: \(\) => activePaperAutoExecutionLifecycleFile/)
-  assert.match(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
+  assert.match(source, /onTerminalLifecycle: \(\) => runPaperAutoExecutionContinuityCycle\('terminal_exit'\)/)
+  assert.doesNotMatch(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
   assert.match(source, /\/diagnostics\/paper-auto-execution-continuity-enter/)
 })
 
@@ -74,7 +75,8 @@ test('server isolates continuity runtime failures from ENTER recovery and provid
   assert.match(source, /\.finally\(\(\) => \{[\s\S]*paperAutoExecutionContinuityCycleInFlight = null/)
   assert.match(source, /void runPaperAutoExecutionContinuityCycle\('startup'\)/)
   assert.match(source, /setInterval\([\s\S]*void runPaperAutoExecutionContinuityCycle\('authoritative_fallback'\)[\s\S]*PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS/)
-  assert.match(source, /void runPaperAutoExecutionContinuityCycle\('market_event'\)/)
+  assert.match(source, /onTerminalLifecycle: \(\) => runPaperAutoExecutionContinuityCycle\('terminal_exit'\)/)
+  assert.doesNotMatch(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
 })
 
 
@@ -97,4 +99,14 @@ test('server uses the exact same continuity scan producer for lifecycle selectio
   const enterBlock = source.slice(enterStart, source.indexOf('createPaperAutoExitMonitorWorker({', enterStart))
   assert.match(runtimeBlock, /getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot/)
   assert.match(enterBlock, /getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot/)
+})
+
+
+test('server keeps continuity off ordinary market-event hot path and wakes immediately after terminal exit', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /runPaperAutoExecutionContinuityCycle\('market_event'\)/)
+  assert.match(source, /onTerminalLifecycle:\s*\(\)\s*=>\s*runPaperAutoExecutionContinuityCycle\('terminal_exit'\)/)
+  assert.match(source, /void runPaperAutoExecutionContinuityCycle\('startup'\)/)
+  assert.match(source, /runPaperAutoExecutionContinuityCycle\('authoritative_fallback'\)/)
+  assert.match(source, /paperAutoExitMonitorWorker\.onMarketDataEvent\(event\)/)
 })
