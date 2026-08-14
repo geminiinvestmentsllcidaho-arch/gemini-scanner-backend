@@ -38,6 +38,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
   snapshot=snapshot??await getScanSnapshot()
   const candidate=choose(snapshot)
   if(!candidate?.symbol){lastStatus='NO_ELIGIBLE_CANDIDATE';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
+  if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_LIFECYCLE_CREATION';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
   const id=idFactory(), file=path.join(runsDir,`paper_auto_execution_${id}.json`);if(fs.existsSync(file)){lastStatus='LIFECYCLE_FILE_COLLISION';return diagnostics()}
   const life=storeFactory(file).create({selectedSymbol:upper(candidate.symbol),scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:snapshot?.observedAt??null,symbol:upper(candidate.symbol),state:upper(candidate.state??candidate.resultState??candidate.decision),score:Number.isFinite(Number(candidate.score??candidate.readonlyPotentialScore))?Number(candidate.score??candidate.readonlyPotentialScore):null,previousLifecycleFile:activeFile||null,previousLifecycleId:active?.lifecycleId??null,previousLifecycleState:active?.state??null,paperOnly:true}})
   const enterIdentity=buildPaperAutoOrderIdentity({lifecycleId:life.lifecycleId,phase:'enter',symbol:life.selectedSymbol,quantity:1,side:'buy'})
