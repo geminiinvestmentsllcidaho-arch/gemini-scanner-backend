@@ -111,6 +111,30 @@ test("readScannerRankings exposes freshness metadata", () => {
   assert.deepEqual(out.issues, ["SCANNER_LOW_CONFIDENCE"]);
 });
 
+test("readScannerRankings fails closed for future ranking timestamps", () => {
+  const out = readScannerRankings({
+    rows: [{
+      ts: "2026-01-01T00:01:01.000Z",
+      symbol: "FUTURE",
+      ok: true,
+      httpStatus: 200,
+      p3GateOk: true,
+      confidence: 0.9,
+      compositeConfidence: 0.9,
+      qualityOverall: 0.9,
+      rsi: 50,
+    }],
+    nowMs: Date.parse("2026-01-01T00:01:00.000Z"),
+    maxAgeSec: 180,
+  });
+
+  assert.equal(out.sourceTs, "2026-01-01T00:01:01.000Z");
+  assert.equal(out.sourceAgeSec, null);
+  assert.equal(out.stale, true);
+  assert.deepEqual(out.issues, ["SCANNER_TELEMETRY_STALE"]);
+  assert.equal(out.scannerHealth, "stale");
+});
+
 test("readScannerRankings marks stale rankings deterministically", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ranking-store-stale-"));
 

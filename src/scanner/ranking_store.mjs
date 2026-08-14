@@ -70,11 +70,13 @@ function computeFreshness(rows, opts = {}) {
     ? new Date(latestTsMs).toISOString()
     : null;
 
-  const sourceAgeSec = Number.isFinite(latestTsMs)
-    ? Math.max(0, Math.floor((nowMs - latestTsMs) / 1000))
+  const sourceInFuture = Number.isFinite(latestTsMs) && latestTsMs > nowMs;
+  const sourceAgeSec = Number.isFinite(latestTsMs) && !sourceInFuture
+    ? Math.floor((nowMs - latestTsMs) / 1000)
     : null;
 
   const stale =
+    sourceInFuture ||
     sourceAgeSec === null ||
     !Number.isFinite(maxAgeSec) ||
     sourceAgeSec > maxAgeSec;

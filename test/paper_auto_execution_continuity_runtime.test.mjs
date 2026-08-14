@@ -9,16 +9,19 @@ test('concurrent cycles deduplicate and active nonterminal blocks replacement',a
 test('disabled by default and safety is nonmutating',async()=>{const r=createPaperAutoExecutionContinuityRuntime({env:{},getScanSnapshot:async()=>({candidates:[{symbol:'XYZ',state:'ENTER',buyRecommendation:true}]})});const out=await r.runOnce();assert.equal(out.lastStatus,'CONTINUITY_DISABLED_BY_ENV');assert.equal(out.safety.paperOnly,true);assert.equal(out.safety.brokerContactAllowed,false);assert.equal(out.safety.orderPlacementAllowed,false);assert.equal(out.safety.accountMutationAllowed,false);assert.equal(out.safety.liveTradingAllowed,false)})
 
 
-test('pointer publish failure retains created lifecycle in-process and retry cannot create a duplicate',async()=>{
- const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,setCalls=0,scans=0
- const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:()=>{setCalls++;throw new Error('forced_pointer_write_failure')},getScanSnapshot:async()=>{scans++;return{observedAt:'2026-08-13T01:00:00Z',candidates:[{symbol:'SAFE',state:'ENTER',buyRecommendation:true,score:99}]}},idFactory:()=> 'pointer-failure-life'})
+test('pending lifecycle suppresses expiration after pointer publish failure and retry cannot create a duplicate',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,setCalls=0,scans=0,nowMs=Date.parse('2026-08-13T01:00:00Z')
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:()=>{setCalls++;throw new Error('forced_pointer_write_failure')},getScanSnapshot:async()=>{scans++;return{observedAt:new Date(nowMs).toISOString(),candidates:[{symbol:'SAFE',state:'ENTER',buyRecommendation:true,score:99}]}},idFactory:()=> 'pointer-failure-life',now:()=>nowMs})
  await assert.rejects(r.runOnce(),/forced_pointer_write_failure/)
  const created=path.join(d,'paper_auto_execution_pointer-failure-life.json')
  assert.equal(fs.existsSync(created),true)
  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:created}).load().selectedSymbol,'SAFE')
+ nowMs=Date.parse('2026-08-13T01:01:00Z')
  const retry=await r.runOnce()
  assert.equal(retry.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT')
  assert.equal(retry.lastLifecycleFile,created)
+ assert.equal(retry.lastLifecycle.state,'CANDIDATE_SELECTED')
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:created}).load().state,'CANDIDATE_SELECTED')
  assert.equal(setCalls,1)
  assert.equal(scans,1)
  assert.equal(fs.readdirSync(d).filter(name=>name.startsWith('paper_auto_execution_')&&name.endsWith('.json')).length,1)

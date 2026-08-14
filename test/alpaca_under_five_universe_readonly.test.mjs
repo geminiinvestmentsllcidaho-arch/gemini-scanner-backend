@@ -207,6 +207,7 @@ test("adds deterministic source freshness metadata and flags stale candidates", 
         return response(200, [
           { symbol: "FRESH", exchange: "NASDAQ", status: "active", tradable: true },
           { symbol: "STALE", exchange: "NYSE", status: "active", tradable: true },
+          { symbol: "FUTURE", exchange: "NASDAQ", status: "active", tradable: true },
         ]);
       }
       return response(200, {
@@ -222,6 +223,12 @@ test("adds deterministic source freshness metadata and flags stale candidates", 
           dailyBar: { v: 900000 },
           prevDailyBar: { c: 2.9 },
         },
+        FUTURE: {
+          latestTrade: { p: 4.0, t: "2026-07-10T17:50:05.000Z" },
+          latestQuote: { bp: 3.99, ap: 4.01, t: "2026-07-10T17:50:04.000Z" },
+          dailyBar: { v: 900000 },
+          prevDailyBar: { c: 3.8 },
+        },
       });
     },
   });
@@ -236,6 +243,10 @@ test("adds deterministic source freshness metadata and flags stale candidates", 
   assert.equal(bySymbol.STALE.sourceStale, true);
   assert.equal(bySymbol.STALE.readonlyPotentialFlags.includes("stale_source"), true);
   assert.equal(bySymbol.STALE.buyRecommendation, false);
+  assert.equal(bySymbol.FUTURE.sourceAgeSec, null);
+  assert.equal(bySymbol.FUTURE.sourceStale, true);
+  assert.equal(bySymbol.FUTURE.readonlyPotentialFlags.includes("stale_source"), true);
+  assert.equal(bySymbol.FUTURE.buyRecommendation, false);
 });
 
 

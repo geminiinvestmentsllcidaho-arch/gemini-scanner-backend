@@ -71,10 +71,12 @@ function sourceFreshness(snapshot = {}, nowMs = Date.now(), maxSourceAgeSec = 12
 
   const sourceTsMs = timestamps.length ? Math.max(...timestamps) : null;
   const sourceTs = sourceTsMs === null ? null : new Date(sourceTsMs).toISOString();
-  const sourceAgeSec = sourceTsMs === null
+  const nowValueMs = Number(nowMs);
+  const sourceInFuture = sourceTsMs !== null && Number.isFinite(nowValueMs) && sourceTsMs > nowValueMs;
+  const sourceAgeSec = sourceTsMs === null || !Number.isFinite(nowValueMs) || sourceInFuture
     ? null
-    : Number(Math.max(0, (Number(nowMs) - sourceTsMs) / 1000).toFixed(3));
-  const sourceStale = sourceAgeSec === null || sourceAgeSec > Number(maxSourceAgeSec);
+    : Number(((nowValueMs - sourceTsMs) / 1000).toFixed(3));
+  const sourceStale = sourceInFuture || sourceAgeSec === null || sourceAgeSec > Number(maxSourceAgeSec);
 
   return { sourceTs, sourceAgeSec, maxSourceAgeSec: Number(maxSourceAgeSec), sourceStale };
 }
