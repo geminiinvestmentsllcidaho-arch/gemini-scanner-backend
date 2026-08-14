@@ -222,3 +222,41 @@ test("normalizes an owned non-actionable market decision to WATCH monitoring", a
   assert.equal(result.candidates[0].ownedScaleInReviewTriggered, false);
   assert.equal(result.candidates[0].orderPlacementAllowed, false);
 });
+
+
+test("owned monitor surfaces profitable single-share weakening as full EXIT for automatic exit worker", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount: {
+      positions: [{
+        symbol: "ONE",
+        qty: 1,
+        averageEntryPrice: 100,
+        currentPrice: 105,
+        unrealizedPlpc: 0.05,
+      }],
+    },
+    fetchSymbols: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      candidates: [{
+        symbol: "ONE",
+        price: 105,
+        changePct: -0.4,
+        sourceStale: false,
+        sourceAgeSec: 5,
+        maxSourceAgeSec: 120,
+        readonlyPotentialScore: 62,
+        readonlyPotentialFlags: ["negative_momentum"],
+        resultState: "WAIT",
+        decision: "WAIT",
+      }],
+    }),
+  });
+  const candidate = result.candidates[0];
+  assert.equal(candidate.resultState, "EXIT");
+  assert.equal(candidate.decision, "EXIT");
+  assert.equal(candidate.ownedExitReviewTriggered, true);
+  assert.equal(candidate.ownedExitReviewReason, "OWNED_POSITION_SINGLE_SHARE_PROFIT_PROTECTION_EXIT");
+  assert.equal(candidate.ownedScaleOutReviewTriggered, false);
+  assert.equal(candidate.orderPlacementAllowed, false);
+});

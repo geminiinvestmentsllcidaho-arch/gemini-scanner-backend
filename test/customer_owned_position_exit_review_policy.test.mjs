@@ -46,3 +46,97 @@ test("requires fresh multi-factor confirmation for tighter deterioration review"
   assert.equal(stale.resultState, "WAIT");
   assert.equal(stale.ownedExitReviewTriggered, false);
 });
+
+
+test("converts fresh profitable weakening into full EXIT for an exact single-share owned position", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "WIN",
+    price: 105,
+    changePct: -0.4,
+    sourceStale: false,
+    sourceAgeSec: 8,
+    maxSourceAgeSec: 120,
+    readonlyPotentialScore: 62,
+    readonlyPotentialFlags: ["negative_momentum"],
+    resultState: "WATCH",
+    decision: "WATCH",
+  }, {
+    symbol: "WIN",
+    qty: 1,
+    averageEntryPrice: 100,
+    currentPrice: 105,
+    unrealizedPlpc: 0.05,
+  });
+  assert.equal(result.resultState, "EXIT");
+  assert.equal(result.decision, "EXIT");
+  assert.equal(result.ownedExitReviewTriggered, true);
+  assert.equal(result.ownedExitReviewReason, "OWNED_POSITION_SINGLE_SHARE_PROFIT_PROTECTION_EXIT");
+});
+
+test("does not full-exit a profitable single share while momentum remains positive", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "RUN",
+    price: 109,
+    changePct: 4.5,
+    sourceStale: false,
+    sourceAgeSec: 4,
+    maxSourceAgeSec: 120,
+    readonlyPotentialScore: 69,
+    readonlyPotentialFlags: ["lower_dollar_volume"],
+    resultState: "WATCH",
+    decision: "WATCH",
+  }, {
+    symbol: "RUN",
+    qty: 1,
+    averageEntryPrice: 100,
+    currentPrice: 109,
+    unrealizedPlpc: 0.09,
+  });
+  assert.equal(result.ownedExitReviewTriggered, false);
+  assert.equal(result.ownedExitReviewReason, null);
+});
+
+test("keeps profitable multi-share weakening in partial scale-out review path instead of full EXIT", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "TRIM",
+    price: 105,
+    changePct: -0.4,
+    sourceStale: false,
+    sourceAgeSec: 8,
+    maxSourceAgeSec: 120,
+    readonlyPotentialScore: 62,
+    readonlyPotentialFlags: ["negative_momentum"],
+    resultState: "WATCH",
+    decision: "WATCH",
+  }, {
+    symbol: "TRIM",
+    qty: 8,
+    averageEntryPrice: 100,
+    currentPrice: 105,
+    unrealizedPlpc: 0.05,
+  });
+  assert.equal(result.ownedExitReviewTriggered, false);
+  assert.equal(result.ownedExitReviewReason, null);
+});
+
+test("stale profitable single-share evidence cannot trigger profit-protection EXIT", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "STALE",
+    price: 105,
+    changePct: -1,
+    sourceStale: true,
+    sourceAgeSec: 300,
+    maxSourceAgeSec: 120,
+    readonlyPotentialScore: 50,
+    readonlyPotentialFlags: ["negative_momentum", "stale_source"],
+    resultState: "WATCH",
+    decision: "WATCH",
+  }, {
+    symbol: "STALE",
+    qty: 1,
+    averageEntryPrice: 100,
+    currentPrice: 105,
+    unrealizedPlpc: 0.05,
+  });
+  assert.equal(result.ownedExitReviewTriggered, false);
+});

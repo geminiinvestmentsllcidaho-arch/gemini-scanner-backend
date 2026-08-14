@@ -22,6 +22,16 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
   const score = finite(candidate?.readonlyPotentialScore);
   const flags = list(candidate?.readonlyPotentialFlags).map((value) => String(value ?? "").trim().toLowerCase());
   const negativeMomentum = flags.includes("negative_momentum") || (changePct !== null && changePct < 0);
+  const quantity = finite(position?.qty ?? position?.quantity);
+  const singleShareProfitProtection =
+    quantity === 1
+    && returnPct !== null
+    && returnPct >= 2
+    && changePct !== null
+    && changePct <= -0.25
+    && negativeMomentum
+    && score !== null
+    && score < 70;
 
   let exitReview = false;
   let reason = null;
@@ -39,6 +49,9 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
     ) {
       exitReview = true;
       reason = "OWNED_POSITION_CONFIRMED_DETERIORATION_REVIEW";
+    } else if (singleShareProfitProtection) {
+      exitReview = true;
+      reason = "OWNED_POSITION_SINGLE_SHARE_PROFIT_PROTECTION_EXIT";
     }
   }
 
