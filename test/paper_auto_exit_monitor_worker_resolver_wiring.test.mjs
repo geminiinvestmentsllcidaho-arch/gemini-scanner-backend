@@ -48,3 +48,17 @@ test('forwards account credential resolver into exact PAPER exit runner', async 
   await worker.runOnce()
   assert.equal(observedResolver, resolver)
 })
+
+test('diagnostics reports the dynamically resolved lifecycle file instead of the stale constructor fallback', () => {
+  let active = '/tmp/paper_auto_execution_first.json'
+  const w = createPaperAutoExitMonitorWorker({
+    env: {
+      PAPER_AUTO_EXIT_MONITOR_ENABLED: '1',
+      PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH: '/tmp/legacy-static.json',
+    },
+    getConfiguredLifecycleFile: () => active,
+  })
+  assert.equal(w.diagnostics().configuredLifecycleFile, '/tmp/paper_auto_execution_first.json')
+  active = '/tmp/paper_auto_execution_usas.json'
+  assert.equal(w.diagnostics().configuredLifecycleFile, '/tmp/paper_auto_execution_usas.json')
+})

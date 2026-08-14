@@ -71,7 +71,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
 
   const diagnostics = () => ({
     ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles, eventCycles, fallbackCycles,
-    configuredLifecycleFile: configuredLifecycleFile || null,
+    configuredLifecycleFile: resolveConfiguredLifecycleFile() || null,
     exitTriggers, exitAttempts, lastStatus, lastError, lastResult, lastTriggerDetectedAt,
     lastRunnerCompletedAt, lastSubmissionConfirmedObservedAt, lastReconciliationCompletedObservedAt,
     lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus, lastBrokerSubmittedAt, lastBrokerFilledAt,
