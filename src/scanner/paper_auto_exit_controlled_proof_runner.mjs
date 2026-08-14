@@ -22,6 +22,7 @@ export async function runControlledPaperAutoExitProof(options = {}) {
     fetchImpl: options.fetchImpl ?? globalThis.fetch,
     fetchAccount: options.fetchAccount,
     fetchSymbols: options.fetchSymbols,
+    fetchMarketClock: options.fetchMarketClock,
     exitRunner: options.exitRunner,
     incidentEmitter: options.incidentEmitter,
     now: options.now,

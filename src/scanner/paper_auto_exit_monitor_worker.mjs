@@ -171,6 +171,15 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         }
         if (!exitRequired) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT' }); continue }
 
+        if (!controlledMarketOpenExit) {
+          const clock = await fetchMarketClock({ env, fetchImpl })
+          if (clock?.ok !== true || clock?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_market_clock_required')
+          if (clock?.marketClock?.isOpen !== true) {
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_STRATEGY_EXIT' })
+            continue
+          }
+        }
+
         exitTriggers += 1
         lastTriggerDetectedAt = new Date(now()).toISOString()
         exitAttempts += 1

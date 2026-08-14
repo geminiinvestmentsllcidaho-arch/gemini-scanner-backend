@@ -27,6 +27,7 @@ test('fresh EXIT invokes exact runner once', async () => {
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1,unrealizedPlpc:-0.04}],openOrders:[]}),
     fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async o=>{calls.push(o);return{
       status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',
       submission:{status:'SUBMISSION_CONFIRMED_RECONCILIATION_REQUIRED',result:{orderId:'paper-order-1'}},
@@ -127,6 +128,7 @@ test('monitor does not invent broker acknowledgment or fill timestamps for unres
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1,unrealizedPlpc:-0.04}],openOrders:[]}),
     fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({
       status:'EXACT_POSITION_PAPER_EXIT_RECONCILIATION_REQUIRED',
       submission:{status:'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED',result:null},
@@ -292,6 +294,7 @@ test('records broker timestamps returned by exact exit runner evidence', async (
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
     fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',submission:{status:'SUBMISSION_CONFIRMED_RECONCILIATION_REQUIRED',result:{brokerOrderId:'bo-1',submittedAt:'2026-08-11T15:00:00.000Z'}},reconciliation:{status:'RECONCILED_STATE_UPDATED'},lifecycle:{state:'ROUND_TRIP_COMPLETED',exitBrokerOrderId:'bo-1',exitBrokerFilledAt:'2026-08-11T15:00:00.250Z'},brokerTiming:{submittedAt:'2026-08-11T15:00:00.000Z',filledAt:'2026-08-11T15:00:00.250Z'}}),
   })
   const r=await w.runOnce({source:'market_event',eventSymbol:'BTG'})
@@ -348,6 +351,33 @@ test('incident dedupe latch resets after a healthy monitoring cycle so a later r
   assert.equal(incidents.length,2)
   assert.equal(incidents[0].failureCode,'paper_auto_exit_monitor_lifecycle_file_missing')
   assert.equal(incidents[1].failureCode,'paper_auto_exit_monitor_lifecycle_file_missing')
+})
+
+
+test('strategy-driven PAPER EXIT waits benignly for market open before invoking exact runner', async () => {
+  let open=false,clocks=0,exits=0
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
+    readConfiguredMonitoringLifecycle:async()=>row,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1,unrealizedPlpc:-0.04}],openOrders:[]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchMarketClock:async()=>{clocks++;return {ok:true,status:'connected_readonly',marketClock:{isOpen:open}}},
+    exitRunner:async()=>{exits++;return {status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED'}}},
+  })
+  let r=await w.runOnce({eventSymbol:'BTG'})
+  assert.equal(r.lastResult[0].status,'WAITING_FOR_MARKET_OPEN_STRATEGY_EXIT')
+  assert.equal(r.lastStatus,'MONITORING')
+  assert.equal(r.exitTriggers,0)
+  assert.equal(r.exitAttempts,0)
+  assert.equal(r.lastError,null)
+  assert.equal(exits,0)
+  open=true
+  r=await w.runOnce({eventSymbol:'BTG'})
+  assert.equal(clocks,2)
+  assert.equal(exits,1)
+  assert.equal(r.exitTriggers,1)
+  assert.equal(r.exitAttempts,1)
+  assert.equal(r.lastStatus,'EXIT_TRIGGERED')
 })
 
 test('controlled PAPERmarket closed then open exits exact BTG without strategy', async () => {
