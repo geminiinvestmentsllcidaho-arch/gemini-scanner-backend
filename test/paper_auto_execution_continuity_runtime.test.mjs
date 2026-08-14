@@ -23,3 +23,78 @@ test('pointer publish failure retains created lifecycle in-process and retry can
  assert.equal(scans,1)
  assert.equal(fs.readdirSync(d).filter(name=>name.startsWith('paper_auto_execution_')&&name.endsWith('.json')).length,1)
 })
+
+
+function ownedCandidate(file,{observedAt='2026-08-13T01:00:00Z',symbol='OLD',patch={}}={}){
+ const s=new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=>`life-${symbol}`,clock:()=>Date.parse(observedAt)})
+ s.create({selectedSymbol:symbol,scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt,symbol,state:'ENTER',score:99,paperOnly:true}})
+ if(Object.keys(patch).length){
+  const current=JSON.parse(fs.readFileSync(file,'utf8'))
+  fs.writeFileSync(file,JSON.stringify({...current,...patch},null,2))
+ }
+ return s
+}
+
+test('stale owned candidate expiration is separately default-off',async()=>{
+ const d=tmp(),file=path.join(d,'paper_auto_execution_old.json');ownedCandidate(file);let active=file,scans=0
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>{scans++;return{observedAt:'2026-08-13T01:01:00Z',candidates:[]}},now:()=>Date.parse('2026-08-13T01:01:00Z')})
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT')
+ assert.equal(scans,0)
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+})
+
+test('stale owned candidate is preserved when fresh scan still revalidates same symbol ENTER',async()=>{
+ const d=tmp(),file=path.join(d,'paper_auto_execution_old.json');ownedCandidate(file);let active=file
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>({observedAt:'2026-08-13T01:01:00Z',candidates:[{symbol:'OLD',state:'ENTER',buyRecommendation:true,score:100}]}),now:()=>Date.parse('2026-08-13T01:01:00Z')})
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'ACTIVE_CANDIDATE_REVALIDATED')
+ assert.equal(active,file)
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+})
+
+test('stale owned candidate expires only after fresh scan shows same symbol no longer eligible',async()=>{
+ const d=tmp(),file=path.join(d,'paper_auto_execution_old.json');ownedCandidate(file);let active=file
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{active=f},getScanSnapshot:async()=>({observedAt:'2026-08-13T01:01:00Z',candidates:[]}),now:()=>Date.parse('2026-08-13T01:01:00Z')})
+ const out=await r.runOnce()
+ const expired=new PaperAutoExecutionLifecycleStore({filePath:file}).load()
+ assert.equal(out.lastStatus,'NO_ELIGIBLE_CANDIDATE')
+ assert.equal(expired.state,'CANDIDATE_EXPIRED')
+ assert.equal(expired.reconciliation.at(-1).kind,'candidate_expired')
+ assert.equal(expired.reconciliation.at(-1).revalidatedAt,'2026-08-13T01:01:00Z')
+})
+
+test('invalid stale-candidate revalidation snapshot fails closed without expiration',async()=>{
+ const d=tmp(),file=path.join(d,'paper_auto_execution_old.json');ownedCandidate(file);let active=file
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>({observedAt:'bad',candidates:[]}),now:()=>Date.parse('2026-08-13T01:01:00Z')})
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'FRESH_SCAN_REQUIRED_FOR_EXPIRATION')
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+})
+
+test('future stale-candidate revalidation snapshot fails closed without expiration',async()=>{
+ const d=tmp(),file=path.join(d,'paper_auto_execution_old.json');ownedCandidate(file);let active=file
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>({observedAt:'2026-08-13T01:02:00Z',candidates:[]}),now:()=>Date.parse('2026-08-13T01:01:00Z')})
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'FRESH_SCAN_REQUIRED_FOR_EXPIRATION')
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+})
+
+test('pre-ENTER execution or position evidence blocks stale candidate expiration',async()=>{
+ for(const [field,value] of [['enterClientOrderId','e'],['enterBrokerOrderId','eb'],['exitClientOrderId','x'],['exitBrokerOrderId','xb'],['filledQuantity',1],['averageFillPrice',4.2],['brokerPositionIdentity','OLD:1']]){
+  const d=tmp(),file=path.join(d,`paper_auto_execution_${field}.json`);ownedCandidate(file,{patch:{[field]:value}});let active=file,scans=0
+  const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>{scans++;return{observedAt:'2026-08-13T01:01:00Z',candidates:[]}},now:()=>Date.parse('2026-08-13T01:01:00Z')})
+  const out=await r.runOnce()
+  assert.equal(out.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT',field)
+  assert.equal(scans,0,field)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED',field)
+ }
+})
+
+test('expired lifecycle is terminal and resetToIdle accepts it',()=>{
+ const d=tmp(),file=path.join(d,'paper_auto_execution_expired.json')
+ const s=ownedCandidate(file)
+ s.transition('CANDIDATE_EXPIRED')
+ assert.deepEqual(s.resetToIdle(),{state:'IDLE'})
+ assert.equal(fs.existsSync(file),false)
+})

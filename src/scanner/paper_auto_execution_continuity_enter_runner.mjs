@@ -88,7 +88,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     let lifecycle = store.load()
     lastLifecycle = lifecycle
     if (!lifecycle) return fail('ACTIVE_LIFECYCLE_REQUIRED')
-    if ([S.MONITORING, S.POSITION_CONFIRMED, S.ROUND_TRIP_COMPLETED, S.FAILED_NEEDS_REVIEW].includes(lifecycle.state)) {
+    if ([S.MONITORING, S.POSITION_CONFIRMED, S.ROUND_TRIP_COMPLETED, S.FAILED_NEEDS_REVIEW, S.CANDIDATE_EXPIRED].includes(lifecycle.state)) {
       return fail('CONTINUITY_ENTER_NOT_REQUIRED', lifecycle)
     }
     if (lifecycle.state !== S.CANDIDATE_SELECTED && !ENTER_RECONCILE_STATES.has(lifecycle.state)) {
