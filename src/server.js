@@ -2657,10 +2657,28 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const wakeRefreshRequired = !current || current?.idleNoDemand === true;
   cache.noteDemand?.();
   const source = wakeRefreshRequired ? await cache.refreshNow() : current;
-  const envelope = mapLiveUnderFiveUniverseToRankingEnvelope(source, Date.now());
+  const customerSource = bridgeCustomerZeroFreshRankings(
+    source,
+    readUnderFiveLiveRankings(source),
+    getStreamTelemetry(),
+  );
   return {
     observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
-    candidates: normalizeCandidates(envelope),
+    candidates: (Array.isArray(customerSource?.candidates) ? customerSource.candidates : []).map((candidate) => {
+      const state = String(candidate?.resultState ?? candidate?.decision ?? 'NO_SETUP').trim().toUpperCase();
+      const blockers = [
+        ...(Array.isArray(candidate?.blockingFlags) ? candidate.blockingFlags : []),
+        ...(Array.isArray(candidate?.staleReasons) ? candidate.staleReasons : []),
+      ];
+      return {
+        ...candidate,
+        state,
+        buyRecommendation: state === 'ENTER',
+        blocked: state !== 'ENTER',
+        blockers: [...new Set(blockers)],
+        score: Number(candidate?.readonlyPotentialScore),
+      };
+    }),
   };
 };
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({

@@ -12,7 +12,7 @@ function hasNoExecutionEvidence(l){return l?.enterClientOrderId===null&&l?.enter
 function expirable(l,n){const a=ageMs(l?.scannerEvidence?.observedAt,n);return l?.state===S.CANDIDATE_SELECTED&&l?.scannerEvidence?.source===CONTINUITY_SOURCE&&l?.scannerEvidence?.paperOnly===true&&hasNoExecutionEvidence(l)&&a!==null&&a>CANDIDATE_FRESHNESS_MS}
 function snapshotFresh(s,n){const a=ageMs(s?.observedAt,n);return a!==null&&a<=CANDIDATE_FRESHNESS_MS}
 function eligible(c){return upper(c?.state??c?.resultState??c?.decision)==='ENTER'&&c?.buyRecommendation===true&&c?.blocked!==true&&(!Array.isArray(c?.blockers)||c.blockers.length===0)}
-function choose(s={}){const a=Array.isArray(s?.candidates)?s.candidates:[];return a.filter(eligible).sort((x,y)=>(Number(y.score??y.readonlyPotentialScore)||-Infinity)-(Number(x.score??x.readonlyPotentialScore)||-Infinity))[0]??null}
+function choose(s={}){const a=Array.isArray(s?.candidates)?s.candidates:[];return a.filter(eligible).sort((x,y)=>{const d=(Number(y.score??y.readonlyPotentialScore)||-Infinity)-(Number(x.score??x.readonlyPotentialScore)||-Infinity);return d!==0?d:upper(x?.symbol).localeCompare(upper(y?.symbol))})[0]??null}
 export function createPaperAutoExecutionContinuityRuntime(o={}){
  const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getScanSnapshot,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now}=o
  let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null

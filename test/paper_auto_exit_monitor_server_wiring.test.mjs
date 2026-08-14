@@ -43,11 +43,18 @@ test('server dynamically follows the active PAPER auto-exit lifecycle symbol aft
 })
 
 
-test('server wires disabled-by-default PAPER continuity through authoritative execution normalization and dynamic lifecycle path', () => {
+test('server wires disabled-by-default PAPER continuity through the authoritative customer fresh-ranking bridge and dynamic lifecycle path', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(source, /createPaperAutoExecutionContinuityRuntime/)
-  assert.match(source, /mapLiveUnderFiveUniverseToRankingEnvelope/)
-  assert.match(source, /normalizeCandidates\(envelope\)/)
+  assert.match(source, /const customerSource = bridgeCustomerZeroFreshRankings\(/)
+  assert.match(source, /readUnderFiveLiveRankings\(source\)/)
+  assert.match(source, /getStreamTelemetry\(\)/)
+  assert.match(source, /state = String\(candidate\?\.resultState \?\? candidate\?\.decision \?\? 'NO_SETUP'\)/)
+  assert.match(source, /buyRecommendation: state === 'ENTER'/)
+  assert.match(source, /blocked: state !== 'ENTER'/)
+  assert.match(source, /candidate\?\.blockingFlags/)
+  assert.match(source, /candidate\?\.staleReasons/)
+  assert.match(source, /score: Number\(candidate\?\.readonlyPotentialScore\)/)
   assert.match(source, /let activePaperAutoExecutionLifecycleFile/)
   assert.match(source, /setActiveLifecycleFile: \(file\) =>/)
   assert.match(source, /paperAutoExecutionContinuityRuntime\.runOnce\(\)/)
