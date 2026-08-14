@@ -95,6 +95,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       return fail('CONTINUITY_ENTER_STATE_NOT_ACTIONABLE', lifecycle)
     }
 
+    let revalidatedCandidate = null
     if (lifecycle.state === S.CANDIDATE_SELECTED) {
       if (typeof getScanSnapshot !== 'function') return fail('FRESH_CANDIDATE_REVALIDATION_REQUIRED', lifecycle)
       const snapshot = await getScanSnapshot()
@@ -104,7 +105,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         return fail('FRESH_CANDIDATE_REQUIRED', lifecycle)
       }
       const candidates = Array.isArray(snapshot?.candidates) ? snapshot.candidates : []
-      if (!candidates.some(candidate => isEligibleCandidate(candidate, lifecycle.selectedSymbol))) {
+      revalidatedCandidate = candidates.find(candidate => isEligibleCandidate(candidate, lifecycle.selectedSymbol)) ?? null
+      if (!revalidatedCandidate) {
         return fail('CANDIDATE_REVALIDATION_FAILED', lifecycle)
       }
     }
@@ -135,6 +137,10 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       const accountAgeMs = Number(now()) - observedAtMs
       if (!Number.isFinite(observedAtMs) || !Number.isFinite(accountAgeMs) || accountAgeMs < 0 || accountAgeMs > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
       if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) return fail('PAPER_ACCOUNT_BLOCKED', lifecycle)
+      const candidatePrice = Number(revalidatedCandidate?.price)
+      if (!Number.isFinite(candidatePrice) || candidatePrice <= 0) return fail('CANDIDATE_PRICE_REQUIRED_FOR_AFFORDABILITY', lifecycle)
+      const buyingPower = Number(account?.account?.buyingPower)
+      if (!Number.isFinite(buyingPower) || buyingPower < candidatePrice) return fail('INSUFFICIENT_PAPER_BUYING_POWER_FOR_ONE_SHARE', lifecycle)
       const symbol = upper(lifecycle.selectedSymbol)
       const openPositions = (account?.positions ?? []).filter(p => Number(p?.qty ?? p?.quantity) > 0)
       if (openPositions.length > 0) {
