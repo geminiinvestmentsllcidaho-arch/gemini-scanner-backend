@@ -56,6 +56,27 @@ test('restart resolver recovers exactly one nonterminal continuity lifecycle whe
   assert.equal(resolvePaperAutoExecutionActiveLifecycleFile({ pointerFile, configuredLifecycleFile: '/tmp/old.json' }), path.resolve(fresh))
 })
 
+test('restart discovery ignores terminal expired continuity lifecycle', () => {
+  const runsDir = tmp()
+  const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')
+  const expired = path.join(runsDir, 'paper_auto_execution_expired.json')
+  const store = new PaperAutoExecutionLifecycleStore({ filePath: expired, idFactory: () => 'expired-life' })
+  store.create({
+    selectedSymbol: 'OLD',
+    scannerEvidence: {
+      source: 'paper_auto_continuity_scanner_candidate',
+      observedAt: '2026-08-13T01:00:00Z',
+      symbol: 'OLD',
+      state: 'ENTER',
+      score: 99,
+      paperOnly: true,
+    },
+  })
+  store.transition('CANDIDATE_EXPIRED')
+  assert.equal(discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir, pointerFile }), null)
+  assert.equal(resolvePaperAutoExecutionActiveLifecycleFile({ pointerFile, configuredLifecycleFile: '' }), '')
+})
+
 test('multiple nonterminal continuity lifecycle files fail closed instead of selecting one', () => {
   const runsDir = tmp()
   const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')

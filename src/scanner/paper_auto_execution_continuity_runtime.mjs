@@ -30,7 +30,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
     if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_EXPIRATION';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
     const stillEligible=(Array.isArray(snapshot?.candidates)?snapshot.candidates:[]).some(c=>upper(c?.symbol)===upper(active.selectedSymbol)&&eligible(c))
     if(stillEligible){lastStatus='ACTIVE_CANDIDATE_REVALIDATED';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
-    active=storeFactory(activeFile).transition(S.CANDIDATE_EXPIRED,{reconciliation:[...(active.reconciliation??[]),{kind:'candidate_expired',source:'continuity_runtime',observedAt:active?.scannerEvidence?.observedAt??null,revalidatedAt:snapshot?.observedAt??null}]})
+    active=storeFactory(activeFile).transition(S.CANDIDATE_EXPIRED,{reconciliation:[...(active.reconciliation??[]),{kind:'candidate_expired',source:'continuity_runtime',observedAt:active?.scannerEvidence?.observedAt??null,revalidatedAt:snapshot?.observedAt??null,expiredAt:new Date(now()).toISOString(),reason:'FRESH_SCAN_NO_LONGER_ELIGIBLE',candidateFreshnessMs:CANDIDATE_FRESHNESS_MS}]})
     lastStatus='STALE_CANDIDATE_EXPIRED';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()
    }else{lastStatus='ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
   }

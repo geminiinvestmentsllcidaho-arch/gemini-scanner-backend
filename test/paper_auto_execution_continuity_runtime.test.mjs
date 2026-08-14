@@ -26,7 +26,7 @@ test('pointer publish failure retains created lifecycle in-process and retry can
 
 
 function ownedCandidate(file,{observedAt='2026-08-13T01:00:00Z',symbol='OLD',patch={}}={}){
- const s=new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=>`life-${symbol}`,clock:()=>Date.parse(observedAt)})
+ const s=new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=>`life-${symbol}`,clock:()=>Date.parse('2026-08-13T01:00:00Z')})
  s.create({selectedSymbol:symbol,scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt,symbol,state:'ENTER',score:99,paperOnly:true}})
  if(Object.keys(patch).length){
   const current=JSON.parse(fs.readFileSync(file,'utf8'))
@@ -63,6 +63,9 @@ test('stale owned candidate expires only after fresh scan shows same symbol no l
  assert.equal(expired.state,'CANDIDATE_EXPIRED')
  assert.equal(expired.reconciliation.at(-1).kind,'candidate_expired')
  assert.equal(expired.reconciliation.at(-1).revalidatedAt,'2026-08-13T01:01:00Z')
+ assert.equal(expired.reconciliation.at(-1).expiredAt,'2026-08-13T01:01:00.000Z')
+ assert.equal(expired.reconciliation.at(-1).reason,'FRESH_SCAN_NO_LONGER_ELIGIBLE')
+ assert.equal(expired.reconciliation.at(-1).candidateFreshnessMs,30000)
 })
 
 test('invalid stale-candidate revalidation snapshot fails closed without expiration',async()=>{
@@ -79,6 +82,36 @@ test('future stale-candidate revalidation snapshot fails closed without expirati
  const out=await r.runOnce()
  assert.equal(out.lastStatus,'FRESH_SCAN_REQUIRED_FOR_EXPIRATION')
  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+})
+
+
+test('stored candidate TTL boundary and invalid times fail closed',async()=>{
+ for(const [name,observedAt] of [['boundary','2026-08-13T01:00:30Z'],['invalid','bad'],['future','2026-08-13T01:02:00Z']]){
+  const d=tmp(),file=path.join(d,`paper_auto_execution_${name}.json`);ownedCandidate(file,{observedAt});let active=file,scans=0
+  const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>{scans++;return{observedAt:'2026-08-13T01:01:00Z',candidates:[]}},now:()=>Date.parse('2026-08-13T01:01:00Z')})
+  const out=await r.runOnce()
+  assert.equal(out.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT',name)
+  assert.equal(scans,0,name)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED',name)
+ }
+})
+
+test('unowned or non-candidate-selected lifecycle never expires through continuity expiration',async()=>{
+ for(const mode of ['unowned','noncandidate']){
+  const d=tmp(),file=path.join(d,`paper_auto_execution_${mode}.json`);let active=file,scans=0
+  if(mode==='unowned'){
+   const s=new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=> 'life-unowned',clock:()=>Date.parse('2026-08-13T01:00:00Z')})
+   s.create({selectedSymbol:'OLD',scannerEvidence:{source:'other_source',observedAt:'2026-08-13T01:00:00Z',symbol:'OLD',state:'ENTER',score:99,paperOnly:true}})
+  }else{
+   const s=ownedCandidate(file)
+   s.transition('ENTER_SUBMITTING',{enterClientOrderId:'e'})
+  }
+  const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1',PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,getScanSnapshot:async()=>{scans++;return{observedAt:'2026-08-13T01:01:00Z',candidates:[]}},now:()=>Date.parse('2026-08-13T01:01:00Z')})
+  const out=await r.runOnce()
+  assert.equal(out.lastStatus,'ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT',mode)
+  assert.equal(scans,0,mode)
+  assert.notEqual(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_EXPIRED',mode)
+ }
 })
 
 test('pre-ENTER execution or position evidence blocks stale candidate expiration',async()=>{
