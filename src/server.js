@@ -70,6 +70,13 @@ import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
 import { getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
+import { createPaperAutoExecutionScaleRunner, derivePaperScaleActionFile } from './scanner/paper_auto_execution_scale_runner.mjs';
+import { PaperAutoExecutionScaleActionStore } from './scanner/paper_auto_execution_scale_action_store.mjs';
+import { fetchAlpacaPaperAccountReadonly } from './scanner/alpaca_paper_account_readonly_fetch.mjs';
+import { fetchCustomerOwnedPositionMonitorSource } from './scanner/customer_owned_position_monitor_source.mjs';
+import { fetchAlpacaUnderFiveUniverseReadonly } from './scanner/alpaca_under_five_universe_readonly.mjs';
+import { fetchAlpacaPaperOrderByClientOrderIdReadonly } from './scanner/paper_auto_execution_scale_order_lookup.mjs';
+import { createPaperAutoExecutionAlpacaPaperAdapter } from './scanner/paper_auto_execution_alpaca_paper_adapter.mjs';
 import { mapLiveUnderFiveUniverseToRankingEnvelope, normalizeCandidates } from './scanner/paper_auto_execution_mechanical_enter_only_cli.mjs';
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './scanner/internal_owner_alpaca_readonly_credentials.mjs';
 import { marketDataDump } from './utils/market_data_dump.js';
@@ -2702,6 +2709,35 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
   getPremarketBaseline: () => getPersistedPremarketCapitalBaseline({ now: new Date() }),
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
 });
+const paperAutoExecutionScaleSubmit=async(o,c)=>{
+ const r=await resolveInternalOwnerAlpacaReadonlyCredentials({masterKey:process.env.GEMINI_CREDENTIAL_MASTER_KEY});
+ if(r?.readyForReadonlyBrokerRead!==true)throw Error('paper_scale_runtime_credentials_required');
+ return createPaperAutoExecutionAlpacaPaperAdapter({env:{...process.env,...r.env,PAPER_AUTO_ALPACA_ADAPTER_ENABLED:'1',PAPER_AUTO_ALPACA_PAPER_BASE_URL:'https://paper-api.alpaca.markets'}}).submitPaperOrder(o,c);
+};
+
+const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
+ getLifecycleFile:()=>activePaperAutoExecutionLifecycleFile,
+ fetchAccount:()=>fetchAlpacaPaperAccountReadonly({credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
+ fetchMarketClock:()=>fetchAlpacaMarketClockReadonly({credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
+ fetchOwnedMonitor:({paperAccount,nowMs})=>fetchCustomerOwnedPositionMonitorSource({paperAccount,fetchSymbols:a=>fetchAlpacaUnderFiveUniverseReadonly({...a,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),nowMs,maxAssets:1}),
+ getPremarketBaseline:()=>getPersistedPremarketCapitalBaseline({now:new Date()}),
+ fetchOrderByClientOrderId:({clientOrderId})=>fetchAlpacaPaperOrderByClientOrderIdReadonly({clientOrderId,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
+ submitPaperOrder:paperAutoExecutionScaleSubmit,serverIntegrated:true,automaticStartAllowed:true,
+});
+
+const runPaperAutoExecutionScaleCycle=async(source='runtime')=>{try{
+ const f=String(activePaperAutoExecutionLifecycleFile??'').trim();if(!f||!fs.existsSync(f))return paperAutoExecutionScaleRunner.diagnostics();
+ let l;try{l=JSON.parse(fs.readFileSync(f,'utf8'))}catch{return paperAutoExecutionScaleRunner.diagnostics()}if(l?.state!=='MONITORING')return paperAutoExecutionScaleRunner.diagnostics();
+ const q=new PaperAutoExecutionScaleActionStore({filePath:derivePaperScaleActionFile(f)});if(q.mutationLocked())return paperAutoExecutionScaleRunner.runOnce();
+ const a=await fetchAlpacaPaperAccountReadonly({credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials});if(a?.ok!==true||a?.status!=='connected_readonly')return paperAutoExecutionScaleRunner.diagnostics();
+ const m=await fetchCustomerOwnedPositionMonitorSource({paperAccount:a,fetchSymbols:x=>fetchAlpacaUnderFiveUniverseReadonly({...x,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),nowMs:Date.now(),maxAssets:1});
+ const s=String(l.selectedSymbol??'').trim().toUpperCase(),c=(m?.candidates??[]).find(x=>String(x?.symbol??'').trim().toUpperCase()===s);if(!c)return paperAutoExecutionScaleRunner.diagnostics();
+ if(c.ownedExitReviewTriggered===true||String(c.resultState??c.decision??'').trim().toUpperCase()==='EXIT')return paperAutoExecutionScaleRunner.diagnostics();
+ const o=Number(c.ownedScaleOutResultingQuantity);if(c.ownedScaleOutReviewTriggered===true&&Number.isSafeInteger(o)&&o>0)return paperAutoExecutionScaleRunner.runOnce({action:'scale_out',targetQuantity:o});
+ const i=Number(c.ownedScaleInTargetQuantity);if(c.ownedScaleInReviewTriggered===true&&Number.isSafeInteger(i)&&i>0)return paperAutoExecutionScaleRunner.runOnce({action:'scale_in',targetQuantity:i});
+ return paperAutoExecutionScaleRunner.diagnostics();
+}catch(e){console.error('[paper-auto-execution-scale] cycle failed closed',{source,error:e?.message??String(e)});return paperAutoExecutionScaleRunner.diagnostics()}};
+
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
@@ -2725,6 +2761,14 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       await paperAutoExecutionContinuityEnterRunner.runOnce();
     } catch (error) {
       console.error('[paper-auto-execution-continuity-enter] runner cycle failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+    }
+    try {
+      await runPaperAutoExecutionScaleCycle(source);
+    } catch (error) {
+      console.error('[paper-auto-execution-scale] runner cycle failed closed', {
         source,
         error: error?.message ?? String(error),
       });

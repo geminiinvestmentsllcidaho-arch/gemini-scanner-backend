@@ -65,8 +65,8 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       paperOnly: true, disabledByDefault: true, exactActiveLifecycleOnly: true,
       injectedBrokerInterfacesOnly: true, canonicalLifecycleStateMachineUnchanged: true,
       monitoringPatchOnlyAfterExactFill: true, blindRetryAllowed: false,
-      cancellationAllowed: false, automaticStartAllowed: false,
-      serverIntegrated: false, liveTradingAllowed: false,
+      cancellationAllowed: false,
+      serverIntegrated: options.serverIntegrated === true, automaticStartAllowed: options.automaticStartAllowed === true, liveTradingAllowed: false,
     }),
   })
   const finish = (status, lifecycle = null) => {
@@ -81,12 +81,6 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     lastSubmission = null
     lastReconciliation = null
     if (!on(env, 'PAPER_AUTO_SCALE_RUNNER_ENABLED')) return finish('PAPER_SCALE_RUNNER_DISABLED_BY_ENV')
-    const a = clean(action).toLowerCase()
-    if (!['scale_in', 'scale_out'].includes(a)) return finish('PAPER_SCALE_ACTION_REQUIRED')
-    const directionEnabled = a === 'scale_in'
-      ? on(env, 'PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED')
-      : on(env, 'PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED')
-    if (!directionEnabled) return finish('PAPER_SCALE_DIRECTION_DISABLED_BY_ENV')
     const file = clean(await getLifecycleFile?.())
     if (!file) return finish('ACTIVE_LIFECYCLE_PATH_REQUIRED')
     if (!fs.existsSync(file)) return finish('ACTIVE_LIFECYCLE_FILE_MISSING')
@@ -111,6 +105,12 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       lifecycle = recovery?.lifecycle ?? store.load()
       return finish(recovery?.status ?? 'PAPER_SCALE_RECOVERY_UNRESOLVED', lifecycle)
     }
+    const a = clean(action).toLowerCase()
+    if (!['scale_in', 'scale_out'].includes(a)) return finish('PAPER_SCALE_ACTION_REQUIRED', lifecycle)
+    const directionEnabled = a === 'scale_in'
+      ? on(env, 'PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED')
+      : on(env, 'PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED')
+    if (!directionEnabled) return finish('PAPER_SCALE_DIRECTION_DISABLED_BY_ENV', lifecycle)
     const target = whole(targetQuantity)
     if (target === null) return finish('WHOLE_TARGET_QUANTITY_REQUIRED', lifecycle)
     if (typeof fetchAccount !== 'function') return finish('FRESH_PAPER_ACCOUNT_READER_REQUIRED', lifecycle)

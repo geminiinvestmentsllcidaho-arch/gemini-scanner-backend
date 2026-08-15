@@ -117,3 +117,18 @@ test('server keeps continuity off ordinary market-event hot path and wakes immed
   assert.match(source, /runPaperAutoExecutionContinuityCycle\('authoritative_fallback'\)/)
   assert.match(source, /paperAutoExitMonitorWorker\.onMarketDataEvent\(event\)/)
 })
+
+
+test('server wires automatic PAPER SCALE through secure recovery-first precedence and continuity cadence', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /createPaperAutoExecutionScaleRunner/)
+  assert.match(source, /PAPER_AUTO_ALPACA_PAPER_BASE_URL:'https:\/\/paper-api\.alpaca\.markets'/)
+  assert.match(source, /serverIntegrated:true,automaticStartAllowed:true/)
+  assert.match(source, /if\(q\.mutationLocked\(\)\)return paperAutoExecutionScaleRunner\.runOnce\(\)/)
+  const e=source.indexOf('ownedExitReviewTriggered===true'),o=source.indexOf('ownedScaleOutReviewTriggered===true'),i=source.indexOf('ownedScaleInReviewTriggered===true')
+  assert.ok(e!==-1&&o>e&&i>o)
+  assert.match(source, /runOnce\(\{action:'scale_out',targetQuantity:o\}\)/)
+  assert.match(source, /runOnce\(\{action:'scale_in',targetQuantity:i\}\)/)
+  assert.match(source, /await runPaperAutoExecutionScaleCycle\(source\)/)
+  assert.doesNotMatch(source, /runPaperAutoExecutionScaleCycle\('market_event'\)/)
+})
