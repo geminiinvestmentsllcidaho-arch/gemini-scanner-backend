@@ -4057,7 +4057,7 @@ ${account?.authenticatorEnabled ? `
 <p><label><input name="exitEmailEnabled" type="checkbox"${account?.notificationPreferences?.exitEmailEnabled ? ' checked' : ''}> Email EXIT notification</label></p>
 <p><label for="exitNotificationEmail">${renderCustomerIcon('mail', { size: 18 })} Destination email</label><br>
 <input id="exitNotificationEmail" name="exitNotificationEmail" type="email" autocomplete="email" value="${esc(account?.notificationPreferences?.exitNotificationEmail || account?.email || '')}" placeholder="you@example.com"></p>
-<p style="color:#9fb6bf">A valid alert identifies the symbol, exact owned quantity, current price when available, EXIT reason, timestamp, and freshness or reconciliation status. No order is placed automatically.</p>
+<p style="color:#9fb6bf">A valid alert identifies the symbol, exact owned quantity, current price when available, EXIT reason, timestamp, and freshness or reconciliation status. This notification setting does not submit an order. Automatic Alpaca PAPER EXIT runs independently under its dedicated fail-closed lifecycle, freshness, identity, reconciliation, and submission safeguards; live trading remains disabled.</p>
 <p><button type="button" data-test-exit-notification>${renderCustomerIcon('test', { size: 18 })} Test EXIT notification</button></p>
 <p data-exit-notification-test-status style="color:#9fb6bf">Test not run on this device.</p>
 </fieldset>

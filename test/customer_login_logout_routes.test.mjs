@@ -154,6 +154,9 @@ test('settings page exposes authenticated notification preference controls', () 
   assert.match(source, /name="exitEmailEnabled"/);
   assert.match(source, /name="exitNotificationEmail"/);
   assert.match(source, /data-test-exit-notification/);
+  assert.match(source, /This notification setting does not submit an order/);
+  assert.match(source, /Automatic Alpaca PAPER EXIT runs independently/);
+  assert.doesNotMatch(source, /No order is placed automatically/);
   assert.match(source, /customer-exit-notification-settings\.js/);
   assert.match(source, /name="scannerAlerts"/);
   assert.match(source, /name="reportEmailEnabled"/);

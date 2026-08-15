@@ -246,7 +246,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <thead><tr><th>Symbol</th><th>Qty</th><th>Avg entry</th><th>Current</th><th>Cost basis</th><th>Market value</th><th>Unrealized P/L</th></tr></thead>
 <tbody>${portfolioRows || '<tr><td colspan="7">No paper positions loaded.</td></tr>'}</tbody>
 </table></div>
-<p class="portfolio-safety">Paper only · Read only · No broker contact · No order placement · No account mutation.</p>
+<p class="portfolio-safety">This portfolio panel is read only and does not itself contact a broker, submit an order, or mutate the account. Automatic Alpaca PAPER execution runs independently under its fail-closed runtime; live trading is disabled.</p>
 </section>`
     : "";
 
@@ -320,7 +320,7 @@ ${hub.runBlocked ? '<div class="filter-notice" role="alert">Select an available 
 <p>${premarket.session?.active
   ? "The scanner is automatically reviewing premarket opportunities now."
   : "The scheduler is sleeping until the next valid premarket window."}</p>
-<p class="premarket-auto-safety">Read only · Paper only · Decision assist · No order placement or scanner-logic mutation.</p>
+<p class="premarket-auto-safety">This premarket panel is read only and decision-assist only; viewing or using these scanner controls does not itself submit an order or mutate scanner logic. Qualified automatic Alpaca PAPER execution is handled separately by the fail-closed execution runtime.</p>
 ${premarketMultiscanPanel}
 </section>`
     : `<section class="card premarket-auto-panel premarket-unavailable"><div class="eyebrow">Automatic premarket scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
@@ -350,7 +350,7 @@ ${premarketMultiscanPanel}
   : postMarketLastResult
     ? "The latest completed post-market review is available for read-only analysis."
     : "The scheduler is waiting for the next valid post-market review window."}</p>
-<p class="postmarket-auto-safety">Read only · Paper only · Decision assist · AI review may be triggered by new observations · No order placement or scanner-logic mutation.</p>
+<p class="postmarket-auto-safety">This post-market panel is read only and decision-assist only; AI review may be triggered by new observations, but this panel does not itself submit an order or mutate scanner logic. Qualified automatic Alpaca PAPER execution is handled separately by the fail-closed execution runtime.</p>
 </section>`
     : `<section class="card postmarket-auto-panel postmarket-unavailable"><div class="eyebrow">Automatic post-market scanner</div><h2>Status unavailable</h2><p>The scheduler diagnostic could not be loaded.</p></section>`;
   const postMarketPanel = isScannerRoute
@@ -539,7 +539,7 @@ ${isScannerRoute ? `<section class="card panel scanner-controls">
 <p>Select the scanner modes, asset types, price ranges, and result filters you want to review.</p>
 ${scannerControls}
 </section>` : ""}
-<section class="card safety"><b>Safety:</b> Decision assist only. No order placement or account mutation controls.</section>
+<section class="card safety"><b>Safety:</b> These customer scanner controls are decision-assist only and do not themselves submit orders or mutate the account. Automatic Alpaca PAPER ENTER/SCALE/EXIT runs independently under dedicated fail-closed execution safeguards; live trading is disabled.</section>
 </main>
 ${renderGlobalFooter()}
 <script src="/assets/customer-scanner-controls.js" defer></script>

@@ -37,7 +37,7 @@ test("customer scanner page renders separate automatic post-market section", () 
   assert.match(html, /Automatic timer active/);
   assert.match(html, /Completed cycles/);
   assert.match(html, /AI review may be triggered by new observations/);
-  assert.match(html, /No order placement or scanner-logic mutation/);
+  assert.match(html, /does not itself submit an order or mutate scanner logic/);
 });
 
 

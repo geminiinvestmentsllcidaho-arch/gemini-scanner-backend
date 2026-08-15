@@ -42,6 +42,9 @@ test("customer hub keeps decision-assist safety locks closed", () => {
 
   assert.equal(hub.decisionAssistOnly, true);
   assert.equal(hub.orderPlacementAllowed, false);
+  const html = renderCustomerScannerHubHtml(hub);
+  assert.match(html, /customer scanner controls are decision-assist only and do not themselves submit orders/);
+  assert.match(html, /Automatic Alpaca PAPER ENTER\/SCALE\/EXIT runs independently/);
   assert.equal(hub.accountMutationAllowed, false);
 });
 
@@ -267,7 +270,7 @@ test("renders automatic premarket scheduler status evidence", () => {
   assert.match(html, /Last candidates/);
   assert.match(html, />7</);
   assert.match(html, /sleeping until the next valid premarket window/i);
-  assert.match(html, /No order placement or scanner-logic mutation/);
+  assert.match(html, /does not itself submit an order or mutate scanner logic/);
 });
 
 test("customer overview and scanner routes use shared primary navigation with correct active item", () => {
