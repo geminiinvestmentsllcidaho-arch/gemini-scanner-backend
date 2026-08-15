@@ -41,7 +41,7 @@ import express from 'express';
 import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { renderCustomerIcon } from './scanner/customer_icons.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
-import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, getCustomerScannerSelections, updateCustomerScannerSelections, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist } from './scanner/customer_account_store.mjs';
+import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, getCustomerScannerSelections, updateCustomerScannerSelections, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist, getCustomerPerformanceEpoch } from './scanner/customer_account_store.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -773,6 +773,12 @@ async function buildCustomerBrokerPerformanceReport(options = {}) {
     now: options.now,
   });
   const paperAccount = options.paperAccount ?? accountBridge.buildCustomerZeroPaperAccountBridge(evidence.fetchedPaperAccount);
+  const performanceEpoch = options.performanceEpoch
+    ?? (options.accountId ? getCustomerPerformanceEpoch(options.accountId) : Object.freeze({ ok: true, active: false, epoch: null }));
+  if (performanceEpoch?.ok !== true) throw new Error(`customer_performance_epoch_unavailable:${performanceEpoch?.reason ?? 'unknown'}`);
+  const performanceEpochStartedAt = performanceEpoch.active === true
+    ? performanceEpoch.epoch?.startedAt ?? null
+    : null;
   const performanceReport = performanceMod.buildCustomerZeroPerformanceReport({
     period: options.period,
     defaultPeriod: options.defaultPeriod,
@@ -780,13 +786,14 @@ async function buildCustomerBrokerPerformanceReport(options = {}) {
     timeZone: options.timeZone,
     weekStartsOn: options.weekStartsOn,
     now: options.now,
+    performanceEpochStartedAt,
     paperAccount,
     fillLedgerHistory: evidence.fillLedgerHistory,
     fillLedgerHistorySource: evidence.fillLedgerHistorySource,
     fillLedgerHistoryCompleteness: evidence.fillLedgerHistoryCompleteness,
     brokerObservationTs: evidence.brokerObservationTs,
   });
-  return Object.freeze({ evidence, paperAccount, performanceReport });
+  return Object.freeze({ evidence, paperAccount, performanceEpoch, performanceReport });
 }
 
 async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath = '', requestContext = null) {
@@ -795,7 +802,7 @@ async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath
     const clockMod = await import('./scanner/alpaca_market_clock_readonly.mjs');
     const now = new Date();
     const [brokerPerformance, marketClockResult] = await Promise.all([
-      buildCustomerBrokerPerformanceReport({ period: 'lifetime', defaultPeriod: 'lifetime', now }),
+      buildCustomerBrokerPerformanceReport({ accountId: account?.id, period: 'lifetime', defaultPeriod: 'lifetime', now }),
       clockMod.fetchAlpacaMarketClockReadonly(),
     ]);
     if (requestContext && typeof requestContext === 'object') {
@@ -3255,6 +3262,7 @@ app.get('/customer', requireCustomerSession, async (req, res) => {
   const mod = await import('./scanner/customer_scanner_hub.mjs');
   const now = new Date();
   const brokerPerformance = await buildCustomerBrokerPerformanceReport({
+    accountId: req.customerAccount?.id,
     evidence: req.customerBrokerPerformanceEvidence,
     fetchedPaperAccount: req.customerPaperAccountFetch,
     period: req.query.period ?? 'lifetime',
@@ -3308,6 +3316,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       now,
     });
     const lifetimePerformance = (await buildCustomerBrokerPerformanceReport({
+      accountId: req.customerAccount?.id,
       evidence: req.customerBrokerPerformanceEvidence,
       fetchedPaperAccount,
       paperAccount: brokerPaperAccount,
@@ -3504,6 +3513,11 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
     const calibrationHistoryMod = await import('./scanner/proposal_calibration_history_store.mjs');
 
     const now = new Date();
+    const performanceEpoch = getCustomerPerformanceEpoch(req.customerAccount?.id);
+    if (performanceEpoch?.ok !== true) throw new Error(`customer_performance_epoch_unavailable:${performanceEpoch?.reason ?? 'unknown'}`);
+    const performanceEpochStartedAt = performanceEpoch.active === true
+      ? performanceEpoch.epoch?.startedAt ?? null
+      : null;
     const brokerEvidence = req.customerBrokerPerformanceEvidence ?? await fetchCustomerBrokerPerformanceEvidence({
       fetchedPaperAccount: req.customerPaperAccountFetch,
       now,
@@ -3532,6 +3546,7 @@ app.get('/customer/reports', requireCustomerSession, async (req, res) => {
       now,
       timeZone: timeMod.customerTimezone(req.customerAccount),
       weekStartsOn: 1,
+      performanceEpochStartedAt,
       paperAccount,
       fillLedgerHistory,
       fillLedgerHistorySource: brokerEvidence.fillLedgerHistorySource,
@@ -3670,6 +3685,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
   });
   const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(brokerEvidence.fetchedPaperAccount);
   const performanceReport = (await buildCustomerBrokerPerformanceReport({
+    accountId: req.customerAccount?.id,
     evidence: brokerEvidence,
     paperAccount,
     period: 'lifetime',
@@ -4919,6 +4935,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       }),
     });
     const performanceReport = (await buildCustomerBrokerPerformanceReport({
+      accountId: req.customerAccount?.id,
       evidence: brokerEvidence,
       paperAccount,
       period: req.query.period,

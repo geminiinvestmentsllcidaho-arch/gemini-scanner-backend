@@ -276,3 +276,46 @@ test("broker-backed performance attributes realized P/L to completed trades clos
   assert.equal(report.periodStartTs, "2026-08-09T01:00:00.000Z");
   assert.equal(report.periodEndTs, "2026-08-09T01:00:00.000Z");
 });
+
+
+test("performance epoch excludes pre-reset completed trades and fees while preserving full fill history for reconstruction", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "lifetime",
+    now: new Date("2026-08-17T15:00:00.000Z"),
+    brokerObservationTs: "2026-08-17T14:59:30.000Z",
+    performanceEpochStartedAt: "2026-08-17T13:45:01.000Z",
+    paperAccount: { account: { equity: 10000 }, summary: { totalUnrealizedPl: 0 } },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistoryCompleteness: { historyComplete: true, historyPossiblyTruncated: false },
+    fillLedgerHistory: [
+      { symbol: "SPY", side: "buy", qty: 1, fillPrice: 749.19, createdAt: "2026-07-01T14:00:00.000Z" },
+      { symbol: "SPY", side: "sell", qty: 1, fillPrice: 745.02, createdAt: "2026-07-31T14:00:00.000Z" },
+      { symbol: "BTG", side: "buy", qty: 1, fillPrice: 4.12, createdAt: "2026-08-05T19:29:04.466Z" },
+      { symbol: "BTG", side: "sell", qty: 1, fillPrice: 5.21, createdAt: "2026-08-12T19:11:56.077Z" },
+      { symbol: "NEW", side: "buy", qty: 2, fillPrice: 10, createdAt: "2026-08-17T14:00:00.000Z" },
+      { symbol: "NEW", side: "sell", qty: 2, fillPrice: 11, createdAt: "2026-08-17T14:30:00.000Z" },
+    ],
+  });
+  assert.equal(report.performanceEpochActive, true);
+  assert.equal(report.performanceEpochStartedAt, "2026-08-17T13:45:01.000Z");
+  assert.equal(report.periodRange.startIso, "2026-08-17T13:45:01.000Z");
+  assert.equal(report.closedTrades, 1);
+  assert.equal(report.winners, 1);
+  assert.equal(report.losers, 0);
+  assert.equal(report.realizedPl, 2);
+});
+
+test("performance epoch intersects a narrower requested report period instead of widening it", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "daily",
+    timeZone: "UTC",
+    now: new Date("2026-08-18T12:00:00.000Z"),
+    brokerObservationTs: "2026-08-18T11:59:30.000Z",
+    performanceEpochStartedAt: "2026-08-17T13:45:01.000Z",
+    paperAccount: { summary: { totalUnrealizedPl: 0 } },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [],
+  });
+  assert.equal(report.periodRange.startIso, "2026-08-18T00:00:00.000Z");
+  assert.equal(report.performanceEpochActive, true);
+});

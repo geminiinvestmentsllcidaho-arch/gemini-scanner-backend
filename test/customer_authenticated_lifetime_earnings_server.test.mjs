@@ -31,3 +31,21 @@ test("public login and homepage remain outside authenticated injection middlewar
   assert.ok(rootIndex >= 0);
   assert.doesNotMatch(server.slice(loginIndex, customerIndex), /requireCustomerSession/);
 });
+
+
+test("authenticated customer performance helper wires persisted performance epoch", () => {
+  const source = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const helperStart = source.indexOf("async function buildCustomerBrokerPerformanceReport");
+  const helperEnd = source.indexOf("\n}\n\nasync function buildAuthenticatedCustomerLifetimeEarningsBanner", helperStart) + 2;
+  const helper = source.slice(helperStart, helperEnd);
+  assert.match(helper, /getCustomerPerformanceEpoch\(options\.accountId\)/);
+  assert.match(helper, /performanceEpochStartedAt/);
+  assert.match(helper, /buildCustomerZeroPerformanceReport\(\{/);
+  assert.match(helper, /performanceEpochStartedAt,/);
+  assert.match(helper, /customer_performance_epoch_unavailable/);
+
+  const bannerStart = source.indexOf("async function buildAuthenticatedCustomerLifetimeEarningsBanner");
+  const bannerEnd = source.indexOf("\n}\n\nasync function requireCustomerSession", bannerStart) + 2;
+  const banner = source.slice(bannerStart, bannerEnd);
+  assert.match(banner, /buildCustomerBrokerPerformanceReport\(\{ accountId: account\?\.id,/);
+});

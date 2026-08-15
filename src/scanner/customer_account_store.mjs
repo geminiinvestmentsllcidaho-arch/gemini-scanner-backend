@@ -1030,6 +1030,80 @@ export function updateCustomerWatchlist(accountId, symbols = [], options = {}) {
 }
 
 
+export function getCustomerPerformanceEpoch(accountId, options = {}) {
+  const account = findCustomerAccountById(accountId, options);
+  if (!account) return Object.freeze({ ok: false, reason: "account_not_found" });
+  const startedAt = clean(account.performanceEpochStartedAt);
+  if (!startedAt) return Object.freeze({ ok: true, active: false, epoch: null });
+  const parsed = Date.parse(startedAt);
+  if (!Number.isFinite(parsed)) return Object.freeze({ ok: false, reason: "performance_epoch_corrupt" });
+  return Object.freeze({
+    ok: true,
+    active: true,
+    epoch: Object.freeze({
+      id: clean(account.performanceEpochId) || null,
+      startedAt: new Date(parsed).toISOString(),
+      reason: clean(account.performanceEpochReason) || null,
+      accountIdentity: clean(account.performanceEpochAccountIdentity) || null,
+      lifecycleId: clean(account.performanceEpochLifecycleId) || null,
+      symbol: clean(account.performanceEpochSymbol).toUpperCase() || null,
+      flatVerifiedAt: clean(account.performanceEpochFlatVerifiedAt) || null,
+    }),
+  });
+}
+
+export function updateCustomerPerformanceEpoch(accountId, input = {}, options = {}) {
+  const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
+  const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];
+  const index = records.findIndex((record) => clean(record.id) === clean(accountId));
+  if (index < 0) return Object.freeze({ ok: false, reason: "account_not_found" });
+
+  const startedAtRaw = clean(input.startedAt);
+  const startedAtMs = Date.parse(startedAtRaw);
+  if (!Number.isFinite(startedAtMs)) return Object.freeze({ ok: false, reason: "performance_epoch_started_at_invalid" });
+  const startedAt = new Date(startedAtMs).toISOString();
+  const id = clean(input.id);
+  if (!id) return Object.freeze({ ok: false, reason: "performance_epoch_id_required" });
+  const reason = clean(input.reason);
+  if (!reason) return Object.freeze({ ok: false, reason: "performance_epoch_reason_required" });
+  const accountIdentity = clean(input.accountIdentity);
+  if (!accountIdentity) return Object.freeze({ ok: false, reason: "performance_epoch_account_identity_required" });
+  const flatVerifiedAtRaw = clean(input.flatVerifiedAt);
+  const flatVerifiedAtMs = Date.parse(flatVerifiedAtRaw);
+  if (!Number.isFinite(flatVerifiedAtMs)) return Object.freeze({ ok: false, reason: "performance_epoch_flat_verified_at_invalid" });
+  const flatVerifiedAt = new Date(flatVerifiedAtMs).toISOString();
+  if (flatVerifiedAtMs > startedAtMs) return Object.freeze({ ok: false, reason: "performance_epoch_flat_verification_after_start" });
+
+  records[index] = {
+    ...records[index],
+    performanceEpochId: id,
+    performanceEpochStartedAt: startedAt,
+    performanceEpochReason: reason,
+    performanceEpochAccountIdentity: accountIdentity,
+    performanceEpochLifecycleId: clean(input.lifecycleId) || null,
+    performanceEpochSymbol: clean(input.symbol).toUpperCase() || null,
+    performanceEpochFlatVerifiedAt: flatVerifiedAt,
+    performanceEpochUpdatedAt: options.now ?? new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const tempPath = `${storePath}.${process.pid}.tmp`;
+  const body = records.map((record) => JSON.stringify(record)).join("\n") + "\n";
+  fs.writeFileSync(tempPath, body, { encoding: "utf8", mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, storePath);
+  fs.chmodSync(storePath, 0o600);
+
+  return Object.freeze({
+    ok: true,
+    epoch: getCustomerPerformanceEpoch(accountId, { storePath, authenticatorMasterKey: options.authenticatorMasterKey }).epoch,
+    account: Object.freeze(records[index]),
+    localReportingMutationPerformed: true,
+    brokerAccountMutationAllowed: false,
+  });
+}
+
+
 export function updateCustomerPortfolioWindDownPreference(accountId, requested, options = {}) {
   const storePath = clean(options.storePath) || DEFAULT_STORE_PATH;
   const records = [...listCustomerAccountRecords({ storePath, authenticatorMasterKey: options.authenticatorMasterKey })];

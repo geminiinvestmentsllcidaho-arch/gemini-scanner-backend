@@ -146,3 +146,46 @@ test('patchMonitoring fails closed outside MONITORING and rejects forbidden or n
   assert.equal(store.load().filledQuantity, 8)
   assert.equal(store.load().state, S.MONITORING)
 })
+
+
+test('armMechanicalAutoExitProof arms only exact MONITORING lifecycle identity and is idempotent', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-exit-proof-arm-'))
+  const file = path.join(dir, 'life.json')
+  let now = Date.parse('2026-08-15T21:00:00Z')
+  const store = new PaperAutoExecutionLifecycleStore({ filePath: file, clock: () => now, idFactory: () => 'life-exit-proof' })
+  store.create({ selectedSymbol: 'USAS', scannerEvidence: { source: 'paper_auto_continuity_existing_position_adoption', mechanicalAutoExitProof: false } })
+  store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'existing-paper-position-adopted' })
+  store.transition(S.POSITION_CONFIRMED, { filledQuantity: 1, averageFillPrice: 4.84, brokerPositionIdentity: 'USAS:1' })
+  store.transition(S.MONITORING)
+
+  assert.throws(() => store.armMechanicalAutoExitProof({ expectedLifecycleId: 'other', expectedSymbol: 'USAS', expectedQuantity: 1 }), /exit_proof_arm_lifecycle_changed/)
+  assert.throws(() => store.armMechanicalAutoExitProof({ expectedLifecycleId: 'life-exit-proof', expectedSymbol: 'BTG', expectedQuantity: 1 }), /exit_proof_arm_symbol_changed/)
+  assert.throws(() => store.armMechanicalAutoExitProof({ expectedLifecycleId: 'life-exit-proof', expectedSymbol: 'USAS', expectedQuantity: 2 }), /exit_proof_arm_quantity_changed/)
+
+  now += 1000
+  const armed = store.armMechanicalAutoExitProof({ expectedLifecycleId: 'life-exit-proof', expectedSymbol: 'USAS', expectedQuantity: 1 })
+  assert.equal(armed.state, S.MONITORING)
+  assert.equal(armed.lifecycleId, 'life-exit-proof')
+  assert.equal(armed.selectedSymbol, 'USAS')
+  assert.equal(armed.filledQuantity, 1)
+  assert.equal(armed.brokerPositionIdentity, 'USAS:1')
+  assert.equal(armed.scannerEvidence.source, 'paper_auto_continuity_existing_position_adoption')
+  assert.equal(armed.scannerEvidence.mechanicalAutoExitProof, true)
+  const armedUpdatedAt = armed.updatedAt
+
+  now += 1000
+  const repeated = store.armMechanicalAutoExitProof({ expectedLifecycleId: 'life-exit-proof', expectedSymbol: 'USAS', expectedQuantity: 1 })
+  assert.equal(repeated.scannerEvidence.mechanicalAutoExitProof, true)
+  assert.equal(repeated.updatedAt, armedUpdatedAt)
+  assert.equal(store.load().updatedAt, armedUpdatedAt)
+})
+
+test('armMechanicalAutoExitProof fails closed outside MONITORING', () => {
+  const { store } = fixture()
+  const created = store.create({ selectedSymbol: 'USAS', scannerEvidence: { mechanicalAutoExitProof: false } })
+  assert.throws(
+    () => store.armMechanicalAutoExitProof({ expectedLifecycleId: created.lifecycleId, expectedSymbol: 'USAS', expectedQuantity: 1 }),
+    /exit_proof_arm_invalid_state:CANDIDATE_SELECTED/,
+  )
+  assert.equal(store.load().scannerEvidence.mechanicalAutoExitProof, false)
+})

@@ -544,3 +544,51 @@ test("propagates broker history truncation metadata", () => {
   assert.equal(report.performance.totalReturnPct, null)
   assert.equal(report.performance.maxDrawdown, null)
 })
+
+
+test("broker-backed performance epoch excludes pre-reset completed trades without widening a narrower requested period", () => {
+  const lifetime = buildCustomerReportModel({
+    period: "lifetime",
+    now: new Date("2026-08-18T12:00:00Z"),
+    timeZone: "UTC",
+    performanceEpochStartedAt: "2026-08-17T13:45:01.000Z",
+    paperAccount: {
+      account: { equity: 10002 },
+      summary: { totalUnrealizedPl: 0 },
+      positions: [],
+    },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [
+      { fillId: "old-buy", createdAt: "2026-08-12T18:00:00Z", symbol: "OLD", side: "buy", qty: 1, fillPrice: 4 },
+      { fillId: "old-sell", createdAt: "2026-08-12T19:00:00Z", symbol: "OLD", side: "sell", qty: 1, fillPrice: 5 },
+      { fillId: "new-buy", createdAt: "2026-08-17T14:00:00Z", symbol: "NEW", side: "buy", qty: 2, fillPrice: 10 },
+      { fillId: "new-sell", createdAt: "2026-08-17T14:30:00Z", symbol: "NEW", side: "sell", qty: 2, fillPrice: 11 },
+    ],
+    brokerObservationTs: "2026-08-18T11:59:30Z",
+    scannerEvents: [
+      { createdAt: "2026-08-12T18:30:00Z", resultState: "ENTER", rankingConfidence: 99 },
+      { createdAt: "2026-08-17T14:15:00Z", resultState: "ENTER", rankingConfidence: 90 },
+    ],
+  });
+
+  assert.equal(lifetime.performanceEpochActive, true);
+  assert.equal(lifetime.performanceEpochStartedAt, "2026-08-17T13:45:01.000Z");
+  assert.equal(lifetime.range.startIso, "2026-08-17T13:45:01.000Z");
+  assert.equal(lifetime.trades.completedRoundTrips, 1);
+  assert.equal(lifetime.trades.completedTrades[0].symbol, "NEW");
+  assert.equal(lifetime.performance.realizedPl, 2);
+  assert.equal(lifetime.scanner.signalsGenerated, 1);
+
+  const daily = buildCustomerReportModel({
+    period: "daily",
+    now: new Date("2026-08-18T12:00:00Z"),
+    timeZone: "UTC",
+    performanceEpochStartedAt: "2026-08-17T13:45:01.000Z",
+    paperAccount: { account: { equity: 10000 }, summary: { totalUnrealizedPl: 0 }, positions: [] },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [],
+    brokerObservationTs: "2026-08-18T11:59:30Z",
+  });
+  assert.equal(daily.range.startIso, "2026-08-18T00:00:00.000Z");
+  assert.equal(daily.performanceEpochActive, true);
+});

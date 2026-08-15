@@ -198,8 +198,17 @@ export function buildCustomerReportModel(options = {}) {
     weekStartsOn: options.weekStartsOn,
     year: options.year,
   });
-  const paperRecords = recordsInRange(options.paperLedgerHistory, range);
-  const baseline = latestBeforeRange(options.paperLedgerHistory, range);
+  const performanceEpochStartedAtMs = Date.parse(options.performanceEpochStartedAt ?? "");
+  const effectiveRange = Number.isFinite(performanceEpochStartedAtMs)
+    && (!range.start || performanceEpochStartedAtMs > range.start.getTime())
+    ? Object.freeze({
+        ...range,
+        start: new Date(performanceEpochStartedAtMs),
+        startIso: new Date(performanceEpochStartedAtMs).toISOString(),
+      })
+    : range;
+  const paperRecords = recordsInRange(options.paperLedgerHistory, effectiveRange);
+  const baseline = latestBeforeRange(options.paperLedgerHistory, effectiveRange);
   const latest = paperRecords.at(-1) ?? null;
   const activity = latest ? positionRows(baseline, latest) : [];
   const snapshotTrades = tradeSummary(activity);
@@ -207,7 +216,7 @@ export function buildCustomerReportModel(options = {}) {
   const lifecycleTrades = Array.isArray(options.fillLedgerHistory)
     ? reconstructCustomerReportTradeLifecycle({
         fillRecords: options.fillLedgerHistory,
-        range,
+        range: effectiveRange,
       })
     : null;
   const sourceIntentReplayAudit = Array.isArray(options.fillLedgerHistory) && options.fillLedgerHistorySource !== "alpaca_paper_order_history"
@@ -311,7 +320,7 @@ export function buildCustomerReportModel(options = {}) {
     ? timestamp({ sourceTs: options.brokerObservationTs })
     : timestamp(latest);
   const sourceAgeSec = sourceTs
-    ? Math.max(0, Math.floor((range.end.getTime() - Date.parse(sourceTs)) / 1000))
+    ? Math.max(0, Math.floor((effectiveRange.end.getTime() - Date.parse(sourceTs)) / 1000))
     : null;
   const maxAgeSec = Number.isFinite(Number(options.maxAgeSec))
     ? Math.max(0, Number(options.maxAgeSec))
@@ -322,7 +331,11 @@ export function buildCustomerReportModel(options = {}) {
     version: VERSION,
     route: "/customer/reports",
     period,
-    range,
+    range: effectiveRange,
+    performanceEpochActive: Number.isFinite(performanceEpochStartedAtMs),
+    performanceEpochStartedAt: Number.isFinite(performanceEpochStartedAtMs)
+      ? new Date(performanceEpochStartedAtMs).toISOString()
+      : null,
     status: stale ? "stale_readonly" : "current_readonly",
     stale,
     sourceTs,
@@ -383,7 +396,7 @@ export function buildCustomerReportModel(options = {}) {
           timestamp: timestamp(record),
           equity: round2(record?.endingEquity),
         }))),
-    scanner: scannerSummary(options.scannerEvents, range),
+    scanner: scannerSummary(options.scannerEvents, effectiveRange),
     readOnly: true,
     paperOnly: true,
     decisionAssistOnly: true,

@@ -17,6 +17,8 @@ import {
   verifyCustomerPassword,
   getCustomerWatchlist,
   updateCustomerWatchlist,
+  getCustomerPerformanceEpoch,
+  updateCustomerPerformanceEpoch,
 } from "../src/scanner/customer_account_store.mjs";
 
 test("normalizes and validates signup input", () => {
@@ -153,4 +155,64 @@ test("stores a normalized persistent customer watchlist with private permissions
   assert.deepEqual(loaded.symbols, ["AAPL", "MSFT", "BRK.B"]);
   assert.equal(loaded.updatedAt, "2026-07-13T04:30:00.000Z");
   assert.equal(getCustomerWatchlist("missing", { storePath }).reason, "account_not_found");
+});
+
+test("stores and reads a persistent customer performance epoch with private atomic rewrite", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-account-performance-epoch-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({
+    firstName: "Zero",
+    lastName: "Customer",
+    email: "zero@example.com",
+    password: "correct horse battery staple",
+    confirmPassword: "correct horse battery staple",
+    termsAccepted: true,
+  });
+  appendCustomerAccountRecord(record, { storePath });
+
+  assert.deepEqual(getCustomerPerformanceEpoch(record.id, { storePath }), { ok: true, active: false, epoch: null });
+
+  const updated = updateCustomerPerformanceEpoch(record.id, {
+    id: "epoch-after-usas",
+    startedAt: "2026-08-17T13:45:01.000Z",
+    reason: "post_usas_forced_exit_test_reset",
+    accountIdentity: "alpaca-paper:0123456789abcdef01234567",
+    lifecycleId: "life-usas",
+    symbol: "usas",
+    flatVerifiedAt: "2026-08-17T13:45:00.000Z",
+  }, { storePath, now: "2026-08-17T13:45:02.000Z" });
+
+  assert.equal(updated.ok, true);
+  assert.equal(updated.brokerAccountMutationAllowed, false);
+  assert.equal(updated.epoch.id, "epoch-after-usas");
+  assert.equal(updated.epoch.symbol, "USAS");
+  assert.equal(updated.epoch.startedAt, "2026-08-17T13:45:01.000Z");
+  assert.equal(updated.epoch.flatVerifiedAt, "2026-08-17T13:45:00.000Z");
+  assert.equal(getCustomerPerformanceEpoch(record.id, { storePath }).active, true);
+  assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
+});
+
+test("performance epoch persistence fails closed on missing account or invalid reset evidence", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-account-performance-epoch-invalid-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({
+    firstName: "Zero",
+    lastName: "Customer",
+    email: "zero@example.com",
+    password: "correct horse battery staple",
+    confirmPassword: "correct horse battery staple",
+    termsAccepted: true,
+  });
+  appendCustomerAccountRecord(record, { storePath });
+
+  assert.equal(updateCustomerPerformanceEpoch("missing", {}, { storePath }).reason, "account_not_found");
+  assert.equal(updateCustomerPerformanceEpoch(record.id, { startedAt: "bad" }, { storePath }).reason, "performance_epoch_started_at_invalid");
+  assert.equal(updateCustomerPerformanceEpoch(record.id, {
+    id: "e",
+    startedAt: "2026-08-17T13:45:00.000Z",
+    reason: "reset",
+    accountIdentity: "paper",
+    flatVerifiedAt: "2026-08-17T13:45:01.000Z",
+  }, { storePath }).reason, "performance_epoch_flat_verification_after_start");
+  assert.equal(getCustomerPerformanceEpoch(record.id, { storePath }).active, false);
 });

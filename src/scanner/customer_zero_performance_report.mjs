@@ -122,13 +122,22 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     weekStartsOn: options.weekStartsOn ?? 1,
     year: options.year,
   });
+  const performanceEpochStartedAtMs = Date.parse(options.performanceEpochStartedAt ?? "");
+  const effectivePeriodRange = Number.isFinite(performanceEpochStartedAtMs)
+    && (!periodRange.start || performanceEpochStartedAtMs > periodRange.start.getTime())
+    ? Object.freeze({
+        ...periodRange,
+        start: new Date(performanceEpochStartedAtMs),
+        startIso: new Date(performanceEpochStartedAtMs).toISOString(),
+      })
+    : periodRange;
   const brokerBacked = options.fillLedgerHistorySource === "alpaca_paper_order_history"
     && Array.isArray(options.fillLedgerHistory);
 
   if (brokerBacked) {
     const lifecycle = reconstructCustomerReportTradeLifecycle({
       fillRecords: options.fillLedgerHistory,
-      range: periodRange,
+      range: effectivePeriodRange,
     });
     const completedTrades = Array.isArray(lifecycle.completedTrades) ? lifecycle.completedTrades : [];
     const realizedPl = round2(completedTrades.reduce((sum, trade) => sum + finite(trade?.realizedPnl), 0));
@@ -142,7 +151,7 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     const endingEquity = round2OrNull(options.endingEquity ?? paperAccount?.account?.equity);
     const feeEstimate = estimateAlpacaLiveEquivalentEquityFees({
       fillRecords: options.fillLedgerHistory,
-      range: periodRange,
+      range: effectivePeriodRange,
     });
     const fees = feeEstimate.totalFees;
     const netAfterCosts = round2(totalPl - fees);
@@ -150,11 +159,15 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
       version: VERSION,
       period,
       periodRange: {
-        startIso: periodRange.startIso,
-        endIso: periodRange.endIso,
-        timeZone: periodRange.timeZone,
-        weekStartsOn: periodRange.weekStartsOn,
+        startIso: effectivePeriodRange.startIso,
+        endIso: effectivePeriodRange.endIso,
+        timeZone: effectivePeriodRange.timeZone,
+        weekStartsOn: effectivePeriodRange.weekStartsOn,
       },
+      performanceEpochActive: Number.isFinite(performanceEpochStartedAtMs),
+      performanceEpochStartedAt: Number.isFinite(performanceEpochStartedAtMs)
+        ? new Date(performanceEpochStartedAtMs).toISOString()
+        : null,
       periodRecordCount: completedTrades.length,
       periodStartTs: completedTrades[0]?.closedAt ?? null,
       periodEndTs: completedTrades.at(-1)?.closedAt ?? null,

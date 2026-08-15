@@ -1066,3 +1066,16 @@ test("portfolio remove-button client script is served as a same-origin static as
   assert.match(source, /app\.get\('\/customer-portfolio-owned-assets\.js'/);
   assert.match(source, /public\/customer-portfolio-owned-assets\.js/);
 });
+
+
+test("authenticated reports route applies persisted performance epoch to broker-backed report model", () => {
+  const source = readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const start = source.indexOf("app.get('/customer/reports'");
+  const end = source.indexOf("\napp.get('/customer/scanner'", start);
+  const route = source.slice(start, end);
+  assert.match(route, /getCustomerPerformanceEpoch\(req\.customerAccount\?\.id\)/);
+  assert.match(route, /customer_performance_epoch_unavailable/);
+  assert.match(route, /const performanceEpochStartedAt = performanceEpoch\.active === true/);
+  assert.match(route, /buildCustomerReportModel\(\{/);
+  assert.match(route, /performanceEpochStartedAt,/);
+});

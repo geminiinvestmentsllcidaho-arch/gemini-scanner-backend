@@ -107,6 +107,22 @@ export class PaperAutoExecutionLifecycleStore {
     return true
   }
 
+  armMechanicalAutoExitProof({ expectedLifecycleId, expectedSymbol, expectedQuantity } = {}) {
+    const current = this.load()
+    if (!current) throw new Error('paper_auto_lifecycle_missing')
+    if (current.state !== S.MONITORING) throw new Error(`paper_auto_exit_proof_arm_invalid_state:${current.state}`)
+    if (String(expectedLifecycleId ?? '').trim() !== current.lifecycleId) throw new Error('paper_auto_exit_proof_arm_lifecycle_changed')
+    if (normalizeSymbol(expectedSymbol) !== current.selectedSymbol) throw new Error('paper_auto_exit_proof_arm_symbol_changed')
+    if (!Number.isSafeInteger(Number(expectedQuantity)) || Number(expectedQuantity) !== current.filledQuantity) throw new Error('paper_auto_exit_proof_arm_quantity_changed')
+    const scannerEvidence = current.scannerEvidence && typeof current.scannerEvidence === 'object' && !Array.isArray(current.scannerEvidence) ? clone(current.scannerEvidence) : {}
+    if (scannerEvidence.mechanicalAutoExitProof === true) return clone(current)
+    scannerEvidence.mechanicalAutoExitProof = true
+    const next = { ...current, scannerEvidence, updatedAt: new Date(this.clock()).toISOString() }
+    validate(next)
+    this.#write(next)
+    return clone(next)
+  }
+
   patchMonitoring(input = {}) {
     const current = this.load()
     if (!current) throw new Error('paper_auto_lifecycle_missing')
