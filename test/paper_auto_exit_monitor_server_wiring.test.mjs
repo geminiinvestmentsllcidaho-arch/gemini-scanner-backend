@@ -132,3 +132,10 @@ test('server wires automatic PAPER SCALE through secure recovery-first precedenc
   assert.match(source, /await runPaperAutoExecutionScaleCycle\(source\)/)
   assert.doesNotMatch(source, /runPaperAutoExecutionScaleCycle\('market_event'\)/)
 })
+
+
+test('server exposes read-only automatic PAPER SCALE diagnostics', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /app\.get\('\/diagnostics\/paper-auto-execution-scale'/)
+  assert.match(source, /res\.json\(paperAutoExecutionScaleRunner\.diagnostics\(\)\)/)
+})

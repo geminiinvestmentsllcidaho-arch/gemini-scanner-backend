@@ -1968,7 +1968,26 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const healthMod = await import('./scanner/admin_system_health.mjs');
   const tradingMod = await import('./scanner/admin_trading_engine.mjs');
   const [alpacaAccess, systemHealth] = await Promise.all([accessMod.getAlpacaMasterAccessSwitchState(), healthMod.collectAdminSystemHealth()]);
-  const tradingEngine = tradingMod.collectAdminTradingEngine({ alpacaAccess, systemHealth });
+  const automaticPaper = {
+    continuity: paperAutoExecutionContinuityRuntime.diagnostics(),
+    enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
+    scale: paperAutoExecutionScaleRunner.diagnostics(),
+    exit: paperAutoExitMonitorWorker.diagnostics(),
+    lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
+    activation: {
+      paperTrading: String(process.env.ALPACA_PAPER_TRADING ?? '').trim().toLowerCase() === 'true',
+      paperBaseUrl: String(process.env.APCA_API_BASE_URL ?? '').trim(),
+      continuityEnabled: String(process.env.PAPER_AUTO_CONTINUITY_ENABLED ?? '').trim() === '1',
+      continuityEnterEnabled: String(process.env.PAPER_AUTO_CONTINUITY_ENTER_ENABLED ?? '').trim() === '1',
+      scaleRunnerEnabled: String(process.env.PAPER_AUTO_SCALE_RUNNER_ENABLED ?? '').trim() === '1',
+      scaleInEnabled: String(process.env.PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED ?? '').trim() === '1',
+      scaleOutEnabled: String(process.env.PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED ?? '').trim() === '1',
+      exitMonitorEnabled: String(process.env.PAPER_AUTO_EXIT_MONITOR_ENABLED ?? '').trim() === '1',
+      liveTradingAllowed: false,
+    },
+    safety: { paperOnly: true, liveTradingAllowed: false, adminExecutionControls: false },
+  };
+  const tradingEngine = tradingMod.collectAdminTradingEngine({ alpacaAccess, systemHealth, automaticPaper });
   const surface = mod.buildAdminSurface({ alpacaAccess, systemHealth, tradingEngine });
   res.set('Cache-Control', 'no-store');
   res.type('html').send(mod.renderAdminSurfaceHtml(surface));
@@ -1976,7 +1995,33 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
 
 app.get('/admin/system-health', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_system_health.mjs'); const x = await m.collectAdminSystemHealth(); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminSystemHealth(x)); });
 
-app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_trading_engine.mjs'); const accessMod = await import('./scanner/alpaca_master_access_switch.mjs'); const alpacaAccess = await accessMod.getAlpacaMasterAccessSwitchState(); const x = m.collectAdminTradingEngine({ alpacaAccess }); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminTradingEngine(x)); });
+app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) => {
+  const m = await import('./scanner/admin_trading_engine.mjs');
+  const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
+  const alpacaAccess = await accessMod.getAlpacaMasterAccessSwitchState();
+  const automaticPaper = {
+    continuity: paperAutoExecutionContinuityRuntime.diagnostics(),
+    enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
+    scale: paperAutoExecutionScaleRunner.diagnostics(),
+    exit: paperAutoExitMonitorWorker.diagnostics(),
+    lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
+    activation: {
+      paperTrading: String(process.env.ALPACA_PAPER_TRADING ?? '').trim().toLowerCase() === 'true',
+      paperBaseUrl: String(process.env.APCA_API_BASE_URL ?? '').trim(),
+      continuityEnabled: String(process.env.PAPER_AUTO_CONTINUITY_ENABLED ?? '').trim() === '1',
+      continuityEnterEnabled: String(process.env.PAPER_AUTO_CONTINUITY_ENTER_ENABLED ?? '').trim() === '1',
+      scaleRunnerEnabled: String(process.env.PAPER_AUTO_SCALE_RUNNER_ENABLED ?? '').trim() === '1',
+      scaleInEnabled: String(process.env.PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED ?? '').trim() === '1',
+      scaleOutEnabled: String(process.env.PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED ?? '').trim() === '1',
+      exitMonitorEnabled: String(process.env.PAPER_AUTO_EXIT_MONITOR_ENABLED ?? '').trim() === '1',
+      liveTradingAllowed: false,
+    },
+    safety: { paperOnly: true, liveTradingAllowed: false, adminExecutionControls: false },
+  };
+  const x = m.collectAdminTradingEngine({ alpacaAccess, automaticPaper });
+  res.set('Cache-Control','no-store');
+  return res.status(200).type('html').send(m.renderAdminTradingEngine(x));
+});
 
 app.get('/admin/api/companion/status', requireAdminAuthorization, async (_req, res) => {
   const [healthMod, tradingMod, accessMod, companionMod] = await Promise.all([
@@ -2970,6 +3015,11 @@ app.get('/diagnostics/paper-auto-execution-continuity', (_req, res) => {
 
 app.get('/diagnostics/paper-auto-execution-continuity-enter', (_req, res) => {
   res.json(paperAutoExecutionContinuityEnterRunner.diagnostics());
+});
+
+
+app.get('/diagnostics/paper-auto-execution-scale', (_req, res) => {
+  res.json(paperAutoExecutionScaleRunner.diagnostics());
 });
 
 app.get('/diagnostics/paper-trade-position-state-store', (_req, res) => {

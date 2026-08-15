@@ -35,3 +35,19 @@ test("renders protected trading engine detail", () => {
   assert.match(html,/#39ff14/);
   assert.match(html,/#00ffff/);
 });
+
+
+test("automatic PAPER runner observability is read only", () => {
+  const automaticPaper={continuity:{enabled:true,lastStatus:"ACTIVE"},enter:{enabled:true,lastStatus:"READY",lastSizing:{allocationPercent:10,quantity:4}},scale:{enabled:true,scaleInEnabled:true,scaleOutEnabled:true,lastStatus:"MONITORING"},exit:{enabled:true,running:true,lastStatus:"MONITORING"},lifecycle:{state:"MONITORING",selectedSymbol:"USAS",filledQuantity:4,averageFillPrice:4.5,brokerPositionIdentity:"USAS:4"},safety:{paperOnly:true}};
+  const x=collectAdminTradingEngine({runsDir:"/definitely/missing",automaticPaper});
+  assert.equal(x.automaticPaper.enter.enabled,true);
+  assert.equal(x.automaticPaper.scale.scaleInEnabled,true);
+  assert.equal(x.automaticPaper.exit.running,true);
+  assert.equal(x.automaticPaper.lifecycle.state,"MONITORING");
+  assert.equal(x.automaticPaper.safety.liveTradingAllowed,false);
+  assert.equal(x.automaticPaper.safety.adminExecutionControls,false);
+  const html=renderAdminTradingEngine(x);
+  for(const label of ["Automatic Alpaca PAPER Execution","Active PAPER Lifecycle","Automatic Position Sizing","Reconciliation &amp; Protection State"]) assert.match(html,new RegExp(label));
+  assert.match(html,/5% \/ 7\.5% \/ 10%/);
+  assert.match(html,/does not invoke any runner/);
+});

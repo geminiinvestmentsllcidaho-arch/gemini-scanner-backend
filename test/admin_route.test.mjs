@@ -33,3 +33,23 @@ test("admin Alpaca access toggle is admin-authorized, same-origin, and only muta
   assert.match(route, /res\.redirect\(303, '\/admin'\)/);
   assert.doesNotMatch(route, /submitPaperOrder|\/v2\/orders|PAPER_AUTO_|cancelOrder|replaceOrder|fetch\s*\(/);
 });
+
+
+test("admin overview and trading-engine routes consume diagnostics only", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  const overviewStart=server.indexOf("app.get('/admin',");
+  const overviewEnd=server.indexOf("\n});",overviewStart);
+  const overview=server.slice(overviewStart,overviewEnd+4);
+  const tradingStart=server.indexOf("app.get('/admin/trading-engine'");
+  const tradingEnd=server.indexOf("\n});",tradingStart);
+  const trading=server.slice(tradingStart,tradingEnd+4);
+  for(const block of [overview,trading]){
+    assert.match(block,/paperAutoExecutionContinuityRuntime\.diagnostics\(\)/);
+    assert.match(block,/paperAutoExecutionContinuityEnterRunner\.diagnostics\(\)/);
+    assert.match(block,/paperAutoExecutionScaleRunner\.diagnostics\(\)/);
+    assert.match(block,/paperAutoExitMonitorWorker\.diagnostics\(\)/);
+    assert.match(block,/liveTradingAllowed:\s*false/);
+    assert.match(block,/adminExecutionControls:\s*false/);
+    assert.doesNotMatch(block,/\.runOnce\(|submitPaperOrder|cancelOrder|replaceOrder|\/v2\/orders/);
+  }
+});

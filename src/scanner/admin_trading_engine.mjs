@@ -30,7 +30,7 @@ function latencyMs(submittedAt, filledAt) {
   return Number.isFinite(a) && Number.isFinite(b) && b >= a ? +(b - a).toFixed(3) : null;
 }
 
-export function collectAdminTradingEngine({ runsDir = "runs", alpacaAccess = null, systemHealth = null } = {}) {
+export function collectAdminTradingEngine({ runsDir = "runs", alpacaAccess = null, systemHealth = null, automaticPaper = null } = {}) {
   const statusFile = latestFile(runsDir, "paper_order_readonly_status_check_");
   const postFile = latestFile(runsDir, "paper_broker_network_call_post_attempt_");
   const status = readJson(statusFile);
@@ -80,6 +80,19 @@ export function collectAdminTradingEngine({ runsDir = "runs", alpacaAccess = nul
       signalToSubmitMs: null,
       source: executionLatencyMs == null ? "stored_timestamps_unavailable" : "stored_order_timestamps",
     }),
+    automaticPaper: Object.freeze({
+      continuity: automaticPaper?.continuity ?? null,
+      enter: automaticPaper?.enter ?? null,
+      scale: automaticPaper?.scale ?? null,
+      exit: automaticPaper?.exit ?? null,
+      lifecycle: automaticPaper?.lifecycle ?? null,
+      activation: automaticPaper?.activation ?? null,
+      safety: Object.freeze({
+        paperOnly: automaticPaper?.safety?.paperOnly === true,
+        liveTradingAllowed: false,
+        adminExecutionControls: false,
+      }),
+    }),
     readOnly: true,
     localEvidenceOnly: true,
     brokerContactAllowed: false,
@@ -99,7 +112,11 @@ body{margin:0;background:#000;color:#39ff14;font-family:system-ui}main{max-width
 <section class="p"><h2>Active Orders &amp; Queue</h2><div class="g"><div class="m">Stored active count <strong>${esc(x.orderEvidence?.activeStoredCount)}</strong></div><div class="m">Latest status <strong>${esc(x.orderEvidence?.latestStatus)}</strong></div><div class="m">Symbol <strong>${esc(o.symbol ?? "Unavailable")}</strong></div><div class="m">Side / Qty <strong>${esc(o.side ?? "Unavailable")} ${esc(o.qty ?? "")}</strong></div></div><p>Scope: latest stored paper-order evidence; this is not a live broker queue.</p></section>
 <section class="p"><h2>Brokerage API Status</h2><div class="g"><div class="m">Admin read access <strong>${x.brokerage?.alpacaReadAccessEnabled ? "ON" : "OFF"}</strong></div><div class="m">Last stored HTTP status <strong>${esc(x.brokerage?.lastStoredResponseStatus ?? "Unavailable")}</strong></div><div class="m">Last stored broker read <strong>${x.brokerage?.lastStoredBrokerReadAttempted ? "Yes" : "No"}</strong></div></div><p>Current page source: ${esc(x.brokerage?.source)}.</p></section>
 <section class="p"><h2>Execution Latency Panel</h2><div class="g"><div class="m">Submit → fill <strong>${esc(x.execution?.submitToFillMs ?? "Unavailable")} ms</strong></div><div class="m">Signal → submit <strong>Not yet instrumented</strong></div></div><p>Submitted: ${esc(x.execution?.submittedAt ?? "Unavailable")}<br>Filled: ${esc(x.execution?.filledAt ?? "Unavailable")}</p></section>
-<p>Read-only. No order submit, cancel, replace, retry, broker mutation, or account mutation.</p>
+<section class="p"><h2>Automatic Alpaca PAPER Execution</h2><div class="g"><div class="m">Continuity <strong>${x.automaticPaper?.continuity?.enabled ? "ARMED" : "OFF"}</strong><br>${esc(x.automaticPaper?.continuity?.lastStatus ?? "Unavailable")}</div><div class="m">ENTER <strong>${x.automaticPaper?.enter?.enabled ? "ARMED" : "OFF"}</strong><br>${esc(x.automaticPaper?.enter?.lastStatus ?? "Unavailable")}</div><div class="m">SCALE <strong>${x.automaticPaper?.scale?.enabled && x.automaticPaper?.scale?.scaleInEnabled && x.automaticPaper?.scale?.scaleOutEnabled ? "ARMED" : "OFF"}</strong><br>${esc(x.automaticPaper?.scale?.lastStatus ?? "Unavailable")}</div><div class="m">EXIT <strong>${x.automaticPaper?.exit?.enabled && x.automaticPaper?.exit?.running ? "ARMED" : "OFF"}</strong><br>${esc(x.automaticPaper?.exit?.lastStatus ?? "Unavailable")}</div></div><p>Observed runtime diagnostics only. This Admin page does not invoke any runner.</p></section>
+<section class="p"><h2>Active PAPER Lifecycle</h2><div class="g"><div class="m">State <strong>${esc(x.automaticPaper?.lifecycle?.state ?? "Unavailable")}</strong></div><div class="m">Symbol <strong>${esc(x.automaticPaper?.lifecycle?.selectedSymbol ?? "Unavailable")}</strong></div><div class="m">Quantity <strong>${esc(x.automaticPaper?.lifecycle?.filledQuantity ?? "Unavailable")}</strong></div><div class="m">Average fill <strong>${esc(x.automaticPaper?.lifecycle?.averageFillPrice ?? "Unavailable")}</strong></div></div><p>Position identity: <code>${esc(x.automaticPaper?.lifecycle?.brokerPositionIdentity ?? "Unavailable")}</code></p></section>
+<section class="p"><h2>Automatic Position Sizing</h2><div class="g"><div class="m">Policy <strong>5% / 7.5% / 10%</strong></div><div class="m">Hard ceiling <strong>10%</strong></div><div class="m">Last allocation <strong>${esc(x.automaticPaper?.enter?.lastSizing?.allocationPercent ?? "Unavailable")}%</strong></div><div class="m">Last quantity <strong>${esc(x.automaticPaper?.enter?.lastSizing?.quantity ?? "Unavailable")}</strong></div></div></section>
+<section class="p"><h2>Reconciliation &amp; Protection State</h2><div class="g"><div class="m">ENTER <strong>${esc(x.automaticPaper?.enter?.lastReconciliation?.status ?? "Unavailable")}</strong></div><div class="m">SCALE <strong>${esc(x.automaticPaper?.scale?.lastReconciliation?.status ?? "Unavailable")}</strong></div><div class="m">EXIT <strong>${esc(x.automaticPaper?.exit?.lastReconciliationStatus ?? "Unavailable")}</strong></div><div class="m">EXIT incident <strong>${esc(x.automaticPaper?.exit?.lastIncidentCode ?? "None")}</strong></div></div><p>PAPER-only: <strong>${x.automaticPaper?.safety?.paperOnly ? "YES" : "NO"}</strong> | Live trading: <strong>DISABLED</strong> | Admin execution controls: <strong>NONE</strong>.</p></section>
+<p>Read-only Admin observability. No order submit, cancel, replace, retry, runner invocation, broker mutation, or account mutation.</p>
 </main></body></html>`;
 }
 

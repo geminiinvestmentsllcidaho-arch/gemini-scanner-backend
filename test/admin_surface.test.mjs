@@ -22,7 +22,7 @@ test("builds isolated read-only admin surface", () => {
   assert.equal(surface.route, "/admin");
   assert.equal(surface.role, "admin");
   assert.equal(surface.readOnly, true);
-  assert.equal(surface.decisionAssistOnly, true);
+  assert.equal(surface.decisionAssistOnly, false);
   assert.equal(surface.orderPlacementAllowed, false);
   assert.equal(surface.accountMutationAllowed, false);
   assert.deepEqual(
@@ -56,7 +56,7 @@ test("renders admin-only navigation without customer interface links", () => {
 
   assert.match(html, /data-role="admin"/);
   assert.match(html, /Protected admin operations/);
-  assert.match(html, /Decision assist only/);
+  assert.match(html, /Admin is read-only/);
   assert.match(html, /Alpaca account access/);
   assert.match(html, /Status: <strong>ON<\/strong>/);
   assert.match(html, /form method="post" action="\/admin\/alpaca-access"/);
@@ -74,7 +74,7 @@ test("renders admin-only navigation without customer interface links", () => {
     "Uptime &amp; Latency Monitor",
     "Error Log Stream",
     "Trading Engine &amp; Execution",
-    "Active Orders &amp; Queue",
+    "Automatic Alpaca PAPER Execution",
     "Brokerage API Status",
     "Execution Latency Panel",
     "Financial &amp; Risk Management",
@@ -91,17 +91,17 @@ test("renders admin-only navigation without customer interface links", () => {
   assert.match(html, /Recent errors:<\/strong>/);
   assert.match(html, /Exact concurrent-session counting not yet instrumented/);
   assert.match(html, /Automatic backup scheduler verification pending/);
-  assert.match(html, /Stored active:<\/strong>/);
+  assert.match(html, /ENTER:<\/strong>/);
   assert.match(html, /Last stored HTTP:<\/strong>/);
   assert.match(html, /Submit → fill:<\/strong>/);
-  assert.match(html, /Active Orders &amp; Queue[\s\S]*Open trading engine/);
+  assert.match(html, /Automatic Alpaca PAPER Execution[\s\S]*Open trading engine/);
   assert.doesNotMatch(html, /Open brokerage status/);
   assert.doesNotMatch(html, /Open latency detail/);
   assert.equal((html.match(/href="\/admin\/trading-engine"/g) || []).length, 2);
   assert.match(html, /Brokerage API Status[\s\S]*Included in Trading Engine &amp; Execution\./);
   assert.match(html, /Execution Latency Panel[\s\S]*Included in Trading Engine &amp; Execution\./);
   assert.match(html, /Turn OFF Alpaca read access/);
-  assert.match(html, /order placement, cancellation, replacement, live trading, and PAPER submission remain locked/i);
+  assert.match(html, /Automatic Alpaca PAPER execution runs independently/i);
   assert.doesNotMatch(html, /href="\/customer(?:["/])/);
   assert.doesNotMatch(html, /\/customer-zero\b/);
   assert.doesNotMatch(html, /\bDELETE\b|XMLHttpRequest|\bfetch\s*\(/);
@@ -129,4 +129,17 @@ test("dead Admin destinations stay non-clickable and valid links render as cyan 
   assert.match(html, /class="admin-action" href="\/admin\/trading-engine"/);
   assert.match(html, /class="admin-action" href="\/admin\/security"/);
   assert.match(html, /background:#00ffff|background:\s*#00ffff/);
+});
+
+
+test("automatic PAPER overview renders runtime state without execution controls", () => {
+  const html = renderAdminSurfaceHtml(buildAdminSurface({ tradingEngine: { automaticPaper: { enter:{enabled:true}, scale:{enabled:true,scaleInEnabled:true,scaleOutEnabled:true}, exit:{enabled:true,running:true}, lifecycle:{state:"MONITORING",selectedSymbol:"USAS"} } } }));
+  assert.match(html,/Automatic Alpaca PAPER Execution/);
+  assert.match(html,/ENTER:<\/strong> ARMED/);
+  assert.match(html,/SCALE:<\/strong> ARMED/);
+  assert.match(html,/EXIT:<\/strong> ARMED/);
+  assert.match(html,/MONITORING/);
+  assert.match(html,/USAS/);
+  assert.match(html,/Admin is read-only/);
+  assert.doesNotMatch(html,/submitPaperOrder|cancelOrder|replaceOrder|XMLHttpRequest|\bfetch\s*\(/);
 });

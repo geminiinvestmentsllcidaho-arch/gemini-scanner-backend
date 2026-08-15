@@ -39,7 +39,7 @@ export function buildAdminSurface(options = {}) {
       Object.freeze({ label: "Security", href: "/admin/security" }),
     ]),
     readOnly: true,
-    decisionAssistOnly: true,
+    decisionAssistOnly: false,
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
     systemHealth,
@@ -103,7 +103,7 @@ hr{border:0;border-top:1px solid #39ff14}
 <div class="card"><h3>Error Log Stream</h3><p>Recent server errors and watchdog incidents.</p><p><strong>Recent errors:</strong> ${esc(surface.systemHealth?.errors?.length ?? "Unavailable")} · <strong>Infrastructure:</strong> ${esc(surface.systemHealth?.infra ?? "Unavailable")} · <strong>Ops AI:</strong> ${esc(surface.systemHealth?.ops ?? "Unavailable")}</p><p class="muted">Included in System &amp; Infrastructure Health.</p></div>
 </div></section>
 <section class="ops-group"><h2>Trading Engine &amp; Execution</h2><div class="grid">
-<div class="card"><h3>Active Orders &amp; Queue</h3><p>Stored PAPER order evidence; not a live broker queue.</p><p><strong>Stored active:</strong> ${esc(surface.tradingEngine?.orderEvidence?.activeStoredCount ?? "Unavailable")} · <strong>Latest:</strong> ${esc(surface.tradingEngine?.orderEvidence?.latestStatus ?? "Unavailable")} · <strong>Symbol:</strong> ${esc(surface.tradingEngine?.orderEvidence?.order?.symbol ?? "Unavailable")}</p><a class="admin-action" href="/admin/trading-engine">Open trading engine</a></div>
+<div class="card"><h3>Automatic Alpaca PAPER Execution</h3><p>Read-only runtime status for continuity, ENTER, SCALE, and EXIT.</p><p><strong>ENTER:</strong> ${surface.tradingEngine?.automaticPaper?.enter?.enabled ? "ARMED" : "OFF"} · <strong>SCALE:</strong> ${surface.tradingEngine?.automaticPaper?.scale?.enabled && surface.tradingEngine?.automaticPaper?.scale?.scaleInEnabled && surface.tradingEngine?.automaticPaper?.scale?.scaleOutEnabled ? "ARMED" : "OFF"} · <strong>EXIT:</strong> ${surface.tradingEngine?.automaticPaper?.exit?.enabled && surface.tradingEngine?.automaticPaper?.exit?.running ? "ARMED" : "OFF"}</p><p><strong>Lifecycle:</strong> ${esc(surface.tradingEngine?.automaticPaper?.lifecycle?.state ?? "Unavailable")} · <strong>Symbol:</strong> ${esc(surface.tradingEngine?.automaticPaper?.lifecycle?.selectedSymbol ?? "Unavailable")}</p><a class="admin-action" href="/admin/trading-engine">Open trading engine</a></div>
 <div class="card"><h3>Brokerage API Status</h3><p>Local configuration and stored broker-read evidence only.</p><p><strong>Read access:</strong> ${surface.tradingEngine?.brokerage?.alpacaReadAccessEnabled ? "ON" : "OFF"} · <strong>Last stored HTTP:</strong> ${esc(surface.tradingEngine?.brokerage?.lastStoredResponseStatus ?? "Unavailable")}</p><p class="muted">Included in Trading Engine &amp; Execution.</p></div>
 <div class="card"><h3>Execution Latency Panel</h3><p>Stored order timestamps only.</p><p><strong>Submit → fill:</strong> ${esc(surface.tradingEngine?.execution?.submitToFillMs ?? "Unavailable")} ms · <strong>Signal → submit:</strong> Not yet instrumented</p><p class="muted">Included in Trading Engine &amp; Execution.</p></div>
 </div></section>
@@ -124,11 +124,11 @@ hr{border:0;border-top:1px solid #39ff14}
 <div class="card"><h3>Alpaca account access</h3>
 <p>Status: <strong>${esc(surface.alpacaAccess?.enabled ? "ON" : "OFF")}</strong></p>
 <p>ON allows GeminiScanner to resolve encrypted Alpaca credentials for existing read-only account, positions, open-orders, market-clock, and scanner data reads. OFF denies that encrypted credential resolution path.</p>
-<p>Broker mutation, order placement, cancellation, replacement, live trading, and PAPER submission remain locked regardless of this switch.</p>
+<p>This switch controls Admin/read-only credential resolution only. Automatic Alpaca PAPER execution runs independently under dedicated fail-closed runtime gates. Admin cannot submit, cancel, replace, retry, or mutate broker/account state. Live trading remains disabled.</p>
 <form method="post" action="/admin/alpaca-access"><input type="hidden" name="enabled" value="${surface.alpacaAccess?.enabled ? "0" : "1"}"><button type="submit">${surface.alpacaAccess?.enabled ? "Turn OFF Alpaca read access" : "Turn ON Alpaca read access"}</button></form>
 </div>
 </div></section>
-<p>Decision assist only. No automatic execution or account mutation.</p>
+<p>Admin is read-only. Automatic Alpaca PAPER execution runs independently under fail-closed runtime controls; Admin has no execution controls and live trading remains disabled.</p>
 </main>
 </body>
 </html>`;
