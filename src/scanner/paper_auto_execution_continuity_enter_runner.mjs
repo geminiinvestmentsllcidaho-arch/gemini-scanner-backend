@@ -8,6 +8,7 @@ import { createPaperAutoExecutionAlpacaPaperAdapter } from './paper_auto_executi
 import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './internal_owner_alpaca_readonly_credentials.mjs'
+import { calculateAutomaticPositionSize } from './automatic_position_sizing_policy.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -44,6 +45,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastLifecycle = null
   let lastSubmission = null
   let lastReconciliation = null
+  let lastSizing = null
 
   const diagnostics = () => Object.freeze({
     ok: true,
@@ -58,6 +60,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastLifecycle,
     lastSubmission,
     lastReconciliation,
+    lastSizing,
     safety: Object.freeze({
       paperOnly: true,
       disabledByDefault: true,
@@ -138,9 +141,15 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (!Number.isFinite(observedAtMs) || !Number.isFinite(accountAgeMs) || accountAgeMs < 0 || accountAgeMs > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
       if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) return fail('PAPER_ACCOUNT_BLOCKED', lifecycle)
       const candidatePrice = Number(revalidatedCandidate?.price)
-      if (!Number.isFinite(candidatePrice) || candidatePrice <= 0) return fail('CANDIDATE_PRICE_REQUIRED_FOR_AFFORDABILITY', lifecycle)
-      const buyingPower = Number(account?.account?.buyingPower)
-      if (!Number.isFinite(buyingPower) || buyingPower < candidatePrice) return fail('INSUFFICIENT_PAPER_BUYING_POWER_FOR_ONE_SHARE', lifecycle)
+      const candidateScore = Number(revalidatedCandidate?.score ?? revalidatedCandidate?.readonlyPotentialScore)
+      lastSizing = calculateAutomaticPositionSize({
+        accountEquity: account?.account?.equity,
+        buyingPower: account?.account?.buyingPower,
+        candidatePrice,
+        candidateScore,
+      })
+      if (lastSizing?.ok !== true) return fail(`POSITION_SIZING_${lastSizing?.status ?? 'FAILED'}`, lifecycle)
+      const enterQuantity = lastSizing.quantity
       const symbol = upper(lifecycle.selectedSymbol)
       const openPositions = (account?.positions ?? []).filter(p => Number(p?.qty ?? p?.quantity) > 0)
       if (openPositions.length > 0) {
@@ -168,7 +177,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       lastSubmission = await submit({
         lifecycleStore: store,
         phase: 'enter',
-        quantity: 1,
+        quantity: enterQuantity,
         submitPaperOrder: adapter.submitPaperOrder,
         env: {
           ...effectiveEnv,

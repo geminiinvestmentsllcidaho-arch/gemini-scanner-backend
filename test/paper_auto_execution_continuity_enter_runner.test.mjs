@@ -249,18 +249,19 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
-        positions: submitted ? [{ symbol: 'ABC', qty: 1, averageEntryPrice: 10 }] : [],
+        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        positions: submitted ? [{ symbol: 'ABC', qty: 10, averageEntryPrice: 10 }] : [],
         openOrders: [],
       }),
       fetchHistoricalOrders: async () => ({
-        historicalOrders: submitted ? [{ id: 'order-1', client_order_id: store.load()?.enterClientOrderId, symbol: 'ABC', side: 'buy', status: 'filled', filled_qty: '1', filled_avg_price: '10' }] : [],
+        historicalOrders: submitted ? [{ id: 'order-1', client_order_id: store.load()?.enterClientOrderId, symbol: 'ABC', side: 'buy', status: 'filled', filled_qty: '10', filled_avg_price: '10' }] : [],
       }),
       createAdapter: () => ({
         submitPaperOrder: async order => {
           submitted += 1
           assert.equal(order.symbol, 'ABC')
           assert.equal(order.side, 'buy')
+          assert.equal(order.qty, 10)
           assert.equal(order.paperOnly, true)
           return { ok: true, orderSubmitted: true, brokerOrderId: 'order-1', orderId: 'order-1', clientOrderId: order.clientOrderId }
         },
@@ -270,8 +271,11 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
     assert.equal(submitted, 1)
     assert.equal(out.lastStatus, 'CONTINUITY_ENTER_MONITORING_CONFIRMED')
     assert.equal(out.lastLifecycle.state, 'MONITORING')
-    assert.equal(out.lastLifecycle.filledQuantity, 1)
-    assert.equal(out.lastLifecycle.brokerPositionIdentity, 'ABC:1')
+    assert.equal(out.lastLifecycle.filledQuantity, 10)
+    assert.equal(out.lastLifecycle.brokerPositionIdentity, 'ABC:10')
+    assert.equal(out.lastSizing.allocationPercent, 10)
+    assert.equal(out.lastSizing.quantity, 10)
+    assert.equal(out.lastSizing.requiredBuyingPower, 100)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
@@ -292,7 +296,7 @@ test('future PAPER account snapshot fails closed before submission', async () =>
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', observedAt: new Date(now + 1).toISOString(),
-        account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 }, positions: [], openOrders: [],
+        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 }, positions: [], openOrders: [],
       }),
       createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
     })
@@ -322,13 +326,13 @@ test('missing or invalid candidate price fails closed before submission', async 
         fetchClock: clockOpen,
         fetchAccount: async () => ({
           ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(),
-          account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
+          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
           positions: [], openOrders: [],
         }),
         createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
       })
       const out = await runner.runOnce()
-      assert.equal(out.lastStatus, 'CANDIDATE_PRICE_REQUIRED_FOR_AFFORDABILITY')
+      assert.equal(out.lastStatus, 'POSITION_SIZING_CANDIDATE_PRICE_REQUIRED')
       assert.equal(submitted, 0)
       assert.equal(out.submissions, 0)
       assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
@@ -336,8 +340,8 @@ test('missing or invalid candidate price fails closed before submission', async 
   }
 })
 
-test('missing or insufficient PAPER buying power fails closed before one-share submission', async () => {
-  for (const buyingPower of [undefined, null, 9.99]) {
+test('missing or insufficient PAPER buying power fails closed before percentage-sized submission', async () => {
+  for (const buyingPower of [undefined, null, 99.99]) {
     const dir = tmp()
     try {
       const file = path.join(dir, 'life.json')
@@ -353,13 +357,13 @@ test('missing or insufficient PAPER buying power fails closed before one-share s
         fetchClock: clockOpen,
         fetchAccount: async () => ({
           ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(),
-          account: { tradingBlocked: false, accountBlocked: false, buyingPower },
+          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower },
           positions: [], openOrders: [],
         }),
         createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
       })
       const out = await runner.runOnce()
-      assert.equal(out.lastStatus, 'INSUFFICIENT_PAPER_BUYING_POWER_FOR_ONE_SHARE')
+      assert.equal(out.lastStatus, 'POSITION_SIZING_INSUFFICIENT_BUYING_POWER_FOR_ALLOCATION')
       assert.equal(submitted, 0)
       assert.equal(out.submissions, 0)
       assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
@@ -367,7 +371,7 @@ test('missing or insufficient PAPER buying power fails closed before one-share s
   }
 })
 
-test('PAPER buying power equal to the one-share candidate reference price passes affordability guard', async () => {
+test('PAPER buying power equal to percentage-sized required capital passes affordability guard', async () => {
   const dir = tmp()
   try {
     const file = path.join(dir, 'life.json')
@@ -384,7 +388,7 @@ test('PAPER buying power equal to the one-share candidate reference price passes
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(),
-        account: { tradingBlocked: false, accountBlocked: false, buyingPower: 10 },
+        account: { tradingBlocked: false, accountBlocked: false, equity: 100, buyingPower: 10 },
         positions: submitted ? [{ symbol: 'BOUND', qty: 1, averageEntryPrice: 10 }] : [],
         openOrders: [],
       }),
@@ -401,7 +405,7 @@ test('PAPER buying power equal to the one-share candidate reference price passes
     const out = await runner.runOnce()
     assert.equal(submitted, 1)
     assert.notEqual(out.lastStatus, 'CANDIDATE_PRICE_REQUIRED_FOR_AFFORDABILITY')
-    assert.notEqual(out.lastStatus, 'INSUFFICIENT_PAPER_BUYING_POWER_FOR_ONE_SHARE')
+    assert.notEqual(out.lastStatus, 'POSITION_SIZING_INSUFFICIENT_BUYING_POWER_FOR_ALLOCATION')
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
@@ -422,7 +426,7 @@ test('existing position or open-order conflict fails closed before submission', 
         fetchClock: clockOpen,
         fetchAccount: async () => ({
           ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-          account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
+          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
           positions: conflict === 'position' ? [{ symbol: 'XYZ', qty: 1 }] : [],
           openOrders: conflict === 'order' ? [{ symbol: 'XYZ', side: 'buy' }] : [],
         }),
@@ -452,7 +456,7 @@ test('different-symbol open PAPER order blocks continuity ENTER under global sin
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
+        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: [],
         openOrders: [{ symbol: 'USAS', side: 'sell' }],
       }),
@@ -482,7 +486,7 @@ test('different-symbol existing PAPER position blocks continuity ENTER under glo
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
+        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: [{ symbol: 'USAS', qty: 1 }],
         openOrders: [],
       }),
@@ -512,11 +516,11 @@ test('concurrent enter cycles deduplicate to one submission', async () => {
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
+        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: submitted ? [{ symbol: 'ONE', qty: 1, averageEntryPrice: 5 }] : [],
         openOrders: [],
       }),
-      fetchHistoricalOrders: async () => ({ historicalOrders: submitted ? [{ id: 'o1', client_order_id: new PaperAutoExecutionLifecycleStore({ filePath: file }).load()?.enterClientOrderId, symbol: 'ONE', side: 'buy', status: 'filled', filled_qty: '1', filled_avg_price: '5' }] : [] }),
+      fetchHistoricalOrders: async () => ({ historicalOrders: submitted ? [{ id: 'o1', client_order_id: new PaperAutoExecutionLifecycleStore({ filePath: file }).load()?.enterClientOrderId, symbol: 'ONE', side: 'buy', status: 'filled', filled_qty: '10', filled_avg_price: '5' }] : [] }),
       createAdapter: () => ({ submitPaperOrder: async order => { submitted += 1; await new Promise(r => setTimeout(r, 10)); return { ok: true, orderSubmitted: true, brokerOrderId: 'o1', orderId: 'o1', clientOrderId: order.clientOrderId } } }),
     })
     const [a, b] = await Promise.all([runner.runOnce(), runner.runOnce()])
@@ -552,7 +556,7 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
           mode: 'PAPER_ONLY',
           observedAt: new Date(now).toISOString(),
           runtime: { readOnly: true, allowedMethods: ['GET'] },
-          account: { tradingBlocked: false, accountBlocked: false, buyingPower: 1000 },
+          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
           positions: [{ symbol: 'RST', qty: 1, averageEntryPrice: 7.5 }],
           openOrders: [],
         }),
@@ -563,7 +567,7 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
             symbol: 'RST',
             side: 'buy',
             status: 'filled',
-            filled_qty: '1',
+            filled_qty: '10',
             filled_avg_price: '7.5',
           }],
         }),

@@ -41,8 +41,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
   if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_LIFECYCLE_CREATION';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
   const id=idFactory(), file=path.join(runsDir,`paper_auto_execution_${id}.json`);if(fs.existsSync(file)){lastStatus='LIFECYCLE_FILE_COLLISION';return diagnostics()}
   const life=storeFactory(file).create({selectedSymbol:upper(candidate.symbol),scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:snapshot?.observedAt??null,symbol:upper(candidate.symbol),state:upper(candidate.state??candidate.resultState??candidate.decision),score:Number.isFinite(Number(candidate.score??candidate.readonlyPotentialScore))?Number(candidate.score??candidate.readonlyPotentialScore):null,previousLifecycleFile:activeFile||null,previousLifecycleId:active?.lifecycleId??null,previousLifecycleState:active?.state??null,paperOnly:true}})
-  const enterIdentity=buildPaperAutoOrderIdentity({lifecycleId:life.lifecycleId,phase:'enter',symbol:life.selectedSymbol,quantity:1,side:'buy'})
-  pendingLifecycleFile=file;lastLifecycleFile=file;lastLifecycle=Object.freeze({...life,enterIdentity})
+  pendingLifecycleFile=file;lastLifecycleFile=file;lastLifecycle=Object.freeze({...life,enterIdentity:null,enterIdentityDeferredForAccountSizing:true})
   if(typeof setActiveLifecycleFile==='function')await setActiveLifecycleFile(file,life)
   pendingLifecycleFile=null
   lastStatus='FRESH_CANDIDATE_LIFECYCLE_CREATED';return diagnostics()}
