@@ -67,6 +67,7 @@ export function buildCustomerPortfolioPage(options = {}) {
     connectedPositions: Array.isArray(options.connectedPositions) ? options.connectedPositions : [],
     brokerConnected: options.brokerConnected === true,
     windDown: options.windDown ?? { status: "inactive", steps: [] },
+    automaticPaper: options.automaticPaper ?? null,
     saved: options.saved === true,
     windDownUpdated: options.windDownUpdated === true,
   });
@@ -87,6 +88,13 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
     .filter((position) => !connectedSymbols.has(String(position?.symbol ?? "").toUpperCase()));
   const manualRows = [...ownedAssets, {}];
   const windDown = page.windDown ?? {};
+  const automaticPaper = page.automaticPaper ?? null;
+  const automaticPaperEnterArmed = automaticPaper?.enter?.enabled === true;
+  const automaticPaperScaleArmed = automaticPaper?.scale?.enabled === true
+    && automaticPaper?.scale?.scaleInEnabled === true
+    && automaticPaper?.scale?.scaleOutEnabled === true;
+  const automaticPaperExitArmed = automaticPaper?.exit?.enabled === true
+    && automaticPaper?.exit?.running === true;
   const connectedRows = connectedPositions.length
     ? connectedPositions.map((position) => `<tr><td><strong>${esc(position.symbol)}</strong></td><td>${esc(amount(position.qty, locale))}</td><td>${esc(money(position.averageEntryPrice, locale))}</td><td>${esc(money(position.currentPrice, locale))}</td><td><span class="source-badge">Synced from Alpaca</span><form method="post" action="/customer/portfolio/manual-exit" style="margin-top:8px"><input type="hidden" name="symbol" value="${esc(position.symbol)}"><input type="hidden" name="quantity" value="${esc(position.qty)}"><input type="hidden" name="paperOnly" value="true"><button type="submit" class="danger-button">EXIT PAPER POSITION</button></form></td></tr>`).join("")
     : '<tr><td colspan="5">No positions are currently available from a connected paper account.</td></tr>';
@@ -237,7 +245,7 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 </section>
 <section class="card panel">
 <h2>Trading limits</h2>
-<p>Read-only, paper-only decision assistance. No live trading, order placement, broker contact, or account mutation controls are available.</p>
+<p>Portfolio analytics and automatic-runtime status are read-only. Live trading remains disabled. The separate exact-position <strong>EXIT PAPER POSITION</strong> control can submit an authenticated Alpaca PAPER exit only after GeminiScanner verifies one exact MONITORING lifecycle, symbol, quantity, and broker-position identity.</p>
 </section>
 </div>
 
@@ -245,7 +253,7 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 <h2>Connected account positions</h2>
 <p>${page.brokerConnected ? "Automatically synchronized from Alpaca." : "Connect a supported paper account to synchronize positions automatically."}</p>
 <div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Quantity</th><th>Average purchase price</th><th>Current price</th><th>Source / Mechanical test</th></tr></thead><tbody>${connectedRows}</tbody></table></div>
-<p class="helper">Broker-synced positions are read-only here and refresh from the connected account. GeminiScanner does not place orders or modify the account.</p>
+<p class="helper">Broker-synced position data refreshes from Alpaca. Automatic Alpaca PAPER ENTER/SCALE/EXIT runs independently under dedicated fail-closed runtime gates, and the explicit EXIT PAPER POSITION control can request an exact-position PAPER exit for a verified MONITORING lifecycle. Live trading is disabled.</p>
 </section>
 
 <section class="card panel">
@@ -253,7 +261,7 @@ ${metric("Top loser", summary.topLoser?.symbol ?? "No data yet")}
 <h3>Other positions</h3>
 <p>Add positions manually when they are not available from a connected paper account.</p>
 <p>Add positions held in another account or broker manually.</p>
-<p>GeminiScanner uses this information only for monitoring, performance calculations, and ENTER/EXIT review suggestions. It will not place orders or change your brokerage account.</p>
+<p>Manually added positions are local monitoring inputs only. They are not automatically submitted to Alpaca and do not create broker positions or orders. Automatic Alpaca PAPER execution applies only through its separate verified lifecycle and broker-state contracts.</p>
 ${page.saved ? '<p class="notice"><strong>Manual positions saved.</strong></p>' : ''}
 <form method="post" action="/customer/portfolio/owned-assets" id="owned-position-form">
 <div id="owned-position-rows">${manualInputRows}</div>
@@ -269,13 +277,31 @@ ${page.saved ? '<p class="notice"><strong>Manual positions saved.</strong></p>' 
 <h2>Portfolio wind-down</h2>
 <p>Use portfolio wind-down when you want to stop reviewing new purchases and focus on reducing existing paper positions.</p>
 ${page.windDownUpdated ? '<p class="notice"><strong>Wind-down preference updated.</strong></p>' : ''}
-<div class="wind-summary"><p><strong>Status:</strong> ${esc(windDown.exitAllRequested ? "ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED" : "Inactive — new-buy reviews remain available")}</p><p>${windDown.exitAllRequested ? "Full EXIT alerts and qualified partial profit-protection reviews remain available. No sale occurs automatically." : "Activating wind-down blocks new-buy and add-on reviews, while keeping full EXIT alerts and qualified partial profit-protection reviews available."}</p></div>
+<div class="wind-summary"><p><strong>Status:</strong> ${esc(windDown.exitAllRequested ? "ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED" : "Inactive — new-buy reviews remain available")}</p><p>${windDown.exitAllRequested ? "Wind-down blocks new-buy and add-on review eligibility while preserving qualified EXIT and partial profit-protection evaluation. Automatic Alpaca PAPER execution remains governed by its independent lifecycle, strategy, freshness, identity, and submission safeguards." : "Activating wind-down blocks new-buy and add-on reviews while preserving qualified EXIT and partial profit-protection evaluation. It does not itself submit an order."}</p></div>
 ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 <form method="post" action="/customer/portfolio/wind-down">
 <input type="hidden" name="action" value="${windDown.exitAllRequested ? "resume" : "exit_all"}">
 <p class="wind-actions"><button class="${windDown.exitAllRequested ? "safe-button" : "danger-button"}" type="submit">${windDown.exitAllRequested ? "End wind-down and resume new-buy reviews" : "Start portfolio wind-down"}</button></p>
 </form>
-<p>Paper-only and review-only. GeminiScanner will not contact a broker, place an order, or modify an account.</p>
+<p>This wind-down preference changes review eligibility only; the preference update itself does not contact Alpaca or submit an order. Any automatic PAPER execution remains subject to the independent fail-closed execution runtime. Live trading is disabled.</p>
+</section>
+
+<section class="card panel" data-automatic-paper-runtime>
+<h2>Automatic Alpaca PAPER execution</h2>
+<p>Read-only status from the running GeminiScanner automation. Viewing this Portfolio page does not invoke a runner or submit an order.</p>
+<div class="grid">
+${metric("Continuity", automaticPaper?.continuity?.enabled ? "ARMED" : "OFF")}
+${metric("ENTER", automaticPaperEnterArmed ? "ARMED" : "OFF")}
+${metric("SCALE", automaticPaperScaleArmed ? "ARMED" : "OFF")}
+${metric("EXIT", automaticPaperExitArmed ? "ARMED" : "OFF")}
+${metric("Lifecycle", automaticPaper?.lifecycle?.state ?? "Unavailable")}
+${metric("Symbol", automaticPaper?.lifecycle?.selectedSymbol ?? "Unavailable")}
+${metric("Quantity", automaticPaper?.lifecycle?.filledQuantity ?? "Unavailable")}
+${metric("Last ENTER", automaticPaper?.enter?.lastStatus ?? "Unavailable")}
+${metric("Last SCALE", automaticPaper?.scale?.lastStatus ?? "Unavailable")}
+${metric("Last EXIT", automaticPaper?.exit?.lastStatus ?? "Unavailable")}
+</div>
+<p>Automatic execution is PAPER-only and fail-closed. Live trading is disabled. Portfolio observability does not bypass freshness, buying-power, position-sizing, duplicate/in-flight, lifecycle-identity, reconciliation, or EXIT protections.</p>
 </section>
 
 <section class="card panel">

@@ -61,7 +61,9 @@ test("renders customer portfolio page with friendly labels and safety locks", ()
   assert.match(html, /AAA/);
   assert.match(html, /\$1,200/);
   assert.match(html, /One position represents at least 25%/);
-  assert.match(html, /No live trading, order placement/);
+  assert.match(html, /Portfolio analytics and automatic-runtime status are read-only/);
+  assert.match(html, /EXIT PAPER POSITION/);
+  assert.match(html, /Live trading remains disabled/);
   assert.doesNotMatch(
     html,
     /current_readonly|stale_readonly|PORTFOLIO_CONCENTRATION_HIGH/,
@@ -141,7 +143,8 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.match(html, /<h3>Other positions<\/h3>/);
   assert.match(html, /Add positions manually when they are not available from a connected paper account\./);
   assert.match(html, /Add positions held in another account or broker manually\./);
-  assert.match(html, /GeminiScanner uses this information only for monitoring, performance calculations, and ENTER\/EXIT review suggestions\. It will not place orders or change your brokerage account\./);
+  assert.match(html, /Manually added positions are local monitoring inputs only/);
+  assert.match(html, /They are not automatically submitted to Alpaca/);
   assert.match(html, /Added manually/);
   assert.match(html, /name="symbol" value="AAPL"/);
   assert.match(html, /name="qty" value="10"/);
@@ -155,7 +158,8 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.doesNotMatch(html, /<textarea\b/i);
   assert.match(html, /ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED/);
   assert.match(html, /review a partial sale of 2 out of 10/);
-  assert.match(html, /will not contact a broker, place an order, or modify an account/);
+  assert.match(html, /This wind-down preference changes review eligibility only/);
+  assert.match(html, /preference update itself does not contact Alpaca or submit an order/);
 });
 
 test("renders broker-confirmed positions with executable exact-position PAPER EXIT form", () => {
@@ -235,4 +239,31 @@ test("renders a fail-closed Lifetime Earnings state when performance is unavaila
   assert.match(html, /Lifetime Earnings/);
   assert.match(html, /No data yet/);
   assert.match(html, /Lifetime performance data is not available yet/);
+});
+
+
+test("renders read-only automatic Alpaca PAPER runtime and lifecycle observability", () => {
+  const html = renderCustomerPortfolioPageHtml(buildCustomerPortfolioPage({
+    model: { account: {}, summary: {}, positions: [], warnings: [] },
+    connectedPositions: [{ symbol: "USAS", qty: 3, averageEntryPrice: 2.1, currentPrice: 2.2 }],
+    brokerConnected: true,
+    automaticPaper: {
+      continuity: { enabled: true, lastStatus: "ACTIVE_CANDIDATE_REVALIDATED" },
+      enter: { enabled: true, lastStatus: "CONTINUITY_ENTER_NOT_REQUIRED" },
+      scale: { enabled: true, scaleInEnabled: true, scaleOutEnabled: true, lastStatus: "NO_SCALE_ACTION" },
+      exit: { enabled: true, running: true, lastStatus: "MONITORING" },
+      lifecycle: { state: "MONITORING", selectedSymbol: "USAS", filledQuantity: 3 },
+      safety: { paperOnly: true, liveTradingAllowed: false },
+    },
+  }));
+  assert.match(html, /Automatic Alpaca PAPER execution/);
+  assert.match(html, /Viewing this Portfolio page does not invoke a runner or submit an order/);
+  assert.match(html, /Continuity/);
+  assert.match(html, /ENTER/);
+  assert.match(html, /SCALE/);
+  assert.match(html, /EXIT/);
+  assert.match(html, /MONITORING/);
+  assert.match(html, /USAS/);
+  assert.match(html, /Automatic execution is PAPER-only and fail-closed/);
+  assert.match(html, /Live trading is disabled/);
 });

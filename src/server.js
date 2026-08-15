@@ -3324,6 +3324,14 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       defaultPeriod: 'lifetime',
       now,
     })).performanceReport;
+    const automaticPaper = {
+      continuity: paperAutoExecutionContinuityRuntime.diagnostics(),
+      enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
+      scale: paperAutoExecutionScaleRunner.diagnostics(),
+      exit: paperAutoExitMonitorWorker.diagnostics(),
+      lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
+      safety: { paperOnly: true, liveTradingAllowed: false },
+    };
     const page = portfolioPageMod.buildCustomerPortfolioPage({
       model,
       account: req.customerAccount,
@@ -3332,6 +3340,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       connectedPositions: brokerPaperAccount.positions,
       brokerConnected: brokerPaperAccount.connected === true,
       windDown,
+      automaticPaper,
       saved: req.query?.saved === "1",
       windDownUpdated: req.query?.windDown === "1",
     });
