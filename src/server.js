@@ -1993,6 +1993,43 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   res.type('html').send(mod.renderAdminSurfaceHtml(surface));
 });
 
+
+app.get('/admin/customer-intelligence', requireAdminAuthorization, async (_req, res) => {
+  const [adminMod, freshnessMod] = await Promise.all([
+    import('./scanner/admin_customer_intelligence.mjs'),
+    import('./scanner/customer_scanner_freshness_diagnostic.mjs'),
+  ]);
+  const underFiveCache = await underFiveSharedCachePromise;
+  const rawSource = underFiveCache?.getLatest?.() ?? null;
+  const cacheDiagnostics = underFiveCache?.getDiagnostics?.() ?? null;
+  const rankingRoot = rawSource ? readUnderFiveLiveRankings(rawSource) : {};
+  const scannerSource = rawSource
+    ? bridgeCustomerZeroFreshRankings(rawSource, rankingRoot, getStreamTelemetry())
+    : {
+        status: 'unavailable',
+        sourceStatus: 'unavailable',
+        candidates: [],
+        candidateCount: 0,
+        runtimeHealth: { degraded: true, issues: ['UNDER_FIVE_SHARED_CACHE_UNAVAILABLE'], readOnly: true, executionAllowed: false },
+        rankingBridge: { connected: false, stale: true, issues: ['UNDER_FIVE_SHARED_CACHE_UNAVAILABLE'], readOnly: true, executionAllowed: false },
+      };
+  const scannerFreshness = freshnessMod.buildCustomerScannerFreshnessDiagnostic({
+    cacheDiagnostics,
+    rankingRoot,
+    streamTelemetry: getStreamTelemetry(),
+  });
+  const premarketCache = await premarketSharedCachePromise;
+  const premarket = premarketCache?.getDiagnostics?.() ?? null;
+  const model = adminMod.buildAdminCustomerIntelligence({
+    scannerSource,
+    scannerFreshness,
+    premarket,
+    performance: null,
+  });
+  res.set('Cache-Control', 'no-store');
+  return res.status(200).type('html').send(adminMod.renderAdminCustomerIntelligence(model));
+});
+
 app.get('/admin/system-health', requireAdminAuthorization, async (_req, res) => { const m = await import('./scanner/admin_system_health.mjs'); const x = await m.collectAdminSystemHealth(); res.set('Cache-Control','no-store'); return res.status(200).type('html').send(m.renderAdminSystemHealth(x)); });
 
 app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) => {

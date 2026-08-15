@@ -31,6 +31,7 @@ test("builds isolated read-only admin surface", () => {
       "/admin",
       "/admin/system-health",
       "/admin/trading-engine",
+      "/admin/customer-intelligence",
       "/admin/security",
     ]
   );
@@ -131,6 +132,15 @@ test("dead Admin destinations stay non-clickable and valid links render as cyan 
   assert.match(html, /background:#00ffff|background:\s*#00ffff/);
 });
 
+
+test("Admin overview links to protected customer intelligence without adding execution controls", () => {
+  const html = renderAdminSurfaceHtml(buildAdminSurface({}));
+  assert.match(html, /Customer Intelligence/);
+  assert.match(html, /class="admin-action" href="\/admin\/customer-intelligence"/);
+  assert.match(html, /Open customer intelligence/);
+  assert.match(html, /No broker contact, cache refresh, runner invocation, or execution controls/);
+  assert.doesNotMatch(html, /submitPaperOrder|cancelOrder|replaceOrder|XMLHttpRequest|\bfetch\s*\(/);
+});
 
 test("automatic PAPER overview renders runtime state without execution controls", () => {
   const html = renderAdminSurfaceHtml(buildAdminSurface({ tradingEngine: { automaticPaper: { enter:{enabled:true}, scale:{enabled:true,scaleInEnabled:true,scaleOutEnabled:true}, exit:{enabled:true,running:true}, lifecycle:{state:"MONITORING",selectedSymbol:"USAS"} } } }));

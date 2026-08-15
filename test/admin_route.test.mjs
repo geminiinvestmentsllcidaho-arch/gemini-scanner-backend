@@ -53,3 +53,27 @@ test("admin overview and trading-engine routes consume diagnostics only", () => 
     assert.doesNotMatch(block,/\.runOnce\(|submitPaperOrder|cancelOrder|replaceOrder|\/v2\/orders/);
   }
 });
+
+test("server protects Admin customer-intelligence route and keeps it non-executing", () => {
+  const server = fs.readFileSync("src/server.js", "utf8");
+  const start = server.indexOf("app.get('/admin/customer-intelligence'");
+  assert.notEqual(start, -1);
+  const end = server.indexOf("\n});", start);
+  const route = server.slice(start, end + 4);
+
+  assert.match(route, /requireAdminAuthorization/);
+  assert.match(route, /admin_customer_intelligence\.mjs/);
+  assert.match(route, /customer_scanner_freshness_diagnostic\.mjs/);
+  assert.match(route, /underFiveSharedCachePromise/);
+  assert.match(route, /\.getLatest\?\.\(\)/);
+  assert.match(route, /\.getDiagnostics\?\.\(\)/);
+  assert.match(route, /bridgeCustomerZeroFreshRankings/);
+  assert.match(route, /readUnderFiveLiveRankings/);
+  assert.match(route, /getStreamTelemetry/);
+  assert.match(route, /premarketSharedCachePromise/);
+  assert.match(route, /buildAdminCustomerIntelligence/);
+  assert.match(route, /renderAdminCustomerIntelligence/);
+  assert.match(route, /Cache-Control', 'no-store/);
+  assert.doesNotMatch(route, /refreshNow|getUnderFiveSharedSource|getPremarketSharedSource|fetchCustomerBrokerPerformanceEvidence|buildCustomerBrokerPerformanceReport/);
+  assert.doesNotMatch(route, /\.runOnce\(|submitPaperOrder|cancelOrder|replaceOrder|\/v2\/orders|PAPER_AUTO_/);
+});

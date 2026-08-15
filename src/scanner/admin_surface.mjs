@@ -36,6 +36,7 @@ export function buildAdminSurface(options = {}) {
       Object.freeze({ label: "Overview", href: "/admin" }),
       Object.freeze({ label: "System Health", href: "/admin/system-health" }),
       Object.freeze({ label: "Trading Engine", href: "/admin/trading-engine" }),
+      Object.freeze({ label: "Customer Intelligence", href: "/admin/customer-intelligence" }),
       Object.freeze({ label: "Security", href: "/admin/security" }),
     ]),
     readOnly: true,
@@ -120,7 +121,7 @@ hr{border:0;border-top:1px solid #39ff14}
 <section class="ops-group"><h2>Administration</h2><div class="grid">
 <div class="card"><h3>Scanners</h3><p>Scanner status and operational review.</p><p><strong>Status:</strong> Dedicated Admin scanner page not yet built.</p></div>
 <div class="card"><h3>Shared Cache</h3><p>Centralized under-$5 shared cache diagnostics.</p><p><strong>Status:</strong> Dedicated Admin shared-cache page not yet built.</p></div>
-<div class="card"><h3>Customers</h3><p>Customer and tenant administration shell.</p><p><strong>Status:</strong> Dedicated Admin customer page not yet built.</p></div>
+<div class="card"><h3>Customer Intelligence</h3><p>Read-only operator view of customer-facing scanner intelligence, freshness, premarket state, and performance evidence.</p><p><strong>Status:</strong> Protected Admin observability only. No broker contact, cache refresh, runner invocation, or execution controls.</p><a class="admin-action" href="/admin/customer-intelligence">Open customer intelligence</a></div>
 <div class="card"><h3>Alpaca account access</h3>
 <p>Status: <strong>${esc(surface.alpacaAccess?.enabled ? "ON" : "OFF")}</strong></p>
 <p>ON allows GeminiScanner to resolve encrypted Alpaca credentials for existing read-only account, positions, open-orders, market-clock, and scanner data reads. OFF denies that encrypted credential resolution path.</p>
