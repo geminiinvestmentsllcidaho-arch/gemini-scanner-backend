@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import {
   resolveInternalOwnerAlpacaReadonlyCredentials,
 } from "./internal_owner_alpaca_readonly_credentials.mjs";
@@ -41,7 +42,12 @@ export function buildAlpacaPaperReadonlyRuntime(env = process.env) {
 }
 
 function account(raw = {}) {
+  const identitySource = s(raw.id) || s(raw.account_number);
+  const accountIdentity = identitySource
+    ? `alpaca-paper:${crypto.createHash("sha256").update(identitySource).digest("hex").slice(0, 24)}`
+    : null;
   return {
+    accountIdentity,
     cash: n(raw.cash), buyingPower: n(raw.buying_power), equity: n(raw.equity),
     portfolioValue: n(raw.portfolio_value), currency: s(raw.currency, "USD"),
     accountStatus: s(raw.status, "unknown"), patternDayTrader: Boolean(raw.pattern_day_trader),
@@ -113,7 +119,7 @@ export async function fetchAlpacaPaperAccountReadonly({
     if (resolved?.readyForReadonlyBrokerRead === true) {
       effectiveEnv = { ...env, ...resolved.env };
       credentialSource = "encrypted_tenant_store";
-    } else if (resolved?.accessSwitchEnabled === false) {
+    } else {
       effectiveEnv = {
         ...env,
         ALPACA_KEY: "",
@@ -124,8 +130,14 @@ export async function fetchAlpacaPaperAccountReadonly({
         ALPACA_SECRET_KEY: "",
         APCA_API_KEY_ID: "",
         APCA_API_SECRET_KEY: "",
+        ALPACA_PAPER_API_KEY: "",
+        ALPACA_PAPER_API_SECRET: "",
+        ALPACA_API_KEY: "",
+        ALPACA_API_SECRET: "",
       };
-      credentialSource = "master_access_switch_off";
+      credentialSource = resolved?.accessSwitchEnabled === false
+        ? "master_access_switch_off"
+        : "encrypted_tenant_store_unavailable";
     }
   }
 

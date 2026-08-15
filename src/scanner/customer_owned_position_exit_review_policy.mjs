@@ -1,4 +1,4 @@
-export const VERSION = "customer_owned_position_exit_review_policy_v1";
+export const VERSION = "customer_owned_position_exit_review_policy_v2";
 
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
 const list = (value) => Array.isArray(value) ? value : [];
@@ -32,6 +32,16 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
     && negativeMomentum
     && score !== null
     && score < 70;
+  const severeMultiShareProfitProtection =
+    quantity !== null
+    && quantity >= 2
+    && returnPct !== null
+    && returnPct >= 2
+    && changePct !== null
+    && changePct <= -1
+    && negativeMomentum
+    && score !== null
+    && score < 50;
 
   let exitReview = false;
   let reason = null;
@@ -52,6 +62,9 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
     } else if (singleShareProfitProtection) {
       exitReview = true;
       reason = "OWNED_POSITION_SINGLE_SHARE_PROFIT_PROTECTION_EXIT";
+    } else if (severeMultiShareProfitProtection) {
+      exitReview = true;
+      reason = "OWNED_POSITION_MULTI_SHARE_PROFIT_PROTECTION_EXIT";
     }
   }
 

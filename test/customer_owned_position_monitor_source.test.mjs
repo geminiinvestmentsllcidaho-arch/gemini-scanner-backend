@@ -136,6 +136,7 @@ test("applies the owned-position EXIT review policy before routing", async () =>
 test("applies production-shaped scale-in review policy before routing", async () => {
   const result = await fetchCustomerOwnedPositionMonitorSource({
     paperAccount: {
+      account: { equity: 10000, buyingPower: 10000 },
       positions: [{
         symbol: "GAIN", qty: 2, averageEntryPrice: 100,
         currentPrice: 102, unrealizedPlpc: 0.02,
@@ -164,6 +165,8 @@ test("applies production-shaped scale-in review policy before routing", async ()
   assert.equal(candidate.decision, "ENTER");
   assert.equal(candidate.ownedScaleInReviewTriggered, true);
   assert.equal(candidate.ownedScaleInReviewReason, "OWNED_POSITION_CONFIRMED_STRENGTH_REVIEW");
+  assert.equal(candidate.ownedScaleInTargetAllocation?.ok, true);
+  assert.ok(candidate.ownedScaleInAdditionalQuantity > 0);
   assert.equal(candidate.ownedReturnPct, 2);
   assert.equal(candidate.automaticScaleInAllowed, false);
   assert.equal(candidate.brokerContactAllowed, false);
@@ -173,13 +176,15 @@ test("applies production-shaped scale-in review policy before routing", async ()
 
 test("applies production-shaped scale-out review policy before routing", async () => {
   const result = await fetchCustomerOwnedPositionMonitorSource({
-    paperAccount:{positions:[{symbol:"WIN",qty:8,averageEntryPrice:100,currentPrice:103,unrealizedPlpc:0.03}]},
+    paperAccount:{account:{equity:10000,buyingPower:10000},positions:[{symbol:"WIN",qty:8,averageEntryPrice:100,currentPrice:103,unrealizedPlpc:0.03}]},
     fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{symbol:"WIN",price:103,changePct:-0.4,sourceStale:false,sourceAgeSec:15,maxSourceAgeSec:120,readonlyPotentialScore:62,readonlyPotentialFlags:["negative_momentum"],resultState:"WATCH",decision:"WATCH"}]}),
   });
   const candidate=result.candidates[0];
   assert.equal(candidate.ownedScaleOutReviewTriggered,true);
   assert.equal(candidate.ownedScaleOutReviewReason,"OWNED_POSITION_PROFIT_PROTECTION_REVIEW");
   assert.equal(candidate.ownedScaleOutSuggestedQty,2);
+  assert.equal(candidate.ownedScaleOutTargetAllocation.ok,true);
+  assert.equal(candidate.ownedScaleOutResultingQuantity,6);
   assert.equal(candidate.orderPlacementAllowed,false);
 });
 
@@ -223,6 +228,19 @@ test("normalizes an owned non-actionable market decision to WATCH monitoring", a
   assert.equal(result.candidates[0].orderPlacementAllowed, false);
 });
 
+
+test("owned monitor escalates severe profitable multi-share weakening to full exact-position EXIT", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount:{positions:[{symbol:"RISK",qty:8,averageEntryPrice:100,currentPrice:105,unrealizedPlpc:0.05}]},
+    fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{symbol:"RISK",price:105,changePct:-1.2,sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:120,readonlyPotentialScore:45,readonlyPotentialFlags:["negative_momentum"],resultState:"WATCH",decision:"WATCH"}]}),
+  });
+  const candidate=result.candidates[0];
+  assert.equal(candidate.resultState,"EXIT");
+  assert.equal(candidate.decision,"EXIT");
+  assert.equal(candidate.ownedExitReviewTriggered,true);
+  assert.equal(candidate.ownedExitReviewReason,"OWNED_POSITION_MULTI_SHARE_PROFIT_PROTECTION_EXIT");
+  assert.equal(candidate.ownedScaleOutReviewTriggered,false);
+});
 
 test("owned monitor surfaces profitable single-share weakening as full EXIT for automatic exit worker", async () => {
   const result = await fetchCustomerOwnedPositionMonitorSource({

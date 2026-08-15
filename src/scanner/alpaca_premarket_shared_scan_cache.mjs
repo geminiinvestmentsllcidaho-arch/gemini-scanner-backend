@@ -17,7 +17,7 @@ function easternParts(nowMs) {
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
-function easternDateKey(value) {
+export function easternDateKey(value) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -74,6 +74,7 @@ export function createAlpacaPremarketSharedScanCache({
   clearTimeoutImpl = globalThis.clearTimeout,
   scanOptions = {},
   onScanComplete = null,
+  fetchCapitalBaseline = null,
   initialScanHistory = [],
 } = {}) {
   let latest = null;
@@ -86,6 +87,9 @@ export function createAlpacaPremarketSharedScanCache({
   let aiEvidencePublicationCount = 0;
   let lastAiEvidencePublishedAt = null;
   let lastAiEvidencePublicationError = null;
+  let capitalBaseline = null;
+  let capitalBaselineDate = null;
+  let capitalBaselineError = null;
   const maxHistoryScans = Math.max(10, Number(scanOptions.maxHistoryScans ?? 240));
   const normalizeHistoryTimestamp = (scan) => {
     const value = scan?.sharedCache?.generatedAt ?? scan?.generatedAt ?? null;
@@ -153,6 +157,9 @@ export function createAlpacaPremarketSharedScanCache({
     aiEvidencePublicationCount,
     lastAiEvidencePublishedAt,
     lastAiEvidencePublicationError,
+    capitalBaseline,
+    capitalBaselineDate,
+    capitalBaselineError,
     readOnly: true,
     paperOnly: true,
     decisionAssistOnly: true,
@@ -174,6 +181,24 @@ export function createAlpacaPremarketSharedScanCache({
         if (!session.active) {
           skippedCount += 1;
           return latest;
+        }
+
+        const today = easternDateKey(nowMs);
+        if (typeof fetchCapitalBaseline === "function" && capitalBaselineDate !== today) {
+          try {
+            const baseline = await fetchCapitalBaseline({ now: new Date(nowMs) });
+            const baselineValid = baseline?.ok === true
+              && baseline?.paperOnly === true
+              && baseline?.readOnly === true
+              && String(baseline?.sessionDate ?? '').trim() === today;
+            capitalBaseline = baselineValid ? baseline : null;
+            capitalBaselineDate = baselineValid ? today : null;
+            capitalBaselineError = baselineValid ? null : (baseline?.status ?? "capital_baseline_unavailable");
+          } catch (error) {
+            capitalBaseline = null;
+            capitalBaselineDate = null;
+            capitalBaselineError = error?.message ?? String(error);
+          }
         }
 
         const source = await fetchScan({

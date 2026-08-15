@@ -7,10 +7,18 @@ import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reco
 import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly_fetch.mjs'
 import { fetchAlpacaMarketClockReadonly } from './alpaca_market_clock_readonly.mjs'
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
+import { derivePaperPositionMutationLockFile, acquirePaperPositionMutationLock, releasePaperPositionMutationLock } from './paper_auto_execution_position_mutation_lock.mjs'
+import { PaperAutoExecutionScaleActionStore } from './paper_auto_execution_scale_action_store.mjs'
 
 export const VERSION = 'paper_auto_execution_exit_only_runner_v1'
 const clean = (value) => String(value ?? '').trim()
 const yes = (value) => ['1', 'true', 'yes', 'on'].includes(clean(value).toLowerCase())
+const deriveScaleActionFile = lifecycleFile => {
+  const resolved = path.resolve(clean(lifecycleFile))
+  const base = path.basename(resolved)
+  if (!base.endsWith('.json')) throw new Error('paper_exit_only_lifecycle_json_required')
+  return path.join(path.dirname(resolved), `${base.slice(0, -5)}.scale_action.json`)
+}
 
 async function fetchPaperClock({ env, fetchImpl, credentialResolver }) {
   const parsed = new URL(clean(env.APCA_API_BASE_URL))
@@ -25,16 +33,14 @@ async function fetchPaperClock({ env, fetchImpl, credentialResolver }) {
         env: { ALPACA_KEY: directKey, ALPACA_SECRET: directSecret },
       }
     : null
-  const effectiveCredentialResolver = typeof credentialResolver === 'function'
-    ? async (args) => {
-        const resolved = await credentialResolver(args)
-        return resolved?.readyForReadonlyBrokerRead === true
-          ? resolved
-          : (directCredentialResult ?? resolved)
-      }
-    : directCredentialResult
-      ? async () => directCredentialResult
-      : undefined
+  let effectiveCredentialResolver
+  if (typeof credentialResolver === 'function') {
+    const resolved = await credentialResolver({ env, purpose: 'paper_exit_only_market_clock_readonly' })
+    if (resolved?.readyForReadonlyBrokerRead !== true) throw new Error('paper_exit_only_clock_credentials_required')
+    effectiveCredentialResolver = async () => resolved
+  } else {
+    effectiveCredentialResolver = directCredentialResult ? async () => directCredentialResult : undefined
+  }
   const result = await fetchAlpacaMarketClockReadonly({
     env,
     fetchImpl,
@@ -69,7 +75,9 @@ async function fetchHistoricalOrders({ env, fetchImpl, credentialResolver }) {
   const resolved = typeof credentialResolver === 'function'
     ? await credentialResolver({ env, purpose: 'paper_exit_only_historical_orders_readonly' })
     : null
-  const credentials = resolved?.readyForReadonlyBrokerRead === true ? resolved : directCredentialResult
+  const credentials = typeof credentialResolver === 'function'
+    ? (resolved?.readyForReadonlyBrokerRead === true ? resolved : null)
+    : directCredentialResult
   const key = clean(credentials?.env?.ALPACA_KEY)
   const secret = clean(credentials?.env?.ALPACA_SECRET)
   if (!key || !secret) throw new Error('paper_exit_only_order_history_credentials_required')
@@ -165,6 +173,56 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   )
   if (conflictingOrder) throw new Error('paper_exit_only_conflicting_open_order')
 
+  const mutationLock = acquirePaperPositionMutationLock({
+    lockFile: derivePaperPositionMutationLockFile(lifecycleFile),
+    lifecycleId,
+    symbol,
+    action: 'exit',
+    now: () => nowMs,
+  })
+  if (mutationLock?.ok !== true) throw new Error(mutationLock?.status ?? 'paper_exit_only_position_mutation_lock_required')
+  try {
+  const lockedLifecycle = store.load()
+  if (!lockedLifecycle || lockedLifecycle.state !== 'MONITORING') throw new Error('paper_exit_only_post_lock_monitoring_lifecycle_required')
+  if (lockedLifecycle.lifecycleId !== lifecycleId) throw new Error('paper_exit_only_post_lock_lifecycle_id_mismatch')
+  store.assertExitTarget({ symbol, quantity })
+
+  const scaleActionStore = new PaperAutoExecutionScaleActionStore({ filePath: deriveScaleActionFile(lifecycleFile) })
+  if (scaleActionStore.mutationLocked()) throw new Error('paper_exit_only_post_lock_unresolved_scale_action')
+
+  const lockedClock = await fetchPaperClock({
+    env,
+    fetchImpl,
+    ...(typeof options.accountCredentialResolver === 'function'
+      ? { credentialResolver: options.accountCredentialResolver }
+      : {}),
+  })
+  if (lockedClock.is_open !== true) throw new Error('paper_exit_only_post_lock_market_open_required')
+
+  const lockedAccount = await fetchAlpacaPaperAccountReadonly({
+    env,
+    fetchImpl,
+    ...(typeof options.accountCredentialResolver === 'function'
+      ? { credentialResolver: options.accountCredentialResolver }
+      : {}),
+  })
+  if (lockedAccount?.ok !== true || lockedAccount?.status !== 'connected_readonly') throw new Error('paper_exit_only_post_lock_fresh_account_snapshot_required')
+  const lockedObservedAtMs = Date.parse(lockedAccount?.observedAt ?? '')
+  if (!Number.isFinite(lockedObservedAtMs) || Math.abs(nowMs - lockedObservedAtMs) > 30000) throw new Error('paper_exit_only_post_lock_account_snapshot_stale')
+  if (lockedAccount?.account?.tradingBlocked === true || lockedAccount?.account?.accountBlocked === true) throw new Error('paper_exit_only_post_lock_account_blocked')
+  const lockedPosition = (lockedAccount?.positions ?? []).find((position) =>
+    clean(position.symbol).toUpperCase() === symbol &&
+    Number(position.qty ?? position.quantity) === quantity
+  )
+  if (!lockedPosition) throw new Error('paper_exit_only_post_lock_exact_broker_position_required')
+  const lockedBrokerIdentity = `${clean(lockedPosition.symbol).toUpperCase()}:${Number(lockedPosition.qty ?? lockedPosition.quantity)}`
+  if (clean(lockedLifecycle.brokerPositionIdentity) !== lockedBrokerIdentity) throw new Error('paper_exit_only_post_lock_broker_position_identity_mismatch')
+  const lockedConflictingOrder = (lockedAccount?.openOrders ?? []).find((order) =>
+    clean(order.symbol).toUpperCase() === symbol &&
+    ['buy', 'sell'].includes(clean(order.side).toLowerCase())
+  )
+  if (lockedConflictingOrder) throw new Error('paper_exit_only_post_lock_conflicting_open_order')
+
   const directSubmissionKey = clean(env.APCA_API_KEY_ID)
   const directSubmissionSecret = clean(env.APCA_API_SECRET_KEY)
   const directSubmissionCredentials = directSubmissionKey && directSubmissionSecret
@@ -177,8 +235,8 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
   const resolvedSubmissionCredentials = typeof options.accountCredentialResolver === 'function'
     ? await options.accountCredentialResolver({ env, purpose: 'paper_exit_only_submission_credentials' })
     : null
-  const submissionCredentials = resolvedSubmissionCredentials?.readyForReadonlyBrokerRead === true
-    ? resolvedSubmissionCredentials
+  const submissionCredentials = typeof options.accountCredentialResolver === 'function'
+    ? (resolvedSubmissionCredentials?.readyForReadonlyBrokerRead === true ? resolvedSubmissionCredentials : null)
     : directSubmissionCredentials
   const submissionKey = clean(submissionCredentials?.env?.ALPACA_KEY)
   const submissionSecret = clean(submissionCredentials?.env?.ALPACA_SECRET)
@@ -257,6 +315,9 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     fs.writeFileSync(options.reportFile, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 })
   }
   return result
+  } finally {
+    releasePaperPositionMutationLock(mutationLock)
+  }
   } catch (error) {
     const failureCode = clean(error?.message).split(':')[0] || 'paper_exit_only_runner_failed'
     await emitFailOpen(

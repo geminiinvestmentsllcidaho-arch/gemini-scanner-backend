@@ -23,7 +23,7 @@ export async function adoptExistingPaperPositionForMonitoring(options = {}) {
   if (!clean(env.APCA_API_KEY_ID) || !clean(env.APCA_API_SECRET_KEY)) throw new Error('paper_position_adoption_credentials_required')
   if (typeof fetchImpl !== 'function') throw new Error('paper_position_adoption_fetch_required')
 
-  const account = await fetchAlpacaPaperAccountReadonly({ env, fetchImpl })
+  const account = await fetchAlpacaPaperAccountReadonly({ env, fetchImpl, credentialResolver: null })
   if (account?.ok !== true || account?.status !== 'connected_readonly') throw new Error('paper_position_adoption_fresh_account_required')
   const matches = (account.positions ?? []).filter(p => upper(p?.symbol) === symbol && Number(p?.qty ?? p?.quantity) === quantity)
   if (matches.length !== 1) throw new Error('paper_position_adoption_exact_broker_position_required')

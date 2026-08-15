@@ -38,6 +38,8 @@ test("readonly fetch uses encrypted tenant credentials when runtime env keys are
           portfolio_value: "1500",
           currency: "USD",
           status: "ACTIVE",
+          id: "paper-account-id-1",
+          account_number: "PA123456",
         });
       }
       return response(200, []);
@@ -48,6 +50,9 @@ test("readonly fetch uses encrypted tenant credentials when runtime env keys are
   assert.equal(result.status, "connected_readonly");
   assert.equal(result.runtime.credentialSource, "encrypted_tenant_store");
   assert.equal(result.runtime.secretsRedacted, true);
+  assert.match(result.account.accountIdentity, /^alpaca-paper:[0-9a-f]{24}$/);
+  assert.equal(JSON.stringify(result).includes("paper-account-id-1"), false);
+  assert.equal(JSON.stringify(result).includes("PA123456"), false);
   assert.equal(calls.length, 3);
   for (const call of calls) {
     assert.equal(call.options.method, "GET");
@@ -124,8 +129,22 @@ test("readonly fetch remains disconnected when encrypted credential resolver fai
 
   assert.equal(result.ok, true);
   assert.equal(result.status, "not_connected_readonly");
-  assert.equal(result.runtime.credentialSource, "runtime_env");
+  assert.equal(result.runtime.credentialSource, "encrypted_tenant_store_unavailable");
   assert.equal(contacted, false);
+});
+
+
+test("readonly fetch ignores runtime keys when encrypted credential resolver is unavailable", async () => {
+  let contacted = false;
+  const result = await fetchAlpacaPaperAccountReadonly({
+    env: { ALPACA_KEY: "runtime-key", ALPACA_SECRET: "runtime-secret" },
+    credentialResolver: async () => ({ readyForReadonlyBrokerRead: false, accessSwitchEnabled: true, env: {} }),
+    fetchImpl: async () => { contacted = true; throw new Error("must not contact broker"); },
+  });
+  assert.equal(contacted, false);
+  assert.equal(result.status, "not_connected_readonly");
+  assert.equal(result.runtime.credentialSource, "encrypted_tenant_store_unavailable");
+  assert.equal(result.runtime.hasRuntimeKeys, false);
 });
 
 test("readonly fetch includes open orders and observation timestamp after all GETs succeed", async () => {

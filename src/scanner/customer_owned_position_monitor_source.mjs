@@ -92,6 +92,8 @@ export async function fetchCustomerOwnedPositionMonitorSource({
       const exitReviewed = applyOwnedPositionExitReviewPolicy({
         ...candidate,
         symbol: position.symbol,
+        paperAccountEquity: paperAccount?.account?.equity ?? null,
+        paperBuyingPower: paperAccount?.account?.buyingPower ?? null,
         sourceCoverage: "owned_position_symbol_fetch",
         ownedPositionMonitorOnly: true,
         readOnly: true,

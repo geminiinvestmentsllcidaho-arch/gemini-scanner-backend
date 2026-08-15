@@ -262,3 +262,59 @@ test("empty or non-array hydration is safe", () => {
   assert.equal(cache.getMultiscanConsolidation().candidateCount, 0);
   assert.equal(cache.getDiagnostics().thresholdMutationAllowed, false);
 });
+
+test("collects one capital baseline per Eastern trading date without making it the action-time sizing authority", async () => {
+  let baselineCalls = 0;
+  const nowMs = new Date("2026-08-17T12:00:00.000Z").getTime();
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => nowMs,
+    setTimeoutImpl: () => ({ id: 1 }),
+    clearTimeoutImpl: () => {},
+    fetchCapitalBaseline: async () => {
+      baselineCalls += 1;
+      return { ok: true, status: "PREMARKET_CAPITAL_BASELINE_READY", accountEquity: 25000, buyingPower: 50000, baselineOnly: true, actionTimeSizingAuthority: "fresh_broker_authoritative_account_read", paperOnly: true, readOnly: true, sessionDate: "2026-08-17" };
+    },
+    fetchScan: async () => ({
+      ok: true,
+      status: "connected_readonly",
+      marketClock: { next_open: "2026-08-17T13:30:00.000Z" },
+      candidates: [],
+      candidateCount: 0,
+    }),
+  });
+  await cache.refreshNow();
+  await cache.refreshNow();
+  const d = cache.getDiagnostics();
+  assert.equal(baselineCalls, 1);
+  assert.equal(d.capitalBaseline.accountEquity, 25000);
+  assert.equal(d.capitalBaselineDate, "2026-08-17");
+  assert.equal(d.capitalBaselineError, null);
+});
+
+test("rejects malformed or wrong-session capital baseline without latching the Eastern trading date", async () => {
+  const nowMs = new Date("2026-08-17T12:00:00.000Z").getTime();
+  for (const baseline of [
+    { ok: true, paperOnly: false, readOnly: true, sessionDate: "2026-08-17" },
+    { ok: true, paperOnly: true, readOnly: false, sessionDate: "2026-08-17" },
+    { ok: true, paperOnly: true, readOnly: true, sessionDate: "2026-08-16" },
+  ]) {
+    const cache = createAlpacaPremarketSharedScanCache({
+      now: () => nowMs,
+      setTimeoutImpl: () => ({ id: 1 }),
+      clearTimeoutImpl: () => {},
+      fetchCapitalBaseline: async () => baseline,
+      fetchScan: async () => ({
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { next_open: "2026-08-17T13:30:00.000Z" },
+        candidates: [],
+        candidateCount: 0,
+      }),
+    });
+    await cache.refreshNow();
+    const d = cache.getDiagnostics();
+    assert.equal(d.capitalBaseline, null);
+    assert.equal(d.capitalBaselineDate, null);
+    assert.notEqual(d.capitalBaselineError, null);
+  }
+});

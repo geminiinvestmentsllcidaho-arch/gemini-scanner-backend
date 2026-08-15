@@ -87,3 +87,31 @@ test("master switch OFF ignores runtime credentials for market clock", async () 
   assert.equal(result.runtime.credentialSource, "master_access_switch_off");
   assert.equal(result.runtime.brokerContactAllowed, false);
 });
+
+test("resolver-not-ready ignores runtime credentials and performs no market-clock network call", async () => {
+  let fetchCount = 0;
+  const result = await fetchAlpacaMarketClockReadonly({
+    env: {
+      ALPACA_KEY: "runtime-key",
+      ALPACA_SECRET: "runtime-secret",
+      APCA_API_KEY_ID: "runtime-apca-key",
+      APCA_API_SECRET_KEY: "runtime-apca-secret",
+    },
+    credentialResolver: async () => ({
+      readyForReadonlyBrokerRead: false,
+      accessSwitchEnabled: true,
+      credentialSource: "encrypted_tenant_store_unavailable",
+      env: {},
+    }),
+    fetchImpl: async () => {
+      fetchCount += 1;
+      throw new Error("market clock network must remain blocked");
+    },
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(result.status, "not_connected_readonly");
+  assert.equal(result.marketClock.isOpen, false);
+  assert.equal(result.runtime.credentialSource, "encrypted_tenant_store_unavailable");
+  assert.equal(result.runtime.brokerContactAllowed, false);
+});

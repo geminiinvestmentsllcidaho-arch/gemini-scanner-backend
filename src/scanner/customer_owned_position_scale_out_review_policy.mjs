@@ -1,3 +1,4 @@
+import { calculateScaleOutTarget } from "./automatic_position_target_allocation_policy.mjs";
 export const VERSION = "customer_owned_position_scale_out_review_policy_v1";
 
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
@@ -28,7 +29,17 @@ export function applyOwnedPositionScaleOutReviewPolicy(candidate = {}, position 
   const qty = finite(position?.qty);
   const review = state !== "EXIT" && sourceFresh && qty !== null && qty >= 2 && returnPct !== null && returnPct >= 2 && score !== null && score < 70 && weakeningMomentum;
   const suggestedFraction = review ? (returnPct >= 5 || score < 55 ? 0.5 : 0.25) : null;
-  const suggestedQty = review ? Math.max(1, Math.min(qty - 1, Math.floor(qty * suggestedFraction))) : null;
+  const targetAllocation = review
+    ? calculateScaleOutTarget({
+        accountEquity: candidate?.paperAccountEquity,
+        currentQuantity: qty,
+        currentPrice: candidate?.price ?? candidate?.currentPrice ?? position?.currentPrice ?? position?.current_price,
+        reductionFraction: suggestedFraction,
+      })
+    : null;
+  const suggestedQty = targetAllocation?.ok === true
+    ? targetAllocation.reduceQuantity
+    : (review ? Math.max(1, Math.min(qty - 1, Math.floor(qty * suggestedFraction))) : null);
 
   return Object.freeze({
     ...candidate,
@@ -38,6 +49,9 @@ export function applyOwnedPositionScaleOutReviewPolicy(candidate = {}, position 
     ownedScaleOutReviewPolicyVersion: VERSION,
     ownedScaleOutSuggestedFraction: suggestedFraction,
     ownedScaleOutSuggestedQty: suggestedQty,
+    ownedScaleOutTargetAllocation: targetAllocation,
+    ownedScaleOutResultingQuantity: targetAllocation?.ok === true ? targetAllocation.remainingQuantity : null,
+    ownedScaleOutResultingAllocationPercent: targetAllocation?.resultingAllocationPercent ?? null,
     automaticScaleOutAllowed: false,
     readOnly: true,
     paperOnly: true,

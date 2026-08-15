@@ -107,6 +107,50 @@ export class PaperAutoExecutionLifecycleStore {
     return true
   }
 
+  patchMonitoring(input = {}) {
+    const current = this.load()
+    if (!current) throw new Error('paper_auto_lifecycle_missing')
+    if (current.state !== S.MONITORING) throw new Error(`paper_auto_monitoring_patch_invalid_state:${current.state}`)
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('paper_auto_monitoring_patch_invalid')
+
+    const { expectedLifecycleId, expectedSymbol, expectedFromQuantity, ...patch } = input
+    if (String(expectedLifecycleId ?? '').trim() !== current.lifecycleId) throw new Error('paper_auto_monitoring_patch_lifecycle_changed')
+    if (normalizeSymbol(expectedSymbol) !== current.selectedSymbol) throw new Error('paper_auto_monitoring_patch_symbol_changed')
+    if (!Number.isSafeInteger(Number(expectedFromQuantity)) || Number(expectedFromQuantity) !== current.filledQuantity) throw new Error('paper_auto_monitoring_patch_quantity_changed')
+
+    const allowed = new Set(['filledQuantity', 'averageFillPrice', 'brokerPositionIdentity', 'reconciliationEntry'])
+    for (const key of Object.keys(patch)) {
+      if (!allowed.has(key)) throw new Error(`paper_auto_monitoring_patch_forbidden:${key}`)
+    }
+
+    const nextQuantity = 'filledQuantity' in patch ? Number(patch.filledQuantity) : current.filledQuantity
+    if (!Number.isSafeInteger(nextQuantity) || nextQuantity <= 0) throw new Error('paper_auto_monitoring_patch_whole_quantity_required')
+
+    const nextReconciliation = [...(Array.isArray(current.reconciliation) ? current.reconciliation : [])]
+    if (patch.reconciliationEntry !== undefined) nextReconciliation.push(clone(patch.reconciliationEntry))
+
+    const next = {
+      ...current,
+      ...clone({
+        ...patch,
+        filledQuantity: nextQuantity,
+        reconciliation: nextReconciliation,
+      }),
+      lifecycleId: current.lifecycleId,
+      state: S.MONITORING,
+      selectedSymbol: current.selectedSymbol,
+      enterClientOrderId: current.enterClientOrderId,
+      enterBrokerOrderId: current.enterBrokerOrderId,
+      exitClientOrderId: current.exitClientOrderId,
+      exitBrokerOrderId: current.exitBrokerOrderId,
+      updatedAt: new Date(this.clock()).toISOString(),
+    }
+    delete next.reconciliationEntry
+    validate(next)
+    this.#write(next)
+    return clone(next)
+  }
+
   resetToIdle() {
     const current = this.load()
     if (!current || !terminalStates.has(current.state)) throw new Error('paper_auto_reset_requires_terminal')

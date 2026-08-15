@@ -9,6 +9,7 @@ import { submitPaperAutoOrder } from './paper_auto_execution_submission_boundary
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './internal_owner_alpaca_readonly_credentials.mjs'
 import { calculateAutomaticPositionSize } from './automatic_position_sizing_policy.mjs'
+import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -28,6 +29,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const getLifecycleFile = options.getLifecycleFile ?? (() => clean(env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH ?? env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH))
   const credentialResolver = options.accountCredentialResolver ?? resolveInternalOwnerAlpacaReadonlyCredentials
   const getScanSnapshot = options.getScanSnapshot ?? null
+  const getPremarketBaseline = options.getPremarketBaseline ?? null
   const fetchAccount = options.fetchAccount ?? ((args) => fetchAlpacaPaperAccountReadonly(args))
   const fetchClock = options.fetchClock ?? ((args) => fetchAlpacaMarketClockReadonly(args))
   const fetchHistory = options.fetchHistoricalOrders ?? ((args) => fetchAlpacaPaperHistoricalOrdersReadonly(args))
@@ -128,6 +130,15 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     }
 
     if (lifecycle.state === S.CANDIDATE_SELECTED) {
+      if (typeof getPremarketBaseline !== 'function') return fail('PREMARKET_CAPITAL_BASELINE_REQUIRED', lifecycle)
+      const baseline = await getPremarketBaseline()
+      if (baseline?.ok !== true || baseline?.paperOnly !== true || baseline?.readOnly !== true) {
+        return fail('PREMARKET_CAPITAL_BASELINE_REQUIRED', lifecycle)
+      }
+      const currentSessionDate = easternDateKey(Number(now()))
+      if (!currentSessionDate || clean(baseline?.sessionDate) !== currentSessionDate) {
+        return fail('PREMARKET_CAPITAL_BASELINE_SESSION_MISMATCH', lifecycle)
+      }
       const [clock, account] = await Promise.all([
         fetchClock({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
         fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
@@ -136,6 +147,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         return fail('MARKET_OPEN_REQUIRED', lifecycle)
       }
       if (account?.ok !== true || account?.status !== 'connected_readonly') return fail('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+      const baselineAccountIdentity = clean(baseline?.accountIdentity)
+      const actionAccountIdentity = clean(account?.account?.accountIdentity)
+      if (!baselineAccountIdentity || !actionAccountIdentity || baselineAccountIdentity !== actionAccountIdentity) {
+        return fail('PREMARKET_CAPITAL_BASELINE_ACCOUNT_IDENTITY_MISMATCH', lifecycle)
+      }
       const observedAtMs = Date.parse(account?.observedAt ?? '')
       const accountAgeMs = Number(now()) - observedAtMs
       if (!Number.isFinite(observedAtMs) || !Number.isFinite(accountAgeMs) || accountAgeMs < 0 || accountAgeMs > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)

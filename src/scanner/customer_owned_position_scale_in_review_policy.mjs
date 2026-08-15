@@ -1,3 +1,4 @@
+import { calculateScaleInTarget } from "./automatic_position_target_allocation_policy.mjs";
 export const VERSION = "customer_owned_position_scale_in_review_policy_v1";
 
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
@@ -51,6 +52,16 @@ export function applyOwnedPositionScaleInReviewPolicy(candidate = {}, position =
     score >= 75 &&
     positiveMomentum;
 
+  const targetAllocation = review
+    ? calculateScaleInTarget({
+        accountEquity: candidate?.paperAccountEquity,
+        buyingPower: candidate?.paperBuyingPower,
+        currentQuantity: position?.qty ?? position?.quantity,
+        currentPrice: candidate?.price ?? candidate?.currentPrice ?? position?.currentPrice ?? position?.current_price,
+        candidateScore: score,
+      })
+    : null;
+
   return Object.freeze({
     ...candidate,
     resultState: review ? "ENTER" : (state === "ENTER" ? "WAIT" : candidate?.resultState),
@@ -61,6 +72,10 @@ export function applyOwnedPositionScaleInReviewPolicy(candidate = {}, position =
       ? "OWNED_POSITION_CONFIRMED_STRENGTH_REVIEW"
       : null,
     ownedScaleInReviewPolicyVersion: VERSION,
+    ownedScaleInTargetAllocation: targetAllocation,
+    ownedScaleInTargetQuantity: targetAllocation?.ok === true ? targetAllocation.targetQuantity : null,
+    ownedScaleInAdditionalQuantity: targetAllocation?.ok === true ? targetAllocation.additionalQuantity : null,
+    ownedScaleInTargetAllocationPercent: targetAllocation?.targetAllocationPercent ?? null,
     automaticScaleInAllowed: false,
     brokerContactAllowed: false,
     orderPlacementAllowed: false,

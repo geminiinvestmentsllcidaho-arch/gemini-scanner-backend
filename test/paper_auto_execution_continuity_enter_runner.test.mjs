@@ -9,6 +9,8 @@ import { createPaperAutoExecutionContinuityEnterRunner } from '../src/scanner/pa
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'continuity-enter-'))
 const readyCredentials = async () => ({ readyForReadonlyBrokerRead: true, env: { ALPACA_KEY: 'paper-key', ALPACA_SECRET: 'paper-secret', APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_PAPER_TRADING: 'true' } })
 const freshCandidateSnapshot = (symbol, now = Date.now(), price = 10) => ({ observedAt: new Date(now).toISOString(), candidates: [{ symbol, state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 99, price }] })
+const PAPER_ACCOUNT_IDENTITY = 'alpaca-paper:0123456789abcdef01234567'
+const currentBaseline = () => { const q=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value])); return {ok:true,paperOnly:true,readOnly:true,sessionDate:`${q.year}-${q.month}-${q.day}`,accountIdentity:PAPER_ACCOUNT_IDENTITY} }
 
 test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver without broker work while downstream reads stay injected', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-continuity-enter-master-key-'))
@@ -27,6 +29,7 @@ test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver w
       GEMINI_CREDENTIAL_MASTER_KEY: expectedMasterKey,
     },
     getLifecycleFile: () => lifecycleFile,
+    getPremarketBaseline: async () => currentBaseline(),
     getScanSnapshot: async () => freshCandidateSnapshot('KEY'),
     accountCredentialResolver: async (args) => {
       resolverArgs = args
@@ -85,6 +88,7 @@ test('stale candidate snapshot fails closed before credential resolution or brok
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => ({ observedAt: new Date(now - 30001).toISOString(), candidates: [{ symbol: 'STALE', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [] }] }),
       now: () => now,
       accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
@@ -134,6 +138,7 @@ test('future candidate snapshot fails closed before credential resolution or bro
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('FUTURE', now + 1),
       now: () => now,
       accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
@@ -165,6 +170,7 @@ for (const invalid of ['missing_symbol', 'blocked', 'blockers']) {
       const runner = createPaperAutoExecutionContinuityEnterRunner({
         env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
         getLifecycleFile: () => file,
+        getPremarketBaseline: async () => currentBaseline(),
         getScanSnapshot: async () => ({ observedAt: new Date(now).toISOString(), candidates: [candidate] }),
         now: () => now,
         accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
@@ -191,11 +197,12 @@ test('fresh eligible candidate reaches credential resolution then closed market 
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('FRESH', now),
       now: () => now,
       accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
       fetchClock: async () => ({ ok: true, status: 'connected_readonly', marketClock: { isOpen: false } }),
-      fetchAccount: async () => ({ ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(), account: {}, positions: [], openOrders: [] }),
+      fetchAccount: async () => ({ ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(), account: { accountIdentity: PAPER_ACCOUNT_IDENTITY,}, positions: [], openOrders: [] }),
       createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
     })
     const out = await runner.runOnce()
@@ -217,6 +224,7 @@ test('candidate no longer eligible fails closed before credential resolution or 
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => ({ observedAt: new Date(now).toISOString(), candidates: [{ symbol: 'OLD', state: 'WAIT', buyRecommendation: false, blocked: false, blockers: [] }] }),
       now: () => now,
       accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
@@ -243,13 +251,14 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('ABC', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: submitted ? [{ symbol: 'ABC', qty: 10, averageEntryPrice: 10 }] : [],
         openOrders: [],
       }),
@@ -290,13 +299,14 @@ test('future PAPER account snapshot fails closed before submission', async () =>
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('ACCT', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', observedAt: new Date(now + 1).toISOString(),
-        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 }, positions: [], openOrders: [],
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 }, positions: [], openOrders: [],
       }),
       createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
     })
@@ -320,13 +330,14 @@ test('missing or invalid candidate price fails closed before submission', async 
       const runner = createPaperAutoExecutionContinuityEnterRunner({
         env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
         getLifecycleFile: () => file,
+        getPremarketBaseline: async () => currentBaseline(),
         getScanSnapshot: async () => snapshot,
         now: () => now,
         accountCredentialResolver: readyCredentials,
         fetchClock: clockOpen,
         fetchAccount: async () => ({
           ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(),
-          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+          account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
           positions: [], openOrders: [],
         }),
         createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
@@ -351,13 +362,14 @@ test('missing or insufficient PAPER buying power fails closed before percentage-
       const runner = createPaperAutoExecutionContinuityEnterRunner({
         env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
         getLifecycleFile: () => file,
+        getPremarketBaseline: async () => currentBaseline(),
         getScanSnapshot: async () => freshCandidateSnapshot('FUNDS', now, 10),
         now: () => now,
         accountCredentialResolver: readyCredentials,
         fetchClock: clockOpen,
         fetchAccount: async () => ({
           ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(),
-          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower },
+          account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower },
           positions: [], openOrders: [],
         }),
         createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
@@ -382,13 +394,14 @@ test('PAPER buying power equal to percentage-sized required capital passes affor
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('BOUND', now, 10),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', observedAt: new Date(now).toISOString(),
-        account: { tradingBlocked: false, accountBlocked: false, equity: 100, buyingPower: 10 },
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 100, buyingPower: 10 },
         positions: submitted ? [{ symbol: 'BOUND', qty: 1, averageEntryPrice: 10 }] : [],
         openOrders: [],
       }),
@@ -420,13 +433,14 @@ test('existing position or open-order conflict fails closed before submission', 
       const runner = createPaperAutoExecutionContinuityEnterRunner({
         env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
         getLifecycleFile: () => file,
+        getPremarketBaseline: async () => currentBaseline(),
         getScanSnapshot: async () => freshCandidateSnapshot('XYZ', now),
         now: () => now,
         accountCredentialResolver: readyCredentials,
         fetchClock: clockOpen,
         fetchAccount: async () => ({
           ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+          account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
           positions: conflict === 'position' ? [{ symbol: 'XYZ', qty: 1 }] : [],
           openOrders: conflict === 'order' ? [{ symbol: 'XYZ', side: 'buy' }] : [],
         }),
@@ -450,13 +464,14 @@ test('different-symbol open PAPER order blocks continuity ENTER under global sin
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: [],
         openOrders: [{ symbol: 'USAS', side: 'sell' }],
       }),
@@ -480,13 +495,14 @@ test('different-symbol existing PAPER position blocks continuity ENTER under glo
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: [{ symbol: 'USAS', qty: 1 }],
         openOrders: [],
       }),
@@ -510,13 +526,14 @@ test('concurrent enter cycles deduplicate to one submission', async () => {
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
       getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
       getScanSnapshot: async () => freshCandidateSnapshot('ONE', now),
       now: () => now,
       accountCredentialResolver: readyCredentials,
       fetchClock: clockOpen,
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
-        account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
         positions: submitted ? [{ symbol: 'ONE', qty: 1, averageEntryPrice: 5 }] : [],
         openOrders: [],
       }),
@@ -556,7 +573,7 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
           mode: 'PAPER_ONLY',
           observedAt: new Date(now).toISOString(),
           runtime: { readOnly: true, allowedMethods: ['GET'] },
-          account: { tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+          account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
           positions: [{ symbol: 'RST', qty: 1, averageEntryPrice: 7.5 }],
           openOrders: [],
         }),
@@ -595,3 +612,5 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
     }
   })
 }
+
+test('continuity ENTER baseline account identity mismatch blocks before submission',async()=>{const d=tmp();try{const f=path.join(d,'life.json');new PaperAutoExecutionLifecycleStore({filePath:f}).create({selectedSymbol:'BASE'});const n=Date.now();let s=0,a=0;const r=createPaperAutoExecutionContinuityEnterRunner({env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>f,getPremarketBaseline:async()=>({...currentBaseline(),accountIdentity:'alpaca-paper:fedcba9876543210fedcba98'}),getScanSnapshot:async()=>freshCandidateSnapshot('BASE',n),now:()=>n,accountCredentialResolver:readyCredentials,fetchClock:clockOpen,fetchAccount:async()=>{a++;return{ok:true,status:'connected_readonly',observedAt:new Date(n).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}},createAdapter:()=>({submitPaperOrder:async()=>{s++}})});const o=await r.runOnce();assert.equal(o.lastStatus,'PREMARKET_CAPITAL_BASELINE_ACCOUNT_IDENTITY_MISMATCH');assert.equal(a,1);assert.equal(s,0);assert.equal(o.submissions,0);assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f}).load().state,'CANDIDATE_SELECTED')}finally{fs.rmSync(d,{recursive:true,force:true})}})

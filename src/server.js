@@ -69,6 +69,7 @@ import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_moni
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
+import { getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
 import { mapLiveUnderFiveUniverseToRankingEnvelope, normalizeCandidates } from './scanner/paper_auto_execution_mechanical_enter_only_cli.mjs';
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './scanner/internal_owner_alpaca_readonly_credentials.mjs';
 import { marketDataDump } from './utils/market_data_dump.js';
@@ -348,6 +349,7 @@ const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_s
 
 const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_scan_cache.mjs')
   .then(async (mod) => {
+    const baselineRuntime = await import('./scanner/premarket_capital_baseline_runtime.mjs');
     const persistedPremarketHistory = listOpportunityFunnelAuditRecordsFiltered({
       maxRecords: 100,
       scanner: 'alpaca_premarket_shared_readonly',
@@ -375,6 +377,7 @@ const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_sc
       }));
     const cache = mod.createAlpacaPremarketSharedScanCache({
       initialScanHistory: persistedPremarketHistory,
+      fetchCapitalBaseline: ({ now }) => baselineRuntime.collectPremarketCapitalBaseline({ now }),
       scanOptions: {
         minPrice: 0.5,
         maxPrice: 1000,
@@ -2696,6 +2699,7 @@ const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRu
 const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner({
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
+  getPremarketBaseline: () => getPersistedPremarketCapitalBaseline({ now: new Date() }),
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
 });
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({

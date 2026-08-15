@@ -85,3 +85,64 @@ test('focused store tests perform no network or broker contact', () => {
     globalThis.fetch = originalFetch
   }
 })
+
+
+test('patchMonitoring atomically updates scale reconciliation fields while preserving canonical identities and MONITORING state', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-monitor-patch-'))
+  const file = path.join(dir, 'life.json')
+  let now = Date.parse('2026-08-14T15:00:00Z')
+  const store = new PaperAutoExecutionLifecycleStore({ filePath: file, clock: () => now, idFactory: () => 'life-scale-patch' })
+  store.create({ selectedSymbol: 'ABC' })
+  store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'enter-original' })
+  store.transition(S.ENTER_OPEN, { enterBrokerOrderId: 'enter-broker-original' })
+  store.transition(S.POSITION_CONFIRMED, { filledQuantity: 8, averageFillPrice: 10, brokerPositionIdentity: 'ABC:8' })
+  store.transition(S.MONITORING)
+
+  now += 1000
+  const patched = store.patchMonitoring({
+    expectedLifecycleId: 'life-scale-patch',
+    expectedSymbol: 'ABC',
+    expectedFromQuantity: 8,
+    filledQuantity: 6,
+    averageFillPrice: 9.75,
+    brokerPositionIdentity: 'ABC:6',
+    reconciliationEntry: { kind: 'paper_scale_action_filled', action: 'scale_out', orderQuantity: 2 },
+  })
+
+  assert.equal(patched.state, S.MONITORING)
+  assert.equal(patched.lifecycleId, 'life-scale-patch')
+  assert.equal(patched.selectedSymbol, 'ABC')
+  assert.equal(patched.filledQuantity, 6)
+  assert.equal(patched.averageFillPrice, 9.75)
+  assert.equal(patched.brokerPositionIdentity, 'ABC:6')
+  assert.equal(patched.enterClientOrderId, 'enter-original')
+  assert.equal(patched.enterBrokerOrderId, 'enter-broker-original')
+  assert.equal(patched.exitClientOrderId, null)
+  assert.equal(patched.exitBrokerOrderId, null)
+  assert.equal(patched.reconciliation.at(-1).kind, 'paper_scale_action_filled')
+  assert.equal(store.load().filledQuantity, 6)
+})
+
+test('patchMonitoring fails closed outside MONITORING and rejects forbidden or non-whole quantity changes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-monitor-patch-blocked-'))
+  const file = path.join(dir, 'life.json')
+  const store = new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => 'life-scale-blocked' })
+  store.create({ selectedSymbol: 'ABC' })
+  assert.throws(() => store.patchMonitoring({ filledQuantity: 2 }), /monitoring_patch_invalid_state/)
+
+  store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'enter-original' })
+  store.transition(S.POSITION_CONFIRMED, { filledQuantity: 8, brokerPositionIdentity: 'ABC:8' })
+  store.transition(S.MONITORING)
+
+  const expected = { expectedLifecycleId: 'life-scale-blocked', expectedSymbol: 'ABC', expectedFromQuantity: 8 }
+  assert.throws(() => store.patchMonitoring({ ...expected, selectedSymbol: 'XYZ' }), /monitoring_patch_forbidden:selectedSymbol/)
+  assert.throws(() => store.patchMonitoring({ ...expected, state: S.EXIT_TRIGGERED }), /monitoring_patch_forbidden:state/)
+  assert.throws(() => store.patchMonitoring({ ...expected, enterClientOrderId: 'changed' }), /monitoring_patch_forbidden:enterClientOrderId/)
+  assert.throws(() => store.patchMonitoring({ ...expected, reconciliation: [] }), /monitoring_patch_forbidden:reconciliation/)
+  assert.throws(() => store.patchMonitoring({ ...expected, filledQuantity: 6.5 }), /monitoring_patch_whole_quantity_required/)
+  assert.throws(() => store.patchMonitoring({ ...expected, expectedLifecycleId: 'other' }), /monitoring_patch_lifecycle_changed/)
+  assert.throws(() => store.patchMonitoring({ ...expected, expectedSymbol: 'XYZ' }), /monitoring_patch_symbol_changed/)
+  assert.throws(() => store.patchMonitoring({ ...expected, expectedFromQuantity: 7 }), /monitoring_patch_quantity_changed/)
+  assert.equal(store.load().filledQuantity, 8)
+  assert.equal(store.load().state, S.MONITORING)
+})

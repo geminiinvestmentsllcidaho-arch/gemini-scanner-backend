@@ -119,6 +119,31 @@ test("keeps profitable multi-share weakening in partial scale-out review path in
   assert.equal(result.ownedExitReviewReason, null);
 });
 
+test("converts severe profitable multi-share weakening into full EXIT", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "RISK",
+    price: 105,
+    changePct: -1.2,
+    sourceStale: false,
+    sourceAgeSec: 8,
+    maxSourceAgeSec: 120,
+    readonlyPotentialScore: 45,
+    readonlyPotentialFlags: ["negative_momentum"],
+    resultState: "WATCH",
+    decision: "WATCH",
+  }, {
+    symbol: "RISK",
+    qty: 8,
+    averageEntryPrice: 100,
+    currentPrice: 105,
+    unrealizedPlpc: 0.05,
+  });
+  assert.equal(result.resultState, "EXIT");
+  assert.equal(result.decision, "EXIT");
+  assert.equal(result.ownedExitReviewTriggered, true);
+  assert.equal(result.ownedExitReviewReason, "OWNED_POSITION_MULTI_SHARE_PROFIT_PROTECTION_EXIT");
+});
+
 test("stale profitable single-share evidence cannot trigger profit-protection EXIT", () => {
   const result = applyOwnedPositionExitReviewPolicy({
     symbol: "STALE",

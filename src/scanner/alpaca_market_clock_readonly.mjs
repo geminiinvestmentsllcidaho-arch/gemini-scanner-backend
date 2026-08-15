@@ -35,10 +35,12 @@ export async function fetchAlpacaMarketClockReadonly({
         ...credentialOptions,
       })
     : null;
+  const resolverSupplied = typeof credentialResolver === "function";
   const accessSwitchBlocked = resolved?.accessSwitchEnabled === false;
+  const resolverUnavailable = resolverSupplied && resolved?.readyForReadonlyBrokerRead !== true;
   const effectiveEnv = resolved?.readyForReadonlyBrokerRead === true
     ? { ...env, ...resolved.env }
-    : accessSwitchBlocked
+    : resolverUnavailable
       ? {
           ...env,
           ALPACA_KEY: "",
@@ -49,6 +51,10 @@ export async function fetchAlpacaMarketClockReadonly({
           ALPACA_SECRET_KEY: "",
           APCA_API_KEY_ID: "",
           APCA_API_SECRET_KEY: "",
+          ALPACA_PAPER_API_KEY: "",
+          ALPACA_PAPER_API_SECRET: "",
+          ALPACA_API_KEY: "",
+          ALPACA_API_SECRET: "",
         }
       : env;
   const apiKey = clean(effectiveEnv?.ALPACA_KEY);
@@ -57,7 +63,9 @@ export async function fetchAlpacaMarketClockReadonly({
     ? "encrypted_tenant_store"
     : accessSwitchBlocked
       ? "master_access_switch_off"
-      : "runtime_env";
+      : resolverUnavailable
+        ? "encrypted_tenant_store_unavailable"
+        : "runtime_env";
 
   if (!apiKey || !apiSecret) {
     return Object.freeze({

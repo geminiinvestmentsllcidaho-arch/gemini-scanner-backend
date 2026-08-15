@@ -6,6 +6,7 @@ import path from 'node:path'
 import { PaperAutoExecutionLifecycleStore } from '../src/scanner/paper_auto_execution_lifecycle_store.mjs'
 import { STATES as S } from '../src/scanner/paper_auto_execution_state_machine.mjs'
 import { runPaperAutoExecutionExitOnly } from '../src/scanner/paper_auto_execution_exit_only_runner.mjs'
+import { derivePaperPositionMutationLockFile as D, acquirePaperPositionMutationLock as A, releasePaperPositionMutationLock as R } from '../src/scanner/paper_auto_execution_position_mutation_lock.mjs'
 
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paper-auto-exit-only-'))
@@ -39,9 +40,10 @@ function fixture() {
     ALPACA_PAPER_TRADING: 'true',
   }
   const accountCredentialResolver = async () => ({
-    readyForReadonlyBrokerRead: false,
+    readyForReadonlyBrokerRead: true,
     accessSwitchEnabled: true,
-    env: {},
+    credentialSource: 'test_resolver',
+    env: { ALPACA_KEY: 'paper-key', ALPACA_SECRET: 'paper-secret' },
   })
   return { dir, lifecycleFile, reportFile, nowMs, args, env, accountCredentialResolver }
 }
@@ -422,4 +424,107 @@ test('historical-order read uses resolver-backed PAPER credentials when direct A
   assert.equal(history?.headers?.['APCA-API-SECRET-KEY'], 'resolver-secret')
   assert.equal(result.status, 'EXACT_POSITION_PAPER_EXIT_COMPLETED')
   assert.equal(result.lifecycle.state, 'ROUND_TRIP_COMPLETED')
+})
+
+
+test('shared SCALE lock blocks EXIT before submission',async()=>{
+ const f=fixture();let posts=0
+ const h=A({lockFile:D(f.lifecycleFile),lifecycleId:f.args.lifecycleId,symbol:f.args.symbol,action:'scale_out',now:()=>f.nowMs,tokenFactory:()=> 'scale-held'})
+ try{
+  await assert.rejects(runPaperAutoExecutionExitOnly({args:f.args,env:f.env,nowMs:f.nowMs,accountCredentialResolver:f.accountCredentialResolver,fetchImpl:async(u,x={})=>{
+   const q=String(u);if(x.method==='POST')posts++
+   if(q.includes('/v2/clock'))return new Response('{"is_open":true}',{status:200})
+   if(q.includes('/v2/account'))return new Response('{"cash":"100000","buying_power":"400000","equity":"100000","portfolio_value":"100000","trading_blocked":false,"account_blocked":false}',{status:200})
+   if(q.includes('/v2/positions'))return new Response('[{"symbol":"BTG","qty":"1","avg_entry_price":"4.12"}]',{status:200})
+   if(q.includes('/v2/orders?status=open'))return new Response('[]',{status:200})
+   throw Error(`unexpected:${q}`)
+  }}),/POSITION_MUTATION_LOCK_HELD/)
+  assert.equal(posts,0)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f.lifecycleFile}).load().state,S.MONITORING)
+ }finally{R(h);fs.rmSync(f.dir,{recursive:true,force:true})}
+})
+
+test('post-lock fresh broker quantity change blocks stale EXIT before submission',async()=>{
+ const f=fixture();let posts=0,positionReads=0
+ try{
+  await assert.rejects(runPaperAutoExecutionExitOnly({
+   args:f.args,env:f.env,nowMs:f.nowMs,accountCredentialResolver:f.accountCredentialResolver,
+   fetchImpl:async(u,x={})=>{
+    const q=String(u);if(x.method==='POST')posts++
+    if(q.includes('/v2/clock'))return new Response('{"is_open":true}',{status:200})
+    if(q.includes('/v2/account'))return new Response('{"id":"paper-account-test","cash":"100000","buying_power":"400000","equity":"100000","portfolio_value":"100000","trading_blocked":false,"account_blocked":false}',{status:200})
+    if(q.includes('/v2/positions')){positionReads++;return new Response(positionReads<=1?'[{"symbol":"BTG","qty":"1","avg_entry_price":"4.12"}]':'[{"symbol":"BTG","qty":"2","avg_entry_price":"4.12"}]',{status:200})}
+    if(q.includes('/v2/orders?status=open'))return new Response('[]',{status:200})
+    throw Error(`unexpected:${q}`)
+   }
+  }),/paper_exit_only_post_lock_exact_broker_position_required/)
+  assert.equal(posts,0)
+  assert.ok(positionReads>=2)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f.lifecycleFile}).load().state,S.MONITORING)
+ }finally{fs.rmSync(f.dir,{recursive:true,force:true})}
+})
+
+
+
+test('post-lock market close blocks stale EXIT before submission',async()=>{
+ const f=fixture();let posts=0,clockReads=0
+ try{
+  await assert.rejects(runPaperAutoExecutionExitOnly({
+   args:f.args,env:f.env,nowMs:f.nowMs,accountCredentialResolver:f.accountCredentialResolver,
+   fetchImpl:async(u,x={})=>{
+    const q=String(u);if(x.method==='POST')posts++
+    if(q.includes('/v2/clock')){clockReads++;return new Response(clockReads===1?'{"is_open":true}':'{"is_open":false}',{status:200})}
+    if(q.includes('/v2/account'))return new Response('{"id":"paper-account-test","cash":"100000","buying_power":"400000","equity":"100000","portfolio_value":"100000","trading_blocked":false,"account_blocked":false}',{status:200})
+    if(q.includes('/v2/positions'))return new Response('[{"symbol":"BTG","qty":"1","avg_entry_price":"4.12"}]',{status:200})
+    if(q.includes('/v2/orders?status=open'))return new Response('[]',{status:200})
+    throw Error(`unexpected:${q}`)
+   }
+  }),/paper_exit_only_post_lock_market_open_required/)
+  assert.equal(posts,0)
+  assert.equal(clockReads,2)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f.lifecycleFile}).load().state,S.MONITORING)
+ }finally{fs.rmSync(f.dir,{recursive:true,force:true})}
+})
+
+test('post-lock unresolved SCALE sidecar blocks EXIT before submission',async()=>{
+ const f=fixture();let posts=0
+ try{
+  const {PaperAutoExecutionScaleActionStore}=await import('../src/scanner/paper_auto_execution_scale_action_store.mjs')
+  const base=path.basename(f.lifecycleFile)
+  const sidecar=path.join(path.dirname(f.lifecycleFile),`${base.slice(0,-5)}.scale_action.json`)
+  const ss=new PaperAutoExecutionScaleActionStore({filePath:sidecar,clock:()=>f.nowMs})
+  ss.prepare({lifecycleId:f.args.lifecycleId,action:'scale_in',symbol:f.args.symbol,fromQuantity:1,targetQuantity:2})
+  await assert.rejects(runPaperAutoExecutionExitOnly({
+   args:f.args,env:f.env,nowMs:f.nowMs,accountCredentialResolver:f.accountCredentialResolver,
+   fetchImpl:async(u,x={})=>{
+    const q=String(u);if(x.method==='POST')posts++
+    if(q.includes('/v2/clock'))return new Response('{"is_open":true}',{status:200})
+    if(q.includes('/v2/account'))return new Response('{"id":"paper-account-test","cash":"100000","buying_power":"400000","equity":"100000","portfolio_value":"100000","trading_blocked":false,"account_blocked":false}',{status:200})
+    if(q.includes('/v2/positions'))return new Response('[{"symbol":"BTG","qty":"1","avg_entry_price":"4.12"}]',{status:200})
+    if(q.includes('/v2/orders?status=open'))return new Response('[]',{status:200})
+    throw Error(`unexpected:${q}`)
+   }
+  }),/paper_exit_only_post_lock_unresolved_scale_action/)
+  assert.equal(posts,0)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f.lifecycleFile}).load().state,S.MONITORING)
+ }finally{fs.rmSync(f.dir,{recursive:true,force:true})}
+})
+
+test('resolver-not-ready blocks EXIT before network even when runtime APCA credentials exist',async()=>{
+ const f=fixture();let calls=0
+ try{
+  await assert.rejects(runPaperAutoExecutionExitOnly({
+   args:f.args,
+   env:{...f.env,APCA_API_KEY_ID:'legacy-runtime-key',APCA_API_SECRET_KEY:'legacy-runtime-secret'},
+   nowMs:f.nowMs,
+   accountCredentialResolver:async()=>({
+    readyForReadonlyBrokerRead:false,
+    accessSwitchEnabled:true,
+    credentialSource:'encrypted_tenant_store_unavailable',
+   }),
+   fetchImpl:async()=>{calls++;throw Error('network forbidden')},
+  }),/paper_exit_only_clock_credentials_required/)
+  assert.equal(calls,0)
+  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f.lifecycleFile}).load().state,S.MONITORING)
+ }finally{fs.rmSync(f.dir,{recursive:true,force:true})}
 })
