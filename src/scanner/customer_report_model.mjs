@@ -199,7 +199,9 @@ export function buildCustomerReportModel(options = {}) {
     year: options.year,
   });
   const performanceEpochStartedAtMs = Date.parse(options.performanceEpochStartedAt ?? "");
-  const effectiveRange = Number.isFinite(performanceEpochStartedAtMs)
+  const performanceEpochActive = Number.isFinite(performanceEpochStartedAtMs)
+    && performanceEpochStartedAtMs <= range.end.getTime();
+  const effectiveRange = performanceEpochActive
     && (!range.start || performanceEpochStartedAtMs > range.start.getTime())
     ? Object.freeze({
         ...range,
@@ -332,8 +334,8 @@ export function buildCustomerReportModel(options = {}) {
     route: "/customer/reports",
     period,
     range: effectiveRange,
-    performanceEpochActive: Number.isFinite(performanceEpochStartedAtMs),
-    performanceEpochStartedAt: Number.isFinite(performanceEpochStartedAtMs)
+    performanceEpochActive,
+    performanceEpochStartedAt: performanceEpochActive
       ? new Date(performanceEpochStartedAtMs).toISOString()
       : null,
     status: stale ? "stale_readonly" : "current_readonly",

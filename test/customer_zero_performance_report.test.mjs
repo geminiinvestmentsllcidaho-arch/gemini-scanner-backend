@@ -319,3 +319,20 @@ test("performance epoch intersects a narrower requested report period instead of
   assert.equal(report.periodRange.startIso, "2026-08-18T00:00:00.000Z");
   assert.equal(report.performanceEpochActive, true);
 });
+
+test("future performance epoch cannot invert the customer-zero report range", () => {
+  const report = buildCustomerZeroPerformanceReport({
+    period: "lifetime",
+    now: new Date("2026-08-15T23:08:00.000Z"),
+    timeZone: "America/Denver",
+    brokerObservationTs: "2026-08-15T23:07:30.000Z",
+    performanceEpochStartedAt: "2026-08-16T23:08:00.000Z",
+    paperAccount: { account: { equity: 10000 }, summary: { totalUnrealizedPl: 0 } },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [],
+  });
+  assert.equal(report.performanceEpochActive, false);
+  assert.equal(report.performanceEpochStartedAt, null);
+  assert.equal(report.periodRange.startIso, null);
+  assert.equal(report.periodRange.endIso, "2026-08-15T23:08:00.000Z");
+});

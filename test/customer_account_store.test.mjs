@@ -188,7 +188,7 @@ test("stores and reads a persistent customer performance epoch with private atom
   assert.equal(updated.epoch.symbol, "USAS");
   assert.equal(updated.epoch.startedAt, "2026-08-17T13:45:01.000Z");
   assert.equal(updated.epoch.flatVerifiedAt, "2026-08-17T13:45:00.000Z");
-  assert.equal(getCustomerPerformanceEpoch(record.id, { storePath }).active, true);
+  assert.equal(getCustomerPerformanceEpoch(record.id, { storePath, now: "2026-08-17T13:45:02.000Z" }).active, true);
   assert.equal(fs.statSync(storePath).mode & 0o777, 0o600);
 });
 
@@ -213,6 +213,43 @@ test("performance epoch persistence fails closed on missing account or invalid r
     reason: "reset",
     accountIdentity: "paper",
     flatVerifiedAt: "2026-08-17T13:45:01.000Z",
-  }, { storePath }).reason, "performance_epoch_flat_verification_after_start");
+  }, { storePath, now: "2026-08-17T13:45:02.000Z" }).reason, "performance_epoch_flat_verification_after_start");
   assert.equal(getCustomerPerformanceEpoch(record.id, { storePath }).active, false);
+});
+
+test("performance epoch persistence and reads fail closed for future timestamps", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-account-performance-epoch-future-"));
+  const storePath = path.join(dir, "accounts.jsonl");
+  const record = createCustomerAccountRecord({
+    firstName: "Zero",
+    lastName: "Customer",
+    email: "zero@example.com",
+    password: "correct horse battery staple",
+    confirmPassword: "correct horse battery staple",
+    termsAccepted: true,
+  });
+  appendCustomerAccountRecord(record, { storePath });
+
+  const rejected = updateCustomerPerformanceEpoch(record.id, {
+    id: "future-epoch",
+    startedAt: "2026-08-16T00:00:00.000Z",
+    reason: "future_reset",
+    accountIdentity: "paper",
+    flatVerifiedAt: "2026-08-15T23:59:59.000Z",
+  }, { storePath, now: "2026-08-15T23:00:00.000Z" });
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.reason, "performance_epoch_started_at_future");
+
+  const persisted = updateCustomerPerformanceEpoch(record.id, {
+    id: "valid-epoch",
+    startedAt: "2026-08-15T22:59:59.000Z",
+    reason: "valid_reset",
+    accountIdentity: "paper",
+    flatVerifiedAt: "2026-08-15T22:59:58.000Z",
+  }, { storePath, now: "2026-08-15T23:00:00.000Z" });
+  assert.equal(persisted.ok, true);
+
+  const futureRead = getCustomerPerformanceEpoch(record.id, { storePath, now: "2026-08-15T22:00:00.000Z" });
+  assert.equal(futureRead.ok, false);
+  assert.equal(futureRead.reason, "performance_epoch_future");
 });

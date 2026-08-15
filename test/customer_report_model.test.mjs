@@ -592,3 +592,20 @@ test("broker-backed performance epoch excludes pre-reset completed trades withou
   assert.equal(daily.range.startIso, "2026-08-18T00:00:00.000Z");
   assert.equal(daily.performanceEpochActive, true);
 });
+
+test("future performance epoch cannot invert the report range", () => {
+  const report = buildCustomerReportModel({
+    period: "lifetime",
+    now: new Date("2026-08-15T23:08:00.000Z"),
+    timeZone: "America/Denver",
+    performanceEpochStartedAt: "2026-08-16T23:08:00.000Z",
+    paperAccount: { account: { equity: 10000 }, summary: { totalUnrealizedPl: 0 }, positions: [] },
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    fillLedgerHistory: [],
+    brokerObservationTs: "2026-08-15T23:07:30.000Z",
+  });
+  assert.equal(report.performanceEpochActive, false);
+  assert.equal(report.performanceEpochStartedAt, null);
+  assert.equal(report.range.startIso, null);
+  assert.equal(report.range.endIso, "2026-08-15T23:08:00.000Z");
+});

@@ -123,7 +123,9 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
     year: options.year,
   });
   const performanceEpochStartedAtMs = Date.parse(options.performanceEpochStartedAt ?? "");
-  const effectivePeriodRange = Number.isFinite(performanceEpochStartedAtMs)
+  const performanceEpochActive = Number.isFinite(performanceEpochStartedAtMs)
+    && performanceEpochStartedAtMs <= periodRange.end.getTime();
+  const effectivePeriodRange = performanceEpochActive
     && (!periodRange.start || performanceEpochStartedAtMs > periodRange.start.getTime())
     ? Object.freeze({
         ...periodRange,
@@ -164,8 +166,8 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
         timeZone: effectivePeriodRange.timeZone,
         weekStartsOn: effectivePeriodRange.weekStartsOn,
       },
-      performanceEpochActive: Number.isFinite(performanceEpochStartedAtMs),
-      performanceEpochStartedAt: Number.isFinite(performanceEpochStartedAtMs)
+      performanceEpochActive,
+      performanceEpochStartedAt: performanceEpochActive
         ? new Date(performanceEpochStartedAtMs).toISOString()
         : null,
       periodRecordCount: completedTrades.length,

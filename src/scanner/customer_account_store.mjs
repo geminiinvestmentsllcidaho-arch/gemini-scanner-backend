@@ -1037,6 +1037,9 @@ export function getCustomerPerformanceEpoch(accountId, options = {}) {
   if (!startedAt) return Object.freeze({ ok: true, active: false, epoch: null });
   const parsed = Date.parse(startedAt);
   if (!Number.isFinite(parsed)) return Object.freeze({ ok: false, reason: "performance_epoch_corrupt" });
+  const nowMs = Date.parse(options.now ?? new Date().toISOString());
+  if (!Number.isFinite(nowMs)) return Object.freeze({ ok: false, reason: "performance_epoch_now_invalid" });
+  if (parsed > nowMs) return Object.freeze({ ok: false, reason: "performance_epoch_future" });
   return Object.freeze({
     ok: true,
     active: true,
@@ -1061,6 +1064,9 @@ export function updateCustomerPerformanceEpoch(accountId, input = {}, options = 
   const startedAtRaw = clean(input.startedAt);
   const startedAtMs = Date.parse(startedAtRaw);
   if (!Number.isFinite(startedAtMs)) return Object.freeze({ ok: false, reason: "performance_epoch_started_at_invalid" });
+  const nowMs = Date.parse(options.now ?? new Date().toISOString());
+  if (!Number.isFinite(nowMs)) return Object.freeze({ ok: false, reason: "performance_epoch_now_invalid" });
+  if (startedAtMs > nowMs) return Object.freeze({ ok: false, reason: "performance_epoch_started_at_future" });
   const startedAt = new Date(startedAtMs).toISOString();
   const id = clean(input.id);
   if (!id) return Object.freeze({ ok: false, reason: "performance_epoch_id_required" });
@@ -1096,7 +1102,7 @@ export function updateCustomerPerformanceEpoch(accountId, input = {}, options = 
 
   return Object.freeze({
     ok: true,
-    epoch: getCustomerPerformanceEpoch(accountId, { storePath, authenticatorMasterKey: options.authenticatorMasterKey }).epoch,
+    epoch: getCustomerPerformanceEpoch(accountId, { storePath, authenticatorMasterKey: options.authenticatorMasterKey, now: options.now }).epoch,
     account: Object.freeze(records[index]),
     localReportingMutationPerformed: true,
     brokerAccountMutationAllowed: false,
