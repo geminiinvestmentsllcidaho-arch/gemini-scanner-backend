@@ -1,3 +1,5 @@
+import { classifyProtectivePaperExitReason } from "./paper_auto_execution_protective_exit_classifier.mjs";
+
 export const VERSION = "paper_auto_execution_exit_decision_v1";
 
 const upper = (value) => String(value ?? "").trim().toUpperCase();
@@ -102,13 +104,18 @@ export function buildAuthoritativePaperExitDecision({
   }
 
   const authoritativeReason = reason || "OWNED_POSITION_EXIT_REVIEW_TRIGGERED";
+  const protective = classifyProtectivePaperExitReason(authoritativeReason);
   return Object.freeze({
     ...base,
     decision: "EXIT",
     exitRequired: true,
-    status: "AUTHORITATIVE_PAPER_EXIT",
+    status: protective.protectiveExit ? "AUTHORITATIVE_PROTECTIVE_PAPER_EXIT" : "AUTHORITATIVE_PAPER_EXIT",
     reasonCodes: Object.freeze([authoritativeReason]),
-    strategyExit: true,
+    protectiveExit: protective.protectiveExit,
+    protectiveType: protective.protectiveType,
+    strategyExit: !protective.protectiveExit,
+    priority: protective.priority,
+    severity: protective.severity,
   });
 }
 

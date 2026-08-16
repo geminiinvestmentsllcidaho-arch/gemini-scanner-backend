@@ -38,14 +38,17 @@ test("fresh owned EXIT yields authoritative exact-position EXIT", () => {
   });
   assert.equal(result.decision, "EXIT");
   assert.equal(result.exitRequired, true);
-  assert.equal(result.status, "AUTHORITATIVE_PAPER_EXIT");
+  assert.equal(result.status, "AUTHORITATIVE_PROTECTIVE_PAPER_EXIT");
   assert.equal(result.lifecycleId, "life-1");
   assert.equal(result.symbol, "BTG");
   assert.equal(result.quantity, 1);
   assert.equal(result.brokerPositionIdentity, "BTG:1");
   assert.deepEqual(result.reasonCodes, ["OWNED_POSITION_HARD_LOSS_REVIEW"]);
-  assert.equal(result.strategyExit, true);
-  assert.equal(result.protectiveExit, false);
+  assert.equal(result.strategyExit, false);
+  assert.equal(result.protectiveExit, true);
+  assert.equal(result.protectiveType, "hard_loss");
+  assert.equal(result.priority, "critical");
+  assert.equal(result.severity, "critical");
   assert.equal(result.paperOnly, true);
   assert.equal(result.liveTradingAllowed, false);
 });
@@ -278,3 +281,70 @@ test("explicit observedAt overrides candidate evidence timestamp", () => {
   assert.equal(result.observedAt, "2026-08-16T04:00:01.000Z");
 });
 
+
+test("hard-loss EXIT is classified as critical protective PAPER exit without changing authorization", () => {
+  const result = buildAuthoritativePaperExitDecision({
+    lifecycle,
+    brokerPosition,
+    candidate: {
+      symbol: "BTG",
+      resultState: "EXIT",
+      decision: "EXIT",
+      ownedExitReviewTriggered: true,
+      ownedExitReviewReason: "OWNED_POSITION_HARD_LOSS_REVIEW",
+      sourceStale: false,
+    },
+  });
+  assert.equal(result.exitRequired, true);
+  assert.equal(result.decision, "EXIT");
+  assert.equal(result.status, "AUTHORITATIVE_PROTECTIVE_PAPER_EXIT");
+  assert.equal(result.protectiveExit, true);
+  assert.equal(result.protectiveType, "hard_loss");
+  assert.equal(result.strategyExit, false);
+  assert.equal(result.priority, "critical");
+  assert.equal(result.severity, "critical");
+});
+
+test("profit-protection EXIT is classified as high-priority protective PAPER exit", () => {
+  const result = buildAuthoritativePaperExitDecision({
+    lifecycle,
+    brokerPosition,
+    candidate: {
+      symbol: "BTG",
+      resultState: "EXIT",
+      decision: "EXIT",
+      ownedExitReviewTriggered: true,
+      ownedExitReviewReason: "OWNED_POSITION_SINGLE_SHARE_PROFIT_PROTECTION_EXIT",
+      sourceStale: false,
+    },
+  });
+  assert.equal(result.exitRequired, true);
+  assert.equal(result.status, "AUTHORITATIVE_PROTECTIVE_PAPER_EXIT");
+  assert.equal(result.protectiveExit, true);
+  assert.equal(result.protectiveType, "profit_protection");
+  assert.equal(result.strategyExit, false);
+  assert.equal(result.priority, "high");
+  assert.equal(result.severity, "high");
+});
+
+test("confirmed deterioration EXIT remains normal strategy EXIT", () => {
+  const result = buildAuthoritativePaperExitDecision({
+    lifecycle,
+    brokerPosition,
+    candidate: {
+      symbol: "BTG",
+      resultState: "EXIT",
+      decision: "EXIT",
+      ownedExitReviewTriggered: true,
+      ownedExitReviewReason: "OWNED_POSITION_CONFIRMED_DETERIORATION_REVIEW",
+      sourceStale: false,
+    },
+  });
+  assert.equal(result.exitRequired, true);
+  assert.equal(result.status, "AUTHORITATIVE_PAPER_EXIT");
+  assert.equal(result.protectiveExit, false);
+  assert.equal(result.protectiveType, null);
+  assert.equal(result.strategyExit, true);
+  assert.equal(result.priority, "normal");
+  assert.equal(result.severity, "normal");
+});
