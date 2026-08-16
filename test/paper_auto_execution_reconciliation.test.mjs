@@ -112,3 +112,71 @@ test('EXIT state without client order identity fails closed', () => {
   assert.equal(r.resolved,false)
   assert.ok(r.blockers.includes('exit_client_order_id_required'))
 })
+
+
+test('residual position exceeding lifecycle quantity fails closed', () => {
+  const lifecycle={...base,state:S.EXIT_UNKNOWN,filledQuantity:2,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'open',qty:'2',filled_qty:'0'}],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'3'}]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('exit_residual_position_exceeds_lifecycle_quantity'))
+})
+
+test('partial fill and residual position must be arithmetically consistent', () => {
+  const lifecycle={...base,state:S.EXIT_PARTIALLY_FILLED,filledQuantity:4,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'partially_filled',qty:'4',filled_qty:'1'}],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'2'}]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('exit_partial_quantity_inconsistent'))
+})
+
+test('exact partial fill arithmetic remains recoverable', () => {
+  const lifecycle={...base,state:S.EXIT_PARTIALLY_FILLED,filledQuantity:4,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'partially_filled',qty:'4',filled_qty:'1'}],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'3'}]})
+  assert.equal(r.nextState,S.EXIT_PARTIALLY_FILLED)
+  assert.equal(r.resolved,true)
+})
+
+test('filled quantity greater than exit order quantity fails closed', () => {
+  const lifecycle={...base,state:S.EXIT_UNKNOWN,filledQuantity:4,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'partially_filled',qty:'4',filled_qty:'5'}],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'1'}]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('exit_filled_quantity_invalid'))
+})
+
+
+test('reconciliation audit records exact EXIT identity and quantity evidence', () => {
+  const lifecycle={...base,state:S.EXIT_PARTIALLY_FILLED,filledQuantity:4,exitClientOrderId:'exit-1',exitBrokerOrderId:'bo-1'}
+  const r=reconcilePaperAutoExecution({
+    lifecycle,
+    orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'partially_filled',qty:'4',filled_qty:'1',submitted_at:'2026-08-16T15:00:00Z'}],
+    positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'3'}],
+  })
+  const a=r.patch.reconciliation.at(-1)
+  assert.equal(a.exitClientOrderId,'exit-1')
+  assert.equal(a.exitBrokerOrderId,'bo-1')
+  assert.equal(a.exitOrderStatus,'partially_filled')
+  assert.equal(a.exitOrderQuantity,4)
+  assert.equal(a.exitFilledQuantity,1)
+  assert.equal(a.residualPositionQuantity,3)
+  assert.deepEqual(a.blockers,[])
+  assert.equal(r.resolved,true)
+})
+
+test('quantity contradiction audit remains unresolved with blocker evidence', () => {
+  const lifecycle={...base,state:S.EXIT_PARTIALLY_FILLED,filledQuantity:4,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({
+    lifecycle,
+    orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'partially_filled',qty:'4',filled_qty:'1'}],
+    positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'2'}],
+  })
+  const a=r.patch.reconciliation.at(-1)
+  assert.equal(r.resolved,false)
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.ok(a.blockers.includes('exit_partial_quantity_inconsistent'))
+  assert.equal(a.exitClientOrderId,'exit-1')
+  assert.equal(a.exitBrokerOrderId,'bo-1')
+  assert.equal(a.exitFilledQuantity,1)
+  assert.equal(a.residualPositionQuantity,2)
+})

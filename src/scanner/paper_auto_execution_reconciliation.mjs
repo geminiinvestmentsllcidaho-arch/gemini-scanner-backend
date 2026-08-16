@@ -62,9 +62,24 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     blockers.push('exit_order_target_mismatch')
     exitOrder = null
   }
-  if (exitOrder && Number.isFinite(exitOrder.qty) && Number.isFinite(Number(lifecycle.filledQuantity)) && exitOrder.qty !== Number(lifecycle.filledQuantity)) {
+  const lifecycleQty = finite(lifecycle.filledQuantity)
+  if (exitOrder && Number.isFinite(exitOrder.qty) && lifecycleQty !== null && exitOrder.qty !== lifecycleQty) {
     blockers.push('exit_order_quantity_mismatch')
     exitOrder = null
+  }
+  if (position && lifecycleQty !== null && Number(position.qty) > lifecycleQty) {
+    blockers.push('exit_residual_position_exceeds_lifecycle_quantity')
+  }
+  if (exitOrder && Number.isFinite(exitOrder.filledQty)) {
+    if (exitOrder.filledQty < 0 || (Number.isFinite(exitOrder.qty) && exitOrder.filledQty > exitOrder.qty)) {
+      blockers.push('exit_filled_quantity_invalid')
+    }
+    if (position && lifecycleQty !== null) {
+      const expectedResidual = lifecycleQty - exitOrder.filledQty
+      if (expectedResidual < 0 || Math.abs(Number(position.qty) - expectedResidual) > 1e-9) {
+        blockers.push('exit_partial_quantity_inconsistent')
+      }
+    }
   }
 
   let nextState = lifecycle.state
@@ -106,6 +121,9 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
       || value === 'exit_order_identity_conflict'
       || value === 'exit_order_target_mismatch'
       || value === 'exit_order_quantity_mismatch'
+      || value === 'exit_residual_position_exceeds_lifecycle_quantity'
+      || value === 'exit_filled_quantity_invalid'
+      || value === 'exit_partial_quantity_inconsistent'
     )
     if (!exitClientId) {
       nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
@@ -151,6 +169,12 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     enterFilledAt: enterOrder?.filledAt ?? null,
     exitSubmittedAt: exitOrder?.submittedAt ?? null,
     exitFilledAt: exitOrder?.filledAt ?? null,
+    exitClientOrderId: exitClientId || null,
+    exitBrokerOrderId: exitOrder?.id ?? exitBrokerId ?? null,
+    exitOrderStatus: exitOrder?.status ?? null,
+    exitOrderQuantity: Number.isFinite(exitOrder?.qty) ? exitOrder.qty : null,
+    exitFilledQuantity: Number.isFinite(exitOrder?.filledQty) ? exitOrder.filledQty : null,
+    residualPositionQuantity: position && Number.isFinite(position.qty) ? position.qty : null,
   }))
 
   return Object.freeze({

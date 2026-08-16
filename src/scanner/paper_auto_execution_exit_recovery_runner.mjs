@@ -85,7 +85,7 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
       fetchHistory({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
     ])
     if (account?.ok !== true || account?.status !== 'connected_readonly') return finish('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
-    if (history?.paperOnly !== true || history?.readOnly !== true || history?.orderPlacementAllowed !== false || history?.accountMutationAllowed !== false) {
+    if (history?.paperOnly !== true || history?.readOnly !== true || history?.brokerContactType !== 'readonly_get' || history?.orderPlacementAllowed !== false || history?.accountMutationAllowed !== false) {
       return finish('READONLY_HISTORY_REQUIRED', lifecycle)
     }
     if (history?.historyLimitReached === true) {
@@ -95,7 +95,9 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
       const identityVisible = visibleOrders.some((order = {}) => {
         const clientId = clean(order.client_order_id ?? order.clientOrderId)
         const brokerId = clean(order.id)
-        return (exitClientId && clientId === exitClientId) || (exitBrokerId && brokerId === exitBrokerId)
+        if (exitClientId && clientId !== exitClientId) return false
+        if (exitBrokerId && brokerId !== exitBrokerId) return false
+        return Boolean(exitClientId || exitBrokerId)
       })
       if (!identityVisible) return finish('EXIT_HISTORY_TRUNCATED_IDENTITY_NOT_FOUND', lifecycle)
     }

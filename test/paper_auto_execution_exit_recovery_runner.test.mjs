@@ -77,6 +77,7 @@ function history(historicalOrders = []) {
     paperOnly: true,
     orderPlacementAllowed: false,
     accountMutationAllowed: false,
+    brokerContactType: 'readonly_get',
   }
 }
 
@@ -171,4 +172,88 @@ test('history truncation fails closed when exact EXIT identity is absent', async
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
+})
+
+
+test('history truncation allows exact client identity when broker identity is not yet known', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      fetchAccount: async () => account([{ assetId: 'asset-1', symbol: 'AAPL', qty: 1, averageEntryPrice: 202.5 }]),
+      fetchHistoricalOrders: async () => ({
+        ...history([{ id: 'broker-exit-1', client_order_id: 'exit-1', symbol: 'AAPL', side: 'sell', status: 'open', qty: '1', filled_qty: '0' }]),
+        historyLimitReached: true,
+      }),
+      now: () => Date.parse('2026-08-04T04:40:30.000Z'),
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastLifecycle.state, S.EXIT_SUBMITTING)
+    assert.equal(result.lastLifecycle.exitBrokerOrderId, 'broker-exit-1')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('history truncation fails closed when client and broker identities are split across records', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    store.patchExitRecovery({ expectedLifecycleId:'lifecycle-1', expectedSymbol:'AAPL', expectedState:S.EXIT_SUBMITTING, exitBrokerOrderId:'broker-exit-1', reconciliation:[] })
+    let reconciled = 0
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      fetchAccount: async () => account([{ assetId:'asset-1', symbol:'AAPL', qty:1, averageEntryPrice:202.5 }]),
+      fetchHistoricalOrders: async () => ({
+        ...history([
+          { id:'broker-other', client_order_id:'exit-1', symbol:'AAPL', side:'sell', status:'open', qty:'1', filled_qty:'0' },
+          { id:'broker-exit-1', client_order_id:'other-client', symbol:'AAPL', side:'sell', status:'open', qty:'1', filled_qty:'0' },
+        ]),
+        historyLimitReached:true,
+      }),
+      reconcile: async () => { reconciled += 1; throw new Error('unexpected_reconcile') },
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastStatus, 'EXIT_HISTORY_TRUNCATED_IDENTITY_NOT_FOUND')
+    assert.equal(reconciled, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('history truncation allows same record matching client and broker identities', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    store.patchExitRecovery({ expectedLifecycleId:'lifecycle-1', expectedSymbol:'AAPL', expectedState:S.EXIT_SUBMITTING, exitBrokerOrderId:'broker-exit-1', reconciliation:[] })
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      fetchAccount: async () => account([{ assetId:'asset-1', symbol:'AAPL', qty:1, averageEntryPrice:202.5 }]),
+      fetchHistoricalOrders: async () => ({
+        ...history([{ id:'broker-exit-1', client_order_id:'exit-1', symbol:'AAPL', side:'sell', status:'open', qty:'1', filled_qty:'0' }]),
+        historyLimitReached:true,
+      }),
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastLifecycle.state, S.EXIT_SUBMITTING)
+    assert.equal(result.lastLifecycle.exitBrokerOrderId, 'broker-exit-1')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('history brokerContactType must be readonly_get', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    let reconciled = 0
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      fetchAccount: async () => account([{ assetId:'asset-1', symbol:'AAPL', qty:1, averageEntryPrice:202.5 }]),
+      fetchHistoricalOrders: async () => ({ ...history([]), brokerContactType:'none' }),
+      reconcile: async () => { reconciled += 1 },
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastStatus, 'READONLY_HISTORY_REQUIRED')
+    assert.equal(reconciled, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
