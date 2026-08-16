@@ -70,3 +70,45 @@ test('preserves broker submitted and filled timestamps in reconciliation patch',
   assert.equal(r.patch.exitBrokerFilledAt,'2026-08-11T15:00:00.300Z')
   assert.equal(r.patch.reconciliation.at(-1).exitFilledAt,'2026-08-11T15:00:00.300Z')
 })
+
+test('EXIT-owned unresolved never falls back through ENTER reconciliation', () => {
+  const lifecycle={...base,state:S.UNRESOLVED_NEEDS_RECONCILIATION,filledQuantity:1,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'open',qty:'1'}],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'1',avg_entry_price:'630.25'}]})
+  assert.equal(r.nextState,S.EXIT_SUBMITTING)
+  assert.notEqual(r.nextState,S.POSITION_CONFIRMED)
+})
+
+test('duplicate exact exit client identity fails closed', () => {
+  const lifecycle={...base,state:S.EXIT_UNKNOWN,filledQuantity:1,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[
+    {id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'open',qty:'1'},
+    {id:'bo-2',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'open',qty:'1'},
+  ],positions:[{ asset_id:'asset-spy',symbol:'SPY',qty:'1'}]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('duplicate_exit_client_order_identity'))
+})
+
+test('terminal exit with residual position fails closed for replacement policy', () => {
+  const lifecycle={...base,state:S.EXIT_UNKNOWN,filledQuantity:1,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'canceled',qty:'1'}],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'1'}]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('exit_order_terminal_with_residual_position'))
+})
+
+test('partial exit without residual position is contradictory and unresolved', () => {
+  const lifecycle={...base,state:S.EXIT_PARTIALLY_FILLED,filledQuantity:1,exitClientOrderId:'exit-1'}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[{id:'bo-1',client_order_id:'exit-1',symbol:'SPY',side:'sell',status:'partially_filled',qty:'1',filled_qty:'0.5'}],positions:[]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('partial_exit_without_residual_position'))
+})
+
+test('EXIT state without client order identity fails closed', () => {
+  const lifecycle={...base,state:S.EXIT_SUBMITTING,filledQuantity:1,exitClientOrderId:null}
+  const r=reconcilePaperAutoExecution({lifecycle,orders:[],positions:[{asset_id:'asset-spy',symbol:'SPY',qty:'1'}]})
+  assert.equal(r.nextState,S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(r.resolved,false)
+  assert.ok(r.blockers.includes('exit_client_order_id_required'))
+})

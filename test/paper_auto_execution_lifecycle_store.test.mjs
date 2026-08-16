@@ -189,3 +189,21 @@ test('armMechanicalAutoExitProof fails closed outside MONITORING', () => {
   )
   assert.equal(store.load().scannerEvidence.mechanicalAutoExitProof, false)
 })
+
+test('patchExitRecovery persists same-state reconciliation and immutable broker order identity', () => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'paper-auto-exit-recovery-'))
+  try {
+    const store=new PaperAutoExecutionLifecycleStore({filePath:path.join(dir,'state.json'),clock:()=>Date.parse('2026-08-16T20:35:00Z'),idFactory:()=>'life-exit-recovery'})
+    store.create({selectedSymbol:'ABC'})
+    store.transition(S.ENTER_SUBMITTING,{enterClientOrderId:'enter-1'})
+    store.transition(S.POSITION_CONFIRMED,{filledQuantity:2,brokerPositionIdentity:'ABC:2'})
+    store.transition(S.EXIT_TRIGGERED,{exitClientOrderId:'exit-1'})
+    store.transition(S.EXIT_SUBMITTING)
+    const patched=store.patchExitRecovery({expectedLifecycleId:'life-exit-recovery',expectedSymbol:'ABC',expectedState:S.EXIT_SUBMITTING,exitBrokerOrderId:'broker-exit-1',reconciliation:[{kind:"exit_recovery"}]})
+    assert.equal(patched.state,S.EXIT_SUBMITTING)
+    assert.equal(patched.exitBrokerOrderId,'broker-exit-1')
+    assert.equal(patched.reconciliation.length,1)
+    assert.throws(()=>store.patchExitRecovery({expectedLifecycleId:'life-exit-recovery',expectedSymbol:'ABC',expectedState:S.EXIT_SUBMITTING,exitBrokerOrderId:'broker-exit-2'}),/broker_order_id_changed/)
+    assert.throws(()=>store.patchExitRecovery({expectedLifecycleId:'life-exit-recovery',expectedSymbol:'ABC',expectedState:S.EXIT_SUBMITTING,filledQuantity:1}),/forbidden:filledQuantity/)
+  } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+})

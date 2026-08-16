@@ -69,6 +69,7 @@ import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_moni
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
+import { createPaperAutoExecutionExitRecoveryRunner } from './scanner/paper_auto_execution_exit_recovery_runner.mjs';
 import { getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
 import { createPaperAutoExecutionScaleRunner, derivePaperScaleActionFile } from './scanner/paper_auto_execution_scale_runner.mjs';
 import { PaperAutoExecutionScaleActionStore } from './scanner/paper_auto_execution_scale_action_store.mjs';
@@ -2840,11 +2841,24 @@ const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   onTerminalLifecycle: () => runPaperAutoExecutionContinuityCycle('terminal_exit'),
 });
 
+const paperAutoExecutionExitRecoveryRunner = createPaperAutoExecutionExitRecoveryRunner({
+  getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
+});
+
 const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
 let paperAutoExecutionContinuityCycleInFlight = null;
 const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
   if (paperAutoExecutionContinuityCycleInFlight) return paperAutoExecutionContinuityCycleInFlight;
   paperAutoExecutionContinuityCycleInFlight = (async () => {
+    try {
+      await paperAutoExecutionExitRecoveryRunner.runOnce();
+    } catch (error) {
+      console.error('[paper-auto-execution-exit-recovery] runner cycle failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+    }
     try {
       await paperAutoExecutionContinuityRuntime.runOnce();
     } catch (error) {

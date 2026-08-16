@@ -123,3 +123,29 @@ test('persists unresolved state and never performs broker contact', async () => 
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('persists same-state EXIT recovery audit and learned broker order identity', async () => {
+  const { store, dir } = makeStore()
+  try {
+    store.create({ selectedSymbol: 'AAPL' })
+    store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'enter-1' })
+    store.transition(S.POSITION_CONFIRMED, { filledQuantity: 1, brokerPositionIdentity: 'asset-1' })
+    store.transition(S.EXIT_TRIGGERED, { exitClientOrderId: 'exit-1' })
+    store.transition(S.EXIT_SUBMITTING)
+    const result = await runPaperAutoExecutionReconciliation({
+      lifecycleStore: store,
+      accountSnapshot: snapshot({ positions: [{ assetId: 'asset-1', symbol: 'AAPL', qty: 1, averageEntryPrice: 202.5 }] }),
+      historicalOrders: [{ id: 'broker-exit-1', client_order_id: 'exit-1', symbol: 'AAPL', side: 'sell', status: 'open', qty: '1', filled_qty: '0' }],
+      nowMs: Date.parse('2026-08-04T04:40:30.000Z'),
+    })
+    assert.equal(result.status, 'RECONCILED_NO_STATE_CHANGE')
+    assert.equal(result.changed, true)
+    assert.equal(result.lifecycle.state, S.EXIT_SUBMITTING)
+    assert.equal(result.lifecycle.exitBrokerOrderId, 'broker-exit-1')
+    assert.equal(result.lifecycle.reconciliation.length, 1)
+    assert.equal(result.safety.orderPlacementAllowed, false)
+    assert.equal(result.safety.accountMutationAllowed, false)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})

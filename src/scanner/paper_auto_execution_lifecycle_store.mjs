@@ -167,6 +167,33 @@ export class PaperAutoExecutionLifecycleStore {
     return clone(next)
   }
 
+  patchExitRecovery(input = {}) {
+    const current = this.load()
+    if (!current) throw new Error('paper_auto_lifecycle_missing')
+    const states = new Set([S.EXIT_SUBMITTING, S.EXIT_UNKNOWN, S.EXIT_PARTIALLY_FILLED, S.UNRESOLVED_NEEDS_RECONCILIATION])
+    if (!states.has(current.state)) throw new Error(`paper_auto_exit_recovery_patch_invalid_state:$current.state}`)
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('paper_auto_exit_recovery_patch_invalid')
+    const { expectedLifecycleId, expectedSymbol, expectedState, ...patch } = input
+    if (String(expectedLifecycleId ?? '').trim() !== current.lifecycleId) throw new Error('paper_auto_exit_recovery_patch_lifecycle_changed')
+    if (normalizeSymbol(expectedSymbol) !== current.selectedSymbol) throw new Error('paper_auto_exit_recovery_patch_symbol_changed')
+    if (String(expectedState ?? '').trim() !== current.state) throw new Error('paper_auto_exit_recovery_patch_state_changed')
+    const allowed = new Set(['exitBrokerOrderId', 'reconciliation'])
+    for (const key of Object.keys(patch)) if (!allowed.has(key)) throw new Error(`paper_auto_exit_recovery_patch_forbidden:${key}`)
+    let exitBrokerOrderId = current.exitBrokerOrderId
+    if ('exitBrokerOrderId' in patch) {
+      const incoming = String(patch.exitBrokerOrderId ?? '').trim()
+      if (!incoming) throw new Error('paper_auto_exit_recovery_patch_broker_order_id_required')
+      if (exitBrokerOrderId && exitBrokerOrderId !== incoming) throw new Error('paper_auto_exit_recovery_patch_broker_order_id_changed')
+      exitBrokerOrderId = incoming
+    }
+    const reconciliation = 'reconciliation' in patch ? clone(patch.reconciliation) : clone(current.reconciliation ?? [])
+    if (!Array.isArray(reconciliation)) throw new Error('paper_auto_exit_recovery_patch_reconciliation_invalid')
+    const next = { ...current, exitBrokerOrderId, reconciliation, lifecycleId: current.lifecycleId, state: current.state, selectedSymbol: current.selectedSymbol, updatedAt: new Date(this.clock()).toISOString() }
+    validate(next)
+    this.#write(next)
+    return clone(next)
+  }
+
   resetToIdle() {
     const current = this.load()
     if (!current || !terminalStates.has(current.state)) throw new Error('paper_auto_reset_requires_terminal')

@@ -1,6 +1,7 @@
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 import { adaptPaperAutoExecutionSnapshot } from './paper_auto_execution_snapshot_adapter.mjs'
 import { reconcilePaperAutoExecution } from './paper_auto_execution_reconciliation.mjs'
+import { STATES as S } from './paper_auto_execution_state_machine.mjs'
 
 export const VERSION = 'paper_auto_execution_reconciliation_runner_v1'
 
@@ -82,13 +83,29 @@ export async function runPaperAutoExecutionReconciliation({
   })
 
   if (reconciliation.nextState === lifecycle.state) {
+    const exitRecoveryState = [S.EXIT_SUBMITTING, S.EXIT_UNKNOWN, S.EXIT_PARTIALLY_FILLED].includes(lifecycle.state)
+      || (lifecycle.state === S.UNRESOLVED_NEEDS_RECONCILIATION && Boolean(lifecycle.exitClientOrderId || lifecycle.exitBrokerOrderId))
+    let persistedLifecycle = lifecycle
+    let changed = false
+    if (exitRecoveryState) {
+      if (typeof lifecycleStore.patchExitRecovery !== 'function') throw new Error('paper_auto_exit_recovery_patch_required')
+      const recoveryPatch = {
+        expectedLifecycleId: lifecycle.lifecycleId,
+        expectedSymbol: lifecycle.selectedSymbol,
+        expectedState: lifecycle.state,
+        reconciliation: reconciliation.patch.reconciliation,
+      }
+      if (reconciliation.patch.exitBrokerOrderId) recoveryPatch.exitBrokerOrderId = reconciliation.patch.exitBrokerOrderId
+      persistedLifecycle = lifecycleStore.patchExitRecovery(recoveryPatch)
+      changed = true
+    }
     if (!reconciliation.resolved) await emitIncidentFailOpen(incidentEmitter, { source: 'paper_reconciliation', severity: 'critical', failureCode: reconciliation.blockers?.[0] ?? 'unresolved_reconciliation', failureCodes: reconciliation.blockers, summary: 'PAPER lifecycle remains unresolved after broker-authoritative reconciliation.', process: 'paper_auto_execution_reconciliation_runner' })
     return Object.freeze({
       ok: true,
       version: VERSION,
       status: reconciliation.resolved ? 'RECONCILED_NO_STATE_CHANGE' : 'UNRESOLVED_NEEDS_RECONCILIATION',
-      changed: false,
-      lifecycle,
+      changed,
+      lifecycle: persistedLifecycle,
       blockers: reconciliation.blockers,
       snapshot,
       reconciliation,
