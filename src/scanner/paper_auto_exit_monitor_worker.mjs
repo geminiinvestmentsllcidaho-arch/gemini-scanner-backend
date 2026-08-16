@@ -4,6 +4,7 @@ import { fetchCustomerOwnedPositionMonitorSource } from './customer_owned_positi
 import { fetchAlpacaUnderFiveUniverseReadonly } from './alpaca_under_five_universe_readonly.mjs'
 import { fetchAlpacaMarketClockReadonly } from './alpaca_market_clock_readonly.mjs'
 import { runPaperAutoExecutionExitOnly } from './paper_auto_execution_exit_only_runner.mjs'
+import { buildAuthoritativePaperExitDecision } from './paper_auto_execution_exit_decision.mjs'
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 
 export const VERSION = 'paper_auto_exit_monitor_worker_v1'
@@ -44,6 +45,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const fetchSymbols = options.fetchSymbols ?? (args => fetchAlpacaUnderFiveUniverseReadonly(args))
   const fetchMarketClock = options.fetchMarketClock ?? (args => fetchAlpacaMarketClockReadonly(args))
   const exitRunner = options.exitRunner ?? runPaperAutoExecutionExitOnly
+  const buildExitDecision = options.buildExitDecision ?? buildAuthoritativePaperExitDecision
   const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
   const accountCredentialResolver = options.accountCredentialResolver
   const onTerminalLifecycle = options.onTerminalLifecycle ?? null
@@ -69,6 +71,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   let lastBrokerSubmittedAt = null
   let lastBrokerFilledAt = null
   let lastIncidentCode = null
+  let lastExitDecision = null
 
   const diagnostics = () => ({
     ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles, eventCycles, fallbackCycles,
@@ -76,6 +79,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     exitTriggers, exitAttempts, lastStatus, lastError, lastResult, lastTriggerDetectedAt,
     lastRunnerCompletedAt, lastSubmissionConfirmedObservedAt, lastReconciliationCompletedObservedAt,
     lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus, lastBrokerSubmittedAt, lastBrokerFilledAt,
+    lastExitDecision,
     safety: { paperOnly: true, liveTradingAllowed: false, disabledByDefault: true, exactPositionExitOnly: true, blindRetryAllowed: false }
   })
 
@@ -175,7 +179,18 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
             nowMs: Number(now()), maxAssets: 1
           })
           const candidate = (owned?.candidates ?? []).find(c => upper(c?.symbol) === symbol)
-          exitRequired = candidate?.ownedExitReviewTriggered === true && upper(candidate?.resultState ?? candidate?.decision) === 'EXIT' && candidate?.sourceStale !== true
+          const exitDecision = buildExitDecision({
+            lifecycle: life,
+            brokerPosition: position,
+            candidate: candidate ?? {},
+            observedAt: new Date(now()).toISOString(),
+          })
+          lastExitDecision = exitDecision
+          exitRequired = exitDecision?.exitRequired === true && upper(exitDecision?.decision) === 'EXIT'
+          if (!exitRequired) {
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT', exitDecision })
+            continue
+          }
         }
         if (!exitRequired) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT' }); continue }
 

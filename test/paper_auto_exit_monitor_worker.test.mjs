@@ -26,7 +26,7 @@ test('fresh EXIT invokes exact runner once', async () => {
     now:()=>1000000,
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1,unrealizedPlpc:-0.04}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async o=>{calls.push(o);return{
       status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',
@@ -48,6 +48,11 @@ test('fresh EXIT invokes exact runner once', async () => {
   assert.equal(r.lastBrokerOrderId,'paper-order-1')
   assert.equal(r.lastSubmissionStatus,'SUBMISSION_CONFIRMED_RECONCILIATION_REQUIRED')
   assert.equal(r.lastReconciliationStatus,'RECONCILED_STATE_UPDATED')
+  assert.equal(r.lastExitDecision?.decision,'EXIT')
+  assert.equal(r.lastExitDecision?.exitRequired,true)
+  assert.equal(r.lastExitDecision?.symbol,'BTG')
+  assert.equal(r.lastExitDecision?.brokerPositionIdentity,'BTG:1')
+  assert.equal(r.lastExitDecision?.strategyExit,true)
   assert.equal('lastSubmissionAt' in r,false)
   assert.equal('lastReconciliationAt' in r,false)
 })
@@ -127,7 +132,7 @@ test('monitor does not invent broker acknowledgment or fill timestamps for unres
     now:()=>2000000,
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1,unrealizedPlpc:-0.04}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({
       status:'EXACT_POSITION_PAPER_EXIT_RECONCILIATION_REQUIRED',
@@ -171,12 +176,15 @@ test('stale EXIT is suppressed before exact exit runner', async () => {
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:true}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:true}]}),
     exitRunner:async()=>{exits++},
   })
   const r=await w.runOnce()
   assert.equal(exits,0)
   assert.equal(r.lastResult[0].status,'MONITORING_NO_EXIT')
+  assert.equal(r.lastResult[0].exitDecision?.status,'STALE_EXIT_EVIDENCE_SUPPRESSED')
+  assert.equal(r.lastResult[0].exitDecision?.decision,'HOLD')
+  assert.equal(r.lastResult[0].exitDecision?.exitRequired,false)
 })
 
 test('non-EXIT decision is suppressed before exact exit runner', async () => {
@@ -191,6 +199,9 @@ test('non-EXIT decision is suppressed before exact exit runner', async () => {
   const r=await w.runOnce()
   assert.equal(exits,0)
   assert.equal(r.lastResult[0].status,'MONITORING_NO_EXIT')
+  assert.equal(r.lastResult[0].exitDecision?.status,'MONITORING_HOLD')
+  assert.equal(r.lastResult[0].exitDecision?.decision,'HOLD')
+  assert.equal(r.lastResult[0].exitDecision?.exitRequired,false)
 })
 
 test('busy cycle suppresses duplicate concurrent evaluation and exit attempt', async () => {
@@ -293,7 +304,7 @@ test('records broker timestamps returned by exact exit runner evidence', async (
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',submission:{status:'SUBMISSION_CONFIRMED_RECONCILIATION_REQUIRED',result:{brokerOrderId:'bo-1',submittedAt:'2026-08-11T15:00:00.000Z'}},reconciliation:{status:'RECONCILED_STATE_UPDATED'},lifecycle:{state:'ROUND_TRIP_COMPLETED',exitBrokerOrderId:'bo-1',exitBrokerFilledAt:'2026-08-11T15:00:00.250Z'},brokerTiming:{submittedAt:'2026-08-11T15:00:00.000Z',filledAt:'2026-08-11T15:00:00.250Z'}}),
   })
@@ -360,7 +371,7 @@ test('strategy-driven PAPER EXIT waits benignly for market open before invoking 
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1,unrealizedPlpc:-0.04}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>{clocks++;return {ok:true,status:'connected_readonly',marketClock:{isOpen:open}}},
     exitRunner:async()=>{exits++;return {status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED'}}},
   })
@@ -489,7 +500,7 @@ test('terminal lifecycle callback fires once only after exact completed strategy
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED',exitBrokerOrderId:'bo-terminal'}}),
     onTerminalLifecycle:async payload=>terminal.push(payload),
@@ -518,7 +529,7 @@ test('terminal lifecycle callback does not fire for monitoring or incomplete exi
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_PENDING',lifecycle:{state:'EXIT_UNKNOWN'}}),
     onTerminalLifecycle:async()=>{terminal++},
@@ -532,7 +543,7 @@ test('terminal lifecycle callback failure is contained after completed exit', as
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
     fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'BTG',qty:1}],openOrders:[]}),
-    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,sourceStale:false}]}),
+    fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
     exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED'}}),
     onTerminalLifecycle:async()=>{throw new Error('terminal_wake_test_failure')},
