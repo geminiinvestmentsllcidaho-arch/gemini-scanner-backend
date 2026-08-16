@@ -391,6 +391,59 @@ test('controlled PAPERmarket closed then open exits exact BTG without strategy'
 })
 
 
+
+test('one-time exact USAS lifecycle uses controlled market-open path without strategy', async () => {
+  let open=false, owned=0, exits=0
+  const usasLife={
+    ...life,
+    lifecycleId:'9bf4939d-4936-48e6-9529-f5c02ae5d1ec',
+    state:'MONITORING',
+    selectedSymbol:'USAS',
+    filledQuantity:1,
+    brokerPositionIdentity:'USAS:1',
+    scannerEvidence:{
+      source:'paper_auto_continuity_existing_position_adoption',
+      paperOnly:true,
+      mechanicalAutoExitProof:false
+    }
+  }
+  const usasRow={...row,file:'/tmp/usas-one-time.json',lifecycle:usasLife}
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/usas-one-time.json'},
+    readConfiguredMonitoringLifecycle:async()=>usasRow,
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'USAS',qty:1}],openOrders:[]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:open}}),
+    fetchOwnedMonitor:async()=>{owned++;return {candidates:[]}},
+    exitRunner:async({args})=>{exits++;assert.equal(args.lifecycleId,'9bf4939d-4936-48e6-9529-f5c02ae5d1ec');assert.equal(args.symbol,'USAS');assert.equal(args.quantity,'1');return {status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{...usasLife,state:'ROUND_TRIP_COMPLETED'}}}
+  })
+  let r=await w.runOnce({eventSymbol:'USAS'})
+  assert.equal(r.lastResult[0].status,'WAITING_FOR_MARKET_OPEN_AUTO_EXIT_PROOF')
+  assert.equal(exits,0)
+  assert.equal(owned,0)
+  open=true
+  r=await w.runOnce({eventSymbol:'USAS'})
+  assert.equal(exits,1)
+  assert.equal(owned,0)
+  assert.equal(r.lastStatus,'EXIT_TRIGGERED')
+})
+
+test('one-time USAS override remains exact lifecycle identity scoped', async () => {
+  let exits=0, owned=0
+  const wrong={...life,lifecycleId:'different',state:'MONITORING',selectedSymbol:'USAS',filledQuantity:1,brokerPositionIdentity:'USAS:1',scannerEvidence:{source:'paper_auto_continuity_existing_position_adoption',paperOnly:true,mechanicalAutoExitProof:false}}
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/usas-wrong.json'},
+    readConfiguredMonitoringLifecycle:async()=>({status:'MONITORING',file:'/tmp/usas-wrong.json',lifecycle:wrong}),
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'USAS',qty:1}],openOrders:[]}),
+    fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true}}),
+    fetchOwnedMonitor:async()=>{owned++;return {candidates:[]}},
+    exitRunner:async()=>{exits++;return {status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{...wrong,state:'ROUND_TRIP_COMPLETED'}}}
+  })
+  const r=await w.runOnce({eventSymbol:'USAS'})
+  assert.equal(exits,0)
+  assert.equal(owned,1)
+  assert.equal(r.lastResult[0].status,'MONITORING_NO_EXIT')
+})
+
 test('dynamic configured lifecycle resolver follows newly active monitoring lifecycle', async () => {
   let file = '/tmp/old.json'
   const seen = []

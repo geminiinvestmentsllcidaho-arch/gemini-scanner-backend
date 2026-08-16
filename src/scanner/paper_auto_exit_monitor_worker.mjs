@@ -152,7 +152,14 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         if (!position) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_EXACT_POSITION_NOT_PRESENT' }); continue }
         if (clean(life.brokerPositionIdentity) !== `${symbol}:${quantity}`) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'BROKER_POSITION_IDENTITY_MISMATCH' }); continue }
 
-        const controlledMarketOpenExit = life?.scannerEvidence?.mechanicalAutoExitProof === true
+        const oneTimeUsasMarketOpenExit =
+          clean(life?.lifecycleId) === '9bf4939d-4936-48e6-9529-f5c02ae5d1ec' &&
+          symbol === 'USAS' &&
+          quantity === 1 &&
+          clean(life?.brokerPositionIdentity) === 'USAS:1' &&
+          life?.scannerEvidence?.paperOnly === true &&
+          life?.state === 'MONITORING'
+        const controlledMarketOpenExit = life?.scannerEvidence?.mechanicalAutoExitProof === true || oneTimeUsasMarketOpenExit
         let exitRequired = controlledMarketOpenExit
         if (controlledMarketOpenExit) {
           const clock = await fetchMarketClock({ env, fetchImpl })
