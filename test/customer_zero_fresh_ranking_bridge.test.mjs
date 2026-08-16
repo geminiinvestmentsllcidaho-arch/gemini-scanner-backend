@@ -193,3 +193,61 @@ test("fresh closed-session runtime health preserves eligible customer candidate 
   assert.equal(out.candidates[0].sourceStale, false);
   assert.equal(out.candidates[0].resultState, "ENTER");
 });
+
+
+test("bridges symbol-level ranking authorization evidence without enabling execution", () => {
+  const out = bridgeCustomerZeroFreshRankings(
+    {
+      candidates: [{
+        symbol: "AUTH",
+        decision: "ENTER",
+        sourceStale: false,
+        blockingFlags: [],
+      }],
+    },
+    {
+      sourceTs: "2026-08-15T18:00:00.000Z",
+      sourceAgeSec: 5,
+      maxAgeSec: 180,
+      stale: false,
+      issues: [],
+      rankings: [{
+        symbol: "AUTH",
+        rank: 1,
+        setupScore: 88,
+        normalizedScore: 1,
+        compositeConfidence: 0.91,
+        qualityOverall: 0.93,
+        p3GateOk: true,
+        qualityTier: "high",
+        confidenceTier: "high",
+        deploymentPriority: "high",
+        targetPositionPct: 0.06,
+        maxPositionPct: 0.09,
+        reason: ["valid P3 gate"],
+      }],
+    },
+    {
+      streamConnected: true,
+      marketClockStale: false,
+      streamStale: false,
+      marketOpen: true,
+    }
+  );
+
+  const candidate = out.candidates[0];
+  assert.equal(candidate.rankingConnected, true);
+  assert.equal(candidate.rankingSetupScore, 88);
+  assert.equal(candidate.rankingNormalizedScore, 1);
+  assert.equal(candidate.rankingConfidence, 0.91);
+  assert.equal(candidate.rankingQuality, 0.93);
+  assert.equal(candidate.rankingP3GateOk, true);
+  assert.equal(candidate.rankingQualityTier, "high");
+  assert.equal(candidate.rankingConfidenceTier, "high");
+  assert.equal(candidate.rankingDeploymentPriority, "high");
+  assert.equal(candidate.rankingTargetPositionPct, 0.06);
+  assert.equal(candidate.rankingMaxPositionPct, 0.09);
+  assert.equal(candidate.decisionAssistOnly, true);
+  assert.equal(candidate.orderPlacementAllowed, false);
+  assert.equal(candidate.accountMutationAllowed, false);
+});

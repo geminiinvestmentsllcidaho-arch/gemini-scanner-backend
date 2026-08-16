@@ -95,6 +95,7 @@ import { writeRunlog } from './runlog-write.js';
 import { listRuns, readRun, runlogIndex } from './utils/runlog_index.js';
 import { readScannerRankings } from './scanner/ranking_store.mjs';
 import { bridgeCustomerZeroFreshRankings } from './scanner/customer_zero_fresh_ranking_bridge.mjs';
+import { authorizePaperAutoExecutionCandidate } from './scanner/paper_auto_execution_strategy_authorization.mjs';
 import { buildCustomerScannerFreshnessDiagnostic } from './scanner/customer_scanner_freshness_diagnostic.mjs';
 import { appendOpportunityFunnelAuditRecord, listOpportunityFunnelAuditRecords, listOpportunityFunnelAuditRecordsFiltered } from './scanner/opportunity_funnel_audit_store.mjs';
 import { createCustomerReportBackgroundAiReviewWorker } from './scanner/customer_report_background_ai_review_worker.mjs';
@@ -2765,15 +2766,21 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
     observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
     candidates: (Array.isArray(customerSource?.candidates) ? customerSource.candidates : []).map((candidate) => {
       const state = String(candidate?.resultState ?? candidate?.decision ?? 'NO_SETUP').trim().toUpperCase();
+      const strategyAuthorization = authorizePaperAutoExecutionCandidate({
+        ...candidate,
+        state,
+      });
       const blockers = [
         ...(Array.isArray(candidate?.blockingFlags) ? candidate.blockingFlags : []),
         ...(Array.isArray(candidate?.staleReasons) ? candidate.staleReasons : []),
+        ...(Array.isArray(strategyAuthorization?.blockers) ? strategyAuthorization.blockers : []),
       ];
       return {
         ...candidate,
         state,
-        buyRecommendation: state === 'ENTER',
-        blocked: state !== 'ENTER',
+        strategyAuthorization,
+        buyRecommendation: strategyAuthorization.authorized === true,
+        blocked: strategyAuthorization.authorized !== true,
         blockers: [...new Set(blockers)],
         score: Number(candidate?.readonlyPotentialScore),
       };
