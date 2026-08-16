@@ -459,6 +459,20 @@ test("runner includes bounded strategy observation evidence and persists source 
   assert.equal(capturedInput.strategyObservationEvidence.uniqueObservationCount, 1);
   assert.equal(capturedInput.strategyObservationEvidence.observations[0].symbol, "AAA");
   assert.equal(capturedInput.strategyObservationEvidence.observations[0].latestReturnPct, 4.25);
+  assert.equal(capturedInput.strategyAuthorizationPolicy.version, "paper_auto_execution_strategy_authorization_v1");
+  assert.equal(capturedInput.strategyAuthorizationPolicy.requiredState, "ENTER");
+  assert.deepEqual(capturedInput.strategyAuthorizationPolicy.minimums, {
+    setupScore: 70,
+    rankingConfidence: 0.5,
+    rankingQuality: 0.65,
+  });
+  assert.equal(capturedInput.strategyAuthorizationPolicy.executionAuthority, "deterministic_strategy_authorization");
+  assert.equal(capturedInput.strategyAuthorizationPolicy.symbolLevelOnly, true);
+  assert.equal(capturedInput.strategyAuthorizationPolicy.portfolioRootAuthorizationUsed, false);
+  assert.equal(capturedInput.strategyAuthorizationPolicy.aiAuthorizationAllowed, false);
+  assert.equal(capturedInput.strategyAuthorizationPolicy.aiOverrideAllowed, false);
+  assert.equal(capturedInput.strategyAuthorizationPolicy.rankingSizingAuthoritative, false);
+  assert.equal(capturedInput.strategyAuthorizationPolicy.aiSizingOverrideAllowed, false);
   assert.equal(result.includedStrategyObservationEvidence, true);
   assert.equal(result.strategyObservationSourceRecordCount, 1);
   assert.equal(result.strategyObservationUniqueCount, 1);

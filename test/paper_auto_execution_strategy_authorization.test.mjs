@@ -5,6 +5,7 @@ import {
   MIN_RANKING_CONFIDENCE,
   MIN_RANKING_QUALITY,
   MIN_RANKING_SETUP_SCORE,
+  getPaperAutoExecutionStrategyAuthorizationPolicy,
   authorizePaperAutoExecutionCandidate,
 } from "../src/scanner/paper_auto_execution_strategy_authorization.mjs";
 
@@ -23,6 +24,32 @@ function qualified(overrides = {}) {
     ...overrides,
   };
 }
+
+test("exposes canonical read-only strategy authorization policy from the deterministic source of truth", () => {
+  const policy = getPaperAutoExecutionStrategyAuthorizationPolicy();
+  assert.equal(policy.version, "paper_auto_execution_strategy_authorization_v1");
+  assert.equal(policy.requiredState, "ENTER");
+  assert.deepEqual(policy.minimums, {
+    setupScore: MIN_RANKING_SETUP_SCORE,
+    rankingConfidence: MIN_RANKING_CONFIDENCE,
+    rankingQuality: MIN_RANKING_QUALITY,
+  });
+  assert.equal(policy.rankingConnectedRequired, true);
+  assert.equal(policy.p3GateRequired, true);
+  assert.equal(policy.freshSourceRequired, true);
+  assert.equal(policy.blockersAbsentRequired, true);
+  assert.equal(policy.symbolLevelOnly, true);
+  assert.equal(policy.portfolioRootAuthorizationUsed, false);
+  assert.equal(policy.paperOnly, true);
+  assert.equal(policy.executionAuthority, "deterministic_strategy_authorization");
+  assert.equal(policy.aiAuthorizationAllowed, false);
+  assert.equal(policy.aiOverrideAllowed, false);
+  assert.equal(policy.thresholdMutationAllowed, false);
+  assert.equal(policy.rankingSizingAuthoritative, false);
+  assert.equal(policy.aiSizingOverrideAllowed, false);
+  assert.equal(Object.isFrozen(policy), true);
+  assert.equal(Object.isFrozen(policy.minimums), true);
+});
 
 test("authorizes only a fresh ENTER candidate with complete qualified symbol-level ranking evidence", () => {
   const out = authorizePaperAutoExecutionCandidate(qualified());

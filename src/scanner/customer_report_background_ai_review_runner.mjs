@@ -7,6 +7,7 @@ import {
 } from "./opportunity_funnel_audit_store.mjs";
 import { listStrategyObservationRecords } from "./strategy_observation_store.mjs";
 import { buildBoundedStrategyObservationAiEvidence } from "./strategy_observation_ai_evidence.mjs";
+import { getPaperAutoExecutionStrategyAuthorizationPolicy } from "./paper_auto_execution_strategy_authorization.mjs";
 import { buildOpportunityOutcomeTrackingReport } from "./opportunity_outcome_tracking.mjs";
 import { buildPremarketOutcomeValidationFromHistoryReadonly } from "./premarket_outcome_validation_adapter_readonly.mjs";
 import { requestCustomerReportRealtimeAiReview } from "./customer_report_realtime_ai_client.mjs";
@@ -254,12 +255,14 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       observationPath: options.strategyObservationPath,
     }),
   );
+  const strategyAuthorizationPolicy = getPaperAutoExecutionStrategyAuthorizationPolicy();
   const review = await requestAiReview({
     input: Object.freeze({
       ...(report.aiReview?.input ?? {}),
       postMarketEvidence,
       premarketOutcomeEvidence,
       strategyObservationEvidence,
+      strategyAuthorizationPolicy,
     }),
     timeoutMs: Number(
       options.timeoutMs

@@ -53,6 +53,61 @@ test("builds stable read-only strategy observation records", () => {
   assert.equal(Object.isFrozen(record), true);
 });
 
+test("persists bounded strategy authorization evidence without synthesizing missing values", () => {
+  const record = buildStrategyObservationRecord({
+    originScanId: "scan-auth",
+    symbol: "ABC",
+    decision: "ENTER",
+    rankingConnected: true,
+    rankingP3GateOk: true,
+    rankingSetupScore: 82,
+    rankingConfidence: 0.8,
+    rankingQuality: 0.9,
+    readonlyPotentialScore: 84,
+    strategyAuthorization: {
+      version: "paper_auto_execution_strategy_authorization_v1",
+      authorized: false,
+      state: "ENTER",
+      rankingSetupScore: 82,
+      rankingConfidence: 0.8,
+      rankingQuality: 0.9,
+      minimums: {
+        setupScore: 70,
+        rankingConfidence: 0.5,
+        rankingQuality: 0.65,
+      },
+      blockers: ["TEST_BLOCKER"],
+      symbolLevelOnly: true,
+      portfolioRootAuthorizationUsed: false,
+      paperOnly: true,
+    },
+  });
+
+  assert.equal(record.rankingConnected, true);
+  assert.equal(record.rankingP3GateOk, true);
+  assert.equal(record.rankingSetupScore, 82);
+  assert.equal(record.rankingConfidence, 0.8);
+  assert.equal(record.rankingQuality, 0.9);
+  assert.equal(record.readonlyPotentialScore, 84);
+  assert.equal(record.strategyAuthorization.version, "paper_auto_execution_strategy_authorization_v1");
+  assert.equal(record.strategyAuthorization.authorized, false);
+  assert.deepEqual(record.strategyAuthorization.blockers, ["TEST_BLOCKER"]);
+  assert.equal(record.strategyAuthorization.symbolLevelOnly, true);
+  assert.equal(record.strategyAuthorization.portfolioRootAuthorizationUsed, false);
+  assert.equal(record.strategyAuthorization.paperOnly, true);
+
+  const missing = buildStrategyObservationRecord({
+    originScanId: "scan-missing",
+    symbol: "XYZ",
+  });
+  assert.equal(missing.rankingConnected, null);
+  assert.equal(missing.rankingP3GateOk, null);
+  assert.equal(missing.rankingSetupScore, null);
+  assert.equal(missing.rankingConfidence, null);
+  assert.equal(missing.rankingQuality, null);
+  assert.equal(missing.strategyAuthorization, null);
+});
+
 test("persists private local jsonl records and reads newest first", () => {
   const f = fixture();
   try {

@@ -26,6 +26,38 @@ function freezeMap(value = {}) {
   return Object.freeze({ ...value });
 }
 
+function triBool(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  return null;
+}
+
+function boundedStrategyAuthorization(value) {
+  if (!value || typeof value !== "object") return null;
+  return Object.freeze({
+    version: clean(value.version, 128) || null,
+    authorized: triBool(value.authorized),
+    state: clean(value.state, 32).toUpperCase() || null,
+    rankingSetupScore: finite(value.rankingSetupScore),
+    rankingConfidence: finite(value.rankingConfidence),
+    rankingQuality: finite(value.rankingQuality),
+    minimums: Object.freeze({
+      setupScore: finite(value?.minimums?.setupScore),
+      rankingConfidence: finite(value?.minimums?.rankingConfidence),
+      rankingQuality: finite(value?.minimums?.rankingQuality),
+    }),
+    blockers: Object.freeze(
+      (Array.isArray(value.blockers) ? value.blockers : [])
+        .slice(0, 20)
+        .map((item) => clean(item, 128))
+        .filter(Boolean),
+    ),
+    symbolLevelOnly: triBool(value.symbolLevelOnly),
+    portfolioRootAuthorizationUsed: triBool(value.portfolioRootAuthorizationUsed),
+    paperOnly: triBool(value.paperOnly),
+  });
+}
+
 function strategyTypeFor(row = {}) {
   const explicit = clean(row.strategyType ?? row.strategy ?? row.tradeStyle, 64).toLowerCase();
   if (explicit) return explicit;
@@ -81,8 +113,13 @@ export function buildStrategyObservationRecord(input = {}, options = {}) {
     ),
     originObservable: input.originObservable === true,
     originSourceStale: input.originSourceStale === true || input.sourceStale === true,
+    rankingConnected: triBool(input.rankingConnected),
+    rankingP3GateOk: triBool(input.rankingP3GateOk),
+    rankingSetupScore: finite(input.rankingSetupScore),
     rankingConfidence: finite(input.rankingConfidence),
+    rankingQuality: finite(input.rankingQuality),
     readonlyPotentialScore: finite(input.readonlyPotentialScore),
+    strategyAuthorization: boundedStrategyAuthorization(input.strategyAuthorization),
     readOnly: true,
     paperOnly: true,
     shadowOnly: true,

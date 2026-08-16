@@ -120,6 +120,61 @@ test("uses stable scan and symbol identity and classifies strategy", () => {
   assert.equal(Object.isFrozen(report.outcomes[0]), true);
 });
 
+test("propagates bounded ranking P3 and canonical strategy authorization evidence", () => {
+  const report = buildTimeBasedStrategyObservationReport([
+    record("auth-origin", "2026-07-13T14:00:00.000Z", [
+      {
+        symbol: "ABC",
+        price: 10,
+        decision: "ENTER",
+        resultState: "ENTER",
+        rankingConnected: true,
+        rankingP3GateOk: true,
+        rankingSetupScore: 82,
+        rankingConfidence: 0.8,
+        rankingQuality: 0.9,
+        readonlyPotentialScore: 84,
+        strategyAuthorization: {
+          version: "paper_auto_execution_strategy_authorization_v1",
+          authorized: true,
+          state: "ENTER",
+          rankingSetupScore: 82,
+          rankingConfidence: 0.8,
+          rankingQuality: 0.9,
+          minimums: {
+            setupScore: 70,
+            rankingConfidence: 0.5,
+            rankingQuality: 0.65,
+          },
+          blockers: [],
+          symbolLevelOnly: true,
+          portfolioRootAuthorizationUsed: false,
+          paperOnly: true,
+        },
+      },
+    ]),
+  ]);
+
+  const origin = report.outcomes[0];
+  assert.equal(origin.rankingConnected, true);
+  assert.equal(origin.rankingP3GateOk, true);
+  assert.equal(origin.rankingSetupScore, 82);
+  assert.equal(origin.rankingConfidence, 0.8);
+  assert.equal(origin.rankingQuality, 0.9);
+  assert.equal(origin.readonlyPotentialScore, 84);
+  assert.equal(origin.strategyAuthorization.version, "paper_auto_execution_strategy_authorization_v1");
+  assert.equal(origin.strategyAuthorization.authorized, true);
+  assert.deepEqual(origin.strategyAuthorization.minimums, {
+    setupScore: 70,
+    rankingConfidence: 0.5,
+    rankingQuality: 0.65,
+  });
+  assert.deepEqual(origin.strategyAuthorization.blockers, []);
+  assert.equal(origin.strategyAuthorization.symbolLevelOnly, true);
+  assert.equal(origin.strategyAuthorization.portfolioRootAuthorizationUsed, false);
+  assert.equal(origin.strategyAuthorization.paperOnly, true);
+});
+
 
 test("indexes future candidates once for bounded high-cardinality scan history", () => {
   const base = Date.parse("2026-07-13T14:00:00.000Z");

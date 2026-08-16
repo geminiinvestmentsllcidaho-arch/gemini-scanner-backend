@@ -1,5 +1,47 @@
 export const VERSION = "strategy_observation_ai_evidence_v1";
 
+function finite(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function triBool(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  return null;
+}
+
+function clean(value, maxLength = 128) {
+  return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function boundedStrategyAuthorization(value) {
+  if (!value || typeof value !== "object") return null;
+  return Object.freeze({
+    version: clean(value.version, 128) || null,
+    authorized: triBool(value.authorized),
+    state: clean(value.state, 32).toUpperCase() || null,
+    rankingSetupScore: finite(value.rankingSetupScore),
+    rankingConfidence: finite(value.rankingConfidence),
+    rankingQuality: finite(value.rankingQuality),
+    minimums: Object.freeze({
+      setupScore: finite(value?.minimums?.setupScore),
+      rankingConfidence: finite(value?.minimums?.rankingConfidence),
+      rankingQuality: finite(value?.minimums?.rankingQuality),
+    }),
+    blockers: Object.freeze(
+      (Array.isArray(value.blockers) ? value.blockers : [])
+        .slice(0, 20)
+        .map((item) => clean(item, 128))
+        .filter(Boolean),
+    ),
+    symbolLevelOnly: triBool(value.symbolLevelOnly),
+    portfolioRootAuthorizationUsed: triBool(value.portfolioRootAuthorizationUsed),
+    paperOnly: triBool(value.paperOnly),
+  });
+}
+
 export function buildBoundedStrategyObservationAiEvidence(records = []) {
   const source = Array.isArray(records) ? records : [];
   const latestByKey = new Map();
@@ -57,12 +99,13 @@ export function buildBoundedStrategyObservationAiEvidence(records = []) {
       horizonReturnsPct: Object.freeze({ ...(row?.horizonReturnsPct ?? {}) }),
       originObservable: row?.originObservable === true,
       originSourceStale: row?.originSourceStale === true,
-      rankingConfidence: Number.isFinite(Number(row?.rankingConfidence))
-        ? Number(row.rankingConfidence)
-        : null,
-      readonlyPotentialScore: Number.isFinite(Number(row?.readonlyPotentialScore))
-        ? Number(row.readonlyPotentialScore)
-        : null,
+      rankingConnected: triBool(row?.rankingConnected),
+      rankingP3GateOk: triBool(row?.rankingP3GateOk),
+      rankingSetupScore: finite(row?.rankingSetupScore),
+      rankingConfidence: finite(row?.rankingConfidence),
+      rankingQuality: finite(row?.rankingQuality),
+      readonlyPotentialScore: finite(row?.readonlyPotentialScore),
+      strategyAuthorization: boundedStrategyAuthorization(row?.strategyAuthorization),
     }))),
     readOnly: true,
     paperOnly: true,

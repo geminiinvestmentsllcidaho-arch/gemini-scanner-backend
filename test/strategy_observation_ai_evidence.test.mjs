@@ -16,6 +16,30 @@ test("bounds deduplicates and summarizes latest strategy observations", () => {
       latestReturnPct: 8,
       originObservable: true,
       originSourceStale: false,
+      rankingConnected: true,
+      rankingP3GateOk: true,
+      rankingSetupScore: 82,
+      rankingConfidence: 0.8,
+      rankingQuality: 0.9,
+      readonlyPotentialScore: 84,
+      strategyAuthorization: {
+        version: "paper_auto_execution_strategy_authorization_v1",
+        authorized: true,
+        state: "ENTER",
+        rankingSetupScore: 82,
+        rankingConfidence: 0.8,
+        rankingQuality: 0.9,
+        minimums: {
+          setupScore: 70,
+          rankingConfidence: 0.5,
+          rankingQuality: 0.65,
+        },
+        blockers: [],
+        symbolLevelOnly: true,
+        portfolioRootAuthorizationUsed: false,
+        paperOnly: true,
+        secret: "must-not-pass",
+      },
       secret: "must-not-pass",
     },
     {
@@ -47,7 +71,28 @@ test("bounds deduplicates and summarizes latest strategy observations", () => {
   assert.equal(evidence.negativeReturnCount, 1);
   assert.equal(evidence.averageLatestReturnPct, 3);
   assert.equal(evidence.observations[0].latestReturnPct, 8);
+  assert.equal(evidence.observations[0].rankingConnected, true);
+  assert.equal(evidence.observations[0].rankingP3GateOk, true);
+  assert.equal(evidence.observations[0].rankingSetupScore, 82);
+  assert.equal(evidence.observations[0].rankingConfidence, 0.8);
+  assert.equal(evidence.observations[0].rankingQuality, 0.9);
+  assert.equal(evidence.observations[0].readonlyPotentialScore, 84);
+  assert.equal(
+    evidence.observations[0].strategyAuthorization.version,
+    "paper_auto_execution_strategy_authorization_v1",
+  );
+  assert.equal(evidence.observations[0].strategyAuthorization.authorized, true);
+  assert.deepEqual(evidence.observations[0].strategyAuthorization.minimums, {
+    setupScore: 70,
+    rankingConfidence: 0.5,
+    rankingQuality: 0.65,
+  });
+  assert.equal(
+    evidence.observations[0].strategyAuthorization.portfolioRootAuthorizationUsed,
+    false,
+  );
   assert.equal("secret" in evidence.observations[0], false);
+  assert.equal("secret" in evidence.observations[0].strategyAuthorization, false);
 });
 
 test("keeps all learning mutation broker and execution locks closed", () => {

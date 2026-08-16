@@ -26,8 +26,29 @@ function auditRecord(eventAt, scanId, price, extras = {}) {
         decision: "ENTER",
         resultState: "ENTER",
         sourceStale: false,
+        rankingConnected: true,
+        rankingP3GateOk: true,
+        rankingSetupScore: 82,
         rankingConfidence: 0.8,
+        rankingQuality: 0.9,
         readonlyPotentialScore: 82,
+        strategyAuthorization: Object.freeze({
+          version: "paper_auto_execution_strategy_authorization_v1",
+          authorized: true,
+          state: "ENTER",
+          rankingSetupScore: 82,
+          rankingConfidence: 0.8,
+          rankingQuality: 0.9,
+          minimums: Object.freeze({
+            setupScore: 70,
+            rankingConfidence: 0.5,
+            rankingQuality: 0.65,
+          }),
+          blockers: Object.freeze([]),
+          symbolLevelOnly: true,
+          portfolioRootAuthorizationUsed: false,
+          paperOnly: true,
+        }),
       }),
     ]),
     ...extras,
@@ -83,6 +104,14 @@ test("builds and persists time-based strategy observations from newest-first aud
   const origin = stored.find((row) => row.originScanId === "scan-1");
   assert.equal(origin.horizonObservations.intraday, 2);
   assert.equal(origin.latestReturnPct, 8);
+  assert.equal(origin.rankingConnected, true);
+  assert.equal(origin.rankingP3GateOk, true);
+  assert.equal(origin.rankingSetupScore, 82);
+  assert.equal(origin.rankingConfidence, 0.8);
+  assert.equal(origin.rankingQuality, 0.9);
+  assert.equal(origin.strategyAuthorization.version, "paper_auto_execution_strategy_authorization_v1");
+  assert.equal(origin.strategyAuthorization.authorized, true);
+  assert.equal(origin.strategyAuthorization.portfolioRootAuthorizationUsed, false);
   assert.equal(origin.readOnly, true);
   assert.equal(origin.orderPlacementAllowed, false);
 });
@@ -139,6 +168,53 @@ test("suppresses identical reruns and appends only materially changed outcomes",
   assert.equal(scan1Snapshots.length, 2);
   assert.equal(scan1Snapshots[0].horizonObservations.intraday, 2);
   assert.equal(scan1Snapshots[0].latestReturnPct, 8);
+});
+
+test("treats strategy authorization evidence changes as material", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-strategy-auth-material-"));
+  const observationPath = path.join(dir, "strategy.jsonl");
+  try {
+    const base = auditRecord("2026-07-20T13:30:00.000Z", "scan-auth", 10);
+    const first = runStrategyObservationPersistence({
+      auditRecords: [base],
+      observationPath,
+      now: new Date("2026-07-20T15:00:00.000Z"),
+    });
+    assert.equal(first.appendedCount, 1);
+
+    const changedCandidate = Object.freeze({
+      ...base.candidates[0],
+      rankingP3GateOk: false,
+      strategyAuthorization: Object.freeze({
+        ...base.candidates[0].strategyAuthorization,
+        authorized: false,
+        blockers: Object.freeze(["STRATEGY_P3_GATE_NOT_OK"]),
+      }),
+    });
+    const changedRecord = Object.freeze({
+      ...base,
+      candidates: Object.freeze([changedCandidate]),
+    });
+
+    const second = runStrategyObservationPersistence({
+      auditRecords: [changedRecord],
+      observationPath,
+      now: new Date("2026-07-20T15:15:00.000Z"),
+    });
+    assert.equal(second.changedOutcomeCount, 1);
+    assert.equal(second.appendedCount, 1);
+
+    const stored = listStrategyObservationRecords({
+      observationPath,
+      maxRecords: 10,
+    });
+    assert.equal(stored.length, 2);
+    assert.equal(stored[0].rankingP3GateOk, false);
+    assert.equal(stored[0].strategyAuthorization.authorized, false);
+    assert.deepEqual(stored[0].strategyAuthorization.blockers, ["STRATEGY_P3_GATE_NOT_OK"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("keeps bounded persistence idempotent when report outcomes exceed the store window", () => {

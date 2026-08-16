@@ -36,8 +36,13 @@ const MATERIAL_FIELDS = Object.freeze([
   "horizonMaxAdversePct",
   "originObservable",
   "originSourceStale",
+  "rankingConnected",
+  "rankingP3GateOk",
+  "rankingSetupScore",
   "rankingConfidence",
+  "rankingQuality",
   "readonlyPotentialScore",
+  "strategyAuthorization",
 ]);
 
 function stable(value) {

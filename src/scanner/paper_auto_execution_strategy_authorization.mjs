@@ -4,6 +4,31 @@ export const MIN_RANKING_SETUP_SCORE = 70;
 export const MIN_RANKING_CONFIDENCE = 0.5;
 export const MIN_RANKING_QUALITY = 0.65;
 
+export function getPaperAutoExecutionStrategyAuthorizationPolicy() {
+  return Object.freeze({
+    version: VERSION,
+    requiredState: "ENTER",
+    minimums: Object.freeze({
+      setupScore: MIN_RANKING_SETUP_SCORE,
+      rankingConfidence: MIN_RANKING_CONFIDENCE,
+      rankingQuality: MIN_RANKING_QUALITY,
+    }),
+    rankingConnectedRequired: true,
+    p3GateRequired: true,
+    freshSourceRequired: true,
+    blockersAbsentRequired: true,
+    symbolLevelOnly: true,
+    portfolioRootAuthorizationUsed: false,
+    paperOnly: true,
+    executionAuthority: "deterministic_strategy_authorization",
+    aiAuthorizationAllowed: false,
+    aiOverrideAllowed: false,
+    thresholdMutationAllowed: false,
+    rankingSizingAuthoritative: false,
+    aiSizingOverrideAllowed: false,
+  });
+}
+
 function text(value) {
   return String(value ?? "").trim().toUpperCase();
 }
@@ -74,5 +99,6 @@ export default {
   MIN_RANKING_SETUP_SCORE,
   MIN_RANKING_CONFIDENCE,
   MIN_RANKING_QUALITY,
+  getPaperAutoExecutionStrategyAuthorizationPolicy,
   authorizePaperAutoExecutionCandidate,
 };

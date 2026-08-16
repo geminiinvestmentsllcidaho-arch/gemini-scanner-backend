@@ -75,6 +75,14 @@ test("calls Responses API and returns bounded review text", async () => {
   assert.match(request.options.body, /Distinguish observable, stale, missing, and insufficient-sample strategy outcomes/);
   assert.match(request.options.body, /Do not infer causality from small samples or mixed strategies/);
   assert.match(request.options.body, /Never treat strategyObservationEvidence as permission to learn automatically, patch code/);
+  assert.match(request.options.body, /Treat input\.strategyAuthorizationPolicy as canonical read-only execution-policy context/);
+  assert.match(request.options.body, /deterministic strategy authorization policy is the execution authority/);
+  assert.match(request.options.body, /AI must never authorize, override, loosen, bypass, mutate, or redefine it/);
+  assert.match(request.options.body, /Missing strategy authorization evidence is not authorization/);
+  assert.match(request.options.body, /Portfolio\/root Stage-2 permission is not symbol-level authorization/);
+  assert.match(request.options.body, /rank or normalizedScore are not authorization thresholds/);
+  assert.match(request.options.body, /targetPositionPct and ranking maxPositionPct are diagnostic ranking outputs and are not execution-sizing authority/);
+  assert.match(request.options.body, /AI must not redefine or override execution sizing/);
   assert.match(request.options.body, /Do not compare totalTrades with fillCount/);
   assert.match(request.options.body, /Do not infer broken scanner linkage/);
   assert.equal(result.status, "completed_readonly");

@@ -222,8 +222,52 @@ export function buildTimeBasedStrategyObservationReport(records = [], options = 
           next_day: nextDay.latestEventAt,
           swing_3_5_day: swing.latestEventAt,
         }),
-        readonlyPotentialScore: finite(candidate?.readonlyPotentialScore),
+        rankingConnected: candidate?.rankingConnected === true
+          ? true
+          : candidate?.rankingConnected === false
+            ? false
+            : null,
+        rankingP3GateOk: candidate?.rankingP3GateOk === true
+          ? true
+          : candidate?.rankingP3GateOk === false
+            ? false
+            : null,
+        rankingSetupScore: finite(candidate?.rankingSetupScore),
         rankingConfidence: finite(candidate?.rankingConfidence),
+        rankingQuality: finite(candidate?.rankingQuality),
+        readonlyPotentialScore: finite(candidate?.readonlyPotentialScore),
+        strategyAuthorization:
+          candidate?.strategyAuthorization && typeof candidate.strategyAuthorization === "object"
+            ? Object.freeze({
+                version: clean(candidate.strategyAuthorization.version, 128) || null,
+                authorized: candidate.strategyAuthorization.authorized === true
+                  ? true
+                  : candidate.strategyAuthorization.authorized === false
+                    ? false
+                    : null,
+                state: clean(candidate.strategyAuthorization.state, 32).toUpperCase() || null,
+                rankingSetupScore: finite(candidate.strategyAuthorization.rankingSetupScore),
+                rankingConfidence: finite(candidate.strategyAuthorization.rankingConfidence),
+                rankingQuality: finite(candidate.strategyAuthorization.rankingQuality),
+                minimums: Object.freeze({
+                  setupScore: finite(candidate.strategyAuthorization?.minimums?.setupScore),
+                  rankingConfidence: finite(candidate.strategyAuthorization?.minimums?.rankingConfidence),
+                  rankingQuality: finite(candidate.strategyAuthorization?.minimums?.rankingQuality),
+                }),
+                blockers: Object.freeze(
+                  (Array.isArray(candidate.strategyAuthorization.blockers)
+                    ? candidate.strategyAuthorization.blockers
+                    : [])
+                    .slice(0, 20)
+                    .map((item) => clean(item, 128))
+                    .filter(Boolean),
+                ),
+                symbolLevelOnly: candidate.strategyAuthorization.symbolLevelOnly === true,
+                portfolioRootAuthorizationUsed:
+                  candidate.strategyAuthorization.portfolioRootAuthorizationUsed === true,
+                paperOnly: candidate.strategyAuthorization.paperOnly === true,
+              })
+            : null,
         readOnly: true,
         paperOnly: true,
         shadowOnly: true,
