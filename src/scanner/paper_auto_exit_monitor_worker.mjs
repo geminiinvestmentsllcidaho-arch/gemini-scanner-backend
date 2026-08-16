@@ -5,6 +5,7 @@ import { fetchAlpacaUnderFiveUniverseReadonly } from './alpaca_under_five_univer
 import { fetchAlpacaMarketClockReadonly } from './alpaca_market_clock_readonly.mjs'
 import { runPaperAutoExecutionExitOnly } from './paper_auto_execution_exit_only_runner.mjs'
 import { buildAuthoritativePaperExitDecision } from './paper_auto_execution_exit_decision.mjs'
+import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
 
 export const VERSION = 'paper_auto_exit_monitor_worker_v1'
@@ -201,6 +202,20 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
             results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_STRATEGY_EXIT' })
             continue
           }
+        }
+
+        const actionArbitration = arbitratePaperAutomaticAction({
+          lifecycle: life,
+          exitRequired: true,
+        })
+        if (actionArbitration?.ok !== true || actionArbitration?.action !== 'EXIT') {
+          results.push({
+            lifecycleId: life.lifecycleId,
+            symbol,
+            status: actionArbitration?.status ?? 'ACTION_ARBITRATION_EXIT_FAIL_CLOSED',
+            actionArbitration,
+          })
+          continue
         }
 
         exitTriggers += 1

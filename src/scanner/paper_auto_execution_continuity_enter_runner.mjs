@@ -10,6 +10,7 @@ import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reco
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './internal_owner_alpaca_readonly_credentials.mjs'
 import { calculateAutomaticPositionSize } from './automatic_position_sizing_policy.mjs'
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
+import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -99,6 +100,12 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     if (lifecycle.state !== S.CANDIDATE_SELECTED && !ENTER_RECONCILE_STATES.has(lifecycle.state)) {
       return fail('CONTINUITY_ENTER_STATE_NOT_ACTIONABLE', lifecycle)
     }
+    if (ENTER_RECONCILE_STATES.has(lifecycle.state)) {
+      const actionArbitration = arbitratePaperAutomaticAction({ lifecycle })
+      if (actionArbitration?.ok !== true || actionArbitration?.action !== 'ENTER_RECONCILE') {
+        return fail(actionArbitration?.status ?? 'ENTER_RECONCILIATION_ACTION_ARBITRATION_FAIL_CLOSED', lifecycle)
+      }
+    }
 
     let revalidatedCandidate = null
     if (lifecycle.state === S.CANDIDATE_SELECTED) {
@@ -113,6 +120,13 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       revalidatedCandidate = candidates.find(candidate => isEligibleCandidate(candidate, lifecycle.selectedSymbol)) ?? null
       if (!revalidatedCandidate) {
         return fail('CANDIDATE_REVALIDATION_FAILED', lifecycle)
+      }
+      const actionArbitration = arbitratePaperAutomaticAction({
+        lifecycle,
+        enterQualified: true,
+      })
+      if (actionArbitration?.ok !== true || actionArbitration?.action !== 'ENTER') {
+        return fail(actionArbitration?.status ?? 'ENTER_ACTION_ARBITRATION_FAIL_CLOSED', lifecycle)
       }
     }
 

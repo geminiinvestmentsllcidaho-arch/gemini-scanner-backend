@@ -4,6 +4,7 @@ import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecyc
 import { preflightPaperScaleAction } from './paper_auto_execution_scale_action_model.mjs'
 import { PaperAutoExecutionScaleActionStore } from './paper_auto_execution_scale_action_store.mjs'
 import { arbitratePaperPositionMutation } from './paper_auto_execution_position_mutation_arbiter.mjs'
+import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
 import { submitPaperScaleOrder } from './paper_auto_execution_scale_submission_boundary.mjs'
 import { reconcilePaperScaleAction } from './paper_auto_execution_scale_reconciliation_service.mjs'
 import { derivePaperPositionMutationLockFile, acquirePaperPositionMutationLock, releasePaperPositionMutationLock } from './paper_auto_execution_position_mutation_lock.mjs'
@@ -143,6 +144,20 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       return finish('FRESH_OWNED_STRATEGY_EVIDENCE_REQUIRED', lifecycle)
     }
     const exitRequired = assessment?.ownedExitReviewTriggered === true || upper(assessment?.resultState ?? assessment?.decision) === 'EXIT'
+    const scaleOutQualified = assessment?.ownedScaleOutReviewTriggered === true
+    const scaleInQualified = assessment?.ownedScaleInReviewTriggered === true
+    const actionArbitration = arbitratePaperAutomaticAction({
+      lifecycle,
+      exitRequired,
+      scaleOutQualified,
+      scaleInQualified,
+    })
+    if (actionArbitration?.ok !== true) return finish(actionArbitration?.status ?? 'ACTION_ARBITRATION_FAIL_CLOSED', lifecycle)
+    if (exitRequired && actionArbitration?.action !== 'EXIT') return finish(actionArbitration?.status ?? 'ACTION_ARBITRATION_EXIT_FAIL_CLOSED', lifecycle)
+    if (!exitRequired) {
+      const expectedAction = a === 'scale_out' ? 'SCALE_OUT' : 'SCALE_IN'
+      if (actionArbitration?.action !== expectedAction) return finish(actionArbitration?.status ?? 'ACTION_ARBITRATION_SCALE_FAIL_CLOSED', lifecycle)
+    }
     const arbitration = arbitratePaperPositionMutation({ lifecycle, scaleActionStore, requestedAction: a, exitRequired })
     if (arbitration?.allow !== true) return finish(arbitration?.status ?? 'POSITION_MUTATION_BLOCKED', lifecycle)
     if (a === 'scale_in') {
@@ -215,6 +230,20 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       const age = Number(la?.sourceAgeSec), max = Number(la?.maxSourceAgeSec ?? la?.sourceMaxAgeSec ?? 180)
       if (la?.sourceStale !== false || !Number.isFinite(age) || age < 0 || !Number.isFinite(max) || age > max) return finish('POST_LOCK_FRESH_OWNED_STRATEGY_EVIDENCE_REQUIRED', lifecycle)
       const lx = la?.ownedExitReviewTriggered === true || upper(la?.resultState ?? la?.decision) === 'EXIT'
+      const lockedScaleOutQualified = la?.ownedScaleOutReviewTriggered === true
+      const lockedScaleInQualified = la?.ownedScaleInReviewTriggered === true
+      const lockedActionArbitration = arbitratePaperAutomaticAction({
+        lifecycle,
+        exitRequired: lx,
+        scaleOutQualified: lockedScaleOutQualified,
+        scaleInQualified: lockedScaleInQualified,
+      })
+      if (lockedActionArbitration?.ok !== true) return finish(lockedActionArbitration?.status ?? 'POST_LOCK_ACTION_ARBITRATION_FAIL_CLOSED', lifecycle)
+      if (lx && lockedActionArbitration?.action !== 'EXIT') return finish(lockedActionArbitration?.status ?? 'POST_LOCK_ACTION_ARBITRATION_EXIT_FAIL_CLOSED', lifecycle)
+      if (!lx) {
+        const expectedAction = a === 'scale_out' ? 'SCALE_OUT' : 'SCALE_IN'
+        if (lockedActionArbitration?.action !== expectedAction) return finish(lockedActionArbitration?.status ?? 'POST_LOCK_ACTION_ARBITRATION_SCALE_FAIL_CLOSED', lifecycle)
+      }
       const ar = arbitratePaperPositionMutation({ lifecycle, scaleActionStore, requestedAction: a, exitRequired: lx })
       if (ar?.allow !== true) return finish(ar?.status ?? 'POST_LOCK_POSITION_MUTATION_BLOCKED', lifecycle)
       if (a === 'scale_in') {
