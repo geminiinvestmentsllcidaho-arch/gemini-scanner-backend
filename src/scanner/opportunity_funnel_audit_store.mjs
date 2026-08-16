@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { authorizePaperAutoExecutionCandidate } from "./paper_auto_execution_strategy_authorization.mjs";
 
 export const VERSION = "opportunity_funnel_audit_store_v1";
 export const DEFAULT_OPPORTUNITY_FUNNEL_AUDIT_PATH =
@@ -30,6 +31,31 @@ function list(value, maxItems = 20, maxLength = 128) {
       .map((item) => clean(item, maxLength))
       .filter(Boolean),
   );
+}
+
+function boundedStrategyAuthorization(candidate = {}) {
+  const authorization = authorizePaperAutoExecutionCandidate({
+    ...candidate,
+    state: candidate?.resultState ?? candidate?.decision ?? "NO_SETUP",
+  });
+  return Object.freeze({
+    version: clean(authorization?.version, 128) || null,
+    authorized: authorization?.authorized === true,
+    state: clean(authorization?.state, 32).toUpperCase() || null,
+    rankingSetupScore: finite(authorization?.rankingSetupScore),
+    rankingConfidence: finite(authorization?.rankingConfidence),
+    rankingQuality: finite(authorization?.rankingQuality),
+    minimums: Object.freeze({
+      setupScore: finite(authorization?.minimums?.setupScore),
+      rankingConfidence: finite(authorization?.minimums?.rankingConfidence),
+      rankingQuality: finite(authorization?.minimums?.rankingQuality),
+    }),
+    blockers: list(authorization?.blockers),
+    symbolLevelOnly: authorization?.symbolLevelOnly === true,
+    portfolioRootAuthorizationUsed:
+      authorization?.portfolioRootAuthorizationUsed === true,
+    paperOnly: authorization?.paperOnly === true,
+  });
 }
 
 export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
@@ -90,9 +116,11 @@ export function buildOpportunityFunnelAuditRecord(input = {}, options = {}) {
       staleReasons: list(candidate?.staleReasons),
       sourceStale: candidate?.sourceStale === true,
       rankingConnected: candidate?.rankingConnected === true,
+      rankingP3GateOk: candidate?.rankingP3GateOk === true,
       rankingSetupScore: finite(candidate?.rankingSetupScore),
       rankingConfidence: finite(candidate?.rankingConfidence),
       rankingQuality: finite(candidate?.rankingQuality),
+      strategyAuthorization: boundedStrategyAuthorization(candidate),
     }))),
     readOnly: true,
     paperOnly: true,

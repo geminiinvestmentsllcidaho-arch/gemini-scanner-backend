@@ -40,7 +40,15 @@ test("builds deterministic read-only opportunity funnel scan records", () => {
         premarketGapPct: 6.2,
         readonlyPotentialScore: 82,
         decision: "ENTER",
+        resultState: "ENTER",
         blockingFlags: [],
+        staleReasons: [],
+        sourceStale: false,
+        rankingConnected: true,
+        rankingP3GateOk: true,
+        rankingSetupScore: 82,
+        rankingConfidence: 0.8,
+        rankingQuality: 0.9,
       },
       {
         symbol: "bbb",
@@ -71,6 +79,13 @@ test("builds deterministic read-only opportunity funnel scan records", () => {
     DO_NOT_ENTER: 1,
   });
   assert.equal(record.candidates[0].symbol, "AAA");
+  assert.equal(record.candidates[0].rankingP3GateOk, true);
+  assert.equal(record.candidates[0].strategyAuthorization.version, "paper_auto_execution_strategy_authorization_v1");
+  assert.equal(record.candidates[0].strategyAuthorization.authorized, true);
+  assert.deepEqual(record.candidates[0].strategyAuthorization.blockers, []);
+  assert.equal(record.candidates[0].strategyAuthorization.symbolLevelOnly, true);
+  assert.equal(record.candidates[0].strategyAuthorization.portfolioRootAuthorizationUsed, false);
+  assert.equal(record.candidates[0].strategyAuthorization.paperOnly, true);
   assert.equal(record.readOnly, true);
   assert.equal(record.paperOnly, true);
   assert.equal(record.orderPlacementAllowed, false);
@@ -244,7 +259,7 @@ test("unfiltered reader discards a leading partial JSON line at the byte boundar
       auditPath: f.auditPath,
       maxRecords: 3,
       chunkSize: 4096,
-      maxBytesRead: 4096,
+      maxBytesRead: 8192,
     });
 
     assert.deepEqual(records.map((record) => record.scanId), [
