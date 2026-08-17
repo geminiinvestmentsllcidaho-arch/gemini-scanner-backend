@@ -70,6 +70,8 @@ import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
 import { createPaperAutoExecutionExitRecoveryRunner } from './scanner/paper_auto_execution_exit_recovery_runner.mjs';
+import { createPaperAutoExecutionExitReplacementRunner } from './scanner/paper_auto_execution_exit_replacement_runner.mjs';
+import { fetchAlpacaPaperExitReplacementOrderByClientOrderIdReadonly } from './scanner/paper_auto_execution_exit_replacement_order_lookup.mjs';
 import { getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
 import { createPaperAutoExecutionScaleRunner, derivePaperScaleActionFile } from './scanner/paper_auto_execution_scale_runner.mjs';
 import { PaperAutoExecutionScaleActionStore } from './scanner/paper_auto_execution_scale_action_store.mjs';
@@ -2846,6 +2848,22 @@ const paperAutoExecutionExitRecoveryRunner = createPaperAutoExecutionExitRecover
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
 });
 
+const paperAutoExecutionExitReplacementSubmit = async (order, context) => {
+  const resolved = await resolveInternalOwnerAlpacaReadonlyCredentials({ masterKey: process.env.GEMINI_CREDENTIAL_MASTER_KEY });
+  if (resolved?.readyForReadonlyBrokerRead !== true) throw Error('paper_exit_replacement_runtime_credentials_required');
+  return createPaperAutoExecutionAlpacaPaperAdapter({
+    env: { ...process.env, ...resolved.env, PAPER_AUTO_ALPACA_ADAPTER_ENABLED:'1', PAPER_AUTO_ALPACA_PAPER_BASE_URL:'https://paper-api.alpaca.markets' },
+  }).submitPaperOrder(order, context);
+};
+
+const paperAutoExecutionExitReplacementRunner = createPaperAutoExecutionExitReplacementRunner({
+  getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  fetchAccount: () => fetchAlpacaPaperAccountReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
+  fetchMarketClock: () => fetchAlpacaMarketClockReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
+  fetchOrderByClientOrderId: ({ clientOrderId }) => fetchAlpacaPaperExitReplacementOrderByClientOrderIdReadonly({ clientOrderId, credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
+  submitPaperOrder: paperAutoExecutionExitReplacementSubmit,
+});
+
 const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
 let paperAutoExecutionContinuityCycleInFlight = null;
 const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
@@ -2855,6 +2873,14 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       await paperAutoExecutionExitRecoveryRunner.runOnce();
     } catch (error) {
       console.error('[paper-auto-execution-exit-recovery] runner cycle failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+    }
+    try {
+      await paperAutoExecutionExitReplacementRunner.runOnce();
+    } catch (error) {
+      console.error('[paper-auto-execution-exit-replacement] runner cycle failed closed', {
         source,
         error: error?.message ?? String(error),
       });
