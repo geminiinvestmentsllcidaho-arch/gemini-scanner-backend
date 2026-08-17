@@ -159,3 +159,13 @@ test('server wires automatic PAPER EXIT replacement after recovery and before co
   assert.ok(recovery!==-1&&replacement>recovery&&continuity>replacement)
   assert.doesNotMatch(source, /paperAutoExecutionExitReplacementRunner\.runOnce\(\).*market_event/)
 })
+
+test("server feeds fresh ranking-root capital protection into the shared automatic owned monitor for EXIT and SCALE", () => {
+  const source = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  assert.match(source, /const getPaperAutoExecutionOwnedMonitor=async/);
+  assert.match(source, /const capitalProtectionRoot=source\?readUnderFiveLiveRankings\(source\):null/);
+  assert.match(source, /capitalProtectionRoot\}\);/);
+  assert.match(source, /fetchOwnedMonitor:getPaperAutoExecutionOwnedMonitor/);
+  assert.match(source, /const m=await getPaperAutoExecutionOwnedMonitor\(\{paperAccount:a,nowMs:Date\.now\(\)\}\)/);
+  assert.match(source, /fetchOwnedMonitor: getPaperAutoExecutionOwnedMonitor/);
+});

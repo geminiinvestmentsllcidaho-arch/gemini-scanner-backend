@@ -348,3 +348,45 @@ test("confirmed deterioration EXIT remains normal strategy EXIT", () => {
   assert.equal(result.priority, "normal");
   assert.equal(result.severity, "normal");
 });
+
+test("Module 5 capital invalidation authorizes critical protective exact-position PAPER EXIT", () => {
+  const result = buildAuthoritativePaperExitDecision({
+    lifecycle,
+    brokerPosition,
+    candidate:{
+      symbol:"BTG",resultState:"EXIT",decision:"EXIT",
+      ownedExitReviewTriggered:true,
+      ownedExitReviewReason:"CAPITAL_INVALIDATION_EXIT_REQUIRED",
+      sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:120,
+    },
+  });
+  assert.equal(result.decision,"EXIT");
+  assert.equal(result.exitRequired,true);
+  assert.equal(result.status,"AUTHORITATIVE_PROTECTIVE_PAPER_EXIT");
+  assert.deepEqual(result.reasonCodes,["CAPITAL_INVALIDATION_EXIT_REQUIRED"]);
+  assert.equal(result.protectiveExit,true);
+  assert.equal(result.protectiveType,"capital_invalidation");
+  assert.equal(result.strategyExit,false);
+  assert.equal(result.priority,"critical");
+  assert.equal(result.severity,"critical");
+  assert.equal(result.paperOnly,true);
+  assert.equal(result.liveTradingAllowed,false);
+});
+
+test("Module 5 generic capital protection authorizes critical protective exact-position PAPER EXIT", () => {
+  const result = buildAuthoritativePaperExitDecision({
+    lifecycle,
+    brokerPosition,
+    candidate:{
+      symbol:"BTG",resultState:"EXIT",decision:"EXIT",
+      ownedExitReviewTriggered:true,
+      ownedExitReviewReason:"CAPITAL_PROTECTION_EXIT_REQUIRED",
+      sourceStale:false,
+    },
+  });
+  assert.equal(result.exitRequired,true);
+  assert.equal(result.status,"AUTHORITATIVE_PROTECTIVE_PAPER_EXIT");
+  assert.equal(result.protectiveType,"capital_protection");
+  assert.equal(result.priority,"critical");
+  assert.equal(result.severity,"critical");
+});

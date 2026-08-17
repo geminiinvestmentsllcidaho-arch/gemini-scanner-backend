@@ -278,3 +278,49 @@ test("owned monitor surfaces profitable single-share weakening as full EXIT for 
   assert.equal(candidate.ownedScaleOutReviewTriggered, false);
   assert.equal(candidate.orderPlacementAllowed, false);
 });
+
+test("owned monitor injects fresh global capital invalidation and escalates exact owned position to EXIT", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount:{positions:[{symbol:"CAP",qty:1,averageEntryPrice:100,currentPrice:100}]},
+    capitalProtectionRoot:{
+      sourceTs:"2026-08-17T11:00:00.000Z",sourceAgeSec:5,maxAgeSec:180,stale:false,
+      invalidationState:"hard_stop",drawdownBrakeState:"hard_brake",
+      exitRouteState:"forced_exit_route",routeUrgency:"immediate",
+      protectionCommandState:"protect_now",protectionPermission:"exit_required",
+    },
+    fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{
+      symbol:"CAP",price:100,sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:120,
+      resultState:"WATCH",decision:"WATCH",
+    }]}),
+  });
+  const candidate=result.candidates[0];
+  assert.equal(candidate.capitalProtectionConnected,true);
+  assert.equal(candidate.capitalProtectionFresh,true);
+  assert.equal(candidate.capitalProtectionStale,false);
+  assert.equal(candidate.capitalInvalidationState,"hard_stop");
+  assert.equal(candidate.resultState,"EXIT");
+  assert.equal(candidate.ownedExitReviewReason,"CAPITAL_INVALIDATION_EXIT_REQUIRED");
+  assert.equal(candidate.ownedScaleOutReviewTriggered,false);
+  assert.equal(candidate.ownedScaleInReviewTriggered,false);
+});
+
+test("owned monitor fails stale global capital protection closed to WATCH", async () => {
+  const result = await fetchCustomerOwnedPositionMonitorSource({
+    paperAccount:{positions:[{symbol:"OLDCAP",qty:1,averageEntryPrice:100,currentPrice:100}]},
+    capitalProtectionRoot:{
+      sourceTs:"2026-07-10T00:00:00.000Z",sourceAgeSec:999,maxAgeSec:180,stale:true,
+      invalidationState:"hard_stop",drawdownBrakeState:"hard_brake",
+      exitRouteState:"forced_exit_route",protectionCommandState:"protect_now",protectionPermission:"exit_required",
+    },
+    fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{
+      symbol:"OLDCAP",price:100,sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:120,
+      resultState:"WATCH",decision:"WATCH",
+    }]}),
+  });
+  const candidate=result.candidates[0];
+  assert.equal(candidate.capitalProtectionFresh,false);
+  assert.equal(candidate.capitalProtectionStale,true);
+  assert.equal(candidate.resultState,"WATCH");
+  assert.equal(candidate.decision,"WATCH");
+  assert.equal(candidate.ownedExitReviewTriggered,false);
+});

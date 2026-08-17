@@ -1,4 +1,4 @@
-export const VERSION = "customer_owned_position_exit_review_policy_v2";
+export const VERSION = "customer_owned_position_exit_review_policy_v3";
 
 const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
 const list = (value) => Array.isArray(value) ? value : [];
@@ -23,6 +23,14 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
   const flags = list(candidate?.readonlyPotentialFlags).map((value) => String(value ?? "").trim().toLowerCase());
   const negativeMomentum = flags.includes("negative_momentum") || (changePct !== null && changePct < 0);
   const quantity = finite(position?.qty ?? position?.quantity);
+  const capitalFresh = candidate?.capitalProtectionFresh === true && candidate?.capitalProtectionStale === false;
+  const capitalInvalidationRequired = capitalFresh && String(candidate?.capitalInvalidationState ?? "").trim() === "hard_stop";
+  const capitalProtectionRequired = capitalFresh && (
+    String(candidate?.capitalDrawdownBrakeState ?? "").trim() === "hard_brake"
+    || String(candidate?.capitalExitRouteState ?? "").trim() === "forced_exit_route"
+    || String(candidate?.capitalProtectionCommandState ?? "").trim() === "protect_now"
+    || String(candidate?.capitalProtectionPermission ?? "").trim() === "exit_required"
+  );
   const singleShareProfitProtection =
     quantity === 1
     && returnPct !== null
@@ -45,12 +53,19 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
 
   let exitReview = false;
   let reason = null;
-  if (!stale && returnPct !== null) {
-    if (returnPct <= -3) {
+  if (!stale) {
+    if (capitalInvalidationRequired) {
+      exitReview = true;
+      reason = "CAPITAL_INVALIDATION_EXIT_REQUIRED";
+    } else if (capitalProtectionRequired) {
+      exitReview = true;
+      reason = "CAPITAL_PROTECTION_EXIT_REQUIRED";
+    } else if (returnPct !== null && returnPct <= -3) {
       exitReview = true;
       reason = "OWNED_POSITION_HARD_LOSS_REVIEW";
     } else if (
-      returnPct <= -1.5
+      returnPct !== null
+      && returnPct <= -1.5
       && changePct !== null
       && changePct <= -0.5
       && negativeMomentum

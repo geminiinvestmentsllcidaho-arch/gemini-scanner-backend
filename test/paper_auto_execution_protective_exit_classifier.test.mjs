@@ -35,3 +35,17 @@ test("unknown or missing reason fails closed to non-protective classification", 
   assert.equal(classifyProtectivePaperExitReason("UNKNOWN").protectiveExit, false);
   assert.equal(classifyProtectivePaperExitReason(null).protectiveExit, false);
 });
+
+test("Module 5 capital invalidation and protection reasons are critical protective exits", () => {
+  const invalidation = classifyProtectivePaperExitReason("CAPITAL_INVALIDATION_EXIT_REQUIRED");
+  assert.equal(invalidation.protectiveExit, true);
+  assert.equal(invalidation.protectiveType, "capital_invalidation");
+  assert.equal(invalidation.priority, "critical");
+  assert.equal(invalidation.severity, "critical");
+
+  const protection = classifyProtectivePaperExitReason("CAPITAL_PROTECTION_EXIT_REQUIRED");
+  assert.equal(protection.protectiveExit, true);
+  assert.equal(protection.protectiveType, "capital_protection");
+  assert.equal(protection.priority, "critical");
+  assert.equal(protection.severity, "critical");
+});

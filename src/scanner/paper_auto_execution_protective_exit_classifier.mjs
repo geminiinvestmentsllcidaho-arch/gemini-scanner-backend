@@ -3,6 +3,12 @@ export const VERSION = "paper_auto_execution_protective_exit_classifier_v1";
 const text = (value) => String(value ?? "").trim();
 
 const PROTECTIVE_REASON_METADATA = Object.freeze({
+  CAPITAL_INVALIDATION_EXIT_REQUIRED: Object.freeze({
+    protectiveType: "capital_invalidation", priority: "critical", severity: "critical",
+  }),
+  CAPITAL_PROTECTION_EXIT_REQUIRED: Object.freeze({
+    protectiveType: "capital_protection", priority: "critical", severity: "critical",
+  }),
   OWNED_POSITION_HARD_LOSS_REVIEW: Object.freeze({
     protectiveType: "hard_loss",
     priority: "critical",

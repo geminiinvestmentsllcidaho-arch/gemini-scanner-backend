@@ -165,3 +165,61 @@ test("stale profitable single-share evidence cannot trigger profit-protection EX
   });
   assert.equal(result.ownedExitReviewTriggered, false);
 });
+
+test("fresh global capital invalidation requires full EXIT with deterministic precedence", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "CAP", price: 100, sourceStale: false, resultState: "WATCH", decision: "WATCH",
+    capitalProtectionFresh: true, capitalProtectionStale: false,
+    capitalInvalidationState: "hard_stop",
+    capitalDrawdownBrakeState: "hard_brake",
+    capitalExitRouteState: "forced_exit_route",
+    capitalProtectionCommandState: "protect_now",
+    capitalProtectionPermission: "exit_required",
+  }, { symbol: "CAP", qty: 1, averageEntryPrice: 100, currentPrice: 100 });
+  assert.equal(result.resultState, "EXIT");
+  assert.equal(result.decision, "EXIT");
+  assert.equal(result.ownedExitReviewTriggered, true);
+  assert.equal(result.ownedExitReviewReason, "CAPITAL_INVALIDATION_EXIT_REQUIRED");
+});
+
+test("fresh hard capital protection requires full EXIT without hard invalidation", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "BRAKE", price: 100, sourceStale: false, resultState: "WATCH", decision: "WATCH",
+    capitalProtectionFresh: true, capitalProtectionStale: false,
+    capitalInvalidationState: "managed",
+    capitalDrawdownBrakeState: "hard_brake",
+    capitalExitRouteState: "forced_exit_route",
+    capitalProtectionCommandState: "protect_now",
+    capitalProtectionPermission: "exit_required",
+  }, { symbol: "BRAKE", qty: 2, averageEntryPrice: 100, currentPrice: 100 });
+  assert.equal(result.resultState, "EXIT");
+  assert.equal(result.ownedExitReviewReason, "CAPITAL_PROTECTION_EXIT_REQUIRED");
+});
+
+test("stale capital protection evidence cannot force full EXIT", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "STALECAP", price: 100, sourceStale: false, resultState: "WATCH", decision: "WATCH",
+    capitalProtectionFresh: false, capitalProtectionStale: true,
+    capitalInvalidationState: "hard_stop",
+    capitalDrawdownBrakeState: "hard_brake",
+    capitalExitRouteState: "forced_exit_route",
+    capitalProtectionCommandState: "protect_now",
+    capitalProtectionPermission: "exit_required",
+  }, { symbol: "STALECAP", qty: 1, averageEntryPrice: 100, currentPrice: 100 });
+  assert.equal(result.ownedExitReviewTriggered, false);
+  assert.equal(result.ownedExitReviewReason, null);
+});
+
+test("soft capital protection remains non-full-exit", () => {
+  const result = applyOwnedPositionExitReviewPolicy({
+    symbol: "SOFT", price: 100, sourceStale: false, resultState: "WATCH", decision: "WATCH",
+    capitalProtectionFresh: true, capitalProtectionStale: false,
+    capitalInvalidationState: "tight_stop",
+    capitalDrawdownBrakeState: "soft_brake",
+    capitalExitRouteState: "staged_exit_route",
+    capitalProtectionCommandState: "protective_reduce",
+    capitalProtectionPermission: "reduction_preferred",
+  }, { symbol: "SOFT", qty: 8, averageEntryPrice: 100, currentPrice: 100 });
+  assert.equal(result.ownedExitReviewTriggered, false);
+  assert.equal(result.ownedExitReviewReason, null);
+});

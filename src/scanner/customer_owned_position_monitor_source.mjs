@@ -9,6 +9,27 @@ const list = (value) => Array.isArray(value) ? value : [];
 const symbolOf = (value) => String(value ?? "").trim().toUpperCase();
 const numberOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
 
+function capitalProtectionEvidence(root = null) {
+  const age = numberOrNull(root?.sourceAgeSec);
+  const max = numberOrNull(root?.maxAgeSec);
+  const connected = Boolean(root && typeof root === "object");
+  const stale = !connected || root?.stale !== false || age === null || max === null || age > max;
+  return Object.freeze({
+    capitalProtectionConnected: connected,
+    capitalProtectionFresh: !stale,
+    capitalProtectionStale: stale,
+    capitalProtectionSourceTs: root?.sourceTs ?? null,
+    capitalProtectionSourceAgeSec: age,
+    capitalProtectionMaxAgeSec: max,
+    capitalInvalidationState: connected ? String(root?.invalidationState ?? "").trim() || null : null,
+    capitalDrawdownBrakeState: connected ? String(root?.drawdownBrakeState ?? "").trim() || null : null,
+    capitalExitRouteState: connected ? String(root?.exitRouteState ?? "").trim() || null : null,
+    capitalRouteUrgency: connected ? String(root?.routeUrgency ?? "").trim() || null : null,
+    capitalProtectionCommandState: connected ? String(root?.protectionCommandState ?? "").trim() || null : null,
+    capitalProtectionPermission: connected ? String(root?.protectionPermission ?? "").trim() || null : null,
+  });
+}
+
 function ownedPositions(paperAccount = {}) {
   const seen = new Set();
   const rows = [];
@@ -47,8 +68,10 @@ export async function fetchCustomerOwnedPositionMonitorSource({
   fetchSymbols = fetchAlpacaUnderFiveUniverseReadonly,
   nowMs = Date.now(),
   maxAssets = 50,
+  capitalProtectionRoot = null,
 } = {}) {
   const positions = ownedPositions(paperAccount);
+  const capitalProtection = capitalProtectionEvidence(capitalProtectionRoot);
   const symbols = positions.map((position) => position.symbol);
 
   if (symbols.length === 0) {
@@ -94,6 +117,7 @@ export async function fetchCustomerOwnedPositionMonitorSource({
         symbol: position.symbol,
         paperAccountEquity: paperAccount?.account?.equity ?? null,
         paperBuyingPower: paperAccount?.account?.buyingPower ?? null,
+        ...capitalProtection,
         sourceCoverage: "owned_position_symbol_fetch",
         ownedPositionMonitorOnly: true,
         readOnly: true,
