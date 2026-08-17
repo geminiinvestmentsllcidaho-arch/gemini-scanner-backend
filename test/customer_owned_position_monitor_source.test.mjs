@@ -304,6 +304,76 @@ test("owned monitor injects fresh global capital invalidation and escalates exac
   assert.equal(candidate.ownedScaleInReviewTriggered,false);
 });
 
+
+test("capital protection freshness rejects null blank malformed negative age and nonpositive max without authorizing capital EXIT", async () => {
+  const invalidRoots = [
+    { sourceAgeSec:null, maxAgeSec:180, stale:false },
+    { sourceAgeSec:"", maxAgeSec:180, stale:false },
+    { sourceAgeSec:"bad", maxAgeSec:180, stale:false },
+    { sourceAgeSec:-1, maxAgeSec:180, stale:false },
+    { sourceAgeSec:5, maxAgeSec:null, stale:false },
+    { sourceAgeSec:5, maxAgeSec:"", stale:false },
+    { sourceAgeSec:5, maxAgeSec:"bad", stale:false },
+    { sourceAgeSec:5, maxAgeSec:0, stale:false },
+    { sourceAgeSec:5, maxAgeSec:-1, stale:false },
+  ];
+  for (const root of invalidRoots) {
+    const result = await fetchCustomerOwnedPositionMonitorSource({
+      paperAccount:{positions:[{symbol:"BADCAP",qty:1,averageEntryPrice:100,currentPrice:100}]},
+      capitalProtectionRoot:{
+        ...root,
+        sourceTs:"2026-08-17T11:00:00.000Z",
+        invalidationState:"hard_stop",
+        drawdownBrakeState:"hard_brake",
+        exitRouteState:"forced_exit_route",
+        routeUrgency:"immediate",
+        protectionCommandState:"protect_now",
+        protectionPermission:"exit_required",
+      },
+      fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{
+        symbol:"BADCAP",price:100,changePct:0,sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:120,
+        readonlyPotentialScore:60,readonlyPotentialFlags:[],resultState:"WATCH",decision:"WATCH",ownedReturnPct:0,
+      }]}),
+    });
+    const candidate=result.candidates[0];
+    assert.equal(candidate.capitalProtectionFresh,false);
+    assert.equal(candidate.capitalProtectionStale,true);
+    assert.notEqual(candidate.ownedExitReviewReason,"CAPITAL_INVALIDATION_EXIT_REQUIRED");
+    assert.notEqual(candidate.ownedExitReviewReason,"CAPITAL_PROTECTION_EXIT_REQUIRED");
+  }
+});
+
+test("missing or stale capital root does not suppress direct hard-loss owned EXIT", async () => {
+  for (const capitalProtectionRoot of [
+    null,
+    {
+      sourceTs:"2026-07-10T00:00:00.000Z",
+      sourceAgeSec:999,
+      maxAgeSec:180,
+      stale:true,
+      invalidationState:"hard_stop",
+      drawdownBrakeState:"hard_brake",
+      exitRouteState:"forced_exit_route",
+      protectionCommandState:"protect_now",
+      protectionPermission:"exit_required",
+    },
+  ]) {
+    const result = await fetchCustomerOwnedPositionMonitorSource({
+      paperAccount:{positions:[{symbol:"LOSS",qty:1,averageEntryPrice:100,currentPrice:80}]},
+      capitalProtectionRoot,
+      fetchSymbols:async()=>({ok:true,status:"connected_readonly",candidates:[{
+        symbol:"LOSS",price:80,changePct:-12,sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:120,
+        readonlyPotentialScore:30,readonlyPotentialFlags:["negative_momentum"],resultState:"WATCH",decision:"WATCH",
+        ownedReturnPct:-20,
+      }]}),
+    });
+    const candidate=result.candidates[0];
+    assert.equal(candidate.resultState,"EXIT");
+    assert.equal(candidate.decision,"EXIT");
+    assert.equal(candidate.ownedExitReviewReason,"OWNED_POSITION_HARD_LOSS_REVIEW");
+  }
+});
+
 test("owned monitor fails stale global capital protection closed to WATCH", async () => {
   const result = await fetchCustomerOwnedPositionMonitorSource({
     paperAccount:{positions:[{symbol:"OLDCAP",qty:1,averageEntryPrice:100,currentPrice:100}]},

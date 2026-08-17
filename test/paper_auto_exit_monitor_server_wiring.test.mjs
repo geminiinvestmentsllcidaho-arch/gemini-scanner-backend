@@ -163,9 +163,25 @@ test('server wires automatic PAPER EXIT replacement after recovery and before co
 test("server feeds fresh ranking-root capital protection into the shared automatic owned monitor for EXIT and SCALE", () => {
   const source = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
   assert.match(source, /const getPaperAutoExecutionOwnedMonitor=async/);
-  assert.match(source, /const capitalProtectionRoot=source\?readUnderFiveLiveRankings\(source\):null/);
+  assert.match(source, /let capitalProtectionRoot=null/);
+  assert.match(source, /capitalProtectionRoot=source\?readUnderFiveLiveRankings\(source\):null/);
   assert.match(source, /capitalProtectionRoot\}\);/);
   assert.match(source, /fetchOwnedMonitor:getPaperAutoExecutionOwnedMonitor/);
   assert.match(source, /const m=await getPaperAutoExecutionOwnedMonitor\(\{paperAccount:a,nowMs:Date\.now\(\)\}\)/);
   assert.match(source, /fetchOwnedMonitor: getPaperAutoExecutionOwnedMonitor/);
+});
+
+test("Module 5 owned monitor ranking cache acquisition is best-effort and direct monitor fetch remains outside the cache try block", () => {
+  const source = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const match = source.match(/const getPaperAutoExecutionOwnedMonitor=async[\s\S]*?\n\};/);
+  assert.ok(match);
+  const helper = match[0];
+  assert.match(helper, /let capitalProtectionRoot=null/);
+  assert.match(helper, /try\{/);
+  assert.match(helper, /const cache=await underFiveSharedCachePromise/);
+  assert.match(helper, /\}catch\{\}/);
+  const catchAt = helper.indexOf("}catch{}");
+  const directAt = helper.indexOf("return fetchCustomerOwnedPositionMonitorSource");
+  assert.ok(catchAt >= 0);
+  assert.ok(directAt > catchAt);
 });

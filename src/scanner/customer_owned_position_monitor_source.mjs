@@ -8,12 +8,24 @@ export const VERSION = "customer_owned_position_monitor_source_v1";
 const list = (value) => Array.isArray(value) ? value : [];
 const symbolOf = (value) => String(value ?? "").trim().toUpperCase();
 const numberOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+const strictCapitalNumber = (value) => {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
 
 function capitalProtectionEvidence(root = null) {
-  const age = numberOrNull(root?.sourceAgeSec);
-  const max = numberOrNull(root?.maxAgeSec);
+  const age = strictCapitalNumber(root?.sourceAgeSec);
+  const max = strictCapitalNumber(root?.maxAgeSec);
   const connected = Boolean(root && typeof root === "object");
-  const stale = !connected || root?.stale !== false || age === null || max === null || age > max;
+  const stale =
+    !connected ||
+    root?.stale !== false ||
+    age === null ||
+    max === null ||
+    age < 0 ||
+    max <= 0 ||
+    age > max;
   return Object.freeze({
     capitalProtectionConnected: connected,
     capitalProtectionFresh: !stale,

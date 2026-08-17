@@ -2815,12 +2815,15 @@ const paperAutoExecutionScaleSubmit=async(o,c)=>{
 };
 
 const getPaperAutoExecutionOwnedMonitor=async({paperAccount,nowMs=Date.now()}={})=>{
- const cache=await underFiveSharedCachePromise;
- const current=cache?.getLatest?.();
- const wake=!current||current?.idleNoDemand===true;
- cache?.noteDemand?.();
- const source=cache?(wake?await cache.refreshNow():current):null;
- const capitalProtectionRoot=source?readUnderFiveLiveRankings(source):null;
+ let capitalProtectionRoot=null;
+ try{
+  const cache=await underFiveSharedCachePromise;
+  const current=cache?.getLatest?.();
+  const wake=!current||current?.idleNoDemand===true;
+  cache?.noteDemand?.();
+  const source=cache?(wake?await cache.refreshNow():current):null;
+  capitalProtectionRoot=source?readUnderFiveLiveRankings(source):null;
+ }catch{}
  return fetchCustomerOwnedPositionMonitorSource({paperAccount,fetchSymbols:a=>fetchAlpacaUnderFiveUniverseReadonly({...a,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),nowMs,maxAssets:1,capitalProtectionRoot});
 };
 
