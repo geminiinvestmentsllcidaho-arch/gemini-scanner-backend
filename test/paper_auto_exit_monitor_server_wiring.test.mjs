@@ -160,6 +160,20 @@ test('server wires automatic PAPER EXIT replacement after recovery and before co
   assert.doesNotMatch(source, /paperAutoExecutionExitReplacementRunner\.runOnce\(\).*market_event/)
 })
 
+test("Module 6 server projects fresh ranking-root re-entry governance into the shared continuity snapshot", () => {
+  const source = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  assert.match(source, /const rankingRoot = readUnderFiveLiveRankings\(source\)/);
+  assert.match(source, /const reentrySourceAgeSec =/);
+  assert.match(source, /const reentryMaxAgeSec =/);
+  assert.match(source, /const reentryConnected = Array\.isArray\(rankingRoot\?\.rankings\)/);
+  assert.match(source, /const reentryFresh = reentryConnected/);
+  assert.match(source, /reentryControl:\s*\{/);
+  assert.match(source, /cooldownState: rankingRoot\?\.cooldownState/);
+  assert.match(source, /resetPermission: rankingRoot\?\.resetPermission/);
+  assert.match(source, /reentryPermission: rankingRoot\?\.reentryPermission/);
+  assert.match(source, /continuationPermission: rankingRoot\?\.continuationPermission/);
+});
+
 test("server feeds fresh ranking-root capital protection into the shared automatic owned monitor for EXIT and SCALE", () => {
   const source = fs.readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
   assert.match(source, /const getPaperAutoExecutionOwnedMonitor=async/);

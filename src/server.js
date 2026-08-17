@@ -2760,13 +2760,37 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const wakeRefreshRequired = !current || current?.idleNoDemand === true;
   cache.noteDemand?.();
   const source = wakeRefreshRequired ? await cache.refreshNow() : current;
+  const rankingRoot = readUnderFiveLiveRankings(source);
   const customerSource = bridgeCustomerZeroFreshRankings(
     source,
-    readUnderFiveLiveRankings(source),
+    rankingRoot,
     getStreamTelemetry(),
   );
+  const reentrySourceAgeSec = rankingRoot?.sourceAgeSec === null || rankingRoot?.sourceAgeSec === undefined || String(rankingRoot.sourceAgeSec).trim() === '' ? null : Number(rankingRoot.sourceAgeSec);
+  const reentryMaxAgeSec = rankingRoot?.maxAgeSec === null || rankingRoot?.maxAgeSec === undefined || String(rankingRoot.maxAgeSec).trim() === '' ? null : Number(rankingRoot.maxAgeSec);
+  const reentryConnected = Array.isArray(rankingRoot?.rankings) && rankingRoot.rankings.length > 0;
+  const reentryFresh = reentryConnected
+    && rankingRoot?.stale === false
+    && Number.isFinite(reentrySourceAgeSec)
+    && Number.isFinite(reentryMaxAgeSec)
+    && reentrySourceAgeSec >= 0
+    && reentryMaxAgeSec > 0
+    && reentrySourceAgeSec <= reentryMaxAgeSec;
   return {
     observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
+    reentryControl: {
+      connected: reentryConnected,
+      fresh: reentryFresh,
+      stale: !reentryFresh,
+      sourceAgeSec: Number.isFinite(reentrySourceAgeSec) ? reentrySourceAgeSec : null,
+      maxAgeSec: Number.isFinite(reentryMaxAgeSec) ? reentryMaxAgeSec : null,
+      cooldownState: rankingRoot?.cooldownState ?? null,
+      resetPermission: rankingRoot?.resetPermission ?? null,
+      reentryPermission: rankingRoot?.reentryPermission ?? null,
+      continuationPermission: rankingRoot?.continuationPermission ?? null,
+      riskRestartState: rankingRoot?.riskRestartState ?? null,
+      restartPermission: rankingRoot?.restartPermission ?? null,
+    },
     candidates: (Array.isArray(customerSource?.candidates) ? customerSource.candidates : []).map((candidate) => {
       const state = String(candidate?.resultState ?? candidate?.decision ?? 'NO_SETUP').trim().toUpperCase();
       const strategyAuthorization = authorizePaperAutoExecutionCandidate({

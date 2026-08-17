@@ -18,6 +18,23 @@ const upper = v => clean(v).toUpperCase()
 const on = (env, key) => clean(env?.[key]) === '1'
 const ENTER_RECONCILE_STATES = new Set([S.ENTER_OPEN, S.ENTER_UNKNOWN, S.ENTER_PARTIALLY_FILLED])
 const CANDIDATE_FRESHNESS_MS = 30000
+const strictFinite = (v) => {
+  if (v === null || v === undefined || String(v).trim() === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+function evaluateReentryControl(snapshot = {}) {
+  const r = snapshot?.reentryControl ?? null
+  const age = strictFinite(r?.sourceAgeSec)
+  const max = strictFinite(r?.maxAgeSec)
+  const fresh = Boolean(r && r.connected === true && r.fresh === true && r.stale === false && age !== null && max !== null && age >= 0 && max > 0 && age <= max)
+  if (!fresh) return { allowed:false, status:'FRESH_REENTRY_CONTROL_REQUIRED' }
+  if (clean(r?.cooldownState) !== 'cooldown_clear') return { allowed:false, status:'REENTRY_COOLDOWN_NOT_CLEAR' }
+  if (clean(r?.resetPermission) !== 'allowed') return { allowed:false, status:'REENTRY_RESET_NOT_ALLOWED' }
+  if (clean(r?.reentryPermission) !== 'allowed') return { allowed:false, status:'REENTRY_PERMISSION_NOT_ALLOWED' }
+  if (clean(r?.continuationPermission) !== 'allowed') return { allowed:false, status:'REENTRY_CONTINUATION_NOT_ALLOWED' }
+  return { allowed:true, status:'REENTRY_ALLOWED' }
+}
 const isEligibleCandidate = (candidate, symbol) => upper(candidate?.symbol) === upper(symbol)
   && upper(candidate?.state ?? candidate?.resultState ?? candidate?.decision) === 'ENTER'
   && candidate?.buyRecommendation === true
@@ -49,6 +66,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastSubmission = null
   let lastReconciliation = null
   let lastSizing = null
+  let lastReentryControl = null
 
   const diagnostics = () => Object.freeze({
     ok: true,
@@ -64,6 +82,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastSubmission,
     lastReconciliation,
     lastSizing,
+    lastReentryControl,
     safety: Object.freeze({
       paperOnly: true,
       disabledByDefault: true,
@@ -120,6 +139,12 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       revalidatedCandidate = candidates.find(candidate => isEligibleCandidate(candidate, lifecycle.selectedSymbol)) ?? null
       if (!revalidatedCandidate) {
         return fail('CANDIDATE_REVALIDATION_FAILED', lifecycle)
+      }
+      if (on(env, 'PAPER_AUTO_CONTINUITY_REENTRY_CONTROL_ENABLED')) {
+        lastReentryControl = Object.freeze(evaluateReentryControl(snapshot))
+        if (lastReentryControl.allowed !== true) return fail(lastReentryControl.status, lifecycle)
+      } else {
+        lastReentryControl = Object.freeze({ allowed:true, status:'REENTRY_CONTROL_DISABLED_BY_ENV' })
       }
       const actionArbitration = arbitratePaperAutomaticAction({
         lifecycle,

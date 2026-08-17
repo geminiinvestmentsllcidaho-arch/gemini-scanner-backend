@@ -614,3 +614,81 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
 }
 
 test('continuity ENTER baseline account identity mismatch blocks before submission',async()=>{const d=tmp();try{const f=path.join(d,'life.json');new PaperAutoExecutionLifecycleStore({filePath:f}).create({selectedSymbol:'BASE'});const n=Date.now();let s=0,a=0;const r=createPaperAutoExecutionContinuityEnterRunner({env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>f,getPremarketBaseline:async()=>({...currentBaseline(),accountIdentity:'alpaca-paper:fedcba9876543210fedcba98'}),getScanSnapshot:async()=>freshCandidateSnapshot('BASE',n),now:()=>n,accountCredentialResolver:readyCredentials,fetchClock:clockOpen,fetchAccount:async()=>{a++;return{ok:true,status:'connected_readonly',observedAt:new Date(n).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}},createAdapter:()=>({submitPaperOrder:async()=>{s++}})});const o=await r.runOnce();assert.equal(o.lastStatus,'PREMARKET_CAPITAL_BASELINE_ACCOUNT_IDENTITY_MISMATCH');assert.equal(a,1);assert.equal(s,0);assert.equal(o.submissions,0);assert.equal(new PaperAutoExecutionLifecycleStore({filePath:f}).load().state,'CANDIDATE_SELECTED')}finally{fs.rmSync(d,{recursive:true,force:true})}})
+
+test('Module 6 re-entry control fails closed on governance', async () => {
+  const d = tmp()
+  try {
+    const f = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: f }).create({ selectedSymbol: 'M6BLOCK' })
+    const n = Date.now()
+    let resolverCalls = 0
+    const snapshot = freshCandidateSnapshot('M6BLOCK', n)
+    snapshot.reentryControl = {
+      connected: true, fresh: true, stale: false, sourceAgeSec: 1, maxAgeSec: 30,
+      cooldownState: 'cooldown_required',
+      resetPermission: 'allowed',
+      reentryPermission: 'allowed',
+      continuationPermission: 'allowed',
+    }
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: {
+        PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1',
+        PAPER_AUTO_CONTINUITY_REENTRY_CONTROL_ENABLED: '1',
+      },
+      getLifecycleFile: () => f,
+      getScanSnapshot: async () => snapshot,
+      now: () => n,
+      accountCredentialResolver: async () => {
+        resolverCalls += 1
+        return readyCredentials()
+      },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'REENTRY_COOLDOWN_NOT_CLEAR')
+    assert.equal(out.lastReentryControl?.allowed, false)
+    assert.equal(out.lastReentryControl?.status, 'REENTRY_COOLDOWN_NOT_CLEAR')
+    assert.equal(resolverCalls, 0)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f }).load().state, 'CANDIDATE_SELECTED')
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test('Module 6 re-entry control allows fresh fully allowed governance', async () => {
+  const d = tmp()
+  try {
+    const f = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: f }).create({ selectedSymbol: 'M6ALLOW' })
+    const n = Date.now()
+    let resolverCalls = 0
+    const snapshot = freshCandidateSnapshot('M6ALLOW', n)
+    snapshot.reentryControl = {
+      connected: true, fresh: true, stale: false, sourceAgeSec: 1, maxAgeSec: 30,
+      cooldownState: 'cooldown_clear',
+      resetPermission: 'allowed',
+      reentryPermission: 'allowed',
+      continuationPermission: 'allowed',
+    }
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: {
+        PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1',
+        PAPER_AUTO_CONTINUITY_REENTRY_CONTROL_ENABLED: '1',
+      },
+      getLifecycleFile: () => f,
+      getScanSnapshot: async () => snapshot,
+      now: () => n,
+      accountCredentialResolver: async () => {
+        resolverCalls += 1
+        return { readyForReadonlyBrokerRead: false, env: {} }
+      },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'PAPER_CREDENTIALS_NOT_READY')
+    assert.equal(out.lastReentryControl?.allowed, true)
+    assert.equal(out.lastReentryControl?.status, 'REENTRY_ALLOWED')
+    assert.equal(resolverCalls, 1)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f }).load().state, 'CANDIDATE_SELECTED')
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
