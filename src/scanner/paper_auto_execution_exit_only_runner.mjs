@@ -35,7 +35,7 @@ async function fetchPaperClock({ env, fetchImpl, credentialResolver }) {
     : null
   let effectiveCredentialResolver
   if (typeof credentialResolver === 'function') {
-    const resolved = await credentialResolver({ env, purpose: 'paper_exit_only_market_clock_readonly' })
+    const resolved = await credentialResolver({ masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY, env, purpose: 'paper_exit_only_market_clock_readonly' })
     if (resolved?.readyForReadonlyBrokerRead !== true) throw new Error('paper_exit_only_clock_credentials_required')
     effectiveCredentialResolver = async () => resolved
   } else {
@@ -73,7 +73,7 @@ async function fetchHistoricalOrders({ env, fetchImpl, credentialResolver }) {
       }
     : null
   const resolved = typeof credentialResolver === 'function'
-    ? await credentialResolver({ env, purpose: 'paper_exit_only_historical_orders_readonly' })
+    ? await credentialResolver({ masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY, env, purpose: 'paper_exit_only_historical_orders_readonly' })
     : null
   const credentials = typeof credentialResolver === 'function'
     ? (resolved?.readyForReadonlyBrokerRead === true ? resolved : null)
@@ -233,7 +233,7 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
       }
     : null
   const resolvedSubmissionCredentials = typeof options.accountCredentialResolver === 'function'
-    ? await options.accountCredentialResolver({ env, purpose: 'paper_exit_only_submission_credentials' })
+    ? await options.accountCredentialResolver({ masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY, env, purpose: 'paper_exit_only_submission_credentials' })
     : null
   const submissionCredentials = typeof options.accountCredentialResolver === 'function'
     ? (resolvedSubmissionCredentials?.readyForReadonlyBrokerRead === true ? resolvedSubmissionCredentials : null)

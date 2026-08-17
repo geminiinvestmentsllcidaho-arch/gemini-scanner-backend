@@ -69,6 +69,57 @@ test('fails closed before network when explicit execution is absent', async () =
 })
 
 
+test('EXIT-only direct credential resolver calls receive GEMINI_CREDENTIAL_MASTER_KEY', async () => {
+  const f = fixture()
+  delete f.env.APCA_API_KEY_ID
+  delete f.env.APCA_API_SECRET_KEY
+  f.env.GEMINI_CREDENTIAL_MASTER_KEY = 'm'.repeat(64)
+  const calls = []
+  const resolver = async (args) => {
+    calls.push(args)
+    if (args?.masterKey !== f.env.GEMINI_CREDENTIAL_MASTER_KEY) {
+      return { readyForReadonlyBrokerRead: false, env: {} }
+    }
+    return {
+      readyForReadonlyBrokerRead: true,
+      accessSwitchEnabled: true,
+      credentialSource: 'encrypted_tenant_store',
+      env: {
+        ALPACA_KEY: 'resolved-paper-key',
+        ALPACA_SECRET: 'resolved-paper-secret',
+        APCA_API_BASE_URL: 'https://paper-api.alpaca.markets',
+        ALPACA_PAPER_TRADING: 'true',
+      },
+    }
+  }
+  try {
+    await assert.rejects(
+      runPaperAutoExecutionExitOnly({
+        args: f.args,
+        env: f.env,
+        nowMs: f.nowMs,
+        accountCredentialResolver: resolver,
+        fetchImpl: async (url) => {
+          if (String(url).endsWith('/v2/clock')) {
+            return new Response(
+              JSON.stringify({ is_open: false, timestamp: new Date(f.nowMs).toISOString() }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          }
+          throw new Error(`unexpected_fetch:${url}`)
+        },
+      }),
+      /paper_exit_only_market_open_required/,
+    )
+    assert.ok(calls.length >= 1)
+    assert.equal(calls[0]?.masterKey, f.env.GEMINI_CREDENTIAL_MASTER_KEY)
+    assert.equal(calls[0]?.env?.GEMINI_CREDENTIAL_MASTER_KEY, f.env.GEMINI_CREDENTIAL_MASTER_KEY)
+    assert.equal(calls[0]?.purpose, 'paper_exit_only_market_clock_readonly')
+  } finally {
+    fs.rmSync(f.dir, { recursive: true, force: true })
+  }
+})
+
 test('clock preflight accepts resolver-backed PAPER credentials when direct APCA keys are absent', async () => {
   const f = fixture()
   delete f.env.APCA_API_KEY_ID
