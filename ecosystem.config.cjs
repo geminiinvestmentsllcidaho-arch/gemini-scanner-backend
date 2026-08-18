@@ -8,6 +8,7 @@ module.exports = {
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
+        PAPER_AUTO_DEGRADED_BROKER_MODE_ENABLED: "1",
         PAPER_AUTO_EXIT_MONITOR_ENABLED: "1",
       PAPER_AUTO_CONTINUITY_ENABLED: "1",
         PAPER_AUTO_EXIT_REPLACEMENT_RUNNER_ENABLED: "1",

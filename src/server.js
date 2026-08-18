@@ -2818,6 +2818,23 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   };
 };
 const paperAutoExecutionDegradedBrokerMode = createPaperAutoExecutionDegradedBrokerMode({ env: process.env });
+const runPaperAutoExecutionDegradedBrokerRecoveryProbe = async () => {
+  const before = paperAutoExecutionDegradedBrokerMode.diagnostics();
+  if (before?.enabled !== true || before?.status?.degraded !== true) return before;
+  const [account, clock] = await Promise.all([
+    fetchAlpacaPaperAccountReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
+    fetchAlpacaMarketClockReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
+  ]);
+  if (account?.ok !== true || account?.status !== 'connected_readonly') return paperAutoExecutionDegradedBrokerMode.diagnostics();
+  if (clock?.ok !== true || clock?.status !== 'connected_readonly') return paperAutoExecutionDegradedBrokerMode.diagnostics();
+  if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) return paperAutoExecutionDegradedBrokerMode.diagnostics();
+  const accountObservedAt = String(account?.observedAt ?? '').trim();
+  const clockObservedAt = String(clock?.marketClock?.timestamp ?? '').trim();
+  if (!accountObservedAt || !clockObservedAt) return paperAutoExecutionDegradedBrokerMode.diagnostics();
+  return paperAutoExecutionDegradedBrokerMode.recordSuccess({
+    probeId: `runtime-readonly:${accountObservedAt}:${clockObservedAt}`,
+  });
+};
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
   getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   setActiveLifecycleFile: (file) => {
@@ -2916,6 +2933,14 @@ let paperAutoExecutionContinuityCycleInFlight = null;
 const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
   if (paperAutoExecutionContinuityCycleInFlight) return paperAutoExecutionContinuityCycleInFlight;
   paperAutoExecutionContinuityCycleInFlight = (async () => {
+    try {
+      await runPaperAutoExecutionDegradedBrokerRecoveryProbe();
+    } catch (error) {
+      console.error('[paper-auto-execution-degraded-broker] recovery probe failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+    }
     try {
       await paperAutoExecutionExitRecoveryRunner.runOnce();
     } catch (error) {
