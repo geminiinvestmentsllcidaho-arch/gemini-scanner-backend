@@ -74,6 +74,7 @@ import { createPaperAutoExecutionExitReplacementRunner } from './scanner/paper_a
 import { fetchAlpacaPaperExitReplacementOrderByClientOrderIdReadonly } from './scanner/paper_auto_execution_exit_replacement_order_lookup.mjs';
 import { getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
 import { createPaperAutoExecutionScaleRunner, derivePaperScaleActionFile } from './scanner/paper_auto_execution_scale_runner.mjs';
+import { createPaperAutoExecutionDegradedBrokerMode } from './scanner/paper_auto_execution_degraded_broker_mode.mjs';
 import { PaperAutoExecutionScaleActionStore } from './scanner/paper_auto_execution_scale_action_store.mjs';
 import { fetchAlpacaPaperAccountReadonly } from './scanner/alpaca_paper_account_readonly_fetch.mjs';
 import { fetchCustomerOwnedPositionMonitorSource } from './scanner/customer_owned_position_monitor_source.mjs';
@@ -1984,6 +1985,7 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
     enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
     scale: paperAutoExecutionScaleRunner.diagnostics(),
     exit: paperAutoExitMonitorWorker.diagnostics(),
+    degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
     lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
     activation: {
       paperTrading: String(process.env.ALPACA_PAPER_TRADING ?? '').trim().toLowerCase() === 'true',
@@ -2052,6 +2054,7 @@ app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) =>
     enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
     scale: paperAutoExecutionScaleRunner.diagnostics(),
     exit: paperAutoExitMonitorWorker.diagnostics(),
+    degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
     lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
     activation: {
       paperTrading: String(process.env.ALPACA_PAPER_TRADING ?? '').trim().toLowerCase() === 'true',
@@ -2814,6 +2817,7 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
     }),
   };
 };
+const paperAutoExecutionDegradedBrokerMode = createPaperAutoExecutionDegradedBrokerMode({ env: process.env });
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
   getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   setActiveLifecycleFile: (file) => {
@@ -2831,6 +2835,7 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
   getPremarketBaseline: () => getPersistedPremarketCapitalBaseline({ now: new Date() }),
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
+  degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
 const paperAutoExecutionScaleSubmit=async(o,c)=>{
  const r=await resolveInternalOwnerAlpacaReadonlyCredentials({masterKey:process.env.GEMINI_CREDENTIAL_MASTER_KEY});
@@ -2859,6 +2864,7 @@ const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
  getPremarketBaseline:()=>getPersistedPremarketCapitalBaseline({now:new Date()}),
  fetchOrderByClientOrderId:({clientOrderId})=>fetchAlpacaPaperOrderByClientOrderIdReadonly({clientOrderId,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
  submitPaperOrder:paperAutoExecutionScaleSubmit,serverIntegrated:true,automaticStartAllowed:true,
+ degradedBrokerMode:paperAutoExecutionDegradedBrokerMode,
 });
 
 const runPaperAutoExecutionScaleCycle=async(source='runtime')=>{try{
@@ -2879,11 +2885,13 @@ const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   fetchOwnedMonitor: getPaperAutoExecutionOwnedMonitor,
   onTerminalLifecycle: () => runPaperAutoExecutionContinuityCycle('terminal_exit'),
+  degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
 
 const paperAutoExecutionExitRecoveryRunner = createPaperAutoExecutionExitRecoveryRunner({
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
+  degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
 
 const paperAutoExecutionExitReplacementSubmit = async (order, context) => {
@@ -2900,6 +2908,7 @@ const paperAutoExecutionExitReplacementRunner = createPaperAutoExecutionExitRepl
   fetchMarketClock: () => fetchAlpacaMarketClockReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
   fetchOrderByClientOrderId: ({ clientOrderId }) => fetchAlpacaPaperExitReplacementOrderByClientOrderIdReadonly({ clientOrderId, credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
   submitPaperOrder: paperAutoExecutionExitReplacementSubmit,
+  degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
 
 const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
@@ -3149,6 +3158,10 @@ app.get('/diagnostics/paper-auto-execution-continuity-enter', (_req, res) => {
 
 app.get('/diagnostics/paper-auto-execution-scale', (_req, res) => {
   res.json(paperAutoExecutionScaleRunner.diagnostics());
+});
+
+app.get('/diagnostics/paper-auto-execution-degraded-broker-mode', (_req, res) => {
+  res.json(paperAutoExecutionDegradedBrokerMode.diagnostics());
 });
 
 app.get('/diagnostics/paper-trade-position-state-store', (_req, res) => {
@@ -3414,6 +3427,7 @@ app.get('/customer/portfolio', requireCustomerSession, async (req, res) => {
       enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
       scale: paperAutoExecutionScaleRunner.diagnostics(),
       exit: paperAutoExitMonitorWorker.diagnostics(),
+    degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
       lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
       safety: { paperOnly: true, liveTradingAllowed: false },
     };

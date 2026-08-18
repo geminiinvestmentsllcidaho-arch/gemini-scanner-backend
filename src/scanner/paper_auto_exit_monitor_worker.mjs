@@ -50,6 +50,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
   const accountCredentialResolver = options.accountCredentialResolver
   const onTerminalLifecycle = options.onTerminalLifecycle ?? null
+  const degradedBrokerMode = options.degradedBrokerMode ?? null
   const intervalMs = Math.max(250, Number(options.intervalMs ?? env.PAPER_AUTO_EXIT_MONITOR_INTERVAL_MS ?? DEFAULT_INTERVAL_MS) || DEFAULT_INTERVAL_MS)
   let timer = null
   let running = false
@@ -81,6 +82,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     lastRunnerCompletedAt, lastSubmissionConfirmedObservedAt, lastReconciliationCompletedObservedAt,
     lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus, lastBrokerSubmittedAt, lastBrokerFilledAt,
     lastExitDecision,
+    degradedBrokerMode: degradedBrokerMode?.diagnostics?.() ?? null,
     safety: { paperOnly: true, liveTradingAllowed: false, disabledByDefault: true, exactPositionExitOnly: true, blindRetryAllowed: false }
   })
 
@@ -216,6 +218,14 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
             actionArbitration,
           })
           continue
+        }
+
+        if (degradedBrokerMode?.evaluateAction) {
+          const brokerModeDecision = degradedBrokerMode.evaluateAction({ action: 'EXIT' })
+          if (brokerModeDecision?.allowed !== true) {
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: brokerModeDecision?.status ?? 'DEGRADED_BROKER_EXIT_BLOCKED' })
+            continue
+          }
         }
 
         exitTriggers += 1

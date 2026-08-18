@@ -18,6 +18,7 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
   const fetchAccount = options.fetchAccount ?? (args => fetchAlpacaPaperAccountReadonly(args))
   const fetchHistory = options.fetchHistoricalOrders ?? (args => fetchAlpacaPaperHistoricalOrdersReadonly(args))
   const reconcile = options.reconcile ?? runPaperAutoExecutionReconciliation
+  const degradedBrokerMode = options.degradedBrokerMode ?? null
   const now = options.now ?? Date.now
   let inFlight = null
   let cycles = 0
@@ -38,6 +39,7 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
     lastLifecycleFile,
     lastLifecycle,
     lastReconciliation,
+    degradedBrokerMode: degradedBrokerMode?.diagnostics?.() ?? null,
     safety: Object.freeze({
       paperOnly: true,
       exactActiveLifecycleOnly: true,
@@ -72,6 +74,11 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
       && Boolean(clean(lifecycle.exitClientOrderId) || clean(lifecycle.exitBrokerOrderId))
     if (!RECOVERY_STATES.has(lifecycle.state) && !exitOwnedUnresolved) return finish('EXIT_RECOVERY_NOT_REQUIRED', lifecycle)
     if (lifecycle?.scannerEvidence?.paperOnly !== true) return finish('PAPER_ONLY_LIFECYCLE_REQUIRED', lifecycle)
+
+    if (degradedBrokerMode?.evaluateAction) {
+      const brokerModeDecision = degradedBrokerMode.evaluateAction({ action: 'EXIT_RECOVERY' })
+      if (brokerModeDecision?.allowed !== true) return finish(brokerModeDecision?.status ?? 'DEGRADED_BROKER_EXIT_RECOVERY_BLOCKED', lifecycle)
+    }
 
     const resolved = typeof credentialResolver === 'function'
       ? await credentialResolver({ env, masterKey: env?.GEMINI_CREDENTIAL_MASTER_KEY, purpose: 'paper_exit_recovery_credentials' })

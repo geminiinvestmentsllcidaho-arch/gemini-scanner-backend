@@ -44,6 +44,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
   const getPremarketBaseline = options.getPremarketBaseline
   const submitPaperOrder = options.submitPaperOrder
   const getScaleActionFile = options.getScaleActionFile ?? derivePaperScaleActionFile
+  const degradedBrokerMode = options.degradedBrokerMode ?? null
   const now = options.now ?? Date.now
   let inFlight = null
   let cycles = 0
@@ -64,6 +65,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     scaleOutEnabled: on(env, 'PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED'),
     cycles, submissions, reconciliations, lastStatus, lastError,
     lastIdentity, lastLifecycle, lastSubmission, lastReconciliation, lastPortfolioCapitalGovernor,
+    degradedBrokerMode: degradedBrokerMode?.diagnostics?.() ?? null,
     safety: Object.freeze({
       paperOnly: true, disabledByDefault: true, exactActiveLifecycleOnly: true,
       injectedBrokerInterfacesOnly: true, canonicalLifecycleStateMachineUnchanged: true,
@@ -110,6 +112,10 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     }
     const a = clean(action).toLowerCase()
     if (!['scale_in', 'scale_out'].includes(a)) return finish('PAPER_SCALE_ACTION_REQUIRED', lifecycle)
+    if (degradedBrokerMode?.evaluateAction) {
+      const brokerModeDecision = degradedBrokerMode.evaluateAction({ action: a === 'scale_in' ? 'SCALE_IN' : 'SCALE_OUT' })
+      if (brokerModeDecision?.allowed !== true) return finish(brokerModeDecision?.status ?? 'DEGRADED_BROKER_SCALE_ACTION_BLOCKED', lifecycle)
+    }
     const directionEnabled = a === 'scale_in'
       ? on(env, 'PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED')
       : on(env, 'PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED')

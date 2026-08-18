@@ -55,6 +55,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const createAdapter = options.createAdapter ?? ((args) => createPaperAutoExecutionAlpacaPaperAdapter(args))
   const submit = options.submitOrder ?? submitPaperAutoOrder
   const reconcile = options.reconcile ?? runPaperAutoExecutionReconciliation
+  const degradedBrokerMode = options.degradedBrokerMode ?? null
   const now = options.now ?? Date.now
   let inFlight = null
   let cycles = 0
@@ -86,6 +87,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastSizing,
     lastReentryControl,
     lastPortfolioCapitalGovernor,
+    degradedBrokerMode: degradedBrokerMode?.diagnostics?.() ?? null,
     safety: Object.freeze({
       paperOnly: true,
       disabledByDefault: true,
@@ -156,6 +158,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (actionArbitration?.ok !== true || actionArbitration?.action !== 'ENTER') {
         return fail(actionArbitration?.status ?? 'ENTER_ACTION_ARBITRATION_FAIL_CLOSED', lifecycle)
       }
+    }
+
+    if (lifecycle.state === S.CANDIDATE_SELECTED && degradedBrokerMode?.evaluateAction) {
+      const brokerModeDecision = degradedBrokerMode.evaluateAction({ action: 'ENTER' })
+      if (brokerModeDecision?.allowed !== true) return fail(brokerModeDecision?.status ?? 'DEGRADED_BROKER_ENTER_BLOCKED', lifecycle)
     }
 
     const resolved = typeof credentialResolver === 'function'
