@@ -47,6 +47,9 @@ test("builds lifetime read-only report scanner summary from in-range events", ()
   assert.equal(report.scanner.averagePotentialScore, 80);
   assert.equal(report.scanner.profitableSignals, 1);
   assert.equal(report.scanner.failedSignals, 1);
+  assert.equal(report.scanner.outcomeAttributedSignals, 2);
+  assert.equal(report.scanner.outcomeUnattributedSignals, 0);
+  assert.equal(report.scanner.outcomeAttributionCoveragePct, 100);
   assert.equal(report.stale, false);
   assert.equal(report.readOnly, true);
   assert.equal(report.orderPlacementAllowed, false);
@@ -608,4 +611,20 @@ test("future performance epoch cannot invert the report range", () => {
   assert.equal(report.performanceEpochStartedAt, null);
   assert.equal(report.range.startIso, null);
   assert.equal(report.range.endIso, "2026-08-15T23:08:00.000Z");
+});
+
+test("scanner profitability is unavailable when scanner events have no realized PnL attribution", () => {
+  const report = buildCustomerReportModel({
+    period: "lifetime",
+    now: new Date("2026-08-18T20:00:00.000Z"),
+    scannerEvents: [
+      { createdAt: "2026-08-18T18:00:00.000Z", resultState: "ENTER", symbol: "ABC" },
+      { createdAt: "2026-08-18T18:01:00.000Z", resultState: "WAIT", symbol: "XYZ" },
+    ],
+  });
+  assert.equal(report.scanner.profitableSignals, null);
+  assert.equal(report.scanner.failedSignals, null);
+  assert.equal(report.scanner.outcomeAttributedSignals, 0);
+  assert.equal(report.scanner.outcomeUnattributedSignals, 2);
+  assert.equal(report.scanner.outcomeAttributionCoveragePct, 0);
 });

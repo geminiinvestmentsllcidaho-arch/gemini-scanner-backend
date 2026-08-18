@@ -174,6 +174,11 @@ function scannerSummary(events, range) {
     ? round2(values.reduce((sum, value) => sum + value, 0) / values.length)
     : null;
 
+  const attributedOutcomes = selected
+    .map((event) => finite(event?.realizedPnl))
+    .filter((value) => value !== null);
+  const attributedCount = attributedOutcomes.length;
+
   return Object.freeze({
     signalsGenerated: selected.length,
     enter: counts.ENTER,
@@ -184,8 +189,13 @@ function scannerSummary(events, range) {
     stale: counts.STALE_DATA,
     averageConfidence: average(confidences),
     averagePotentialScore: average(potentials),
-    profitableSignals: selected.filter((event) => finite(event?.realizedPnl) > 0).length,
-    failedSignals: selected.filter((event) => finite(event?.realizedPnl) < 0).length,
+    profitableSignals: attributedCount ? attributedOutcomes.filter((value) => value > 0).length : null,
+    failedSignals: attributedCount ? attributedOutcomes.filter((value) => value < 0).length : null,
+    outcomeAttributedSignals: attributedCount,
+    outcomeUnattributedSignals: Math.max(0, selected.length - attributedCount),
+    outcomeAttributionCoveragePct: selected.length
+      ? round2((attributedCount / selected.length) * 100)
+      : null,
   });
 }
 

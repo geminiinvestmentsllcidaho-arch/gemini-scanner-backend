@@ -50,7 +50,7 @@ test("builds bounded manual-review recommendations with all mutation locks close
   assert.equal(record.minimumOpenSessionsBeforeAdjustment, 3);
   assert.equal(record.recommendations[0].proposedValue, 0.65);
   assert.equal(record.recommendations[0].requiresBacktest, true);
-  assert.equal(record.recommendations[0].requiresOperatorApproval, false);
+  assert.equal(record.recommendations[0].requiresOperatorApproval, true);
   assert.equal(record.automaticLearningAllowed, false);
   assert.equal(record.automaticPatchAllowed, false);
   assert.equal(record.scannerLogicMutationAllowed, false);

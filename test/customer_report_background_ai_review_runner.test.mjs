@@ -405,7 +405,7 @@ test("runner persists a manual-adjustment recommendation while all mutation lock
   assert.equal(result.monitoringContinues, true);
   assert.equal(result.minimumOpenSessionsBeforeAdjustment, 3);
   assert.equal(persistedManualRecord.requiresBacktest, true);
-  assert.equal(persistedManualRecord.requiresOperatorApproval, false);
+  assert.equal(persistedManualRecord.requiresOperatorApproval, true);
   assert.equal(persistedManualRecord.automaticLearningAllowed, false);
   assert.equal(persistedManualRecord.scannerLogicMutationAllowed, false);
   assert.equal(persistedManualRecord.thresholdMutationAllowed, false);

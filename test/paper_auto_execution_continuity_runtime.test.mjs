@@ -199,3 +199,21 @@ test('Module 10 candidate selection persists audit-only strategy evidence withou
   assert.equal(evidence.safety.auditOnly, true)
   assert.equal(evidence.safety.executionEligibilityMutationAllowed, false)
 })
+
+
+test('fresh lifecycle persists bounded scanner origin attribution identifiers', async()=>{
+ const dir=tmp(), now=Date.parse('2026-08-18T20:00:00Z')
+ let published=null
+ const r=createPaperAutoExecutionContinuityRuntime({
+  env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},
+  runsDir:dir, now:()=>now, idFactory:()=> 'attrib',
+  getActiveLifecycleFile:async()=>null,
+  setActiveLifecycleFile:async(file,life)=>{ published={file,life} },
+  getScanSnapshot:async()=>({scanId:'scan-123',observedAt:new Date(now-1000).toISOString(),candidates:[{symbol:'ABC',state:'ENTER',buyRecommendation:true,blocked:false,blockers:[],score:91,eventAt:new Date(now-1100).toISOString()}]}),
+ })
+ await r.runOnce()
+ const life=published?.life ?? r.diagnostics().lastLifecycle
+ assert.ok(life)
+ assert.equal(life.scannerEvidence.originScanId,'scan-123')
+ assert.equal(life.scannerEvidence.originEventAt,new Date(now-1100).toISOString())
+})
