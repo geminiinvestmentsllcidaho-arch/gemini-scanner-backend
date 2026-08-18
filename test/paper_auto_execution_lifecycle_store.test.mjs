@@ -207,3 +207,44 @@ test('patchExitRecovery persists same-state reconciliation and immutable broker 
     assert.throws(()=>store.patchExitRecovery({expectedLifecycleId:'life-exit-recovery',expectedSymbol:'ABC',expectedState:S.EXIT_SUBMITTING,filledQuantity:1}),/forbidden:filledQuantity/)
   } finally { fs.rmSync(dir,{recursive:true,force:true}) }
 })
+
+test('patchCandidateStrategyEvidence merges audit phases, preserves them across transition, and fails closed on identity or state mismatch', () => {
+  const { store } = fixture()
+  const created = store.create({
+    selectedSymbol: 'ABC',
+    scannerEvidence: {
+      source: 'paper_auto_continuity_scanner_candidate',
+      paperOnly: true,
+      strategyEvidence: {
+        candidateSelection: { phase: 'candidate_selection', symbol: 'ABC' },
+      },
+    },
+  })
+  const patched = store.patchCandidateStrategyEvidence({
+    expectedLifecycleId: created.lifecycleId,
+    expectedSymbol: 'ABC',
+    strategyEvidence: {
+      enterRevalidation: { phase: 'enter_revalidation', symbol: 'ABC' },
+    },
+  })
+  assert.equal(patched.scannerEvidence.strategyEvidence.candidateSelection.phase, 'candidate_selection')
+  assert.equal(patched.scannerEvidence.strategyEvidence.enterRevalidation.phase, 'enter_revalidation')
+  assert.throws(() => store.patchCandidateStrategyEvidence({
+    expectedLifecycleId: 'other',
+    expectedSymbol: 'ABC',
+    strategyEvidence: { x: {} },
+  }), /strategy_evidence_patch_lifecycle_changed/)
+  assert.throws(() => store.patchCandidateStrategyEvidence({
+    expectedLifecycleId: created.lifecycleId,
+    expectedSymbol: 'XYZ',
+    strategyEvidence: { x: {} },
+  }), /strategy_evidence_patch_symbol_changed/)
+  const transitioned = store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'audit-enter-1' })
+  assert.equal(transitioned.scannerEvidence.strategyEvidence.candidateSelection.symbol, 'ABC')
+  assert.equal(transitioned.scannerEvidence.strategyEvidence.enterRevalidation.symbol, 'ABC')
+  assert.throws(() => store.patchCandidateStrategyEvidence({
+    expectedLifecycleId: created.lifecycleId,
+    expectedSymbol: 'ABC',
+    strategyEvidence: { x: {} },
+  }), /strategy_evidence_patch_invalid_state:ENTER_SUBMITTING/)
+})

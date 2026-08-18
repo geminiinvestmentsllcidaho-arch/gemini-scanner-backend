@@ -12,6 +12,7 @@ import { calculateAutomaticPositionSize } from './automatic_position_sizing_poli
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
 import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
 import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
+import { buildPaperAutoExecutionStrategyEvidence } from './paper_auto_execution_strategy_evidence.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -145,6 +146,19 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (!revalidatedCandidate) {
         return fail('CANDIDATE_REVALIDATION_FAILED', lifecycle)
       }
+      lifecycle = store.patchCandidateStrategyEvidence({
+        expectedLifecycleId: lifecycle.lifecycleId,
+        expectedSymbol: lifecycle.selectedSymbol,
+        strategyEvidence: {
+          enterRevalidation: buildPaperAutoExecutionStrategyEvidence({
+            phase: 'enter_revalidation',
+            candidate: revalidatedCandidate,
+            snapshotObservedAt: snapshot?.observedAt ?? null,
+            recordedAt: new Date(Number(now())).toISOString(),
+          }),
+        },
+      })
+      lastLifecycle = lifecycle
       if (on(env, 'PAPER_AUTO_CONTINUITY_REENTRY_CONTROL_ENABLED')) {
         lastReentryControl = Object.freeze(evaluateReentryControl(snapshot))
         if (lastReentryControl.allowed !== true) return fail(lastReentryControl.status, lifecycle)

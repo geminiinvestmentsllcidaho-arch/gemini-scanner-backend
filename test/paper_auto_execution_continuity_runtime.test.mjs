@@ -161,3 +161,41 @@ test('expired lifecycle is terminal and resetToIdle accepts it',()=>{
  assert.deepEqual(s.resetToIdle(),{state:'IDLE'})
  assert.equal(fs.existsSync(file),false)
 })
+
+test('Module 10 candidate selection persists audit-only strategy evidence without tightening legacy eligibility', async () => {
+  const d = tmp()
+  const old = path.join(d, 'old.json')
+  terminal(old)
+  let active = old
+  const nowMs = Date.parse('2026-08-18T20:00:10Z')
+  const runtime = createPaperAutoExecutionContinuityRuntime({
+    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
+    runsDir: d,
+    getActiveLifecycleFile: () => active,
+    setActiveLifecycleFile: file => { active = file },
+    getScanSnapshot: async () => ({
+      observedAt: '2026-08-18T20:00:00Z',
+      candidates: [{
+        symbol: 'AUDIT',
+        state: 'ENTER',
+        buyRecommendation: true,
+        blocked: false,
+        blockers: [],
+        score: 99,
+        price: 5,
+      }],
+    }),
+    idFactory: () => 'audit-life',
+    now: () => nowMs,
+  })
+  const out = await runtime.runOnce()
+  assert.equal(out.lastStatus, 'FRESH_CANDIDATE_LIFECYCLE_CREATED')
+  const lifecycle = new PaperAutoExecutionLifecycleStore({ filePath: active }).load()
+  const evidence = lifecycle.scannerEvidence.strategyEvidence.candidateSelection
+  assert.equal(evidence.phase, 'candidate_selection')
+  assert.equal(evidence.symbol, 'AUDIT')
+  assert.equal(evidence.score, 99)
+  assert.equal(evidence.strategyAuthorization.authorized, false)
+  assert.equal(evidence.safety.auditOnly, true)
+  assert.equal(evidence.safety.executionEligibilityMutationAllowed, false)
+})

@@ -99,6 +99,28 @@ export class PaperAutoExecutionLifecycleStore {
     return clone(next)
   }
 
+  patchCandidateStrategyEvidence({ expectedLifecycleId, expectedSymbol, strategyEvidence } = {}) {
+    const current = this.load()
+    if (!current) throw new Error('paper_auto_lifecycle_missing')
+    if (current.state !== S.CANDIDATE_SELECTED) throw new Error(`paper_auto_strategy_evidence_patch_invalid_state:${current.state}`)
+    if (String(expectedLifecycleId ?? '').trim() !== current.lifecycleId) throw new Error('paper_auto_strategy_evidence_patch_lifecycle_changed')
+    if (normalizeSymbol(expectedSymbol) !== current.selectedSymbol) throw new Error('paper_auto_strategy_evidence_patch_symbol_changed')
+    if (!strategyEvidence || typeof strategyEvidence !== 'object' || Array.isArray(strategyEvidence)) {
+      throw new Error('paper_auto_strategy_evidence_patch_invalid')
+    }
+    const scannerEvidence = current.scannerEvidence && typeof current.scannerEvidence === 'object' && !Array.isArray(current.scannerEvidence)
+      ? clone(current.scannerEvidence)
+      : {}
+    const existingStrategyEvidence = scannerEvidence.strategyEvidence && typeof scannerEvidence.strategyEvidence === 'object' && !Array.isArray(scannerEvidence.strategyEvidence)
+      ? clone(scannerEvidence.strategyEvidence)
+      : {}
+    scannerEvidence.strategyEvidence = { ...existingStrategyEvidence, ...clone(strategyEvidence) }
+    const next = { ...current, scannerEvidence, updatedAt: new Date(this.clock()).toISOString() }
+    validate(next)
+    this.#write(next)
+    return clone(next)
+  }
+
   assertExitTarget({ symbol, quantity }) {
     const current = this.load()
     if (!current) throw new Error('paper_auto_lifecycle_missing')

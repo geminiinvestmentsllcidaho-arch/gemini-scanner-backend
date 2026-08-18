@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { PaperAutoExecutionLifecycleStore } from './paper_auto_execution_lifecycle_store.mjs'
 import { STATES as S, terminalStates } from './paper_auto_execution_state_machine.mjs'
 import { buildPaperAutoOrderIdentity } from './paper_auto_execution_order_identity.mjs'
+import { buildPaperAutoExecutionStrategyEvidence } from './paper_auto_execution_strategy_evidence.mjs'
 export const VERSION='paper_auto_execution_continuity_runtime_v1'
 const clean=v=>String(v??'').trim(), upper=v=>clean(v).toUpperCase(), on=(e,k)=>clean(e?.[k])==='1'
 const CANDIDATE_FRESHNESS_MS=30000, CONTINUITY_SOURCE='paper_auto_continuity_scanner_candidate'
@@ -40,7 +41,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
   if(!candidate?.symbol){lastStatus='NO_ELIGIBLE_CANDIDATE';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
   if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_LIFECYCLE_CREATION';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
   const id=idFactory(), file=path.join(runsDir,`paper_auto_execution_${id}.json`);if(fs.existsSync(file)){lastStatus='LIFECYCLE_FILE_COLLISION';return diagnostics()}
-  const life=storeFactory(file).create({selectedSymbol:upper(candidate.symbol),scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:snapshot?.observedAt??null,symbol:upper(candidate.symbol),state:upper(candidate.state??candidate.resultState??candidate.decision),score:Number.isFinite(Number(candidate.score??candidate.readonlyPotentialScore))?Number(candidate.score??candidate.readonlyPotentialScore):null,previousLifecycleFile:activeFile||null,previousLifecycleId:active?.lifecycleId??null,previousLifecycleState:active?.state??null,paperOnly:true}})
+  const life=storeFactory(file).create({selectedSymbol:upper(candidate.symbol),scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:snapshot?.observedAt??null,symbol:upper(candidate.symbol),state:upper(candidate.state??candidate.resultState??candidate.decision),score:Number.isFinite(Number(candidate.score??candidate.readonlyPotentialScore))?Number(candidate.score??candidate.readonlyPotentialScore):null,previousLifecycleFile:activeFile||null,previousLifecycleId:active?.lifecycleId??null,previousLifecycleState:active?.state??null,paperOnly:true,strategyEvidence:{candidateSelection:buildPaperAutoExecutionStrategyEvidence({phase:'candidate_selection',candidate,snapshotObservedAt:snapshot?.observedAt??null,recordedAt:new Date(now()).toISOString()})}}})
   pendingLifecycleFile=file;lastLifecycleFile=file;lastLifecycle=Object.freeze({...life,enterIdentity:null,enterIdentityDeferredForAccountSizing:true})
   if(typeof setActiveLifecycleFile==='function')await setActiveLifecycleFile(file,life)
   pendingLifecycleFile=null
