@@ -9,6 +9,7 @@ import { submitPaperScaleOrder } from './paper_auto_execution_scale_submission_b
 import { reconcilePaperScaleAction } from './paper_auto_execution_scale_reconciliation_service.mjs'
 import { derivePaperPositionMutationLockFile, acquirePaperPositionMutationLock, releasePaperPositionMutationLock } from './paper_auto_execution_position_mutation_lock.mjs'
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
+import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
 
 export const VERSION = 'paper_auto_execution_scale_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -54,6 +55,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
   let lastLifecycle = null
   let lastSubmission = null
   let lastReconciliation = null
+  let lastPortfolioCapitalGovernor = null
 
   const diagnostics = () => Object.freeze({
     ok: true, version: VERSION,
@@ -61,7 +63,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     scaleInEnabled: on(env, 'PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED'),
     scaleOutEnabled: on(env, 'PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED'),
     cycles, submissions, reconciliations, lastStatus, lastError,
-    lastIdentity, lastLifecycle, lastSubmission, lastReconciliation,
+    lastIdentity, lastLifecycle, lastSubmission, lastReconciliation, lastPortfolioCapitalGovernor,
     safety: Object.freeze({
       paperOnly: true, disabledByDefault: true, exactActiveLifecycleOnly: true,
       injectedBrokerInterfacesOnly: true, canonicalLifecycleStateMachineUnchanged: true,
@@ -265,6 +267,25 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
         }
       }
       const lockedPosition = (lockedBefore?.positions ?? []).find(row => upper(row?.symbol) === symbol) ?? null
+      if (a === 'scale_in' && on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) {
+        const lockedCurrentQty = whole(lockedPosition?.qty ?? lockedPosition?.quantity)
+        const lockedCurrentPrice = Number(lockedPosition?.currentPrice ?? lockedPosition?.current_price)
+        if (lockedCurrentQty === null || !Number.isFinite(lockedCurrentPrice) || lockedCurrentPrice <= 0) return finish('POST_LOCK_PORTFOLIO_POSITION_NOTIONAL_REQUIRED', lifecycle)
+        const additionalQty = target - lockedCurrentQty
+        if (!Number.isSafeInteger(additionalQty) || additionalQty <= 0) return finish('POST_LOCK_PORTFOLIO_SCALE_IN_ADDITIONAL_QUANTITY_REQUIRED', lifecycle)
+        lastPortfolioCapitalGovernor = evaluatePaperPortfolioCapitalGovernor({
+          accountSnapshot: lockedBefore,
+          action: 'scale_in',
+          symbol,
+          proposedAdditionalNotional: additionalQty * lockedCurrentPrice,
+          resultingSymbolNotional: target * lockedCurrentPrice,
+        })
+        if (lastPortfolioCapitalGovernor?.allowed !== true) return finish(`POST_LOCK_${lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED'}`, lifecycle)
+      } else if (a === 'scale_in') {
+        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_CAPITAL_GOVERNOR_DISABLED_BY_ENV' })
+      } else {
+        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_GOVERNOR_NOT_REQUIRED_FOR_REDUCING_ACTION' })
+      }
       const lockedPreflight = preflightPaperScaleAction({
         lifecycle, brokerPosition: lockedPosition, openOrders: lockedBefore?.openOrders ?? [],
         action: a, targetQuantity: target, actionSequence: nextScaleActionSequence(scaleActionStore),

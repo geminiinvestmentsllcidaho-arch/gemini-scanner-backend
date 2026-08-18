@@ -11,6 +11,7 @@ import { resolveInternalOwnerAlpacaReadonlyCredentials } from './internal_owner_
 import { calculateAutomaticPositionSize } from './automatic_position_sizing_policy.mjs'
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
 import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
+import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -67,6 +68,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastReconciliation = null
   let lastSizing = null
   let lastReentryControl = null
+  let lastPortfolioCapitalGovernor = null
 
   const diagnostics = () => Object.freeze({
     ok: true,
@@ -83,6 +85,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastReconciliation,
     lastSizing,
     lastReentryControl,
+    lastPortfolioCapitalGovernor,
     safety: Object.freeze({
       paperOnly: true,
       disabledByDefault: true,
@@ -219,6 +222,18 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         return fail(conflictingOpenOrders.some(o => upper(o?.symbol) === symbol)
           ? 'CONFLICTING_OPEN_ORDER'
           : 'GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT', lifecycle)
+      }
+      if (on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) {
+        lastPortfolioCapitalGovernor = evaluatePaperPortfolioCapitalGovernor({
+          accountSnapshot: account,
+          action: 'enter',
+          symbol,
+          proposedAdditionalNotional: lastSizing.requiredBuyingPower,
+          resultingSymbolNotional: lastSizing.requiredBuyingPower,
+        })
+        if (lastPortfolioCapitalGovernor?.allowed !== true) return fail(lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED', lifecycle)
+      } else {
+        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_CAPITAL_GOVERNOR_DISABLED_BY_ENV' })
       }
       const adapter = createAdapter({
         env: {

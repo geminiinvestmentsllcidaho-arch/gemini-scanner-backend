@@ -692,3 +692,52 @@ test('Module 6 re-entry control allows fresh fully allowed governance', async ()
     fs.rmSync(d, { recursive: true, force: true })
   }
 })
+
+test('Module 7 portfolio capital governor evaluates enabled ENTER growth before submission', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'ABC' })
+    const now = Date.now()
+    let submitCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: {
+        PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1',
+        PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED: '1',
+      },
+      getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
+      getScanSnapshot: async () => freshCandidateSnapshot('ABC', now, 101),
+      now: () => now,
+      accountCredentialResolver: readyCredentials,
+      fetchClock: clockOpen,
+      fetchAccount: async () => ({
+        ok: true,
+        status: 'connected_readonly',
+        observedAt: new Date(now).toISOString(),
+        account: {
+          accountIdentity: PAPER_ACCOUNT_IDENTITY,
+          tradingBlocked: false,
+          accountBlocked: false,
+          equity: 10000,
+          buyingPower: 50000,
+        },
+        positions: [],
+        openOrders: [],
+      }),
+      createAdapter: () => ({ submitPaperOrder: async () => ({ ok: true }) }),
+      submitOrder: async () => {
+        submitCalls += 1
+        return { ok: true, status: 'TEST_SUBMIT_STUB' }
+      },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastPortfolioCapitalGovernor?.allowed, true)
+    assert.equal(out.lastPortfolioCapitalGovernor?.status, 'PORTFOLIO_CAPITAL_GOVERNOR_ALLOWED')
+    assert.equal(out.lastPortfolioCapitalGovernor?.maxSinglePositionPercent, 10)
+    assert.ok(out.lastPortfolioCapitalGovernor?.resultingSymbolExposurePercent <= 10)
+    assert.equal(submitCalls, 1)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})

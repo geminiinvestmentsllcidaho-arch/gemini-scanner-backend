@@ -157,3 +157,38 @@ test('post-lock SCALE-IN baseline identity drift blocks stale growth before PREP
   assert.equal(z.filledQuantity,4)
  }finally{fs.rmSync(d,{recursive:true,force:true})}
 })
+
+
+test('Module 7 portfolio capital governor blocks post-lock SCALE-IN growth above hard 10 percent before PREPARED',async()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-m7-cap-'))
+  try{
+    const f=path.join(d,'life.json')
+    life(f)
+    let submits=0
+    const id='alpaca-paper:0123456789abcdef01234567'
+    const A=async()=>({ok:true,status:'connected_readonly',observedAt:new Date(N-5000).toISOString(),account:{accountIdentity:id,tradingBlocked:false,accountBlocked:false,equity:10000,buyingPower:50000},positions:[{ symbol:'ABC', qty:4, currentPrice:180, marketValue:720 }],openOrders:[]})
+    const M=async()=>({ok:true,candidates:[{symbol:'ABC',resultState:'WATCH',ownedExitReviewTriggered:false,ownedScaleInReviewTriggered:true,ownedScaleInTargetQuantity:6,sourceCoverage:'owned_position_symbol_fetch',sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:180}]})
+    const r=R({
+      env:{
+        PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',
+        PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED:'1',
+        PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1',
+        PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED:'1',
+      },
+      getLifecycleFile:()=>f,
+      now:()=>N,
+      fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true,timestamp:new Date(N-5000).toISOString()}}),
+      fetchAccount:A,
+      fetchOwnedMonitor:M,
+      getPremarketBaseline:async()=>({ok:true,paperOnly:true,readOnly:true,sessionDate:'2026-08-15',accountIdentity:id}),
+      submitPaperOrder:async()=>{submits++;return {}},
+      fetchOrderByClientOrderId:async()=>({ok:true,status:'order_not_found'}),
+    })
+    const out=await r.runOnce({action:'scale_in',targetQuantity:6})
+    assert.equal(out.lastStatus,'POST_LOCK_PORTFOLIO_SINGLE_POSITION_CEILING_EXCEEDED')
+    assert.equal(out.lastPortfolioCapitalGovernor.allowed,false)
+    assert.equal(submits,0)
+    assert.equal(fs.existsSync(D(f)),false)
+    assert.equal(new L({filePath:f}).load().filledQuantity,4)
+  } finally { fs.rmSync(d,{recursive:true,force:true}) }
+})
