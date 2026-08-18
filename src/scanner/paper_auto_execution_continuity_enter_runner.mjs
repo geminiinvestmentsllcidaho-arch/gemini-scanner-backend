@@ -189,7 +189,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         return fail('PREMARKET_CAPITAL_BASELINE_SESSION_MISMATCH', lifecycle)
       }
       const [clock, account] = await Promise.all([
-        fetchClock({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
+        fetchClock({ env: effectiveEnv, fetchImpl, credentialResolver: null, nowMs: Number(now()) }),
         fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
       ])
       if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
@@ -197,6 +197,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         return fail('MARKET_OPEN_REQUIRED', lifecycle)
       }
       if (clock?.marketClock?.isOpen !== true) return fail('MARKET_OPEN_REQUIRED', lifecycle)
+      const marketClockObservedAtMs = Date.parse(clock?.marketClock?.timestamp ?? '')
+      const marketClockAgeMs = Number(now()) - marketClockObservedAtMs
+      if (!Number.isFinite(marketClockObservedAtMs) || !Number.isFinite(marketClockAgeMs) || marketClockAgeMs < 0 || marketClockAgeMs > 30000) {
+        return fail('PAPER_MARKET_CLOCK_STALE', lifecycle)
+      }
       if (account?.ok !== true || account?.status !== 'connected_readonly') {
         if (account?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'ACCOUNT_READ_FAILED', reason:clean(account?.status) })
         return fail('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
@@ -249,6 +254,17 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         if (lastPortfolioCapitalGovernor?.allowed !== true) return fail(lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED', lifecycle)
       } else {
         lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_CAPITAL_GOVERNOR_DISABLED_BY_ENV' })
+      }
+      const preSubmitClock = await fetchClock({ env: effectiveEnv, fetchImpl, credentialResolver: null, nowMs: Number(now()) })
+      if (preSubmitClock?.ok !== true || preSubmitClock?.status !== 'connected_readonly') {
+        if (preSubmitClock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'MARKET_CLOCK_READ_FAILED', reason:clean(preSubmitClock?.status) })
+        return fail('PRE_SUBMIT_MARKET_CLOCK_REQUIRED', lifecycle)
+      }
+      if (preSubmitClock?.marketClock?.isOpen !== true) return fail('PRE_SUBMIT_MARKET_OPEN_REQUIRED', lifecycle)
+      const preSubmitClockObservedAtMs = Date.parse(preSubmitClock?.marketClock?.timestamp ?? '')
+      const preSubmitClockAgeMs = Number(now()) - preSubmitClockObservedAtMs
+      if (!Number.isFinite(preSubmitClockObservedAtMs) || !Number.isFinite(preSubmitClockAgeMs) || preSubmitClockAgeMs < 0 || preSubmitClockAgeMs > 30000) {
+        return fail('PRE_SUBMIT_MARKET_CLOCK_STALE', lifecycle)
       }
       const adapter = createAdapter({
         env: {

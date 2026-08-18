@@ -175,13 +175,19 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         const controlledMarketOpenExit = life?.scannerEvidence?.mechanicalAutoExitProof === true || oneTimeUsasMarketOpenExit
         let exitRequired = controlledMarketOpenExit
         if (controlledMarketOpenExit) {
-          const clock = await fetchMarketClock({ env, fetchImpl })
+          const clock = await fetchMarketClock({ env, fetchImpl, nowMs: Number(now()) })
           if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
             if (clock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'MARKET_CLOCK_READ_FAILED', reason:clean(clock?.status) })
             throw new Error('paper_auto_exit_monitor_market_clock_required')
           }
           if (clock?.marketClock?.isOpen !== true) {
             results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_AUTO_EXIT_PROOF' })
+            continue
+          }
+          const clockObservedAtMs = Date.parse(clock?.marketClock?.timestamp ?? '')
+          const clockAgeMs = Number(now()) - clockObservedAtMs
+          if (!Number.isFinite(clockObservedAtMs) || !Number.isFinite(clockAgeMs) || clockAgeMs < 0 || clockAgeMs > 30000) {
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'PAPER_MARKET_CLOCK_STALE' })
             continue
           }
         } else {
@@ -207,13 +213,19 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         if (!exitRequired) { results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT' }); continue }
 
         if (!controlledMarketOpenExit) {
-          const clock = await fetchMarketClock({ env, fetchImpl })
+          const clock = await fetchMarketClock({ env, fetchImpl, nowMs: Number(now()) })
           if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
             if (clock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'MARKET_CLOCK_READ_FAILED', reason:clean(clock?.status) })
             throw new Error('paper_auto_exit_monitor_market_clock_required')
           }
           if (clock?.marketClock?.isOpen !== true) {
             results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_STRATEGY_EXIT' })
+            continue
+          }
+          const clockObservedAtMs = Date.parse(clock?.marketClock?.timestamp ?? '')
+          const clockAgeMs = Number(now()) - clockObservedAtMs
+          if (!Number.isFinite(clockObservedAtMs) || !Number.isFinite(clockAgeMs) || clockAgeMs < 0 || clockAgeMs > 30000) {
+            results.push({ lifecycleId: life.lifecycleId, symbol, status: 'PAPER_MARKET_CLOCK_STALE' })
             continue
           }
         }

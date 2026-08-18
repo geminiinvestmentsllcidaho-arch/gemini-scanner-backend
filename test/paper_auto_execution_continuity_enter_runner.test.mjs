@@ -60,7 +60,7 @@ test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver w
   assert.equal(out.reconciliations, 0)
   assert.ok(downstreamReads >= 1)
 })
-const clockOpen = async () => ({ ok: true, status: 'connected_readonly', marketClock: { isOpen: true } })
+const clockOpen = async ({ nowMs = Date.now() } = {}) => ({ ok: true, status: 'connected_readonly', marketClock: { isOpen: true, timestamp: new Date(nowMs).toISOString() } })
 
 test('disabled by default never contacts broker or submits', async () => {
   let contacts = 0
@@ -740,6 +740,58 @@ test('Module 7 portfolio capital governor evaluates enabled ENTER growth before 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
+})
+
+
+test('Module 9 ENTER rejects stale open authoritative market clock before submission', async () => {
+  const d=tmp()
+  try{
+    const f=path.join(d,'life.json')
+    new PaperAutoExecutionLifecycleStore({filePath:f}).create({selectedSymbol:'M9STALE'})
+    const n=Date.now()
+    let submits=0
+    const r=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>f,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('M9STALE',n),
+      now:()=>n,
+      accountCredentialResolver:readyCredentials,
+      fetchClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true,timestamp:new Date(n-30001).toISOString()}}),
+      fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(n).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}),
+      createAdapter:()=>({submitPaperOrder:async()=>{submits++}}),
+    })
+    const out=await r.runOnce()
+    assert.equal(out.lastStatus,'PAPER_MARKET_CLOCK_STALE')
+    assert.equal(out.submissions,0)
+    assert.equal(submits,0)
+  }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
+
+test('Module 9 ENTER rechecks market open immediately before submission', async () => {
+  const d=tmp()
+  try{
+    const f=path.join(d,'life.json')
+    new PaperAutoExecutionLifecycleStore({filePath:f}).create({selectedSymbol:'M9CLOSE'})
+    const n=Date.now()
+    let clocks=0,submits=0
+    const r=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>f,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('M9CLOSE',n),
+      now:()=>n,
+      accountCredentialResolver:readyCredentials,
+      fetchClock:async()=>{clocks++;return{ok:true,status:'connected_readonly',marketClock:{isOpen:clocks===1,timestamp:new Date(n).toISOString()}}},
+      fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(n).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}),
+      createAdapter:()=>({submitPaperOrder:async()=>{submits++}}),
+    })
+    const out=await r.runOnce()
+    assert.equal(out.lastStatus,'PRE_SUBMIT_MARKET_OPEN_REQUIRED')
+    assert.equal(clocks,2)
+    assert.equal(out.submissions,0)
+    assert.equal(submits,0)
+  }finally{fs.rmSync(d,{recursive:true,force:true})}
 })
 
 test('Module 8 ENTER records market clock transport failure but not a healthy closed market', async () => {

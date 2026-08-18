@@ -26,7 +26,7 @@ test('controlled proof drives exact monitored symbol through production worker t
   const r = await runControlledPaperAutoExitProof({
     execute:true, env:{}, lifecycleFile:lifecycleFile(), symbol:'BTG',
     fetchAccount: async () => ({ ok:true, status:'connected_readonly', positions:[{symbol:'BTG',qty:1}] }),
-    fetchMarketClock: async () => ({ ok:true, status:'connected_readonly', marketClock:{isOpen:true} }),
+    fetchMarketClock: async () => ({ ok:true, status:'connected_readonly', marketClock:{isOpen:true,timestamp:'2026-08-11T19:00:00.000Z'} }),
     exitRunner: async ({ args }) => {
       calls += 1
       assert.equal(args.symbol,'BTG')

@@ -36,7 +36,7 @@ test('forwards account credential resolver into exact PAPER exit runner', async 
     fetchMarketClock: async () => ({
       ok: true,
       status: 'connected_readonly',
-      marketClock: { isOpen: true },
+      marketClock: { isOpen: true, timestamp: '1970-01-01T00:50:00.000Z' },
     }),
     accountCredentialResolver: resolver,
     exitRunner: async options => {
