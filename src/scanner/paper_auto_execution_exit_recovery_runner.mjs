@@ -87,11 +87,28 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
     const effectiveEnv = { ...env, ...(resolved.env ?? {}) }
     if (clean(effectiveEnv.APCA_API_BASE_URL) !== 'https://paper-api.alpaca.markets') return finish('PAPER_HOST_REQUIRED', lifecycle)
 
-    const [account, history] = await Promise.all([
-      fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
-      fetchHistory({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
-    ])
-    if (account?.ok !== true || account?.status !== 'connected_readonly') return finish('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+    let account, history
+    try {
+      ;[account, history] = await Promise.all([
+        fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
+        fetchHistory({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
+      ])
+    } catch (error) {
+      const message = clean(error?.message ?? error)
+      if (message.startsWith('paper_reporting_history_fetch_failed:')) {
+        degradedBrokerMode?.recordFailure?.({ kind: 'HISTORY_READ_FAILED', reason: message })
+      }
+      throw error
+    }
+    if (account?.ok !== true || account?.status !== 'connected_readonly') {
+      if (account?.status === 'readonly_fetch_failed') {
+        degradedBrokerMode?.recordFailure?.({ kind: 'ACCOUNT_READ_FAILED', reason: clean(account?.status) })
+      }
+      return finish('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+    }
+    if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) {
+      degradedBrokerMode?.recordFailure?.({ kind: 'BROKER_ACCOUNT_BLOCKED', reason: 'exit_recovery_account_blocked' })
+    }
     if (history?.paperOnly !== true || history?.readOnly !== true || history?.brokerContactType !== 'readonly_get' || history?.orderPlacementAllowed !== false || history?.accountMutationAllowed !== false) {
       return finish('READONLY_HISTORY_REQUIRED', lifecycle)
     }

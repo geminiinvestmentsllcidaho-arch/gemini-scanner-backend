@@ -148,7 +148,13 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
       const scoped = [row]
 
       const account = await fetchAccount({ env, fetchImpl })
-      if (account?.ok !== true || account?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_fresh_account_required')
+      if (account?.ok !== true || account?.status !== 'connected_readonly') {
+        if (account?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'ACCOUNT_READ_FAILED', reason:clean(account?.status) })
+        throw new Error('paper_auto_exit_monitor_fresh_account_required')
+      }
+      if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) {
+        degradedBrokerMode?.recordFailure?.({ kind:'BROKER_ACCOUNT_BLOCKED', reason:'exit_monitor_account_blocked' })
+      }
       const results = []
 
       for (const row of scoped) {
@@ -170,7 +176,10 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         let exitRequired = controlledMarketOpenExit
         if (controlledMarketOpenExit) {
           const clock = await fetchMarketClock({ env, fetchImpl })
-          if (clock?.ok !== true || clock?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_market_clock_required')
+          if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
+            if (clock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'MARKET_CLOCK_READ_FAILED', reason:clean(clock?.status) })
+            throw new Error('paper_auto_exit_monitor_market_clock_required')
+          }
           if (clock?.marketClock?.isOpen !== true) {
             results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_AUTO_EXIT_PROOF' })
             continue
@@ -199,7 +208,10 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
 
         if (!controlledMarketOpenExit) {
           const clock = await fetchMarketClock({ env, fetchImpl })
-          if (clock?.ok !== true || clock?.status !== 'connected_readonly') throw new Error('paper_auto_exit_monitor_market_clock_required')
+          if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
+            if (clock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'MARKET_CLOCK_READ_FAILED', reason:clean(clock?.status) })
+            throw new Error('paper_auto_exit_monitor_market_clock_required')
+          }
           if (clock?.marketClock?.isOpen !== true) {
             results.push({ lifecycleId: life.lifecycleId, symbol, status: 'WAITING_FOR_MARKET_OPEN_STRATEGY_EXIT' })
             continue
@@ -238,6 +250,13 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         })
         lastRunnerCompletedAt = new Date(now()).toISOString()
         lastSubmissionStatus = clean(result?.submission?.status) || null
+        if (lastSubmissionStatus === 'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED') {
+          const submissionException = Array.isArray(result?.submission?.blockers) && result.submission.blockers.includes('submission_exception_requires_reconciliation')
+          degradedBrokerMode?.recordFailure?.({
+            kind: submissionException ? 'SUBMISSION_EXCEPTION' : 'AMBIGUOUS_SUBMISSION',
+            reason: submissionException ? 'exit_submission_exception_requires_reconciliation' : 'exit_submission_ambiguous_requires_reconciliation',
+          })
+        }
         lastReconciliationStatus = clean(result?.reconciliation?.status) || null
         lastBrokerSubmittedAt = clean(result?.brokerTiming?.submittedAt ?? result?.submission?.result?.submittedAt) || null
         lastBrokerFilledAt = clean(result?.brokerTiming?.filledAt ?? result?.lifecycle?.exitBrokerFilledAt) || null

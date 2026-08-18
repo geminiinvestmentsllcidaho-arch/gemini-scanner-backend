@@ -257,3 +257,97 @@ test('history brokerContactType must be readonly_get', async () => {
     assert.equal(reconciled, 0)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
+
+
+// Module 8 EXIT recovery broker failure recording coverage
+test('Module 8 EXIT recovery records only authoritative account fetch failure status', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    const failures = []
+    const degradedBrokerMode = {
+      evaluateAction: () => ({ allowed:true, status:'DEGRADED_BROKER_REDUCING_ACTION_ALLOWED' }),
+      recordFailure: row => { failures.push(row); return {} },
+      diagnostics: () => ({ state:'normal', degraded:false }),
+    }
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      degradedBrokerMode,
+      fetchAccount: async () => ({ ok:false, status:'readonly_fetch_failed' }),
+      fetchHistoricalOrders: async () => history([]),
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastStatus, 'FRESH_PAPER_ACCOUNT_REQUIRED')
+    assert.equal(failures.length, 1)
+    assert.equal(failures[0].kind, 'ACCOUNT_READ_FAILED')
+
+    failures.length = 0
+    const runner2 = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      degradedBrokerMode,
+      fetchAccount: async () => ({ ok:false, status:'fetch_unavailable' }),
+      fetchHistoricalOrders: async () => history([]),
+    })
+    const result2 = await runner2.runOnce()
+    assert.equal(result2.lastStatus, 'FRESH_PAPER_ACCOUNT_REQUIRED')
+    assert.equal(failures.length, 0)
+  } finally { fs.rmSync(dir, { recursive:true, force:true }) }
+})
+
+test('Module 8 EXIT recovery records exact historical-order broker fetch failure', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    const failures = []
+    const degradedBrokerMode = {
+      evaluateAction: () => ({ allowed:true, status:'DEGRADED_BROKER_REDUCING_ACTION_ALLOWED' }),
+      recordFailure: row => { failures.push(row); return {} },
+      diagnostics: () => ({ state:'normal', degraded:false }),
+    }
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      degradedBrokerMode,
+      fetchAccount: async () => account([]),
+      fetchHistoricalOrders: async () => { throw new Error('paper_reporting_history_fetch_failed:503') },
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastStatus, 'EXIT_RECOVERY_FAILED_CLOSED')
+    assert.equal(failures.length, 1)
+    assert.equal(failures[0].kind, 'HISTORY_READ_FAILED')
+  } finally { fs.rmSync(dir, { recursive:true, force:true }) }
+})
+
+test('Module 8 EXIT recovery records broker account blocked while preserving reducing reconciliation path', async () => {
+  const { dir, filePath, store } = makeStore()
+  try {
+    armExitSubmitting(store)
+    const failures = []
+    const degradedBrokerMode = {
+      evaluateAction: () => ({ allowed:true, status:'DEGRADED_BROKER_REDUCING_ACTION_ALLOWED' }),
+      recordFailure: row => { failures.push(row); return {} },
+      diagnostics: () => ({ state:'degraded', degraded:true }),
+    }
+    const blocked = account([])
+    blocked.account = { tradingBlocked:true, accountBlocked:false }
+    const runner = createPaperAutoExecutionExitRecoveryRunner({
+      getLifecycleFile: () => filePath,
+      accountCredentialResolver: credentials,
+      degradedBrokerMode,
+      fetchAccount: async () => blocked,
+      fetchHistoricalOrders: async () => history([{
+        id:'broker-exit-1', client_order_id:'exit-1', symbol:'AAPL', side:'sell',
+        status:'filled', qty:'1', filled_qty:'1', filled_avg_price:'205.00',
+        filled_at:'2026-08-04T04:39:59.000Z',
+      }]),
+      now: () => Date.parse('2026-08-04T04:40:30.000Z'),
+    })
+    const result = await runner.runOnce()
+    assert.equal(result.lastStatus, 'RECONCILED_STATE_UPDATED')
+    assert.equal(failures.length, 1)
+    assert.equal(failures[0].kind, 'BROKER_ACCOUNT_BLOCKED')
+    assert.equal(result.lastLifecycle.state, S.ROUND_TRIP_COMPLETED)
+  } finally { fs.rmSync(dir, { recursive:true, force:true }) }
+})

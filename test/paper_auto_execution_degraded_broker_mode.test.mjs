@@ -90,11 +90,11 @@ test('recovery requires consecutive successes and then re-allows risk-increasing
     mode.recordFailure({ kind: 'BROKER_ACCOUNT_BLOCKED' })
     assert.equal(mode.diagnostics().status.degraded, true)
     now += 1000
-    mode.recordSuccess()
+    mode.recordSuccess({ probeId:'probe-1' })
     assert.equal(mode.diagnostics().status.degraded, true)
     assert.equal(mode.diagnostics().status.consecutiveRecoverySuccesses, 1)
     now += 1000
-    mode.recordSuccess()
+    mode.recordSuccess({ probeId:'probe-2' })
     assert.equal(mode.diagnostics().status.degraded, false)
     assert.equal(mode.diagnostics().status.state, 'normal')
     assert.equal(mode.evaluateAction({ action: 'ENTER' }).allowed, true)
@@ -135,6 +135,28 @@ test('unknown action is blocked while degraded', () => {
     const out = mode.evaluateAction({ action: 'something_else' })
     assert.equal(out.allowed, false)
     assert.equal(out.status, 'DEGRADED_BROKER_UNKNOWN_ACTION_BLOCKED')
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
+
+
+test('distinct authoritative recovery probes are deduplicated', () => {
+  const d = tmp()
+  try {
+    const mode = createPaperAutoExecutionDegradedBrokerMode({
+      env: { PAPER_AUTO_DEGRADED_BROKER_MODE_ENABLED: '1' },
+      filePath: path.join(d, 'state.json'),
+      now: () => at,
+    })
+    mode.recordFailure({ kind: 'BROKER_ACCOUNT_BLOCKED' })
+    mode.recordSuccess({ probeId: 'probe-a' })
+    assert.equal(mode.diagnostics().status.consecutiveRecoverySuccesses, 1)
+    mode.recordSuccess({ probeId: 'probe-a' })
+    assert.equal(mode.diagnostics().status.consecutiveRecoverySuccesses, 1)
+    assert.equal(mode.diagnostics().status.degraded, true)
+    mode.recordSuccess({ probeId: 'probe-b' })
+    assert.equal(mode.diagnostics().status.degraded, false)
   } finally {
     fs.rmSync(d, { recursive: true, force: true })
   }

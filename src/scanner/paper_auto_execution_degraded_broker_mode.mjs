@@ -18,7 +18,7 @@ const ts=now=>new Date(Number(now())).toISOString()
 const base=now=>Object.freeze({
   version:VERSION,state:'normal',degraded:false,reason:null,
   consecutiveTransientFailures:0,consecutiveRecoverySuccesses:0,
-  enteredDegradedAt:null,lastFailureAt:null,lastFailureKind:null,lastSuccessAt:null,
+  enteredDegradedAt:null,lastFailureAt:null,lastFailureKind:null,lastSuccessAt:null,lastRecoveryProbeId:null,
   updatedAt:ts(now),paperOnly:true,liveTradingAllowed:false,
 })
 
@@ -33,7 +33,7 @@ function normalize(x,now){
     consecutiveRecoverySuccesses:Math.max(0,Number(x.consecutiveRecoverySuccesses)||0),
     enteredDegradedAt:degraded?(clean(x.enteredDegradedAt)||null):null,
     lastFailureAt:clean(x.lastFailureAt)||null,lastFailureKind:clean(x.lastFailureKind)||null,
-    lastSuccessAt:clean(x.lastSuccessAt)||null,updatedAt:clean(x.updatedAt)||ts(now),
+    lastSuccessAt:clean(x.lastSuccessAt)||null,lastRecoveryProbeId:clean(x.lastRecoveryProbeId)||null,updatedAt:clean(x.updatedAt)||ts(now),
   })
 }
 
@@ -85,20 +85,21 @@ export function createPaperAutoExecutionDegradedBrokerMode(options={}){
       lastFailureAt:at,lastFailureKind:k,updatedAt:at})
     return diagnostics()
   }
-  const recordSuccess=()=>{
+  const recordSuccess=({probeId}={})=>{
     if(!enabled())return diagnostics()
-    const cur=read(),at=ts(now)
+    const cur=read(),at=ts(now),probe=clean(probeId)
     if(!cur.degraded){
-      write({...cur,consecutiveTransientFailures:0,consecutiveRecoverySuccesses:0,lastSuccessAt:at,updatedAt:at})
+      write({...cur,consecutiveTransientFailures:0,consecutiveRecoverySuccesses:0,lastSuccessAt:at,lastRecoveryProbeId:probe||cur.lastRecoveryProbeId,updatedAt:at})
       return diagnostics()
     }
+    if(!probe||probe===cur.lastRecoveryProbeId)return diagnostics()
     const successes=cur.consecutiveRecoverySuccesses+1
     const recovered=successes>=recoveryThreshold
     write({...cur,state:recovered?'normal':'degraded',degraded:!recovered,
       reason:recovered?null:cur.reason,
       consecutiveTransientFailures:recovered?0:cur.consecutiveTransientFailures,
       consecutiveRecoverySuccesses:recovered?0:successes,
-      enteredDegradedAt:recovered?null:cur.enteredDegradedAt,lastSuccessAt:at,updatedAt:at})
+      enteredDegradedAt:recovered?null:cur.enteredDegradedAt,lastSuccessAt:at,lastRecoveryProbeId:probe,updatedAt:at})
     return diagnostics()
   }
   const evaluateAction=({action}={})=>{

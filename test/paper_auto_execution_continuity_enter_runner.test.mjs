@@ -741,3 +741,130 @@ test('Module 7 portfolio capital governor evaluates enabled ENTER growth before 
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('Module 8 ENTER records market clock transport failure but not a healthy closed market', async () => {
+  const d = tmp()
+  try {
+    const file = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'M8CLOCK' })
+    const now = Date.now()
+    const failures = []
+    const mode = {
+      evaluateAction: () => ({ allowed:true, status:'BROKER_MODE_NORMAL' }),
+      recordFailure: e => { failures.push(e); return {} },
+      recordSuccess: () => ({}),
+      diagnostics: () => ({ enabled:true }),
+    }
+    const common = {
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('M8CLOCK',now),
+      now:()=>now,
+      accountCredentialResolver:readyCredentials,
+      degradedBrokerMode:mode,
+      fetchAccount:async()=>({
+        ok:true,status:'connected_readonly',observedAt:new Date(now).toISOString(),
+        account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},
+        positions:[],openOrders:[],
+      }),
+    }
+    let runner=createPaperAutoExecutionContinuityEnterRunner({
+      ...common,
+      fetchClock:async()=>({ok:false,status:'clock_fetch_failed',marketClock:{isOpen:false}}),
+    })
+    let out=await runner.runOnce()
+    assert.equal(out.lastStatus,'MARKET_OPEN_REQUIRED')
+    assert.equal(failures.at(-1)?.kind,'MARKET_CLOCK_READ_FAILED')
+    failures.length=0
+    runner=createPaperAutoExecutionContinuityEnterRunner({
+      ...common,
+      fetchClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:false}}),
+    })
+    out=await runner.runOnce()
+    assert.equal(out.lastStatus,'MARKET_OPEN_REQUIRED')
+    assert.equal(failures.length,0)
+  } finally { fs.rmSync(d,{recursive:true,force:true}) }
+})
+test('Module 8 ENTER records broker account blocked before submission', async () => {
+  const d=tmp()
+  try {
+    const file=path.join(d,'life.json')
+    new PaperAutoExecutionLifecycleStore({filePath:file}).create({selectedSymbol:'M8BLOCK'})
+    const now=Date.now()
+    const failures=[]
+    let submitted=0
+    const runner=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('M8BLOCK',now),
+      now:()=>now,
+      accountCredentialResolver:readyCredentials,
+      fetchClock:clockOpen,
+      fetchAccount:async()=>({
+        ok:true,status:'connected_readonly',observedAt:new Date(now).toISOString(),
+        account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:true,accountBlocked:false,equity:1000,buyingPower:1000},
+        positions:[],openOrders:[],
+      }),
+      createAdapter:()=>({submitPaperOrder:async()=>{submitted+=1}}),
+      degradedBrokerMode:{
+        evaluateAction:()=>({allowed:true,status:'BROKER_MODE_NORMAL'}),
+        recordFailure:e=>{failures.push(e);return{}},
+        recordSuccess:()=>({}),
+        diagnostics:()=>({enabled:true}),
+      },
+    })
+    const out=await runner.runOnce()
+    assert.equal(out.lastStatus,'PAPER_ACCOUNT_BLOCKED')
+    assert.equal(failures.at(-1)?.kind,'BROKER_ACCOUNT_BLOCKED')
+    assert.equal(submitted, 0)
+    assert.equal(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+  } finally { fs.rmSync(d,{recursive:true,force:true}) }
+})
+test('Module 8 ENTER submission ambiguity records immediate degraded failure and still reconciles', async () => {
+  const d=tmp()
+  try {
+    const file=path.join(d,'life.json')
+    const store=new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=> 'm8-enter-life'})
+    store.create({selectedSymbol:'M8AMB'})
+    const now=Date.now()
+    const failures=[]
+    let accountReads=0
+    const runner=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('M8AMB',now),
+      now:()=>now,
+      accountCredentialResolver:readyCredentials,
+      fetchClock:clockOpen,
+      fetchAccount:async()=>{
+        accountReads+=1
+        return {
+          ok:true,status:'connected_readonly',mode:'PAPER_ONLY',observedAt:new Date(now).toISOString(),
+          account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},
+          positions:[],openOrders:[],
+        }
+      },
+      fetchHistoricalOrders:async()=>({historicalOrders:[]}),
+      submitOrder:async({lifecycleStore})=>{
+        lifecycleStore.transition('ENTER_SUBMITTING',{enterClientOrderId:'m8-client'})
+        const next=lifecycleStore.transition('ENTER_UNKNOWN')
+        return {ok:true,status:'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED',blockers:['ambiguous_submission_requires_reconciliation'],lifecycle:next}
+      },
+      degradedBrokerMode:{
+        evaluateAction:()=>({allowed:true,status:'BROKER_MODE_NORMAL'}),
+        recordFailure:e=>{failures.push(e);return{}},
+        recordSuccess:()=>({}),
+        diagnostics:()=>({enabled:true}),
+      },
+    })
+    const out=await runner.runOnce()
+    assert.equal(failures.some(x=>x.kind==='AMBIGUOUS_SUBMISSION'),true)
+    assert.ok(accountReads>=2)
+    assert.ok(out.reconciliations>=1)
+    assert.notEqual(new PaperAutoExecutionLifecycleStore({filePath:file}).load().state,'CANDIDATE_SELECTED')
+  } finally { fs.rmSync(d,{recursive:true,force:true}) }
+})
+// Module 8 ENTER broker failure recording coverage

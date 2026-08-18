@@ -126,7 +126,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     if (typeof fetchMarketClock !== 'function') return finish('PAPER_MARKET_CLOCK_READER_REQUIRED', lifecycle)
     if (typeof fetchOwnedMonitor !== 'function') return finish('FRESH_OWNED_MONITOR_READER_REQUIRED', lifecycle)
     const clock = await fetchMarketClock()
-    if (clock?.ok !== true || clock?.status !== 'connected_readonly') return finish('PAPER_MARKET_CLOCK_REQUIRED', lifecycle)
+    if (clock?.ok !== true || clock?.status !== 'connected_readonly') { if (clock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({kind:'MARKET_CLOCK_READ_FAILED',reason:clean(clock?.status)}); return finish('PAPER_MARKET_CLOCK_REQUIRED', lifecycle) }
     if (clock?.marketClock?.isOpen !== true) return finish('PAPER_MARKET_OPEN_REQUIRED', lifecycle)
     const clockObserved = Date.parse(clock?.marketClock?.timestamp ?? '')
     const clockAge = Number(now()) - clockObserved
@@ -134,11 +134,11 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       return finish('PAPER_MARKET_CLOCK_STALE', lifecycle)
     }
     const before = await fetchAccount()
-    if (before?.ok !== true || before?.status !== 'connected_readonly') return finish('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+    if (before?.ok !== true || before?.status !== 'connected_readonly') { if (before?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({kind:'ACCOUNT_READ_FAILED',reason:clean(before?.status)}); return finish('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle) }
     const observed = Date.parse(before?.observedAt ?? '')
     const age = Number(now()) - observed
     if (!Number.isFinite(observed) || !Number.isFinite(age) || age < 0 || age > 30000) return finish('FRESH_PAPER_ACCOUNT_STALE', lifecycle)
-    if (before?.account?.tradingBlocked === true || before?.account?.accountBlocked === true) return finish('PAPER_ACCOUNT_BLOCKED', lifecycle)
+    if (before?.account?.tradingBlocked === true || before?.account?.accountBlocked === true) { degradedBrokerMode?.recordFailure?.({kind:'BROKER_ACCOUNT_BLOCKED',reason:'scale_account_blocked'}); return finish('PAPER_ACCOUNT_BLOCKED', lifecycle) }
     const symbol = upper(lifecycle.selectedSymbol)
     const monitor = await fetchOwnedMonitor({ paperAccount: before, nowMs: Number(now()) })
     if (monitor?.ok !== true) return finish('FRESH_OWNED_MONITOR_REQUIRED', lifecycle)
@@ -221,16 +221,16 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       if (!lifecycle || lifecycle.state !== 'MONITORING' || upper(lifecycle.selectedSymbol) !== symbol) return finish('POST_LOCK_LIFECYCLE_CHANGED', lifecycle)
       if (scaleActionStore.mutationLocked()) return finish('POST_LOCK_SCALE_ACTION_LOCKED', lifecycle)
       const lockedClock = await fetchMarketClock()
-      if (lockedClock?.ok !== true || lockedClock?.status !== 'connected_readonly') return finish('POST_LOCK_PAPER_MARKET_CLOCK_REQUIRED', lifecycle)
+      if (lockedClock?.ok !== true || lockedClock?.status !== 'connected_readonly') { if (lockedClock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({kind:'MARKET_CLOCK_READ_FAILED',reason:clean(lockedClock?.status)}); return finish('POST_LOCK_PAPER_MARKET_CLOCK_REQUIRED', lifecycle) }
       if (lockedClock?.marketClock?.isOpen !== true) return finish('POST_LOCK_PAPER_MARKET_OPEN_REQUIRED', lifecycle)
       const lockedClockObserved = Date.parse(lockedClock?.marketClock?.timestamp ?? '')
       const lockedClockAge = Number(now()) - lockedClockObserved
       if (!Number.isFinite(lockedClockObserved) || !Number.isFinite(lockedClockAge) || lockedClockAge < 0 || lockedClockAge > 30000) return finish('POST_LOCK_PAPER_MARKET_CLOCK_STALE', lifecycle)
       const lockedBefore = await fetchAccount()
-      if (lockedBefore?.ok !== true || lockedBefore?.status !== 'connected_readonly') return finish('POST_LOCK_FRESH_ACCOUNT_REQUIRED', lifecycle)
+      if (lockedBefore?.ok !== true || lockedBefore?.status !== 'connected_readonly') { if (lockedBefore?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({kind:'ACCOUNT_READ_FAILED',reason:clean(lockedBefore?.status)}); return finish('POST_LOCK_FRESH_ACCOUNT_REQUIRED', lifecycle) }
       const lockedAt = Date.parse(lockedBefore?.observedAt ?? ''), lockedAge = Number(now()) - lockedAt
       if (!Number.isFinite(lockedAt) || !Number.isFinite(lockedAge) || lockedAge < 0 || lockedAge > 30000) return finish('POST_LOCK_FRESH_ACCOUNT_STALE', lifecycle)
-      if (lockedBefore?.account?.tradingBlocked === true || lockedBefore?.account?.accountBlocked === true) return finish('POST_LOCK_ACCOUNT_BLOCKED', lifecycle)
+      if (lockedBefore?.account?.tradingBlocked === true || lockedBefore?.account?.accountBlocked === true) { degradedBrokerMode?.recordFailure?.({kind:'BROKER_ACCOUNT_BLOCKED',reason:'post_lock_scale_account_blocked'}); return finish('POST_LOCK_ACCOUNT_BLOCKED', lifecycle) }
       const lm = await fetchOwnedMonitor({ paperAccount: lockedBefore, nowMs: Number(now()) })
       if (lm?.ok !== true) return finish('POST_LOCK_FRESH_OWNED_MONITOR_REQUIRED', lifecycle)
       const la = (Array.isArray(lm?.candidates) ? lm.candidates : []).find(row => upper(row?.symbol) === symbol) ?? null
@@ -297,6 +297,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
         action: a, targetQuantity: target, actionSequence: nextScaleActionSequence(scaleActionStore),
       })
       if (lockedPreflight?.ok !== true) return finish(lockedPreflight?.status ?? 'POST_LOCK_PREFLIGHT_BLOCKED', lifecycle)
+      if (a === 'scale_in' && degradedBrokerMode?.evaluateAction) { const d=degradedBrokerMode.evaluateAction({action:'SCALE_IN'}); if(d?.allowed!==true)return finish(d?.status??'POST_LOCK_DEGRADED_BROKER_SCALE_IN_BLOCKED',lifecycle) }
       const prepared = scaleActionStore.prepare({
         lifecycleId: lifecycle.lifecycleId,
         action: a,
@@ -319,6 +320,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       env,
     })
     lastSubmission = submission
+    if (submission?.status === 'SCALE_SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED') { const x=Array.isArray(submission?.blockers)&&submission.blockers.includes('submission_exception_requires_reconciliation'); degradedBrokerMode?.recordFailure?.({kind:x?'SUBMISSION_EXCEPTION':'AMBIGUOUS_SUBMISSION',reason:x?'scale_submission_exception_requires_reconciliation':'scale_submission_ambiguous_requires_reconciliation'}) }
     reconciliations += 1
     const reconciliation = await reconcilePaperScaleAction({
       lifecycleStore: store,

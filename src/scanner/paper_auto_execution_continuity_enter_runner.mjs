@@ -192,10 +192,15 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         fetchClock({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
         fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
       ])
-      if (clock?.ok !== true || clock?.status !== 'connected_readonly' || clock?.marketClock?.isOpen !== true) {
+      if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
+        if (clock?.status === 'clock_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'MARKET_CLOCK_READ_FAILED', reason:clean(clock?.status) })
         return fail('MARKET_OPEN_REQUIRED', lifecycle)
       }
-      if (account?.ok !== true || account?.status !== 'connected_readonly') return fail('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+      if (clock?.marketClock?.isOpen !== true) return fail('MARKET_OPEN_REQUIRED', lifecycle)
+      if (account?.ok !== true || account?.status !== 'connected_readonly') {
+        if (account?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'ACCOUNT_READ_FAILED', reason:clean(account?.status) })
+        return fail('FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+      }
       const baselineAccountIdentity = clean(baseline?.accountIdentity)
       const actionAccountIdentity = clean(account?.account?.accountIdentity)
       if (!baselineAccountIdentity || !actionAccountIdentity || baselineAccountIdentity !== actionAccountIdentity) {
@@ -204,7 +209,10 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       const observedAtMs = Date.parse(account?.observedAt ?? '')
       const accountAgeMs = Number(now()) - observedAtMs
       if (!Number.isFinite(observedAtMs) || !Number.isFinite(accountAgeMs) || accountAgeMs < 0 || accountAgeMs > 30000) return fail('PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
-      if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) return fail('PAPER_ACCOUNT_BLOCKED', lifecycle)
+      if (account?.account?.tradingBlocked === true || account?.account?.accountBlocked === true) {
+        degradedBrokerMode?.recordFailure?.({ kind:'BROKER_ACCOUNT_BLOCKED', reason:'paper_account_blocked' })
+        return fail('PAPER_ACCOUNT_BLOCKED', lifecycle)
+      }
       const candidatePrice = Number(revalidatedCandidate?.price)
       const candidateScore = Number(revalidatedCandidate?.score ?? revalidatedCandidate?.readonlyPotentialScore)
       lastSizing = calculateAutomaticPositionSize({
@@ -263,6 +271,13 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
           PAPER_AUTO_EXIT_SUBMISSION_ENABLED: '0',
         },
       })
+      if (lastSubmission?.status === 'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED') {
+        const submissionException = Array.isArray(lastSubmission?.blockers) && lastSubmission.blockers.includes('submission_exception_requires_reconciliation')
+        degradedBrokerMode?.recordFailure?.({
+          kind: submissionException ? 'SUBMISSION_EXCEPTION' : 'AMBIGUOUS_SUBMISSION',
+          reason: submissionException ? 'enter_submission_exception_requires_reconciliation' : 'enter_submission_ambiguous_requires_reconciliation',
+        })
+      }
       lifecycle = store.load()
       lastLifecycle = lifecycle
       if (lifecycle?.state === S.FAILED_NEEDS_REVIEW) return fail('CONTINUITY_ENTER_SUBMISSION_REJECTED', lifecycle)
@@ -270,11 +285,23 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
 
     lifecycle = store.load()
     if (ENTER_RECONCILE_STATES.has(lifecycle?.state)) {
-      const [account, history] = await Promise.all([
-        fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
-        fetchHistory({ env: effectiveEnv, fetchImpl }),
-      ])
-      if (account?.ok !== true || account?.status !== 'connected_readonly') return fail('FRESH_PAPER_ACCOUNT_REQUIRED_FOR_RECONCILIATION', lifecycle)
+      let account, history
+      try {
+        ;[account, history] = await Promise.all([
+          fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null }),
+          fetchHistory({ env: effectiveEnv, fetchImpl }),
+        ])
+      } catch (error) {
+        const message = clean(error?.message ?? error)
+        if (message.startsWith('paper_reporting_history_fetch_failed:')) {
+          degradedBrokerMode?.recordFailure?.({ kind:'HISTORY_READ_FAILED', reason:message })
+        }
+        throw error
+      }
+      if (account?.ok !== true || account?.status !== 'connected_readonly') {
+        if (account?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'ACCOUNT_READ_FAILED', reason:clean(account?.status) })
+        return fail('FRESH_PAPER_ACCOUNT_REQUIRED_FOR_RECONCILIATION', lifecycle)
+      }
       reconciliations += 1
       lastReconciliation = await reconcile({
         lifecycleStore: store,
