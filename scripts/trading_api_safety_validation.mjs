@@ -35,6 +35,8 @@ const APPROVED_ISOLATED_PAPER_ORDER_FILES = new Map([
   ["src/scanner/paper_auto_execution_exit_only_runner.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
   ["scripts/run_paper_auto_execution_reconciliation_only.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=500&direction=desc" }],
   ["src/scanner/paper_auto_execution_reporting_history_fetch.mjs", { method: "GET", exactEndpoint: "/v2/orders?status=all&limit=${HISTORICAL_ORDER_LIMIT}&direction=desc" }],
+  ["src/scanner/paper_auto_execution_exit_replacement_order_lookup.mjs", { method: "GET", exactEndpoint: "/v2/orders:by_client_order_id" }],
+  ["src/scanner/paper_auto_execution_scale_order_lookup.mjs", { method: "GET", exactEndpoint: "/v2/orders:by_client_order_id" }],
 ]);
 
 function allowedReadonlyOpenOrdersEndpoint(file, text, pattern) {
@@ -55,7 +57,9 @@ function allowedIsolatedPaperOrderEndpoint(file, text, pattern) {
   const exactPaperHostRequired =
     /hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text) ||
     /parsedBase\.hostname\s*!==\s*['"]paper-api\.alpaca\.markets['"]/.test(text) ||
-    /baseUrl\s*!==\s*['"]https:\/\/paper-api\.alpaca\.markets['"]/.test(text);
+    /baseUrl\s*!==\s*['"]https:\/\/paper-api\.alpaca\.markets['"]/.test(text) ||
+    (/const\s+PAPER_BASE_URL\s*=\s*['"]https:\/\/paper-api\.alpaca\.markets['"]/.test(text) &&
+      /baseUrl\s*!==\s*PAPER_BASE_URL/.test(text));
   const methodPattern = new RegExp(`method\\s*:\\s*['"]${rule.method}['"]`, "i");
   const expectedMethodPresent = methodPattern.test(text);
   const liveHostPresent = /api\.alpaca\.markets/.test(text.replace(/paper-api\.alpaca\.markets/g, ""));
@@ -68,6 +72,28 @@ function allowedIsolatedPaperOrderEndpoint(file, text, pattern) {
     !schedulerOrStartupWiring;
 }
 
+const APPROVED_INJECTED_PAPER_SUBMISSION_DELEGATION_FILES = new Set([
+  "src/scanner/paper_auto_execution_continuity_enter_runner.mjs",
+]);
+
+function allowedInjectedPaperSubmissionDelegation(file, text, pattern) {
+  if (pattern.code !== "ORDER_SUBMIT_FUNCTION" || !APPROVED_INJECTED_PAPER_SUBMISSION_DELEGATION_FILES.has(file)) return false;
+
+  const importsBoundary = /import\s*\{\s*submitPaperAutoOrder\s*\}\s*from\s*['"]\.\/paper_auto_execution_submission_boundary\.mjs['"]/.test(text);
+  const injectableBoundary = /options\.submitOrder\s*\?\?\s*submitPaperAutoOrder/.test(text);
+  const delegatesAdapter = /submitPaperOrder\s*:\s*adapter\.submitPaperOrder/.test(text);
+  const directOrderEndpoint = /\/v2\/orders\b/i.test(text);
+  const directMutationMethod = /method\s*:\s*["'](?:POST|DELETE|PATCH|PUT)["']/i.test(text);
+  const liveHostPresent = /api\.alpaca\.markets/.test(text.replace(/paper-api\.alpaca\.markets/g, ""));
+
+  return importsBoundary &&
+    injectableBoundary &&
+    delegatesAdapter &&
+    !directOrderEndpoint &&
+    !directMutationMethod &&
+    !liveHostPresent;
+}
+
 for (const file of files) {
   if (file === SELF_FILE) continue;
   const text = fs.readFileSync(file, "utf8");
@@ -75,7 +101,8 @@ for (const file of files) {
     if (
       pattern.re.test(text) &&
       !allowedReadonlyOpenOrdersEndpoint(file, text, pattern) &&
-      !allowedIsolatedPaperOrderEndpoint(file, text, pattern)
+      !allowedIsolatedPaperOrderEndpoint(file, text, pattern) &&
+      !allowedInjectedPaperSubmissionDelegation(file, text, pattern)
     ) hits.push({ file, code: pattern.code });
   }
 }
