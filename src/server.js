@@ -4126,6 +4126,7 @@ app.post('/customer/scanner/run', requireCustomerSession, requireCustomerSameOri
   const resultFilters = states.length ? { states } : getCustomerZeroResultFilters(req.customerAccount?.id).filters;
   const dashboard = viewMod.buildCustomerUnderFiveDashboard(source, {
     route: '/customer/scanner/run',
+    detailBaseHref: '/customer/scanner/under-five',
     resultFilters,
     maxPrice,
     noPriceCeiling: watchlistOnly,

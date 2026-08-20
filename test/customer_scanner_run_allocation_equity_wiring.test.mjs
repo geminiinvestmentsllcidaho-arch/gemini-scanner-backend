@@ -10,4 +10,15 @@ test("authenticated scanner run wires paper equity into allocation previews", ()
   const route = source.slice(start, end);
   assert.match(route, /equity: paperAccount\.accountHealthy \? paperAccount\.account\.equity : null/);
   assert.match(route, /buyingPower: paperAccount\.accountHealthy \? paperAccount\.account\.buyingPower : null/);
+  assert.match(route, /detailBaseHref: '\/customer\/scanner\/under-five'/);
+});
+
+test("authenticated scanner run decision details target an existing GET detail route", () => {
+  const source = readFileSync(new URL("../src/server.js", import.meta.url), "utf8");
+  const runStart = source.indexOf("app.post('/customer/scanner/run'");
+  const runEnd = source.indexOf("app.get('/customer/watchlist'", runStart);
+  const runRoute = source.slice(runStart, runEnd);
+  assert.match(runRoute, /detailBaseHref: '\/customer\/scanner\/under-five'/);
+  assert.match(source, /app\.get\('\/customer\/scanner\/under-five\/:symbol', requireCustomerSession/);
+  assert.doesNotMatch(runRoute, /detailBaseHref: '\/customer\/scanner\/run'/);
 });
