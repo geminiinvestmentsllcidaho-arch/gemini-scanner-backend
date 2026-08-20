@@ -9,7 +9,6 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "true",
-        GS_EXECUTION_ASSURANCE_SAFE_REPAIR_AUTHORIZED: "true",
         PAPER_AUTO_DEGRADED_BROKER_MODE_ENABLED: "1",
         PAPER_AUTO_EXIT_MONITOR_ENABLED: "1",
       PAPER_AUTO_CONTINUITY_ENABLED: "1",
@@ -73,6 +72,7 @@ module.exports = {
         NODE_ENV: "production",
         GS_EXECUTION_ASSURANCE_WATCH_INTERVAL_MS: "30000",
         GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "true",
+        GS_EXECUTION_ASSURANCE_SAFE_REPAIR_AUTHORIZED: "true",
       },
     },
   ],
