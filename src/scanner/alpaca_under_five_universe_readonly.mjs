@@ -339,8 +339,9 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       const dailyVolume = latestVolume(snapshot);
       const previousClose = finite(snapshot?.prevDailyBar?.c);
       const dollarVolume = price === null ? null : Number((price * dailyVolume).toFixed(2));
-      const freshnessNowMs = Number.isFinite(Number(nowMs))
-        ? Number(nowMs)
+      const explicitNowMs = nowMs === null || nowMs === undefined ? null : Number(nowMs);
+      const freshnessNowMs = Number.isFinite(explicitNowMs)
+        ? explicitNowMs
         : Date.now();
       const freshness = sourceFreshness(snapshot, freshnessNowMs, maxSourceAgeSec);
       const candidate = {

@@ -519,3 +519,48 @@ test("master switch OFF ignores runtime credentials for under-five universe", as
   assert.equal(result.runtime.orderPlacementAllowed, false);
   assert.equal(result.runtime.accountMutationAllowed, false);
 });
+
+
+test("default freshness clock is sampled after asynchronous snapshot fetch", async () => {
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    maxAssets: 1,
+    async fetchImpl(url) {
+      if (url.includes("/v2/clock")) {
+        return response(200, { is_open: true, timestamp: new Date().toISOString(), next_open: null, next_close: null });
+      }
+      if (url.includes("/v2/assets")) {
+        return response(200, [{ symbol: "LATE", exchange: "NASDAQ", status: "active", tradable: true }]);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const sourceTs = new Date(Date.now() - 1).toISOString();
+      return response(200, {
+        LATE: {
+          latestTrade: { p: 4.5, t: sourceTs },
+          latestQuote: { bp: 4.49, ap: 4.51, t: sourceTs },
+          dailyBar: { v: 900000 },
+          prevDailyBar: { c: 4.0 },
+        },
+      });
+    },
+  });
+
+  const candidate = result.candidates.find((item) => item.symbol === "LATE");
+  assert.ok(candidate);
+  assert.equal(candidate.sourceStale, false);
+  assert.equal(candidate.readonlyPotentialFlags.includes("stale_source"), false);
+  assert.ok(Number.isFinite(candidate.sourceAgeSec));
+  assert.ok(candidate.sourceAgeSec >= 0);
+});
