@@ -37,6 +37,17 @@ function issueLabel(value) {
     MARKET_CLOCK_STALE: "Market session status is stale.",
     STREAM_STALE: "Live market data stream is stale.",
     STREAM_DISCONNECTED: "Live market data stream is disconnected.",
+    STRATEGY_STATE_NOT_ENTER: "The setup is not currently an ENTER candidate.",
+    STRATEGY_SOURCE_STALE: "The strategy source data is stale.",
+    STRATEGY_RANKING_NOT_CONNECTED: "Current scanner ranking data is not connected.",
+    STRATEGY_P3_GATE_NOT_OK: "The setup did not pass the required market-context check.",
+    STRATEGY_SETUP_SCORE_REQUIRED: "A setup score is required before entry.",
+    STRATEGY_SETUP_SCORE_BELOW_MINIMUM: "The setup score is below the required entry minimum.",
+    STRATEGY_RANKING_CONFIDENCE_REQUIRED: "Ranking confidence is required before entry.",
+    STRATEGY_RANKING_CONFIDENCE_BELOW_MINIMUM: "Ranking confidence is below the required entry minimum.",
+    STRATEGY_RANKING_QUALITY_REQUIRED: "Ranking quality is required before entry.",
+    STRATEGY_RANKING_QUALITY_BELOW_MINIMUM: "Ranking quality is below the required entry minimum.",
+    LOWER_DOLLAR_VOLUME: "Dollar volume is below the stronger liquidity tier.",
   };
   return labels[issue] ?? issue.replaceAll("_", " ").toLowerCase();
 }
@@ -80,14 +91,14 @@ export function buildCustomerZeroDecisionCards(candidates = []) {
   return list(candidates).map((candidate) => {
     const state = candidate?.sourceStale === true ? "STALE_DATA" : candidate?.resultState ?? candidate?.decision ?? "NO_SETUP";
     const staleReasons = list(candidate?.staleReasons);
-    const reasons = [
+    const reasons = [...new Set([
       candidate?.briefExplanation,
       ...staleReasons.map(issueLabel),
-      ...list(candidate?.blockingFlags),
-      ...list(candidate?.strategyAuthorization?.blockers),
-      ...list(candidate?.canonicalAuthorizationBlockers),
-      ...list(candidate?.readonlyPotentialFlags),
-    ].filter(Boolean);
+      ...list(candidate?.blockingFlags).map(issueLabel),
+      ...list(candidate?.strategyAuthorization?.blockers).map(issueLabel),
+      ...list(candidate?.canonicalAuthorizationBlockers).map(issueLabel),
+      ...list(candidate?.readonlyPotentialFlags).map(issueLabel),
+    ].filter(Boolean))];
 
     return {
       symbol: candidate?.symbol ?? null,

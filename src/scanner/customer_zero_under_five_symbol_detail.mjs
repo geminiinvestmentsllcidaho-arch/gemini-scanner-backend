@@ -34,6 +34,17 @@ function issueLabel(value) {
     MARKET_CLOCK_STALE: "Market session status is stale.",
     STREAM_STALE: "Live market data stream is stale.",
     STREAM_DISCONNECTED: "Live market data stream is disconnected.",
+    STRATEGY_STATE_NOT_ENTER: "The setup is not currently an ENTER candidate.",
+    STRATEGY_SOURCE_STALE: "The strategy source data is stale.",
+    STRATEGY_RANKING_NOT_CONNECTED: "Current scanner ranking data is not connected.",
+    STRATEGY_P3_GATE_NOT_OK: "The setup did not pass the required market-context check.",
+    STRATEGY_SETUP_SCORE_REQUIRED: "A setup score is required before entry.",
+    STRATEGY_SETUP_SCORE_BELOW_MINIMUM: "The setup score is below the required entry minimum.",
+    STRATEGY_RANKING_CONFIDENCE_REQUIRED: "Ranking confidence is required before entry.",
+    STRATEGY_RANKING_CONFIDENCE_BELOW_MINIMUM: "Ranking confidence is below the required entry minimum.",
+    STRATEGY_RANKING_QUALITY_REQUIRED: "Ranking quality is required before entry.",
+    STRATEGY_RANKING_QUALITY_BELOW_MINIMUM: "Ranking quality is below the required entry minimum.",
+    LOWER_DOLLAR_VOLUME: "Dollar volume is below the stronger liquidity tier.",
   };
   return labels[issue] ?? issue.replaceAll("_", " ").toLowerCase();
 }
@@ -105,8 +116,8 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
 
 export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}, account = null) {
   const passed = list(detail.passedChecks).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
-  const flags = list(detail.flags).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
-  const blockers = list(detail.blockers).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
+  const flags = list(detail.flags).map((item) => `<li>${esc(issueLabel(item))}</li>`).join("") || "<li>None</li>";
+  const blockers = list(detail.blockers).map((item) => `<li>${esc(issueLabel(item))}</li>`).join("") || "<li>None</li>";
   const runtimeHealth = list(detail.runtimeHealthReasons).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

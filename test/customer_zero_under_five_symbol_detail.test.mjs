@@ -109,5 +109,5 @@ test("symbol detail shows canonical authorization rejection instead of raw manua
 
   const html = renderCustomerZeroUnderFiveSymbolDetailHtml(detail);
   assert.match(html, /BLOCKED/);
-  assert.match(html, /STRATEGY_RANKING_QUALITY_BELOW_MINIMUM/);
+  assert.match(html, /Ranking quality is below the required entry minimum\./);
 });
