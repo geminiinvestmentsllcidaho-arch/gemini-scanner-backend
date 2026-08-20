@@ -48,6 +48,8 @@ test("admin overview and trading-engine routes consume diagnostics only", () => 
     assert.match(block,/paperAutoExecutionContinuityEnterRunner\.diagnostics\(\)/);
     assert.match(block,/paperAutoExecutionScaleRunner\.diagnostics\(\)/);
     assert.match(block,/paperAutoExitMonitorWorker\.diagnostics\(\)/);
+    assert.match(block,/execution_readiness_watcher_status\.json/);
+    assert.match(block,/paper_auto_execution_execution_assurance_watchdog_status\.json/);
     assert.match(block,/liveTradingAllowed:\s*false/);
     assert.match(block,/adminExecutionControls:\s*false/);
     assert.doesNotMatch(block,/\.runOnce\(|submitPaperOrder|cancelOrder|replaceOrder|\/v2\/orders/);

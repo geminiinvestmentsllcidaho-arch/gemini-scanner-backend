@@ -143,13 +143,16 @@ test("Admin overview links to protected customer intelligence without adding exe
 });
 
 test("automatic PAPER overview renders runtime state without execution controls", () => {
-  const html = renderAdminSurfaceHtml(buildAdminSurface({ tradingEngine: { automaticPaper: { enter:{enabled:true}, scale:{enabled:true,scaleInEnabled:true,scaleOutEnabled:true}, exit:{enabled:true,running:true}, lifecycle:{state:"MONITORING",selectedSymbol:"USAS"} } } }));
+  const html = renderAdminSurfaceHtml(buildAdminSurface({ tradingEngine: { automaticPaper: { enter:{enabled:true}, scale:{enabled:true,scaleInEnabled:true,scaleOutEnabled:true}, exit:{enabled:true,running:true}, readiness:{status:"READY",infrastructureReady:true}, assurance:{report:{healthy:true},safeRepairAllowed:true,safeRepairEligible:false,incident:null}, lifecycle:{state:"MONITORING",selectedSymbol:"USAS"} } } }));
   assert.match(html,/Automatic Alpaca PAPER Execution/);
   assert.match(html,/ENTER:<\/strong> ARMED/);
   assert.match(html,/SCALE:<\/strong> ARMED/);
   assert.match(html,/EXIT:<\/strong> ARMED/);
   assert.match(html,/MONITORING/);
   assert.match(html,/USAS/);
+  assert.match(html,/Readiness:<\/strong> READY/);
+  assert.match(html,/Assurance:<\/strong> HEALTHY/);
+  assert.match(html,/Safe repair:<\/strong> AUTHORIZED/);
   assert.match(html,/Admin is read-only/);
   assert.doesNotMatch(html,/submitPaperOrder|cancelOrder|replaceOrder|XMLHttpRequest|\bfetch\s*\(/);
 });

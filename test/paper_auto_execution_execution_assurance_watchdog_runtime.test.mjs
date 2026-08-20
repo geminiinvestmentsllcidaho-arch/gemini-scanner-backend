@@ -115,9 +115,9 @@ test("stale readiness fails closed",()=>{
 });
 
 test("safe repair restarts only readiness watcher for stale readiness",async()=>{
- let n=0;
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),"g-")),ledgerPath=path.join(d,"i");let n=0;
  const repair={restartReadinessWatcher:async()=>{n++;return{attempted:true,action:"restart_readiness_watchdog",bounded:true}}};
- const r=await runIndependentAssuranceWatchdogOnce({input:{...good,readiness:{...good.readiness,generatedAt:"2026-08-20T14:20:00.000Z"}},now:new Date(now),repair,allowSafeRepair:true,allowNotificationSend:false});
+ const r=await runIndependentAssuranceWatchdogOnce({input:{...good,readiness:{...good.readiness,generatedAt:"2026-08-20T14:20:00.000Z"}},now:new Date(now),ledgerPath,repair,allowSafeRepair:true,allowNotificationSend:false});
  assert.equal(r.safeRepairEligible,true);assert.equal(n,1);assert.equal(r.repairResult.action,"restart_readiness_watchdog");
  assert.equal(r.orderPlacementAllowed,false);assert.equal(r.liveTradingAllowed,false);
 });

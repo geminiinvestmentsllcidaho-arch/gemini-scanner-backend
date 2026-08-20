@@ -1975,6 +1975,11 @@ app.post('/admin/security/password', requireAdminAuthorization, requireCustomerS
   return res.redirect(303, '/admin/login?passwordChanged=1');
 });
 
+function readAdminLocalJsonStatus(filePath) {
+  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
+  catch { return null; }
+}
+
 app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const mod = await import('./scanner/admin_surface.mjs');
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
@@ -1987,6 +1992,8 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
     scale: paperAutoExecutionScaleRunner.diagnostics(),
     exit: paperAutoExitMonitorWorker.diagnostics(),
     degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
+    readiness: readAdminLocalJsonStatus('runs/execution_readiness_watcher_status.json'),
+    assurance: readAdminLocalJsonStatus('runs/paper_auto_execution_execution_assurance_watchdog_status.json'),
     lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
     activation: {
       paperTrading: String(process.env.ALPACA_PAPER_TRADING ?? '').trim().toLowerCase() === 'true',
@@ -2056,6 +2063,8 @@ app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) =>
     scale: paperAutoExecutionScaleRunner.diagnostics(),
     exit: paperAutoExitMonitorWorker.diagnostics(),
     degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
+    readiness: readAdminLocalJsonStatus('runs/execution_readiness_watcher_status.json'),
+    assurance: readAdminLocalJsonStatus('runs/paper_auto_execution_execution_assurance_watchdog_status.json'),
     lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
     activation: {
       paperTrading: String(process.env.ALPACA_PAPER_TRADING ?? '').trim().toLowerCase() === 'true',
