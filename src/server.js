@@ -69,6 +69,7 @@ import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_moni
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
+import { evaluatePaperAutoExecutionExecutionAssurance } from './scanner/paper_auto_execution_execution_assurance.mjs';
 import { createPaperAutoExecutionExitRecoveryRunner } from './scanner/paper_auto_execution_exit_recovery_runner.mjs';
 import { createPaperAutoExecutionExitReplacementRunner } from './scanner/paper_auto_execution_exit_replacement_runner.mjs';
 import { fetchAlpacaPaperExitReplacementOrderByClientOrderIdReadonly } from './scanner/paper_auto_execution_exit_replacement_order_lookup.mjs';
@@ -2854,6 +2855,96 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
+
+const PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs/paper_auto_execution_execution_assurance_incidents.jsonl';
+let paperAutoExecutionExecutionAssuranceLastReport = Object.freeze({
+  version: 'paper_auto_execution_execution_assurance_v2',
+  generatedAt: null,
+  healthy: true,
+  status: 'not_evaluated',
+  failureCodes: Object.freeze([]),
+  marketOpen: false,
+  checks: Object.freeze({}),
+  thresholds: Object.freeze({}),
+  safety: Object.freeze({
+    readOnly: true,
+    paperOnly: true,
+    remediationAllowed: false,
+    brokerContactAllowed: false,
+    orderPlacementAllowed: false,
+    accountMutationAllowed: false,
+    strategyMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    sizingMutationAllowed: false,
+    aiAuthorityMutationAllowed: false,
+    blindResubmissionAllowed: false,
+    liveTradingAllowed: false,
+  }),
+});
+let paperAutoExecutionExecutionAssuranceLastIncident = null;
+
+const readActivePaperAutoExecutionLifecycleReadonly = () => {
+  const file = String(activePaperAutoExecutionLifecycleFile ?? '').trim();
+  if (!file || !fs.existsSync(file)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = {}) => {
+  const report = evaluatePaperAutoExecutionExecutionAssurance({
+    marketOpen,
+    continuity: paperAutoExecutionContinuityRuntime.diagnostics(),
+    enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
+    lifecycle: readActivePaperAutoExecutionLifecycleReadonly(),
+  });
+  paperAutoExecutionExecutionAssuranceLastReport = report;
+
+  const failureCodes = Array.isArray(report?.failureCodes) ? report.failureCodes : [];
+  const previousOpen = paperAutoExecutionExecutionAssuranceLastIncident?.incident?.open === true;
+
+  if (report?.healthy === false) {
+    const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
+    paperAutoExecutionExecutionAssuranceLastIncident = await incidentMod.emitAdminPaperOperationalIncident({
+      source: 'paper_execution',
+      category: 'paper_execution_assurance',
+      severity: 'critical',
+      failureCodes,
+      summary: 'Automatic PAPER execution assurance detected a defined critical-path failure.',
+      phase: 'execution_assurance',
+      route: '/diagnostics/paper-auto-execution-execution-assurance',
+      process: 'gemini-scanner',
+    }, {
+      ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
+    });
+  } else if (previousOpen) {
+    const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
+    paperAutoExecutionExecutionAssuranceLastIncident = await incidentMod.emitAdminPaperOperationalIncident({
+      source: 'paper_execution',
+      category: 'paper_execution_assurance',
+      severity: 'recovery',
+      failureCodes: paperAutoExecutionExecutionAssuranceLastIncident?.incident?.failureCodes ?? ['EXECUTION_ASSURANCE_RECOVERED'],
+      summary: 'Automatic PAPER execution assurance recovered.',
+      phase: 'execution_assurance',
+      route: '/diagnostics/paper-auto-execution-execution-assurance',
+      process: 'gemini-scanner',
+    }, {
+      ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
+    });
+  }
+
+  return Object.freeze({
+    report,
+    incident: paperAutoExecutionExecutionAssuranceLastIncident,
+    ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
+    notificationSendAuthorized: paperAutoExecutionExecutionAssuranceLastIncident?.notificationSendAuthorized === true,
+    readOnly: true,
+    remediationAllowed: false,
+  });
+};
 const paperAutoExecutionScaleSubmit=async(o,c)=>{
  const r=await resolveInternalOwnerAlpacaReadonlyCredentials({masterKey:process.env.GEMINI_CREDENTIAL_MASTER_KEY});
  if(r?.readyForReadonlyBrokerRead!==true)throw Error('paper_scale_runtime_credentials_required');
@@ -2972,6 +3063,32 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
         source,
         error: error?.message ?? String(error),
       });
+    }
+    try {
+      const cache = await underFiveSharedCachePromise;
+      const latest = cache?.getLatest?.() ?? null;
+      const marketOpen = latest?.marketClock?.isOpen === true;
+      await runPaperAutoExecutionExecutionAssurance({ marketOpen });
+    } catch (error) {
+      console.error('[paper-auto-execution-execution-assurance] evaluation failed closed', {
+        source,
+        error: error?.message ?? String(error),
+      });
+      try {
+        const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
+        paperAutoExecutionExecutionAssuranceLastIncident = await incidentMod.emitAdminPaperOperationalIncident({
+          source: 'paper_execution',
+          category: 'paper_execution_assurance',
+          severity: 'critical',
+          failureCode: 'EXECUTION_ASSURANCE_EVALUATION_ERROR',
+          summary: 'Automatic PAPER execution assurance evaluator failed.',
+          phase: 'execution_assurance',
+          route: '/diagnostics/paper-auto-execution-execution-assurance',
+          process: 'gemini-scanner',
+        }, {
+          ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
+        });
+      } catch {}
     }
     try {
       await runPaperAutoExecutionScaleCycle(source);
@@ -3178,6 +3295,17 @@ app.get('/diagnostics/paper-auto-execution-continuity', (_req, res) => {
 
 app.get('/diagnostics/paper-auto-execution-continuity-enter', (_req, res) => {
   res.json(paperAutoExecutionContinuityEnterRunner.diagnostics());
+});
+
+
+app.get('/diagnostics/paper-auto-execution-execution-assurance', (_req, res) => {
+  res.json({
+    report: paperAutoExecutionExecutionAssuranceLastReport,
+    incident: paperAutoExecutionExecutionAssuranceLastIncident,
+    ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
+    readOnly: true,
+    remediationAllowed: false,
+  });
 });
 
 

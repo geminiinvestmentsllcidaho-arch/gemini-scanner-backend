@@ -199,3 +199,29 @@ test("Module 5 owned monitor ranking cache acquisition is best-effort and direct
   assert.ok(catchAt >= 0);
   assert.ok(directAt > catchAt);
 });
+
+
+test('server wires read-only execution assurance after continuity ENTER and exposes diagnostics', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /evaluatePaperAutoExecutionExecutionAssurance/)
+  assert.match(source, /const runPaperAutoExecutionExecutionAssurance = async/)
+  const enter = source.indexOf('await paperAutoExecutionContinuityEnterRunner.runOnce()')
+  const assurance = source.indexOf('await runPaperAutoExecutionExecutionAssurance')
+  const scale = source.indexOf('await runPaperAutoExecutionScaleCycle(source)')
+  assert.ok(enter !== -1 && assurance > enter && scale > assurance)
+  assert.match(source, /PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs\/paper_auto_execution_execution_assurance_incidents\.jsonl'/)
+  assert.match(source, /category: 'paper_execution_assurance'/)
+  assert.match(source, /severity: 'recovery'/)
+  assert.match(source, /\/diagnostics\/paper-auto-execution-execution-assurance/)
+  assert.match(source, /readOnly: true/)
+  assert.match(source, /remediationAllowed: false/)
+})
+
+test('execution assurance server wiring never submits orders or mutates strategy thresholds sizing or AI authority', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  const start = source.indexOf('const runPaperAutoExecutionExecutionAssurance = async')
+  const end = source.indexOf('const paperAutoExecutionScaleSubmit', start)
+  assert.ok(start !== -1 && end > start)
+  const block = source.slice(start, end)
+  assert.doesNotMatch(block, /submitPaperOrder|\/v2\/orders|cancelOrder|MIN_RANKING_SETUP_SCORE|MIN_RANKING_CONFIDENCE|MIN_RANKING_QUALITY/)
+})

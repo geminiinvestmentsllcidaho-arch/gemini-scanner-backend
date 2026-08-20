@@ -16,9 +16,9 @@ function eligible(c){return upper(c?.state??c?.resultState??c?.decision)==='ENTE
 function choose(s={}){const a=Array.isArray(s?.candidates)?s.candidates:[];return a.filter(eligible).sort((x,y)=>{const d=(Number(y.score??y.readonlyPotentialScore)||-Infinity)-(Number(x.score??x.readonlyPotentialScore)||-Infinity);return d!==0?d:upper(x?.symbol).localeCompare(upper(y?.symbol))})[0]??null}
 export function createPaperAutoExecutionContinuityRuntime(o={}){
  const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getScanSnapshot,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now}=o
- let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null
- const diagnostics=()=>Object.freeze({ok:true,version:VERSION,enabled:on(env,'PAPER_AUTO_CONTINUITY_ENABLED'),cycles,lastStatus,lastLifecycleFile,lastLifecycle,safety:Object.freeze({paperOnly:true,disabledByDefault:true,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false,liveTradingAllowed:false})})
- const cycle=async()=>{cycles++;if(!on(env,'PAPER_AUTO_CONTINUITY_ENABLED')){lastStatus='CONTINUITY_DISABLED_BY_ENV';return diagnostics()}
+ let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null,lastCycleStartedAt=null,lastCycleCompletedAt=null
+ const diagnostics=()=>Object.freeze({ok:true,version:VERSION,enabled:on(env,'PAPER_AUTO_CONTINUITY_ENABLED'),cycles,lastStatus,lastLifecycleFile,lastLifecycle,lastCycleStartedAt,lastCycleCompletedAt,safety:Object.freeze({paperOnly:true,disabledByDefault:true,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false,liveTradingAllowed:false})})
+ const cycle=async()=>{cycles++;lastCycleStartedAt=new Date(now()).toISOString();if(!on(env,'PAPER_AUTO_CONTINUITY_ENABLED')){lastStatus='CONTINUITY_DISABLED_BY_ENV';return diagnostics()}
   const externallyActiveFile=clean(typeof getActiveLifecycleFile==='function'?await getActiveLifecycleFile():env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH)
   const activeFile=clean(pendingLifecycleFile)||externallyActiveFile;let active=null
   if(activeFile&&fs.existsSync(activeFile))active=storeFactory(activeFile).load()
@@ -46,7 +46,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
   if(typeof setActiveLifecycleFile==='function')await setActiveLifecycleFile(file,life)
   pendingLifecycleFile=null
   lastStatus='FRESH_CANDIDATE_LIFECYCLE_CREATED';return diagnostics()}
- const runOnce=()=>inFlight??(inFlight=Promise.resolve().then(cycle).finally(()=>{inFlight=null}))
+ const runOnce=()=>inFlight??(inFlight=Promise.resolve().then(cycle).finally(()=>{lastCycleCompletedAt=new Date(now()).toISOString();inFlight=null}))
  return Object.freeze({runOnce,diagnostics})
 }
 export default {VERSION,createPaperAutoExecutionContinuityRuntime}

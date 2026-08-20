@@ -920,3 +920,18 @@ test('Module 8 ENTER submission ambiguity records immediate degraded failure and
   } finally { fs.rmSync(d,{recursive:true,force:true}) }
 })
 // Module 8 ENTER broker failure recording coverage
+
+
+test('diagnostics expose ENTER runner cycle heartbeat timestamps',async()=>{
+  const nowMs=Date.parse('2026-08-19T22:10:00.000Z')
+  const runner=createPaperAutoExecutionContinuityEnterRunner({
+    env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'0'},
+    now:()=>nowMs
+  })
+  const out=await runner.runOnce()
+  const d=runner.diagnostics()
+  assert.equal(out.lastCycleStartedAt,'2026-08-19T22:10:00.000Z')
+  assert.equal(out.lastCycleCompletedAt,null)
+  assert.equal(d.lastCycleStartedAt,'2026-08-19T22:10:00.000Z')
+  assert.equal(d.lastCycleCompletedAt,'2026-08-19T22:10:00.000Z')
+})

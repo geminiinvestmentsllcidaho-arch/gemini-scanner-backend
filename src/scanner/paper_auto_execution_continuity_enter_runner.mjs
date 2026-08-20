@@ -71,6 +71,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastSizing = null
   let lastReentryControl = null
   let lastPortfolioCapitalGovernor = null
+  let lastCycleStartedAt = null
+  let lastCycleCompletedAt = null
 
   const diagnostics = () => Object.freeze({
     ok: true,
@@ -88,6 +90,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastSizing,
     lastReentryControl,
     lastPortfolioCapitalGovernor,
+    lastCycleStartedAt,
+    lastCycleCompletedAt,
     degradedBrokerMode: degradedBrokerMode?.diagnostics?.() ?? null,
     safety: Object.freeze({
       paperOnly: true,
@@ -109,6 +113,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
 
   async function cycle() {
     cycles += 1
+    lastCycleStartedAt = new Date(Number(now())).toISOString()
     lastError = null
     if (!on(env, 'PAPER_AUTO_CONTINUITY_ENTER_ENABLED')) return fail('CONTINUITY_ENTER_DISABLED_BY_ENV')
     const lifecycleFile = clean(await getLifecycleFile?.())
@@ -355,7 +360,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastError = error?.message ?? String(error)
     lastStatus = 'CONTINUITY_ENTER_ERROR_FAIL_CLOSED'
     return diagnostics()
-  }).finally(() => { inFlight = null }))
+  }).finally(() => { lastCycleCompletedAt = new Date(Number(now())).toISOString(); inFlight = null }))
 
   return Object.freeze({ runOnce, diagnostics })
 }

@@ -217,3 +217,20 @@ test('fresh lifecycle persists bounded scanner origin attribution identifiers', 
  assert.equal(life.scannerEvidence.originScanId,'scan-123')
  assert.equal(life.scannerEvidence.originEventAt,new Date(now-1100).toISOString())
 })
+
+
+test('diagnostics expose continuity cycle heartbeat timestamps',async()=>{
+  const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old
+  const nowMs=Date.parse('2026-08-19T22:10:00.000Z')
+  const r=createPaperAutoExecutionContinuityRuntime({
+    env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,
+    setActiveLifecycleFile:f=>{active=f},getScanSnapshot:async()=>({observedAt:new Date(nowMs).toISOString(),candidates:[]}),
+    now:()=>nowMs
+  })
+  const out=await r.runOnce()
+  const d2=r.diagnostics()
+  assert.equal(out.lastCycleStartedAt,'2026-08-19T22:10:00.000Z')
+  assert.equal(out.lastCycleCompletedAt,null)
+  assert.equal(d2.lastCycleStartedAt,'2026-08-19T22:10:00.000Z')
+  assert.equal(d2.lastCycleCompletedAt,'2026-08-19T22:10:00.000Z')
+})
