@@ -164,7 +164,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
   snapshotBatchSize = 200,
   maxAssets = 10000,
   symbols = null,
-  nowMs = Date.now(),
+  nowMs = null,
   maxSourceAgeSec = 120,
 } = {}) {
   const resolved = typeof credentialResolver === "function"
@@ -339,7 +339,10 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       const dailyVolume = latestVolume(snapshot);
       const previousClose = finite(snapshot?.prevDailyBar?.c);
       const dollarVolume = price === null ? null : Number((price * dailyVolume).toFixed(2));
-      const freshness = sourceFreshness(snapshot, nowMs, maxSourceAgeSec);
+      const freshnessNowMs = Number.isFinite(Number(nowMs))
+        ? Number(nowMs)
+        : Date.now();
+      const freshness = sourceFreshness(snapshot, freshnessNowMs, maxSourceAgeSec);
       const candidate = {
         ...asset,
         price,

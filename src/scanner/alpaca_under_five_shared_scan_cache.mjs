@@ -93,7 +93,6 @@ export function createAlpacaUnderFiveSharedScanCache({
       try {
         const source = await fetchScan({
           ...scanOptions,
-          nowMs: now(),
         });
 
         scanCount += 1;

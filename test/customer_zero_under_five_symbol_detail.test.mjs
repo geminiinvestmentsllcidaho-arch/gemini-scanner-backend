@@ -111,3 +111,80 @@ test("symbol detail shows canonical authorization rejection instead of raw manua
   assert.match(html, /BLOCKED/);
   assert.match(html, /Ranking quality is below the required entry minimum\./);
 });
+
+test("renders symbol-specific market and ranking evidence", () => {
+  const left = renderCustomerZeroUnderFiveSymbolDetailHtml(
+    buildCustomerZeroUnderFiveSymbolDetail({
+      symbol: "AAA",
+      decision: "WAIT",
+      price: 4.11,
+      previousClose: 3.9,
+      changePct: 5.38,
+      spreadPct: 0.25,
+      dailyVolume: 222222,
+      dollarVolume: 913332.42,
+      relativeVolume: 1.42,
+      sourceAgeSec: 4.2,
+      sourceStale: false,
+      rankingConnected: true,
+      rankingRank: 7,
+      rankingSetupScore: 81,
+      rankingNormalizedScore: 0.81,
+      rankingConfidence: 0.72,
+      rankingQuality: 0.78,
+      rankingP3GateOk: true,
+      rankingConfidenceTier: "high",
+      rankingQualityTier: "strong",
+      rankingDeploymentPriority: "high",
+      rankingTargetPositionPct: 7.5,
+      rankingMaxPositionPct: 10,
+      rankingReasons: ["strong momentum"],
+    })
+  );
+  const right = renderCustomerZeroUnderFiveSymbolDetailHtml(
+    buildCustomerZeroUnderFiveSymbolDetail({
+      symbol: "BBB",
+      decision: "WAIT",
+      price: 2.22,
+      previousClose: 2.1,
+      changePct: 5.71,
+      spreadPct: 0.55,
+      dailyVolume: 333333,
+      dollarVolume: 739999.26,
+      relativeVolume: 2.31,
+      sourceAgeSec: 8.4,
+      sourceStale: false,
+      rankingConnected: true,
+      rankingRank: 19,
+      rankingSetupScore: 74,
+      rankingNormalizedScore: 0.74,
+      rankingConfidence: 0.61,
+      rankingQuality: 0.7,
+      rankingP3GateOk: false,
+      rankingReasons: ["needs stronger confirmation"],
+    })
+  );
+
+  assert.match(left, /Relative volume:<\/b> 1\.42/);
+  assert.match(left, /Rank:<\/b> 7/);
+  assert.match(left, /Setup score:<\/b> 81/);
+  assert.match(left, /Confidence:<\/b> 0\.72/);
+  assert.match(left, /Quality:<\/b> 0\.78/);
+  assert.match(left, /strong momentum/);
+  assert.match(right, /Relative volume:<\/b> 2\.31/);
+  assert.match(right, /Rank:<\/b> 19/);
+  assert.notEqual(left, right);
+});
+
+test("visible canonical blocker text remains customer friendly", () => {
+  const html = renderCustomerZeroUnderFiveSymbolDetailHtml(
+    buildCustomerZeroUnderFiveSymbolDetail({
+      symbol: "FRIENDLY",
+      resultState: "BLOCKED",
+      sourceStale: false,
+      canonicalAuthorizationBlockers: ["STRATEGY_RANKING_QUALITY_BELOW_MINIMUM"],
+    })
+  );
+  assert.match(html, /Ranking quality is below the required entry minimum\./);
+  assert.doesNotMatch(html, /STRATEGY_RANKING_QUALITY_BELOW_MINIMUM/);
+});

@@ -82,6 +82,22 @@ test("demand expiry returns scanner to idle without further polling", async () =
   assert.equal(cache.getLatest().idleNoDemand, true);
 });
 
+test("shared cache does not freeze source freshness at scan start", async () => {
+  let receivedOptions = null;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 1_000,
+    async fetchScan(options) {
+      receivedOptions = options;
+      return { ok: true, marketClock: { isOpen: true }, candidates: [] };
+    },
+  });
+
+  await cache.refreshNow();
+
+  assert.deepEqual(receivedOptions, {});
+  assert.equal(Object.prototype.hasOwnProperty.call(receivedOptions, "nowMs"), false);
+});
+
 test("concurrent refreshes deduplicate", async () => {
   let calls = 0;
   let resolveFetch;

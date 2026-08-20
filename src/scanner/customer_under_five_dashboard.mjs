@@ -83,7 +83,7 @@ export function buildCustomerUnderFiveDashboard(source = {}, options = {}) {
   };
   const card = buildAlpacaUnderFiveUniverseAppCard(filteredSource, {
     ...options,
-    detailBaseHref: route,
+    detailBaseHref: options.detailBaseHref ?? route,
   });
   const candidates = card.candidates.map((candidate, index) => {
     const sourceCandidate = filteredCandidates[index] ?? candidate;

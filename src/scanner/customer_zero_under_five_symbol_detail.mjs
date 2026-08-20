@@ -91,6 +91,23 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
     spreadPct: candidate.spreadPct ?? null,
     dailyVolume: candidate.dailyVolume ?? null,
     dollarVolume: candidate.dollarVolume ?? null,
+    relativeVolume: candidate.relativeVolume ?? null,
+    rankingConnected: candidate.rankingConnected === true,
+    rankingRank: candidate.rankingRank ?? null,
+    rankingSetupScore: candidate.rankingSetupScore ?? null,
+    rankingNormalizedScore: candidate.rankingNormalizedScore ?? null,
+    rankingConfidence: candidate.rankingConfidence ?? null,
+    rankingQuality: candidate.rankingQuality ?? null,
+    rankingP3GateOk: candidate.rankingP3GateOk === true,
+    rankingQualityTier: candidate.rankingQualityTier ?? null,
+    rankingConfidenceTier: candidate.rankingConfidenceTier ?? null,
+    rankingDeploymentPriority: candidate.rankingDeploymentPriority ?? null,
+    rankingTargetPositionPct: candidate.rankingTargetPositionPct ?? null,
+    rankingMaxPositionPct: candidate.rankingMaxPositionPct ?? null,
+    rankingReasons: list(candidate.rankingReasons),
+    rankingSourceTs: candidate.rankingSourceTs ?? null,
+    rankingSourceAgeSec: candidate.rankingSourceAgeSec ?? null,
+    rankingMaxAgeSec: candidate.rankingMaxAgeSec ?? null,
     sourceTs: candidate.sourceTs ?? null,
     sourceAgeSec: candidate.sourceAgeSec ?? null,
     sourceStale,
@@ -119,6 +136,8 @@ export function renderCustomerZeroUnderFiveSymbolDetailHtml(detail = {}, account
   const flags = list(detail.flags).map((item) => `<li>${esc(issueLabel(item))}</li>`).join("") || "<li>None</li>";
   const blockers = list(detail.blockers).map((item) => `<li>${esc(issueLabel(item))}</li>`).join("") || "<li>None</li>";
   const runtimeHealth = list(detail.runtimeHealthReasons).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
+  const rankingReasons = list(detail.rankingReasons).map((item) => `<li>${esc(item)}</li>`).join("") || "<li>None</li>";
+  const show = (value, fallback = "Unavailable") => value === null || value === undefined || value === "" ? fallback : value;
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(detail.title)}</title>
@@ -134,9 +153,18 @@ ${renderGlobalHeader({ surface: "customer", homeHref: "/customer", label: "Gemin
 <section class="card"><h2>Scan results</h2>
 <p><b>Score:</b> ${esc(detail.score)} · <b>Potential:</b> ${esc(detail.potentialLabel)}</p>
 <p><b>Price:</b> ${esc(detail.price)} · <b>Previous close:</b> ${esc(detail.previousClose)} · <b>Change:</b> ${esc(detail.changePct)}%</p>
-<p><b>Spread:</b> ${esc(detail.spreadPct)}% · <b>Daily volume:</b> ${esc(detail.dailyVolume)} · <b>Dollar volume:</b> ${esc(detail.dollarVolume)}</p>
+<p><b>Spread:</b> ${esc(show(detail.spreadPct))}% · <b>Daily volume:</b> ${esc(show(detail.dailyVolume))} · <b>Dollar volume:</b> ${esc(show(detail.dollarVolume))}</p>
+<p><b>Relative volume:</b> ${esc(show(detail.relativeVolume))}</p>
 <p><b>Data timestamp:</b> ${esc(formatCustomerDateTime(detail.sourceTs, account, { fallback: "Unavailable" }))}</p>
-<p><b>Source age:</b> ${esc(detail.sourceAgeSec)}s · <b>Stale:</b> ${esc(detail.sourceStale)}</p></section>
+<p><b>Source age:</b> ${esc(detail.sourceAgeSec === null || detail.sourceAgeSec === undefined ? "Unavailable" : `${detail.sourceAgeSec}s`)} · <b>Stale:</b> ${esc(detail.sourceStale)}</p></section>
+<section class="card"><h2>Scanner ranking evidence</h2>
+<p><b>Ranking connected:</b> ${esc(detail.rankingConnected)} · <b>Rank:</b> ${esc(show(detail.rankingRank))}</p>
+<p><b>Setup score:</b> ${esc(show(detail.rankingSetupScore))} · <b>Normalized score:</b> ${esc(show(detail.rankingNormalizedScore))}</p>
+<p><b>Confidence:</b> ${esc(show(detail.rankingConfidence))} · <b>Quality:</b> ${esc(show(detail.rankingQuality))} · <b>Market-context gate:</b> ${esc(detail.rankingP3GateOk)}</p>
+<p><b>Confidence tier:</b> ${esc(show(detail.rankingConfidenceTier))} · <b>Quality tier:</b> ${esc(show(detail.rankingQualityTier))}</p>
+<p><b>Deployment priority:</b> ${esc(show(detail.rankingDeploymentPriority))} · <b>Target position:</b> ${esc(show(detail.rankingTargetPositionPct))}% · <b>Max position:</b> ${esc(show(detail.rankingMaxPositionPct))}%</p>
+<p><b>Ranking timestamp:</b> ${esc(formatCustomerDateTime(detail.rankingSourceTs, account, { fallback: "Unavailable" }))} · <b>Ranking age:</b> ${esc(detail.rankingSourceAgeSec === null || detail.rankingSourceAgeSec === undefined ? "Unavailable" : `${detail.rankingSourceAgeSec}s`)}</p>
+<h3>Ranking reasons</h3><ul>${rankingReasons}</ul></section>
 <section class="card"><h2>Checks passed</h2><ul>${passed}</ul></section>
 ${detail.sourceStale ? `<section class="card runtime-health-block"><h2>Why this result is blocked</h2><p>Current data cannot be trusted for a fresh scanner decision.</p><ul>${runtimeHealth}</ul></section>` : ""}
 <section class="card"><h2>Flags</h2><ul>${flags}</ul><h2>Blocking reasons</h2><ul>${blockers}</ul></section>

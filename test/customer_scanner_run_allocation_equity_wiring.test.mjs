@@ -22,3 +22,9 @@ test("authenticated scanner run decision details target an existing GET detail r
   assert.match(source, /app\.get\('\/customer\/scanner\/under-five\/:symbol', requireCustomerSession/);
   assert.doesNotMatch(runRoute, /detailBaseHref: '\/customer\/scanner\/run'/);
 });
+
+test("dashboard preserves explicit authenticated decision detail base", () => {
+  const source = readFileSync(new URL("../src/scanner/customer_under_five_dashboard.mjs", import.meta.url), "utf8");
+  assert.match(source, /detailBaseHref:\s*options\.detailBaseHref\s*\?\?\s*route/);
+  assert.doesNotMatch(source, /detailBaseHref:\s*route,/);
+});
