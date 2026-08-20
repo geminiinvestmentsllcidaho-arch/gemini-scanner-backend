@@ -8,6 +8,8 @@ const raw = Number(process.env.GS_EXECUTION_ASSURANCE_WATCH_INTERVAL_MS ?? 30000
 const intervalMs = Number.isFinite(raw) ? Math.max(15000, Math.trunc(raw)) : 30000;
 const allowNotificationSend =
   String(process.env.GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED ?? "").trim().toLowerCase() === "true";
+const allowSafeRepair =
+  String(process.env.GS_EXECUTION_ASSURANCE_SAFE_REPAIR_AUTHORIZED ?? "").trim().toLowerCase() === "true";
 
 const STATUS_PATH = path.join(process.cwd(), "runs", "paper_auto_execution_execution_assurance_watchdog_status.json");
 function writeStatus(value) {
@@ -19,7 +21,7 @@ function writeStatus(value) {
 }
 
 async function cycle() {
-  const result = await runIndependentAssuranceWatchdogOnce({ allowNotificationSend });
+  const result = await runIndependentAssuranceWatchdogOnce({ allowNotificationSend, allowSafeRepair });
   writeStatus({ ...result, watchdogObservedAt: new Date().toISOString(), pid: process.pid });
   process.stdout.write(`${JSON.stringify(result)}\n`);
   return result;

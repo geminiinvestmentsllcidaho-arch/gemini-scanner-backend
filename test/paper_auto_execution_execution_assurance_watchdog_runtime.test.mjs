@@ -14,6 +14,8 @@ const good={
   health:{ok:true,statusCode:200,body:{status:"ok",stream:{marketOpen:false}}},
   continuity:{ok:true,statusCode:200,body:{enabled:true,lastStatus:"NO_ELIGIBLE_CANDIDATE",lastCycleStartedAt:"2026-08-20T14:29:59.000Z",lastCycleCompletedAt:"2026-08-20T14:29:59.100Z",lastSnapshotObservedAt:"2026-08-20T14:29:00.000Z",lastSnapshotFresh:false,lastSnapshotCandidateCount:0,lastEligibleCandidateCount:0,lastLifecycle:{state:"ROUND_TRIP_COMPLETED"}}},
   enter:{ok:true,statusCode:200,body:{enabled:true,lastStatus:"CONTINUITY_ENTER_NOT_REQUIRED",lastCycleStartedAt:"2026-08-20T14:29:59.100Z",lastCycleCompletedAt:"2026-08-20T14:29:59.100Z",lastLifecycle:{state:"ROUND_TRIP_COMPLETED"}}},
+  readiness:{generatedAt:"2026-08-20T14:29:30.000Z",infrastructureReady:true,checks:{paperHost:true,liveDisabled:true,dryStopped:true}},
+  repo:{head:"abc",upstream:"abc",clean:true},
 };
 
 test("healthy closed-market no-eligible state stays quiet and read-only",()=>{
@@ -100,4 +102,44 @@ test("failed incident notification is persisted and retried without remediation"
   assert.equal(second.incident.delivery.delivered,true);
   assert.equal(second.remediationAllowed,false);
   assert.equal(second.orderPlacementAllowed,false);
+});
+
+test("integrity failures are detected without mutation",()=>{
+ const r=evaluateIndependentAssuranceWatchdog({...good,readiness:{generatedAt:"2026-08-20T14:29:30.000Z",infrastructureReady:false,checks:{paperHost:false,liveDisabled:false,dryStopped:false}},repo:{head:"a",upstream:"b",clean:false}},{now});
+ for(const c of ["EXECUTION_INFRASTRUCTURE_NOT_READY","PAPER_HOST_INVARIANT_FAILED","LIVE_TRADING_DISABLE_INVARIANT_FAILED","DRY_SCANNER_INVARIANT_FAILED","DEPLOYED_HEAD_UPSTREAM_MISMATCH","PRODUCTION_REPO_DIRTY"])assert.ok(r.failureCodes.includes(c));
+ assert.equal(r.healthy,false);assert.equal(r.safety.thresholdMutationAllowed,false);assert.equal(r.safety.orderPlacementAllowed,false);assert.equal(r.safety.liveTradingAllowed,false);
+});
+test("stale readiness fails closed",()=>{
+ const r=evaluateIndependentAssuranceWatchdog({...good,readiness:{...good.readiness,generatedAt:"2026-08-20T14:20:00.000Z"}},{now});
+ assert.ok(r.failureCodes.includes("READINESS_STATUS_STALE"));assert.equal(r.safety.aiAuthorityMutationAllowed,false);assert.equal(r.safety.blindResubmissionAllowed,false);
+});
+
+test("safe repair restarts only readiness watcher for stale readiness",async()=>{
+ let n=0;
+ const repair={restartReadinessWatcher:async()=>{n++;return{attempted:true,action:"restart_readiness_watchdog",bounded:true}}};
+ const r=await runIndependentAssuranceWatchdogOnce({input:{...good,readiness:{...good.readiness,generatedAt:"2026-08-20T14:20:00.000Z"}},now:new Date(now),repair,allowSafeRepair:true,allowNotificationSend:false});
+ assert.equal(r.safeRepairEligible,true);assert.equal(n,1);assert.equal(r.repairResult.action,"restart_readiness_watchdog");
+ assert.equal(r.orderPlacementAllowed,false);assert.equal(r.liveTradingAllowed,false);
+});
+
+test("safe repair never runs for scanner or integrity failures",async()=>{
+ let n=0;
+ const repair={restartReadinessWatcher:async()=>{n+=1;return{attempted:true}}};
+ for(const input of [
+  {...good,scannerStatus:"stopped"},
+  {...good,repo:{head:"a",upstream:"b",clean:false}},
+  {...good,readiness:{...good.readiness,checks:{...good.readiness.checks,liveDisabled:false}}},
+ ]){
+  const r=await runIndependentAssuranceWatchdogOnce({input,now:new Date(now),repair,allowSafeRepair:true,allowNotificationSend:false});
+  assert.equal(r.safeRepairEligible,false);
+  assert.equal(r.repairResult,null);
+ }
+ assert.equal(n,0);
+});
+test("safe repair is one-shot for same open incident",async()=>{
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),"g-")),l=path.join(d,"i");let n=0;
+ const repair={restartReadinessWatcher:async()=>{n++;return{action:"restart_readiness_watcher"}}},input={...good,readiness:{...good.readiness,generatedAt:"2026-08-20T14:20:00.000Z"}},delivery={send:async()=>({delivered:true})};
+ const a=await runIndependentAssuranceWatchdogOnce({input,now:new Date(now-1e4),ledgerPath:l,repair,allowSafeRepair:true,delivery,allowNotificationSend:true});
+ const b=await runIndependentAssuranceWatchdogOnce({input,now:new Date(now),ledgerPath:l,repair,allowSafeRepair:true,delivery,allowNotificationSend:true});
+ assert.equal(a.repairResult.action,"restart_readiness_watcher");assert.equal(b.repairResult,null);assert.equal(n,1);
 });
