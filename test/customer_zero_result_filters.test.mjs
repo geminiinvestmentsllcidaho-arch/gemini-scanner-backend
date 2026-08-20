@@ -39,3 +39,14 @@ test("empty saved selection keeps no result states selected", () => {
   assert.equal(preferences.showAll, false);
   assert.deepEqual(preferences.states, []);
 });
+
+
+test("ENTER filter excludes raw manual ENTER when aligned resultState is BLOCKED", () => {
+  const results = [
+    { symbol: "BLOCKED_RAW_ENTER", decision: "ENTER", resultState: "BLOCKED" },
+    { symbol: "AUTHORIZED_ENTER", decision: "ENTER", resultState: "ENTER" },
+  ];
+
+  const filtered = filterCustomerZeroResults(results, { states: ["ENTER"] });
+  assert.deepEqual(filtered.map((item) => item.symbol), ["AUTHORIZED_ENTER"]);
+});

@@ -47,6 +47,9 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
   const blockers = list(candidate.blockingFlags);
   const staleReasons = list(candidate.staleReasons);
   const runtimeHealthReasons = staleReasons.map(issueLabel);
+  const strategyAuthorizationBlockers = list(
+    candidate?.canonicalAuthorizationBlockers ?? candidate?.strategyAuthorization?.blockers
+  );
   const resultState = candidate.sourceStale === true
     ? "STALE_DATA"
     : candidate.resultState ?? candidate.decision ?? "DO_NOT_ENTER";
@@ -65,6 +68,9 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
     name: candidate.name ?? null,
     decision: resultState,
     decisionLabel: decisionLabel(resultState),
+    manualDecision: candidate?.manualDecision ?? candidate?.decision ?? null,
+    manualResultState: candidate?.manualResultState ?? null,
+    strategyAuthorization: candidate?.strategyAuthorization ?? null,
     briefExplanation: candidate.briefExplanation ?? "Decision detail is unavailable.",
     score: candidate.readonlyPotentialScore ?? null,
     potentialLabel: candidate.readonlyPotentialLabel ?? "low_priority",
@@ -80,7 +86,7 @@ export function buildCustomerZeroUnderFiveSymbolDetail(candidate = {}, options =
     staleReasons,
     runtimeHealthReasons,
     flags,
-    blockers: [...runtimeHealthReasons, ...blockers],
+    blockers: [...new Set([...runtimeHealthReasons, ...blockers, ...strategyAuthorizationBlockers])],
     passedChecks: [
       sourceStale !== true ? "Freshness check passed" : null,
       Number(candidate.spreadPct) <= 1 ? "Spread check passed" : null,

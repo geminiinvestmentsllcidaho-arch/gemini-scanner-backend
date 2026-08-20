@@ -178,7 +178,14 @@ test("fresh closed-session runtime health preserves eligible customer candidate 
     },
     {
       stale: false,
-      rankings: [{ symbol: "SAFE", rank: 1, compositeConfidence: 0.9 }],
+      rankings: [{
+        symbol: "SAFE",
+        rank: 1,
+        setupScore: 90,
+        compositeConfidence: 0.9,
+        qualityOverall: 0.9,
+        p3GateOk: true,
+      }],
     },
     {
       marketClockStale: false,
@@ -250,4 +257,59 @@ test("bridges symbol-level ranking authorization evidence without enabling execu
   assert.equal(candidate.decisionAssistOnly, true);
   assert.equal(candidate.orderPlacementAllowed, false);
   assert.equal(candidate.accountMutationAllowed, false);
+});
+
+
+test("canonical strategy authorization controls visible ENTER while preserving manual evidence", () => {
+  const baseSource = {
+    candidates: [{
+      symbol: "ALIGN",
+      decision: "ENTER",
+      sourceStale: false,
+      blockingFlags: [],
+      briefExplanation: "Manual potential logic produced ENTER.",
+    }],
+  };
+  const telemetry = {
+    streamConnected: true,
+    marketClockStale: false,
+    streamStale: false,
+    marketOpen: true,
+  };
+  const rankingRoot = (overrides = {}) => ({
+    sourceTs: "2026-08-20T18:30:00.000Z",
+    sourceAgeSec: 1,
+    maxAgeSec: 180,
+    stale: false,
+    issues: [],
+    rankings: [{
+      symbol: "ALIGN",
+      rank: 1,
+      setupScore: 90,
+      compositeConfidence: 0.9,
+      qualityOverall: 0.9,
+      p3GateOk: true,
+      ...overrides,
+    }],
+  });
+
+  for (const [overrides, blocker] of [
+    [{ p3GateOk: false }, "STRATEGY_P3_GATE_NOT_OK"],
+    [{ setupScore: 69.99 }, "STRATEGY_SETUP_SCORE_BELOW_MINIMUM"],
+    [{ compositeConfidence: 0.49 }, "STRATEGY_RANKING_CONFIDENCE_BELOW_MINIMUM"],
+    [{ qualityOverall: 0.64 }, "STRATEGY_RANKING_QUALITY_BELOW_MINIMUM"],
+  ]) {
+    const candidate = bridgeCustomerZeroFreshRankings(baseSource, rankingRoot(overrides), telemetry).candidates[0];
+    assert.equal(candidate.manualDecision, "ENTER");
+    assert.equal(candidate.manualResultState, "ENTER");
+    assert.equal(candidate.resultState, "BLOCKED");
+    assert.equal(candidate.strategyAuthorization.authorized, false);
+    assert.ok(candidate.canonicalAuthorizationBlockers.includes(blocker));
+  }
+
+  const authorized = bridgeCustomerZeroFreshRankings(baseSource, rankingRoot(), telemetry).candidates[0];
+  assert.equal(authorized.manualResultState, "ENTER");
+  assert.equal(authorized.resultState, "ENTER");
+  assert.equal(authorized.strategyAuthorization.authorized, true);
+  assert.deepEqual(authorized.canonicalAuthorizationBlockers, []);
 });

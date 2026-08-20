@@ -84,6 +84,8 @@ export function buildCustomerZeroDecisionCards(candidates = []) {
       candidate?.briefExplanation,
       ...staleReasons.map(issueLabel),
       ...list(candidate?.blockingFlags),
+      ...list(candidate?.strategyAuthorization?.blockers),
+      ...list(candidate?.canonicalAuthorizationBlockers),
       ...list(candidate?.readonlyPotentialFlags),
     ].filter(Boolean);
 

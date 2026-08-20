@@ -85,3 +85,29 @@ test("renders customer symbol detail with shared neon theme and fixed background
   assert.match(html, /data-role="customer" data-page="under-five-symbol-detail"/);
   assert.doesNotMatch(html, /\/admin\b/);
 });
+
+
+test("symbol detail shows canonical authorization rejection instead of raw manual ENTER", () => {
+  const detail = buildCustomerZeroUnderFiveSymbolDetail({
+    symbol: "ALIGN",
+    decision: "ENTER",
+    manualDecision: "ENTER",
+    manualResultState: "ENTER",
+    resultState: "BLOCKED",
+    sourceStale: false,
+    readonlyPotentialScore: 99.4,
+    strategyAuthorization: {
+      authorized: false,
+      blockers: ["STRATEGY_RANKING_QUALITY_BELOW_MINIMUM"],
+    },
+    canonicalAuthorizationBlockers: ["STRATEGY_RANKING_QUALITY_BELOW_MINIMUM"],
+  });
+
+  assert.equal(detail.decision, "BLOCKED");
+  assert.equal(detail.manualDecision, "ENTER");
+  assert.ok(detail.blockers.includes("STRATEGY_RANKING_QUALITY_BELOW_MINIMUM"));
+
+  const html = renderCustomerZeroUnderFiveSymbolDetailHtml(detail);
+  assert.match(html, /BLOCKED/);
+  assert.match(html, /STRATEGY_RANKING_QUALITY_BELOW_MINIMUM/);
+});

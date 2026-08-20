@@ -211,3 +211,32 @@ test("explicit refresh override still takes precedence", () => {
 
   assert.equal(card.refreshIntervalSec, 20);
 });
+
+
+test("renders aligned canonical state instead of raw manual ENTER", () => {
+  const card = buildAlpacaUnderFiveUniverseAppCard({
+    ok: true,
+    status: "connected_readonly",
+    candidates: [{
+      symbol: "ALIGN",
+      decision: "ENTER",
+      manualDecision: "ENTER",
+      resultState: "BLOCKED",
+      briefExplanation: "Manual potential logic produced ENTER.",
+      readonlyPotentialScore: 99.4,
+      strategyAuthorization: {
+        authorized: false,
+        blockers: ["STRATEGY_P3_GATE_NOT_OK"],
+      },
+      canonicalAuthorizationBlockers: ["STRATEGY_P3_GATE_NOT_OK"],
+    }],
+  }, { autoRefreshEnabled: false });
+
+  assert.equal(card.candidates[0].manualDecision, "ENTER");
+  assert.equal(card.candidates[0].decision, "BLOCKED");
+  assert.deepEqual(card.candidates[0].canonicalAuthorizationBlockers, ["STRATEGY_P3_GATE_NOT_OK"]);
+
+  const html = renderAlpacaUnderFiveUniverseAppCardHtml(card);
+  assert.match(html, />BLOCKED<\/summary>/);
+  assert.doesNotMatch(html, />ENTER<\/summary>/);
+});

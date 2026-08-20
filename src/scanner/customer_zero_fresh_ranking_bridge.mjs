@@ -1,4 +1,5 @@
 import { normalizeCustomerZeroResultState } from "./customer_zero_result_state.mjs";
+import { authorizePaperAutoExecutionCandidate } from "./paper_auto_execution_strategy_authorization.mjs";
 import { buildRuntimeHealthState } from "../utils/health.js";
 
 export const VERSION = "customer_zero_fresh_ranking_bridge_v1";
@@ -70,11 +71,26 @@ export function bridgeCustomerZeroFreshRankings(source = {}, rankingRoot = {}, s
       accountMutationAllowed: false,
     };
 
+    const manualResultState = stale
+      ? "STALE_DATA"
+      : normalizeCustomerZeroResultState(bridged).state;
+    const strategyAuthorization = authorizePaperAutoExecutionCandidate({
+      ...bridged,
+      state: manualResultState,
+    });
+    const resultState = stale
+      ? "STALE_DATA"
+      : manualResultState === "ENTER" && strategyAuthorization.authorized !== true
+        ? "BLOCKED"
+        : manualResultState;
+
     return {
       ...bridged,
-      resultState: stale
-        ? "STALE_DATA"
-        : normalizeCustomerZeroResultState(bridged).state,
+      manualDecision: candidate?.decision ?? null,
+      manualResultState,
+      strategyAuthorization,
+      canonicalAuthorizationBlockers: list(strategyAuthorization?.blockers),
+      resultState,
     };
   });
 
