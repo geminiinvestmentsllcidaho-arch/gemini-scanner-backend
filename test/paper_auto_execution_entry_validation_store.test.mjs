@@ -269,3 +269,89 @@ test('Module 13 correlation requires complete scan provenance before hashing', (
   assert.match(full, /^entry:[0-9a-f]{24}$/)
   assert.notEqual(full, 'entry:life-partial')
 })
+
+
+test('Module 14 bounded entry validation reader handles oversized sparse ledger without full materialization', () => {
+  const dir = tmp()
+  try {
+    const evidencePath = path.join(dir, 'oversized_entry_validation.jsonl')
+    fs.writeFileSync(evidencePath, '')
+    fs.truncateSync(evidencePath, 600 * 1024 * 1024)
+    const sparseFd = fs.openSync(evidencePath, 'r+')
+    try {
+      fs.writeSync(sparseFd, Buffer.from('\n'), 0, 1, 600 * 1024 * 1024 - 1)
+    } finally {
+      fs.closeSync(sparseFd)
+    }
+    appendPaperAutoExecutionEntryValidationRecord({
+      eventType: 'candidate_evaluation',
+      symbol: 'TAIL1',
+      decision: 'WAIT',
+      validationStatus: 'NO_ELIGIBLE_ENTRY',
+    }, { evidencePath, now: new Date('2026-08-20T17:00:00.000Z') })
+    appendPaperAutoExecutionEntryValidationRecord({
+      eventType: 'no_trade_closeout',
+      symbol: 'TAIL2',
+      validationStatus: 'NO_ELIGIBLE_ENTRY',
+      session: { candidatesReviewed: 2, eligibleCandidates: 0, orderSubmitted: false },
+    }, { evidencePath, now: new Date('2026-08-20T17:00:01.000Z') })
+
+    assert.ok(fs.statSync(evidencePath).size > 500 * 1024 * 1024)
+    const records = listPaperAutoExecutionEntryValidationRecords({
+      evidencePath,
+      maxRecords: 2,
+      readChunkBytes: 4096,
+      maxBytesRead: 16384,
+    })
+    assert.equal(records.length, 2)
+    assert.equal(records[0].symbol, 'TAIL2')
+    assert.equal(records[1].symbol, 'TAIL1')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('Module 14 bounded reader safely discards a byte-window partial first line', () => {
+  const dir = tmp()
+  try {
+    const evidencePath = path.join(dir, 'partial_boundary.jsonl')
+    fs.writeFileSync(evidencePath, `${'x'.repeat(12000)}\n`)
+    appendPaperAutoExecutionEntryValidationRecord({
+      eventType: 'candidate_evaluation',
+      symbol: 'BOUND',
+      decision: 'WAIT',
+      validationStatus: 'NO_ELIGIBLE_ENTRY',
+    }, { evidencePath, now: new Date('2026-08-20T17:01:00.000Z') })
+
+    const records = listPaperAutoExecutionEntryValidationRecords({
+      evidencePath,
+      maxRecords: 1,
+      readChunkBytes: 4096,
+      maxBytesRead: 4096,
+    })
+    assert.equal(records.length, 1)
+    assert.equal(records[0].symbol, 'BOUND')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('Module 14 bounded reader fails closed on malformed complete recent JSON', () => {
+  const dir = tmp()
+  try {
+    const evidencePath = path.join(dir, 'malformed_recent.jsonl')
+    appendPaperAutoExecutionEntryValidationRecord({
+      eventType: 'candidate_evaluation',
+      symbol: 'GOOD',
+      decision: 'WAIT',
+      validationStatus: 'NO_ELIGIBLE_ENTRY',
+    }, { evidencePath, now: new Date('2026-08-20T17:02:00.000Z') })
+    fs.appendFileSync(evidencePath, '{"eventType":"candidate_evaluation"\n')
+    assert.throws(
+      () => listPaperAutoExecutionEntryValidationRecords({ evidencePath, maxRecords: 2 }),
+      SyntaxError,
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})

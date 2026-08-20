@@ -181,12 +181,65 @@ export function appendPaperAutoExecutionEntryValidationRecord(input = {}, option
   return Object.freeze({ ok: true, appended: true, record, evidencePath })
 }
 
+function readNewestJsonlLines(evidencePath, maxRecords, options = {}) {
+  const chunkSize = Math.max(4096, Math.min(1024 * 1024, Number(options.readChunkBytes) || 64 * 1024))
+  const maxBytesRead = Math.max(
+    chunkSize,
+    Math.min(256 * 1024 * 1024, Number(options.maxBytesRead) || 64 * 1024 * 1024),
+  )
+  const fd = fs.openSync(evidencePath, 'r')
+  try {
+    const size = fs.fstatSync(fd).size
+    let position = size
+    let bytesReadTotal = 0
+    let carry = Buffer.alloc(0)
+    const newest = []
+
+    while (position > 0 && newest.length < maxRecords && bytesReadTotal < maxBytesRead) {
+      const readSize = Math.min(chunkSize, position, maxBytesRead - bytesReadTotal)
+      position -= readSize
+      const buffer = Buffer.allocUnsafe(readSize)
+      const bytesRead = fs.readSync(fd, buffer, 0, readSize, position)
+      if (bytesRead <= 0) break
+      bytesReadTotal += bytesRead
+
+      const chunk = buffer.subarray(0, bytesRead)
+      const block = carry.length ? Buffer.concat([chunk, carry]) : chunk
+      let end = block.length
+
+      for (let index = block.length - 1; index >= 0 && newest.length < maxRecords; index -= 1) {
+        if (block[index] !== 0x0a) continue
+        let line = block.subarray(index + 1, end)
+        end = index
+        if (line.length && line[line.length - 1] === 0x0d) line = line.subarray(0, line.length - 1)
+        if (line.length) newest.push(line.toString('utf8'))
+      }
+
+      carry = end > 0 ? Buffer.from(block.subarray(0, end)) : Buffer.alloc(0)
+    }
+
+    if (newest.length < maxRecords && position === 0 && carry.length) {
+      let line = carry
+      if (line[line.length - 1] === 0x0d) line = line.subarray(0, line.length - 1)
+      if (line.length) newest.push(line.toString('utf8'))
+    }
+
+    if (newest.length < maxRecords && position > 0 && bytesReadTotal >= maxBytesRead) {
+      throw new Error('paper_auto_entry_validation_tail_read_limit_exceeded')
+    }
+
+    return newest.slice(0, maxRecords)
+  } finally {
+    fs.closeSync(fd)
+  }
+}
+
 export function listPaperAutoExecutionEntryValidationRecords(options = {}) {
   const evidencePath = clean(options.evidencePath, 4096) || DEFAULT_ENTRY_VALIDATION_PATH
   if (!fs.existsSync(evidencePath)) return Object.freeze([])
   const maxRecords = Math.max(1, Math.min(5000, Number(options.maxRecords) || 200))
-  const lines = fs.readFileSync(evidencePath, 'utf8').split(/\r?\n/).filter(Boolean)
-  const records = lines.slice(-maxRecords).reverse().map(line => Object.freeze(JSON.parse(line)))
+  const records = readNewestJsonlLines(evidencePath, maxRecords, options)
+    .map(line => Object.freeze(JSON.parse(line)))
   return Object.freeze(records)
 }
 
