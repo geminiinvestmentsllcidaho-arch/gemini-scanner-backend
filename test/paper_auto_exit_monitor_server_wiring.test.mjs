@@ -220,7 +220,8 @@ test('server wires read-only execution assurance after continuity ENTER and expo
 
 test('execution assurance retries failed recovery notification without trading mutation', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
-  assert.match(source, /const failedRecoveryNotification\s*=\s*[\s\S]*incident\?\.status === 'recovered'[\s\S]*delivery\?\.delivered !== true/)
+  assert.match(source, /readLatestAdminOperationalIncident/)
+  assert.match(source, /previousIncidentRecord\?\.status === 'recovered'[\s\S]*previousIncidentRecord\?\.delivery\?\.delivered !== true/)
   assert.match(source, /else if \(previousOpen \|\| failedRecoveryNotification\)/)
   const assuranceStart = source.indexOf('const runPaperAutoExecutionExecutionAssurance = async')
   const assuranceEnd = source.indexOf('const paperAutoExecutionScaleSubmit=', assuranceStart)

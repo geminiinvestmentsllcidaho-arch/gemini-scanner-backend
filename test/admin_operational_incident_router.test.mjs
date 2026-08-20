@@ -134,6 +134,82 @@ test("failed authorized delivery is persisted and retried on bounded retry coold
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test("successful delivery state survives deduplicated cycles until normal reminder cooldown", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-preserve-"));
+  const ledgerPath = path.join(root, "incidents.jsonl");
+  try {
+    let sends = 0;
+    const delivery = { send: async () => {
+      sends += 1;
+      return { delivered: true, provider: "test", statusCode: 200 };
+    } };
+    const input = { source: "paper_execution", failureCode: "ENTER_STALLED" };
+    const opened = await routeAdminOperationalIncident(input, {
+      ledgerPath,
+      now: "2026-08-11T03:00:00.000Z",
+      cooldownMs: 3600000,
+      retryCooldownMs: 300000,
+      allowNotificationSend: true,
+      delivery,
+    });
+    assert.equal(opened.delivery.delivered, true);
+    assert.equal(sends, 1);
+
+    const quiet = await routeAdminOperationalIncident(input, {
+      ledgerPath,
+      now: "2026-08-11T03:01:00.000Z",
+      cooldownMs: 3600000,
+      retryCooldownMs: 300000,
+      allowNotificationSend: true,
+      delivery,
+    });
+    assert.equal(quiet.incident.shouldNotify, false);
+    assert.equal(quiet.delivery.delivered, true);
+    assert.equal(sends, 1);
+
+    const afterRetryWindow = await routeAdminOperationalIncident(input, {
+      ledgerPath,
+      now: "2026-08-11T03:06:00.000Z",
+      cooldownMs: 3600000,
+      retryCooldownMs: 300000,
+      allowNotificationSend: true,
+      delivery,
+    });
+    assert.equal(afterRetryWindow.incident.shouldNotify, false);
+    assert.equal(afterRetryWindow.delivery.delivered, true);
+    assert.equal(sends, 1);
+
+    const reminder = await routeAdminOperationalIncident(input, {
+      ledgerPath,
+      now: "2026-08-11T04:00:00.000Z",
+      cooldownMs: 3600000,
+      retryCooldownMs: 300000,
+      allowNotificationSend: true,
+      delivery,
+    });
+    assert.equal(reminder.incident.transition, "failure_reminder");
+    assert.equal(reminder.delivery.delivered, true);
+    assert.equal(sends, 2);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("null delivery status code remains null", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-status-"));
+  const ledgerPath = path.join(root, "incidents.jsonl");
+  try {
+    const result = await routeAdminOperationalIncident({
+      source: "paper_execution",
+      failureCode: "STATUS_TEST",
+    }, {
+      ledgerPath,
+      now: "2026-08-11T03:00:00.000Z",
+      allowNotificationSend: true,
+      delivery: { send: async () => ({ delivered: false, provider: "test", statusCode: null }) },
+    });
+    assert.equal(result.delivery.statusCode, null);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test("delivery exception is persisted as sanitized failure instead of escaping", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-retry-"));
   const ledgerPath = path.join(root, "incidents.jsonl");

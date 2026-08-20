@@ -246,6 +246,27 @@ test('open-market NO_ELIGIBLE_CANDIDATE without authoritative snapshot proof fai
   assert.ok(out.failureCodes.includes('NO_ELIGIBLE_CANDIDATE_UNPROVEN'))
 })
 
+test('open-market NO_ELIGIBLE_CANDIDATE with null eligible count is unproven', () => {
+  const out = evaluate({
+    nowMs: NOW,
+    marketOpen: true,
+    continuity: { ...fresh.continuity, lastEligibleCandidateCount: null },
+    enter: fresh.enter,
+  })
+  assert.ok(out.failureCodes.includes('NO_ELIGIBLE_CANDIDATE_UNPROVEN'))
+  assert.equal(out.checks.continuity.lastEligibleCandidateCount, null)
+})
+
+test('open-market NO_ELIGIBLE_CANDIDATE with impossible eligible count is unproven', () => {
+  const out = evaluate({
+    nowMs: NOW,
+    marketOpen: true,
+    continuity: { ...fresh.continuity, lastSnapshotCandidateCount: 0, lastEligibleCandidateCount: 1 },
+    enter: fresh.enter,
+  })
+  assert.ok(out.failureCodes.includes('NO_ELIGIBLE_CANDIDATE_UNPROVEN'))
+})
+
 test('open-market NO_ELIGIBLE_CANDIDATE contradicted by eligible snapshot fails assurance', () => {
   const out = evaluate({
     nowMs: NOW,

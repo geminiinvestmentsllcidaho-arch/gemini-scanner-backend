@@ -2904,10 +2904,17 @@ const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = 
   paperAutoExecutionExecutionAssuranceLastReport = report;
 
   const failureCodes = Array.isArray(report?.failureCodes) ? report.failureCodes : [];
-  const previousOpen = paperAutoExecutionExecutionAssuranceLastIncident?.incident?.open === true;
+  let previousIncidentRecord = paperAutoExecutionExecutionAssuranceLastIncident?.incident ?? null;
+  if (!previousIncidentRecord) {
+    const incidentRouterMod = await import('./scanner/admin_operational_incident_router.mjs');
+    previousIncidentRecord = incidentRouterMod.readLatestAdminOperationalIncident({
+      ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
+    });
+  }
+  const previousOpen = previousIncidentRecord?.open === true;
   const failedRecoveryNotification =
-    paperAutoExecutionExecutionAssuranceLastIncident?.incident?.status === 'recovered' &&
-    paperAutoExecutionExecutionAssuranceLastIncident?.delivery?.delivered !== true;
+    previousIncidentRecord?.status === 'recovered' &&
+    previousIncidentRecord?.delivery?.delivered !== true;
 
   if (report?.healthy === false) {
     const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
@@ -2929,7 +2936,7 @@ const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = 
       source: 'paper_execution',
       category: 'paper_execution_assurance',
       severity: 'recovery',
-      failureCodes: paperAutoExecutionExecutionAssuranceLastIncident?.incident?.failureCodes ?? ['EXECUTION_ASSURANCE_RECOVERED'],
+      failureCodes: previousIncidentRecord?.failureCodes ?? ['EXECUTION_ASSURANCE_RECOVERED'],
       summary: 'Automatic PAPER execution assurance recovered.',
       phase: 'execution_assurance',
       route: '/diagnostics/paper-auto-execution-execution-assurance',

@@ -137,11 +137,17 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
   const transition = buildAdminOperationalIncidentTransition(incident, previous, options);
   const attemptAt = transition.shouldNotify ? new Date(options.now ?? incident.generatedAt ?? Date.now()).toISOString() : null;
 
-  let delivery = Object.freeze({
-    attempted: false,
-    delivered: false,
-    reason: "transition_not_alertable",
-  });
+  let delivery = transition.shouldNotify
+    ? Object.freeze({
+        attempted: false,
+        delivered: false,
+        reason: "transition_not_alertable",
+      })
+    : Object.freeze(previous?.delivery ?? {
+        attempted: false,
+        delivered: false,
+        reason: "transition_not_alertable",
+      });
 
   if (transition.shouldNotify && options.allowNotificationSend === true && options.delivery?.send) {
     try {
@@ -158,7 +164,9 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
         delivered: result?.delivered === true,
         reason: clean(result?.reason, 120) || null,
         provider: clean(result?.provider, 80) || null,
-        statusCode: Number.isFinite(Number(result?.statusCode)) ? Number(result.statusCode) : null,
+        statusCode: result?.statusCode === null || result?.statusCode === undefined || result?.statusCode === ""
+          ? null
+          : Number.isFinite(Number(result.statusCode)) ? Number(result.statusCode) : null,
       });
     } catch (error) {
       delivery = Object.freeze({
@@ -183,7 +191,7 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
   const finalIncident = Object.freeze({
     ...transition,
     lastNotificationAttemptAt: attemptAt ?? transition.lastNotificationAttemptAt ?? null,
-    lastAlertAt: delivery.delivered === true
+    lastAlertAt: attemptAt && delivery.delivered === true
       ? attemptAt
       : transition.lastAlertAt ?? null,
     delivery,

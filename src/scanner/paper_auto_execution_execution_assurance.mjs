@@ -17,6 +17,11 @@ const positiveThreshold = (value, fallback) => {
 }
 
 const nonnegativeFinite = value => Number.isFinite(value) && value >= 0
+const nullableNonnegativeInteger = value => {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
 const upper = value => String(value ?? '').trim().toUpperCase()
 
 const TERMINAL_STATES = new Set([
@@ -156,9 +161,17 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
   }
 
   if (marketOpen && continuityStatus === 'NO_ELIGIBLE_CANDIDATE') {
-    const snapshotProvenFresh = continuity.lastSnapshotFresh === true
-    const eligibleCount = Number(continuity.lastEligibleCandidateCount)
-    if (!snapshotProvenFresh || !Number.isFinite(eligibleCount) || eligibleCount < 0) {
+    const snapshotObservedMs = asMs(continuity.lastSnapshotObservedAt)
+    const candidateCount = nullableNonnegativeInteger(continuity.lastSnapshotCandidateCount)
+    const eligibleCount = nullableNonnegativeInteger(continuity.lastEligibleCandidateCount)
+    const snapshotProvenFresh =
+      continuity.lastSnapshotFresh === true &&
+      snapshotObservedMs !== null &&
+      snapshotObservedMs <= nowMs &&
+      candidateCount !== null &&
+      eligibleCount !== null &&
+      eligibleCount <= candidateCount
+    if (!snapshotProvenFresh) {
       failureCodes.push('NO_ELIGIBLE_CANDIDATE_UNPROVEN')
     } else if (eligibleCount > 0) {
       failureCodes.push('QUALIFIED_CANDIDATE_NOT_SELECTED')
@@ -188,8 +201,8 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
         lastCycleCompletedAgeMs: continuityCompletedAgeMs,
         lastSnapshotObservedAt: continuity.lastSnapshotObservedAt ?? null,
         lastSnapshotFresh: continuity.lastSnapshotFresh === true,
-        lastSnapshotCandidateCount: Number.isFinite(Number(continuity.lastSnapshotCandidateCount)) ? Number(continuity.lastSnapshotCandidateCount) : null,
-        lastEligibleCandidateCount: Number.isFinite(Number(continuity.lastEligibleCandidateCount)) ? Number(continuity.lastEligibleCandidateCount) : null,
+        lastSnapshotCandidateCount: nullableNonnegativeInteger(continuity.lastSnapshotCandidateCount),
+        lastEligibleCandidateCount: nullableNonnegativeInteger(continuity.lastEligibleCandidateCount),
         lastEligibleCandidateSymbol: continuity.lastEligibleCandidateSymbol ?? null,
       }),
       enter: Object.freeze({
