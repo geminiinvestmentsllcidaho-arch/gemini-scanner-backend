@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-export const VERSION = "admin_operational_incident_router_v1";
+export const VERSION = "admin_operational_incident_router_v2";
 export const DEFAULT_LEDGER_PATH = path.resolve("runs/admin_operational_incidents.jsonl");
 
 const clean = (value, max = 240) => String(value ?? "").replace(/[\r\n\t]+/g, " ").trim().slice(0, max);
@@ -68,11 +68,15 @@ export function normalizeAdminOperationalIncident(input = {}, options = {}) {
 export function buildAdminOperationalIncidentTransition(incident, previous = null, options = {}) {
   const now = new Date(options.now ?? incident?.generatedAt ?? Date.now());
   const cooldownMs = Math.max(0, Number(options.cooldownMs ?? 3600000));
+  const retryCooldownMs = Math.max(0, Number(options.retryCooldownMs ?? 300000));
   const same = previous?.fingerprint === incident?.fingerprint;
   const wasOpen = previous?.open === true;
   const isOpen = incident?.open === true;
+  const previousDelivered = previous?.delivery?.delivered === true;
   const lastAlertAt = Date.parse(previous?.lastAlertAt ?? "");
+  const lastNotificationAttemptAt = Date.parse(previous?.lastNotificationAttemptAt ?? "");
   const cooldownElapsed = !Number.isFinite(lastAlertAt) || now.getTime() - lastAlertAt >= cooldownMs;
+  const retryElapsed = !Number.isFinite(lastNotificationAttemptAt) || now.getTime() - lastNotificationAttemptAt >= retryCooldownMs;
 
   let transition = "none";
   let shouldNotify = false;
@@ -85,7 +89,13 @@ export function buildAdminOperationalIncidentTransition(incident, previous = nul
   } else if (isOpen && wasOpen && !same) {
     transition = "failure_changed";
     shouldNotify = true;
-  } else if (isOpen && wasOpen && same && cooldownElapsed) {
+  } else if (isOpen && wasOpen && same && !previousDelivered && retryElapsed) {
+    transition = "failure_delivery_retry";
+    shouldNotify = true;
+  } else if (!isOpen && !wasOpen && previous?.status === "recovered" && !previousDelivered && retryElapsed) {
+    transition = "recovery_delivery_retry";
+    shouldNotify = true;
+  } else if (isOpen && wasOpen && same && previousDelivered && cooldownElapsed) {
     transition = "failure_reminder";
     shouldNotify = true;
   }
@@ -94,9 +104,11 @@ export function buildAdminOperationalIncidentTransition(incident, previous = nul
     ...incident,
     transition,
     shouldNotify,
-    deduplicated: isOpen && wasOpen && same && !shouldNotify,
-    lastAlertAt: shouldNotify ? now.toISOString() : previous?.lastAlertAt ?? null,
+    deduplicated: same && !shouldNotify,
+    lastAlertAt: previous?.lastAlertAt ?? null,
+    lastNotificationAttemptAt: previous?.lastNotificationAttemptAt ?? null,
     cooldownMs,
+    retryCooldownMs,
   });
 }
 
@@ -123,7 +135,7 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
   const incident = normalizeAdminOperationalIncident(input, options);
   const previous = options.previousIncident ?? readLatestAdminOperationalIncident(options);
   const transition = buildAdminOperationalIncidentTransition(incident, previous, options);
-  const persistence = appendAdminOperationalIncident(transition, options);
+  const attemptAt = transition.shouldNotify ? new Date(options.now ?? incident.generatedAt ?? Date.now()).toISOString() : null;
 
   let delivery = Object.freeze({
     attempted: false,
@@ -132,26 +144,55 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
   });
 
   if (transition.shouldNotify && options.allowNotificationSend === true && options.delivery?.send) {
-    const result = await options.delivery.send({
-      source: transition.category,
-      severity: transition.severity === "recovery" ? "recovery" : "critical",
-      transition: transition.transition,
-      reportStatus: transition.status,
-      failureCodes: transition.failureCodes,
-      generatedAt: transition.generatedAt,
-    });
-    delivery = Object.freeze({ attempted: true, ...result });
+    try {
+      const result = await options.delivery.send({
+        source: transition.category,
+        severity: transition.severity === "recovery" ? "recovery" : "critical",
+        transition: transition.transition,
+        reportStatus: transition.status,
+        failureCodes: transition.failureCodes,
+        generatedAt: transition.generatedAt,
+      });
+      delivery = Object.freeze({
+        attempted: true,
+        delivered: result?.delivered === true,
+        reason: clean(result?.reason, 120) || null,
+        provider: clean(result?.provider, 80) || null,
+        statusCode: Number.isFinite(Number(result?.statusCode)) ? Number(result.statusCode) : null,
+      });
+    } catch (error) {
+      delivery = Object.freeze({
+        attempted: true,
+        delivered: false,
+        reason: "notification_delivery_exception",
+        provider: null,
+        statusCode: null,
+        errorCode: safeCode(error?.code || error?.name || "DELIVERY_EXCEPTION"),
+      });
+    }
   } else if (transition.shouldNotify) {
     delivery = Object.freeze({
       attempted: false,
       delivered: false,
       reason: "notification_send_not_authorized",
+      provider: null,
+      statusCode: null,
     });
   }
 
+  const finalIncident = Object.freeze({
+    ...transition,
+    lastNotificationAttemptAt: attemptAt ?? transition.lastNotificationAttemptAt ?? null,
+    lastAlertAt: delivery.delivered === true
+      ? attemptAt
+      : transition.lastAlertAt ?? null,
+    delivery,
+  });
+  const persistence = appendAdminOperationalIncident(finalIncident, options);
+
   return Object.freeze({
     version: VERSION,
-    incident: transition,
+    incident: finalIncident,
     persistence,
     delivery,
     notificationSendAuthorized: options.allowNotificationSend === true,

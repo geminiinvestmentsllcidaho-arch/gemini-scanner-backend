@@ -21,6 +21,8 @@ export async function emitAdminPaperOperationalIncident(input = {}, options = {}
     allowNotificationSend: options.allowNotificationSend === true || authorized(env),
     delivery,
     now: options.now,
+    cooldownMs: options.cooldownMs,
+    retryCooldownMs: options.retryCooldownMs,
   });
 }
 export default Object.freeze({ VERSION, emitAdminPaperOperationalIncident });

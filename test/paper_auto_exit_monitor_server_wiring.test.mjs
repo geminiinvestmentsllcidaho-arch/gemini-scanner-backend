@@ -217,6 +217,17 @@ test('server wires read-only execution assurance after continuity ENTER and expo
   assert.match(source, /remediationAllowed: false/)
 })
 
+
+test('execution assurance retries failed recovery notification without trading mutation', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /const failedRecoveryNotification\s*=\s*[\s\S]*incident\?\.status === 'recovered'[\s\S]*delivery\?\.delivered !== true/)
+  assert.match(source, /else if \(previousOpen \|\| failedRecoveryNotification\)/)
+  const assuranceStart = source.indexOf('const runPaperAutoExecutionExecutionAssurance = async')
+  const assuranceEnd = source.indexOf('const paperAutoExecutionScaleSubmit=', assuranceStart)
+  const block = source.slice(assuranceStart, assuranceEnd)
+  assert.doesNotMatch(block, /submitPaperOrder|\/v2\/orders|strategyMutationAllowed:\s*true|thresholdMutationAllowed:\s*true|sizingMutationAllowed:\s*true|liveTradingAllowed:\s*true/)
+})
+
 test('execution assurance server wiring never submits orders or mutates strategy thresholds sizing or AI authority', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   const start = source.indexOf('const runPaperAutoExecutionExecutionAssurance = async')

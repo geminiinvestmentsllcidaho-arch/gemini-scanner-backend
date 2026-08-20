@@ -2858,7 +2858,7 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
 
 const PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs/paper_auto_execution_execution_assurance_incidents.jsonl';
 let paperAutoExecutionExecutionAssuranceLastReport = Object.freeze({
-  version: 'paper_auto_execution_execution_assurance_v2',
+  version: 'paper_auto_execution_execution_assurance_v3',
   generatedAt: null,
   healthy: true,
   status: 'not_evaluated',
@@ -2905,6 +2905,9 @@ const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = 
 
   const failureCodes = Array.isArray(report?.failureCodes) ? report.failureCodes : [];
   const previousOpen = paperAutoExecutionExecutionAssuranceLastIncident?.incident?.open === true;
+  const failedRecoveryNotification =
+    paperAutoExecutionExecutionAssuranceLastIncident?.incident?.status === 'recovered' &&
+    paperAutoExecutionExecutionAssuranceLastIncident?.delivery?.delivered !== true;
 
   if (report?.healthy === false) {
     const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
@@ -2920,7 +2923,7 @@ const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = 
     }, {
       ledgerPath: PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH,
     });
-  } else if (previousOpen) {
+  } else if (previousOpen || failedRecoveryNotification) {
     const incidentMod = await import('./scanner/admin_paper_operational_incident_emitter.mjs');
     paperAutoExecutionExecutionAssuranceLastIncident = await incidentMod.emitAdminPaperOperationalIncident({
       source: 'paper_execution',

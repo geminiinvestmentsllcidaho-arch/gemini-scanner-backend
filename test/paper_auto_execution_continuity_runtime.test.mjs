@@ -234,3 +234,46 @@ test('diagnostics expose continuity cycle heartbeat timestamps',async()=>{
   assert.equal(d2.lastCycleStartedAt,'2026-08-19T22:10:00.000Z')
   assert.equal(d2.lastCycleCompletedAt,'2026-08-19T22:10:00.000Z')
 })
+
+
+test('diagnostics prove authoritative zero eligible candidates from the exact scan snapshot',async()=>{
+  const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old
+  const nowMs=Date.parse('2026-08-19T22:20:00.000Z')
+  const observedAt=new Date(nowMs-1000).toISOString()
+  const r=createPaperAutoExecutionContinuityRuntime({
+    env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,
+    setActiveLifecycleFile:f=>{active=f},
+    getScanSnapshot:async()=>({observedAt,candidates:[
+      {symbol:'WAIT',state:'WAIT',buyRecommendation:false,blocked:true,blockers:['STATE_NOT_ENTER'],score:99},
+      {symbol:'BLOCK',state:'ENTER',buyRecommendation:false,blocked:true,blockers:['SCORE_BELOW_MINIMUM'],score:69},
+    ]}),
+    now:()=>nowMs
+  })
+  const out=await r.runOnce()
+  assert.equal(out.lastStatus,'NO_ELIGIBLE_CANDIDATE')
+  const diag=r.diagnostics()
+  assert.equal(diag.lastSnapshotObservedAt,observedAt)
+  assert.equal(diag.lastSnapshotFresh,true)
+  assert.equal(diag.lastSnapshotCandidateCount,2)
+  assert.equal(diag.lastEligibleCandidateCount,0)
+  assert.equal(diag.lastEligibleCandidateSymbol,null)
+})
+
+test('diagnostics identify strongest exact eligible candidate from authoritative snapshot',async()=>{
+  const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old
+  const nowMs=Date.parse('2026-08-19T22:21:00.000Z')
+  const r=createPaperAutoExecutionContinuityRuntime({
+    env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,
+    setActiveLifecycleFile:f=>{active=f},idFactory:()=> 'assurance-proof',
+    getScanSnapshot:async()=>({observedAt:new Date(nowMs-1000).toISOString(),candidates:[
+      {symbol:'BBB',state:'ENTER',buyRecommendation:true,blocked:false,blockers:[],score:91},
+      {symbol:'AAA',state:'ENTER',buyRecommendation:true,blocked:false,blockers:[],score:95},
+    ]}),
+    now:()=>nowMs
+  })
+  await r.runOnce()
+  const diag=r.diagnostics()
+  assert.equal(diag.lastSnapshotFresh,true)
+  assert.equal(diag.lastEligibleCandidateCount,2)
+  assert.equal(diag.lastEligibleCandidateSymbol,'AAA')
+})

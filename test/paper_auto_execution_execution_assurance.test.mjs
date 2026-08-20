@@ -9,7 +9,16 @@ const NOW = Date.parse('2026-08-19T23:30:00.000Z')
 const isoAgo = ms => new Date(NOW - ms).toISOString()
 const isoAhead = ms => new Date(NOW + ms).toISOString()
 const fresh = {
-  continuity: { enabled: true, lastStatus: 'NO_ELIGIBLE_CANDIDATE', lastCycleCompletedAt: isoAgo(1_000) },
+  continuity: {
+    enabled: true,
+    lastStatus: 'NO_ELIGIBLE_CANDIDATE',
+    lastCycleCompletedAt: isoAgo(1_000),
+    lastSnapshotObservedAt: isoAgo(1_000),
+    lastSnapshotFresh: true,
+    lastSnapshotCandidateCount: 4,
+    lastEligibleCandidateCount: 0,
+    lastEligibleCandidateSymbol: null,
+  },
   enter: { enabled: true, lastStatus: 'CONTINUITY_ENTER_NOT_REQUIRED', lastCycleCompletedAt: isoAgo(1_000) },
 }
 
@@ -220,4 +229,35 @@ test('terminal lifecycle classification exactly matches production terminal stat
     const out = evaluate({ nowMs: NOW, marketOpen: false, lifecycle: { state } })
     assert.equal(out.checks.lifecycle.terminal, false, state)
   }
+})
+
+
+test('open-market NO_ELIGIBLE_CANDIDATE without authoritative snapshot proof fails assurance', () => {
+  const out = evaluate({
+    nowMs: NOW,
+    marketOpen: true,
+    continuity: {
+      enabled: true,
+      lastStatus: 'NO_ELIGIBLE_CANDIDATE',
+      lastCycleCompletedAt: isoAgo(1_000),
+    },
+    enter: fresh.enter,
+  })
+  assert.ok(out.failureCodes.includes('NO_ELIGIBLE_CANDIDATE_UNPROVEN'))
+})
+
+test('open-market NO_ELIGIBLE_CANDIDATE contradicted by eligible snapshot fails assurance', () => {
+  const out = evaluate({
+    nowMs: NOW,
+    marketOpen: true,
+    continuity: {
+      ...fresh.continuity,
+      lastEligibleCandidateCount: 1,
+      lastEligibleCandidateSymbol: 'QUAL',
+    },
+    enter: fresh.enter,
+  })
+  assert.ok(out.failureCodes.includes('QUALIFIED_CANDIDATE_NOT_SELECTED'))
+  assert.equal(out.checks.continuity.lastEligibleCandidateCount, 1)
+  assert.equal(out.checks.continuity.lastEligibleCandidateSymbol, 'QUAL')
 })

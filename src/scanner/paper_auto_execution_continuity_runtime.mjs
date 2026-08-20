@@ -16,8 +16,9 @@ function eligible(c){return upper(c?.state??c?.resultState??c?.decision)==='ENTE
 function choose(s={}){const a=Array.isArray(s?.candidates)?s.candidates:[];return a.filter(eligible).sort((x,y)=>{const d=(Number(y.score??y.readonlyPotentialScore)||-Infinity)-(Number(x.score??x.readonlyPotentialScore)||-Infinity);return d!==0?d:upper(x?.symbol).localeCompare(upper(y?.symbol))})[0]??null}
 export function createPaperAutoExecutionContinuityRuntime(o={}){
  const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getScanSnapshot,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now}=o
- let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null,lastCycleStartedAt=null,lastCycleCompletedAt=null
- const diagnostics=()=>Object.freeze({ok:true,version:VERSION,enabled:on(env,'PAPER_AUTO_CONTINUITY_ENABLED'),cycles,lastStatus,lastLifecycleFile,lastLifecycle,lastCycleStartedAt,lastCycleCompletedAt,safety:Object.freeze({paperOnly:true,disabledByDefault:true,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false,liveTradingAllowed:false})})
+ let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null,lastCycleStartedAt=null,lastCycleCompletedAt=null,lastSnapshotObservedAt=null,lastSnapshotFresh=null,lastSnapshotCandidateCount=null,lastEligibleCandidateCount=null,lastEligibleCandidateSymbol=null
+ const recordSnapshot=s=>{const a=Array.isArray(s?.candidates)?s.candidates:[],e=a.filter(eligible);lastSnapshotObservedAt=s?.observedAt??null;lastSnapshotFresh=snapshotFresh(s,now());lastSnapshotCandidateCount=a.length;lastEligibleCandidateCount=e.length;lastEligibleCandidateSymbol=upper(choose(s)?.symbol)||null;return s}
+ const diagnostics=()=>Object.freeze({ok:true,version:VERSION,enabled:on(env,'PAPER_AUTO_CONTINUITY_ENABLED'),cycles,lastStatus,lastLifecycleFile,lastLifecycle,lastCycleStartedAt,lastCycleCompletedAt,lastSnapshotObservedAt,lastSnapshotFresh,lastSnapshotCandidateCount,lastEligibleCandidateCount,lastEligibleCandidateSymbol,safety:Object.freeze({paperOnly:true,disabledByDefault:true,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false,liveTradingAllowed:false})})
  const cycle=async()=>{cycles++;lastCycleStartedAt=new Date(now()).toISOString();if(!on(env,'PAPER_AUTO_CONTINUITY_ENABLED')){lastStatus='CONTINUITY_DISABLED_BY_ENV';return diagnostics()}
   const externallyActiveFile=clean(typeof getActiveLifecycleFile==='function'?await getActiveLifecycleFile():env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH)
   const activeFile=clean(pendingLifecycleFile)||externallyActiveFile;let active=null
@@ -27,7 +28,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
    const expirationEnabled=on(env,'PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED')
    if(!clean(pendingLifecycleFile)&&expirationEnabled&&expirable(active,now())){
     if(typeof getScanSnapshot!=='function'){lastStatus='SCAN_SNAPSHOT_REQUIRED';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
-    snapshot=await getScanSnapshot()
+    snapshot=recordSnapshot(await getScanSnapshot())
     if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_EXPIRATION';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
     const stillEligible=(Array.isArray(snapshot?.candidates)?snapshot.candidates:[]).some(c=>upper(c?.symbol)===upper(active.selectedSymbol)&&eligible(c))
     if(stillEligible){lastStatus='ACTIVE_CANDIDATE_REVALIDATED';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
@@ -36,7 +37,7 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
    }else{lastStatus='ACTIVE_NONTERMINAL_LIFECYCLE_PRESENT';lastLifecycleFile=activeFile;lastLifecycle=active;return diagnostics()}
   }
   if(typeof getScanSnapshot!=='function'&&!snapshot){lastStatus='SCAN_SNAPSHOT_REQUIRED';return diagnostics()}
-  snapshot=snapshot??await getScanSnapshot()
+  snapshot=snapshot??recordSnapshot(await getScanSnapshot())
   const candidate=choose(snapshot)
   if(!candidate?.symbol){lastStatus='NO_ELIGIBLE_CANDIDATE';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
   if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_LIFECYCLE_CREATION';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}

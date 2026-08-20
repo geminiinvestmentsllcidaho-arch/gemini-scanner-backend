@@ -1,4 +1,4 @@
-export const VERSION = 'paper_auto_execution_execution_assurance_v2'
+export const VERSION = 'paper_auto_execution_execution_assurance_v3'
 
 const asMs = value => {
   const ms = Date.parse(String(value ?? ''))
@@ -155,6 +155,16 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
     failureCodes.push(`CONTINUITY_${continuityStatus}`)
   }
 
+  if (marketOpen && continuityStatus === 'NO_ELIGIBLE_CANDIDATE') {
+    const snapshotProvenFresh = continuity.lastSnapshotFresh === true
+    const eligibleCount = Number(continuity.lastEligibleCandidateCount)
+    if (!snapshotProvenFresh || !Number.isFinite(eligibleCount) || eligibleCount < 0) {
+      failureCodes.push('NO_ELIGIBLE_CANDIDATE_UNPROVEN')
+    } else if (eligibleCount > 0) {
+      failureCodes.push('QUALIFIED_CANDIDATE_NOT_SELECTED')
+    }
+  }
+
   if (marketOpen && ENTER_FAILURE_STATUSES.has(enterStatus)) {
     failureCodes.push(`ENTER_${enterStatus}`)
   }
@@ -176,6 +186,11 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
         lastCycleCompletedAt: continuity.lastCycleCompletedAt ?? null,
         lastCycleStartedAgeMs: continuityStartedAgeMs,
         lastCycleCompletedAgeMs: continuityCompletedAgeMs,
+        lastSnapshotObservedAt: continuity.lastSnapshotObservedAt ?? null,
+        lastSnapshotFresh: continuity.lastSnapshotFresh === true,
+        lastSnapshotCandidateCount: Number.isFinite(Number(continuity.lastSnapshotCandidateCount)) ? Number(continuity.lastSnapshotCandidateCount) : null,
+        lastEligibleCandidateCount: Number.isFinite(Number(continuity.lastEligibleCandidateCount)) ? Number(continuity.lastEligibleCandidateCount) : null,
+        lastEligibleCandidateSymbol: continuity.lastEligibleCandidateSymbol ?? null,
       }),
       enter: Object.freeze({
         enabled: enter.enabled === true,
