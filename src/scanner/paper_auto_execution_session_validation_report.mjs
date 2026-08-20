@@ -37,6 +37,8 @@ export function buildPaperAutoExecutionSessionValidationReport(input = {}, optio
       : continuity?.lastSnapshotFresh === true
   const readinessOk = readiness?.infrastructureReady === true
   const assuranceOk = assurance?.report?.healthy === true
+  const assuranceIncidentOpen = assurance?.incident?.incident?.open === true
+    || assurance?.incident?.open === true
   const brokerHealthy = degradedBroker?.degraded !== true
 
   const blockers = []
@@ -72,7 +74,7 @@ export function buildPaperAutoExecutionSessionValidationReport(input = {}, optio
       exit: freeze({ enabled: exit?.enabled === true, running: exit?.running === true, status: exit?.lastStatus ?? null }),
       degradedBroker: freeze({ healthy: brokerHealthy, degraded: degradedBroker?.degraded === true, reason: degradedBroker?.reason ?? null }),
       readiness: freeze({ ready: readinessOk, status: readiness?.status ?? null, blockers: freeze([...arr(readiness?.blockers)]) }),
-      assurance: freeze({ healthy: assuranceOk, incidentOpen: Boolean(assurance?.incident) }),
+      assurance: freeze({ healthy: assuranceOk, incidentOpen: assuranceIncidentOpen }),
     }),
     eligibleEntryOutcome: freeze({
       ...outcome,

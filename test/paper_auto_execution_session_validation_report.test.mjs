@@ -69,6 +69,38 @@ test('Module 13 session report fails review when infrastructure, assurance, brok
 })
 
 
+test('Module 13 recovered assurance incident wrapper is not reported as currently open',()=>{
+  const report=buildPaperAutoExecutionSessionValidationReport({
+    ...base,
+    assurance:{
+      report:{healthy:true},
+      incident:{
+        incident:{status:'recovered',open:false},
+        persistence:{appended:true},
+        delivery:{attempted:true,delivered:true},
+      },
+    },
+    entryValidation:{status:'NO_ELIGIBLE_ENTRY',correlationId:'entry:recovered',noTrade:{candidatesReviewed:8,eligibleCandidates:0,orderSubmitted:false}},
+  },{now:'2026-08-20T14:31:00.000Z'})
+  assert.equal(report.status,'VALIDATED')
+  assert.equal(report.execution.assurance.healthy,true)
+  assert.equal(report.execution.assurance.incidentOpen,false)
+})
+
+test('Module 13 nested active assurance incident is reported as currently open',()=>{
+  const report=buildPaperAutoExecutionSessionValidationReport({
+    ...base,
+    assurance:{
+      report:{healthy:false},
+      incident:{incident:{status:'open',open:true}},
+    },
+    entryValidation:{status:'NO_ELIGIBLE_ENTRY',correlationId:'entry:open',noTrade:{candidatesReviewed:8,eligibleCandidates:0,orderSubmitted:false}},
+  },{now:'2026-08-20T14:31:00.000Z'})
+  assert.equal(report.status,'FAILED_NEEDS_REVIEW')
+  assert.equal(report.execution.assurance.healthy,false)
+  assert.equal(report.execution.assurance.incidentOpen,true)
+})
+
 test('Module 13 explicit stale market-data authority cannot be overridden by a fresh continuity snapshot',()=>{
   const report=buildPaperAutoExecutionSessionValidationReport({
     ...base,
