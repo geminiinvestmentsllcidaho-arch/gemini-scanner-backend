@@ -75,7 +75,9 @@
     "test:paper-auto-mechanical-enter-only": "node --test test/paper_auto_execution_mechanical_enter_only_cli_credentials.test.mjs test/paper_auto_execution_mechanical_enter_only_runner.test.mjs",
     "run:paper-auto-mechanical-enter-only": "node scripts/run_paper_auto_execution_mechanical_enter_only.mjs",
     "watchdog:ops-ai:once": "node scripts/run_ops_ai_scanner_watchdog.mjs",
-    "test:watchdog:ops-ai": "node --test test/ops_ai_scanner_watchdog.test.mjs test/ops_ai_scanner_watchdog_runtime.test.mjs"
+    "test:watchdog:ops-ai": "node --test test/ops_ai_scanner_watchdog.test.mjs test/ops_ai_scanner_watchdog_runtime.test.mjs",
+    "watchdog:execution-assurance:once": "node scripts/run_paper_auto_execution_execution_assurance_watchdog.mjs --once",
+    "test:watchdog:execution-assurance": "node --test test/paper_auto_execution_execution_assurance_watchdog_runtime.test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",

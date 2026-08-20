@@ -59,5 +59,20 @@ module.exports = {
       max_restarts: 20,
       env: { NODE_ENV: "production", GS_EXECUTION_READINESS_WATCH_INTERVAL_MS: "30000" },
     },
+    {
+      name: "gemini-execution-assurance-watchdog",
+      cwd: "/home/gemini/apps/gemini-scanner-backend",
+      script: "./scripts/run_paper_auto_execution_execution_assurance_watchdog.mjs",
+      interpreter: "/usr/bin/node",
+      exec_mode: "fork",
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 20,
+      env: {
+        NODE_ENV: "production",
+        GS_EXECUTION_ASSURANCE_WATCH_INTERVAL_MS: "30000",
+        GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "true",
+      },
+    },
   ],
 };
