@@ -318,3 +318,30 @@ test('Module 13 continuity evidence persistence failure is fail-open and cannot 
  assert.equal(out.lastEntryValidationError,'forced_evidence_write_failure')
  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:active}).load().state,'CANDIDATE_SELECTED')
 })
+
+
+test('Module 13 no-trade evidence preserves snapshot provenance and authoritative session health',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,writes=[]
+ const nowMs=Date.parse('2026-08-20T14:36:00.000Z')
+ const r=createPaperAutoExecutionContinuityRuntime({
+  env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{active=f},
+  getScanSnapshot:async()=>({
+   scanId:'under-five-77-2026-08-20T14:35:59.000Z',
+   observedAt:'2026-08-20T14:35:59.000Z',
+   sessionHealth:{marketHealthy:true,accountHealthy:true,brokerHealthy:true},
+   candidates:[{symbol:'BEST',state:'WAIT',buyRecommendation:false,blocked:true,blockers:['STRATEGY_STATE_NOT_ENTER'],score:97}],
+  }),
+  appendEntryValidation:(input)=>{writes.push(input);return{record:input}},
+  now:()=>nowMs,
+ })
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'NO_ELIGIBLE_CANDIDATE')
+ const closeout=writes.find(x=>x.eventType==='no_trade_closeout')
+ assert.ok(closeout)
+ assert.equal(closeout.scanId,'under-five-77-2026-08-20T14:35:59.000Z')
+ assert.notEqual(closeout.correlationId,'entry:unknown')
+ assert.equal(closeout.session.marketHealthy,true)
+ assert.equal(closeout.session.accountHealthy,true)
+ assert.equal(closeout.session.brokerHealthy,true)
+ assert.equal(closeout.session.orderSubmitted,false)
+})

@@ -2889,8 +2889,28 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
     && reentrySourceAgeSec >= 0
     && reentryMaxAgeSec > 0
     && reentrySourceAgeSec <= reentryMaxAgeSec;
+  const continuityScanId = String(
+    source?.sharedCache?.scanId
+    ?? `under-five-${source?.sharedCache?.scanCount ?? 'unknown'}-${source?.sharedCache?.generatedAt ?? source?.generatedAt ?? 'unknown'}`
+  ).trim().slice(0, 128) || null;
+  const readinessStatus = readAdminLocalJsonStatus('runs/execution_readiness_watcher_status.json');
+  const degradedBrokerStatus = paperAutoExecutionDegradedBrokerMode?.diagnostics?.() ?? null;
+  const streamTelemetry = getStreamTelemetry();
+  const continuitySessionHealth = {
+    marketHealthy:
+      source?.marketClock?.isOpen === true
+      && streamTelemetry?.streamConnected === true
+      && streamTelemetry?.streamStale !== true
+      && streamTelemetry?.marketClockStale !== true,
+    accountHealthy:
+      readinessStatus?.checks?.accountConnected === true
+      && readinessStatus?.checks?.accountHealthy === true,
+    brokerHealthy: degradedBrokerStatus?.status?.degraded !== true,
+  };
   return {
+    scanId: continuityScanId,
     observedAt: source?.sharedCache?.generatedAt ?? source?.generatedAt ?? null,
+    sessionHealth: continuitySessionHealth,
     reentryControl: {
       connected: reentryConnected,
       fresh: reentryFresh,

@@ -286,3 +286,18 @@ test('Module 13 Admin maps ordinary validation_error safety blockers to waiting 
   assert.doesNotMatch(block, /latest\.eventType === 'validation_error' \|\|/)
   assert.match(block, /latest\.validationStatus === 'FAILED_NEEDS_REVIEW'/)
 })
+
+
+test('Module 13 continuity snapshot supplies deterministic scan provenance and read-only no-trade health authority', () => {
+  const source = fs.readFileSync(path.resolve('src/server.js'), 'utf8')
+  const start = source.indexOf('const getPaperAutoExecutionContinuityScanSnapshot = async () =>')
+  const end = source.indexOf('const paperAutoExecutionDegradedBrokerMode =', start)
+  assert.ok(start !== -1 && end > start)
+  const block = source.slice(start, end)
+  assert.match(block, /const continuityScanId = String\(/)
+  assert.match(block, /scanId: continuityScanId/)
+  assert.match(block, /sessionHealth: continuitySessionHealth/)
+  assert.match(block, /readAdminLocalJsonStatus\('runs\/execution_readiness_watcher_status\.json'\)/)
+  assert.match(block, /getStreamTelemetry\(\)/)
+  assert.match(block, /degradedBrokerStatus/)
+})
