@@ -277,3 +277,44 @@ test('diagnostics identify strongest exact eligible candidate from authoritative
   assert.equal(diag.lastEligibleCandidateCount,2)
   assert.equal(diag.lastEligibleCandidateSymbol,'AAA')
 })
+
+
+test('Module 13 continuity records candidate and no-trade evidence observationally without changing lifecycle eligibility',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,writes=[]
+ const nowMs=Date.parse('2026-08-20T05:40:00.000Z')
+ const r=createPaperAutoExecutionContinuityRuntime({
+  env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{active=f},
+  getScanSnapshot:async()=>({scanId:'scan-m13',observedAt:new Date(nowMs).toISOString(),candidates:[
+   {symbol:'WAIT',state:'WAIT',buyRecommendation:false,blocked:true,blockers:['STRATEGY_STATE_NOT_ENTER'],score:68,price:4,momentumPct:2,spreadPct:.4,dollarVolume:2000000},
+  ]}),
+  appendEntryValidation:(input)=>{writes.push(input);return{record:input}},
+  idFactory:()=> 'unused',now:()=>nowMs,
+ })
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'NO_ELIGIBLE_CANDIDATE')
+ assert.equal(active,old)
+ assert.equal(writes.some(x=>x.eventType==='candidate_evaluation'&&x.symbol==='WAIT'),true)
+ assert.equal(writes.some(x=>x.eventType==='no_trade_closeout'&&x.session?.orderSubmitted===false),true)
+ assert.equal(out.entryValidationWriteFailures,0)
+ assert.equal(out.safety.entryValidationObservationalOnly,true)
+ assert.equal(out.safety.entryValidationFailureBlocksExecution,false)
+})
+
+test('Module 13 continuity evidence persistence failure is fail-open and cannot block legitimate lifecycle creation',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old
+ const nowMs=Date.parse('2026-08-20T05:41:00.000Z')
+ const r=createPaperAutoExecutionContinuityRuntime({
+  env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{active=f},
+  getScanSnapshot:async()=>({scanId:'scan-m13-ok',observedAt:new Date(nowMs).toISOString(),candidates:[
+   {symbol:'PASS',state:'ENTER',buyRecommendation:true,blocked:false,blockers:[],score:91,price:4},
+  ]}),
+  appendEntryValidation:()=>{throw new Error('forced_evidence_write_failure')},
+  idFactory:()=> 'm13-pass',now:()=>nowMs,
+ })
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'FRESH_CANDIDATE_LIFECYCLE_CREATED')
+ assert.equal(out.lastLifecycle.selectedSymbol,'PASS')
+ assert.equal(out.entryValidationWriteFailures>0,true)
+ assert.equal(out.lastEntryValidationError,'forced_evidence_write_failure')
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:active}).load().state,'CANDIDATE_SELECTED')
+})

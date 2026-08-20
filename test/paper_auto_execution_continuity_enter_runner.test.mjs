@@ -935,3 +935,187 @@ test('diagnostics expose ENTER runner cycle heartbeat timestamps',async()=>{
   assert.equal(d.lastCycleStartedAt,'2026-08-19T22:10:00.000Z')
   assert.equal(d.lastCycleCompletedAt,'2026-08-19T22:10:00.000Z')
 })
+
+test('Module 13 ENTER records gate submission reconciliation evidence with stable correlation', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const store = new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => 'life-m13-evidence' })
+    const now = Date.now()
+    store.create({selectedSymbol:'EV13',scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:new Date(now).toISOString(),originScanId:'scan-m13-evidence',symbol:'EV13',state:'ENTER',score:99,paperOnly:true}})
+    let submitted=0
+    const writes=[]
+    const runner=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('EV13',now,10),
+      now:()=>now,
+      accountCredentialResolver:readyCredentials,
+      fetchClock:clockOpen,
+      fetchAccount:async()=>({ok:true,status:'connected_readonly',mode:'PAPER_ONLY',observedAt:new Date(now).toISOString(),runtime:{readOnly:true,allowedMethods:['GET']},account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:submitted?[{symbol:'EV13',qty:10,averageEntryPrice:10}]:[],openOrders:[]}),
+      fetchHistoricalOrders:async()=>({historicalOrders:submitted?[{id:'order-m13-evidence',client_order_id:store.load()?.enterClientOrderId,symbol:'EV13',side:'buy',status:'filled',filled_qty:'10',filled_avg_price:'10'}]:[]}),
+      createAdapter:()=>({submitPaperOrder:async order=>{submitted+=1;return{ok:true,orderSubmitted:true,brokerOrderId:'order-m13-evidence',orderId:'order-m13-evidence',clientOrderId:order.clientOrderId}}}),
+      appendEntryValidation:input=>{writes.push(input);return{record:input}},
+    })
+    const out=await runner.runOnce()
+    assert.equal(out.lastStatus,'CONTINUITY_ENTER_MONITORING_CONFIRMED')
+    assert.equal(submitted,1)
+    const gate=writes.find(x=>x.eventType==='gate_snapshot')
+    const submission=writes.find(x=>x.eventType==='submission')
+    const reconciliation=writes.find(x=>x.eventType==='reconciliation')
+    assert.ok(gate); assert.ok(submission); assert.ok(reconciliation)
+    assert.equal(gate.correlationId,submission.correlationId)
+    assert.equal(gate.correlationId,reconciliation.correlationId)
+    assert.equal(gate.gateSnapshot.marketOpen,true)
+    assert.equal(gate.gateSnapshot.accountFresh,true)
+    assert.equal(gate.gateSnapshot.allocationPercent,10)
+    assert.equal(gate.gateSnapshot.quantity,10)
+    assert.equal(gate.gateSnapshot.wholeSharesOnly,true)
+    assert.equal(gate.gateSnapshot.hardCapVerified,true)
+    assert.equal(gate.gateSnapshot.capitalProtectionAllowed,null)
+    assert.equal(submission.submission.requestedQuantity,10)
+    assert.equal(submission.submission.brokerOrderId,'order-m13-evidence')
+    assert.equal(reconciliation.fill.filledQuantity,10)
+    assert.equal(reconciliation.fill.averageFillPrice,10)
+    assert.equal(reconciliation.fill.brokerPositionIdentity,'EV13:10')
+    assert.equal(reconciliation.validationStatus,'ENTRY_COMPLETED')
+    assert.equal(out.entryValidationWriteFailures,0)
+    assert.equal(out.safety.entryValidationObservationalOnly,true)
+    assert.equal(out.safety.entryValidationFailureBlocksExecution,false)
+  } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+})
+
+test('Module 13 ENTER evidence write failure stays fail-open and cannot change authorized PAPER execution result', async () => {
+  const dir=tmp()
+  try {
+    const file=path.join(dir,'life.json')
+    const store=new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=> 'life-m13-failopen'})
+    const now=Date.now()
+    store.create({selectedSymbol:'FO13',scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:new Date(now).toISOString(),originScanId:'scan-m13-failopen',symbol:'FO13',state:'ENTER',score:99,paperOnly:true}})
+    let submitted=0
+    const runner=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      getPremarketBaseline:async()=>currentBaseline(),
+      getScanSnapshot:async()=>freshCandidateSnapshot('FO13',now,10),
+      now:()=>now,
+      accountCredentialResolver:readyCredentials,
+      fetchClock:clockOpen,
+      fetchAccount:async()=>({ok:true,status:'connected_readonly',mode:'PAPER_ONLY',observedAt:new Date(now).toISOString(),runtime:{readOnly:true,allowedMethods:['GET']},account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:submitted?[{symbol:'FO13',qty:10,averageEntryPrice:10}]:[],openOrders:[]}),
+      fetchHistoricalOrders:async()=>({historicalOrders:submitted?[{id:'order-m13-failopen',client_order_id:store.load()?.enterClientOrderId,symbol:'FO13',side:'buy',status:'filled',filled_qty:'10',filled_avg_price:'10'}]:[]}),
+      createAdapter:()=>({submitPaperOrder:async order=>{submitted+=1;return{ok:true,orderSubmitted:true,brokerOrderId:'order-m13-failopen',orderId:'order-m13-failopen',clientOrderId:order.clientOrderId}}}),
+      appendEntryValidation:()=>{throw new Error('forced_enter_evidence_write_failure')},
+    })
+    const out=await runner.runOnce()
+    assert.equal(out.lastStatus,'CONTINUITY_ENTER_MONITORING_CONFIRMED')
+    assert.equal(out.lastLifecycle.state,'MONITORING')
+    assert.equal(submitted,1)
+    assert.equal(out.entryValidationWriteFailures>=3,true)
+    assert.equal(out.lastEntryValidationError,'forced_enter_evidence_write_failure')
+    assert.equal(out.safety.entryValidationFailureBlocksExecution,false)
+    assert.equal(out.safety.liveTradingAllowed,false)
+  } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+})
+
+
+test('Module 13 ENTER blocker evidence records fail-closed reasons without submission authority', async () => {
+  const cases = [
+    {
+      name:'stale candidate',
+      expected:'FRESH_CANDIDATE_REQUIRED',
+      configure:({now,file,writes})=>({
+        env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>file,now:()=>now,
+        getScanSnapshot:async()=>freshCandidateSnapshot('BLK13',now-31000,10),
+        appendEntryValidation:input=>{writes.push(input);return{record:input}},
+      }),
+    },
+    {
+      name:'closed market',
+      expected:'MARKET_OPEN_REQUIRED',
+      configure:({now,file,writes})=>({
+        env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>file,now:()=>now,
+        getScanSnapshot:async()=>freshCandidateSnapshot('BLK13',now,10),getPremarketBaseline:async()=>currentBaseline(),
+        accountCredentialResolver:readyCredentials,
+        fetchClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:false,timestamp:new Date(now).toISOString()}}),
+        fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(now).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}),
+        appendEntryValidation:input=>{writes.push(input);return{record:input}},
+      }),
+    },
+    {
+      name:'stale account',
+      expected:'PAPER_ACCOUNT_SNAPSHOT_STALE',
+      configure:({now,file,writes})=>({
+        env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>file,now:()=>now,
+        getScanSnapshot:async()=>freshCandidateSnapshot('BLK13',now,10),getPremarketBaseline:async()=>currentBaseline(),
+        accountCredentialResolver:readyCredentials,fetchClock:clockOpen,
+        fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(now-31000).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}),
+        appendEntryValidation:input=>{writes.push(input);return{record:input}},
+      }),
+    },
+    {
+      name:'degraded broker',
+      expected:'DEGRADED_BROKER_ENTER_BLOCKED',
+      configure:({now,file,writes})=>({
+        env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>file,now:()=>now,
+        getScanSnapshot:async()=>freshCandidateSnapshot('BLK13',now,10),
+        degradedBrokerMode:{evaluateAction:()=>({allowed:false,status:'DEGRADED_BROKER_ENTER_BLOCKED'}),diagnostics:()=>({degraded:true})},
+        appendEntryValidation:input=>{writes.push(input);return{record:input}},
+      }),
+    },
+  ]
+  for (const c of cases) {
+    const dir=tmp()
+    try {
+      const file=path.join(dir,'life.json')
+      const now=Date.now()
+      new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=>`life-${c.name.replaceAll(' ','-')}`}).create({
+        selectedSymbol:'BLK13',
+        scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:new Date(now).toISOString(),originScanId:`scan-${c.name}`,symbol:'BLK13',state:'ENTER',score:90,paperOnly:true},
+      })
+      const writes=[]
+      const runner=createPaperAutoExecutionContinuityEnterRunner(c.configure({now,file,writes}))
+      const out=await runner.runOnce()
+      assert.equal(out.lastStatus,c.expected,c.name)
+      assert.equal(out.submissions,0,c.name)
+      const failure=writes.find(x=>x.eventType==='validation_error'&&x.blocker===c.expected)
+      assert.ok(failure,c.name)
+      assert.equal(failure.validationStatus,'WAITING_FOR_ELIGIBLE_ENTRY',c.name)
+      assert.equal(failure.gateSnapshot.authorized,false,c.name)
+      assert.equal(out.safety.entryValidationFailureBlocksExecution,false,c.name)
+      assert.equal(out.safety.liveTradingAllowed,false,c.name)
+    } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+  }
+})
+
+
+test('Module 13 ordinary safety blockers do not surface as FAILED_NEEDS_REVIEW', async () => {
+  const dir=tmp()
+  try {
+    const file=path.join(dir,'life.json')
+    const now=Date.now()
+    new PaperAutoExecutionLifecycleStore({filePath:file,idFactory:()=>`life-waiting`}).create({
+      selectedSymbol:'WAIT13',
+      scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',observedAt:new Date(now).toISOString(),originScanId:'scan-waiting',symbol:'WAIT13',state:'ENTER',score:90,paperOnly:true},
+    })
+    const writes=[]
+    const runner=createPaperAutoExecutionContinuityEnterRunner({
+      env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      now:()=>now,
+      getScanSnapshot:async()=>freshCandidateSnapshot('WAIT13',now,10),
+      getPremarketBaseline:async()=>currentBaseline(),
+      accountCredentialResolver:readyCredentials,
+      fetchClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:false,timestamp:new Date(now).toISOString()}}),
+      fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(now).toISOString(),account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[],openOrders:[]}),
+      appendEntryValidation:input=>{writes.push(input);return{record:input}},
+    })
+    const out=await runner.runOnce()
+    assert.equal(out.lastStatus,'MARKET_OPEN_REQUIRED')
+    const failure=writes.find(x=>x.eventType==='validation_error'&&x.blocker==='MARKET_OPEN_REQUIRED')
+    assert.ok(failure)
+    assert.equal(failure.validationStatus,'WAITING_FOR_ELIGIBLE_ENTRY')
+    assert.equal(failure.gateSnapshot.authorized,false)
+    assert.equal(out.submissions,0)
+  } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+})

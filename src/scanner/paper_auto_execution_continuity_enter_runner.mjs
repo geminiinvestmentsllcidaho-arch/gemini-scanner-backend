@@ -13,6 +13,7 @@ import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
 import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
 import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
 import { buildPaperAutoExecutionStrategyEvidence } from './paper_auto_execution_strategy_evidence.mjs'
+import { appendPaperAutoExecutionEntryValidationRecord, buildEntryValidationCorrelationId } from './paper_auto_execution_entry_validation_store.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -58,6 +59,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const reconcile = options.reconcile ?? runPaperAutoExecutionReconciliation
   const degradedBrokerMode = options.degradedBrokerMode ?? null
   const now = options.now ?? Date.now
+  const appendEntryValidation = options.appendEntryValidation ?? appendPaperAutoExecutionEntryValidationRecord
+  const entryValidationEvidencePath = options.entryValidationEvidencePath ?? 'runs/paper_auto_execution_entry_validation.jsonl'
   let inFlight = null
   let cycles = 0
   let submissions = 0
@@ -73,6 +76,20 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastPortfolioCapitalGovernor = null
   let lastCycleStartedAt = null
   let lastCycleCompletedAt = null
+  let entryValidationWrites = 0
+  let entryValidationWriteFailures = 0
+  let lastEntryValidationError = null
+  let lastEntryValidationRecord = null
+  const correlationId = lifecycle => buildEntryValidationCorrelationId({
+    lifecycleId:lifecycle?.lifecycleId, scanId:lifecycle?.scannerEvidence?.originScanId,
+    symbol:lifecycle?.selectedSymbol, observedAt:lifecycle?.scannerEvidence?.observedAt,
+  })
+  const recordEntryValidation = input => {
+    try {
+      const out = appendEntryValidation?.(input,{evidencePath:entryValidationEvidencePath,now:new Date(Number(now()))})
+      if(out?.record){entryValidationWrites++;lastEntryValidationRecord=out.record;lastEntryValidationError=null}
+    } catch(error) { entryValidationWriteFailures++;lastEntryValidationError=clean(error?.message??error) }
+  }
 
   const diagnostics = () => Object.freeze({
     ok: true,
@@ -92,6 +109,10 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastPortfolioCapitalGovernor,
     lastCycleStartedAt,
     lastCycleCompletedAt,
+    entryValidationWrites,
+    entryValidationWriteFailures,
+    lastEntryValidationError,
+    lastEntryValidationRecord,
     degradedBrokerMode: degradedBrokerMode?.diagnostics?.() ?? null,
     safety: Object.freeze({
       paperOnly: true,
@@ -102,12 +123,64 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       brokerContactAllowed: on(env, 'PAPER_AUTO_CONTINUITY_ENTER_ENABLED'),
       orderPlacementAllowed: on(env, 'PAPER_AUTO_CONTINUITY_ENTER_ENABLED'),
       reconciliationRequired: true,
+      entryValidationObservationalOnly: true,
+      entryValidationFailureBlocksExecution: false,
+      entryValidationStrategyMutationAllowed: false,
+      entryValidationThresholdMutationAllowed: false,
+      entryValidationSizingMutationAllowed: false,
+      entryValidationAiAuthorityMutationAllowed: false,
+      entryValidationAccountMutationAllowed: false,
+      entryValidationLiveTradingAllowed: false,
     }),
   })
 
   const fail = (status, lifecycle = null) => {
     lastStatus = status
     lastLifecycle = lifecycle
+    const evidenceLifecycle = lifecycle ?? lastLifecycle
+    const actionableBlocker = ![
+      'CONTINUITY_ENTER_DISABLED_BY_ENV',
+      'CONTINUITY_ENTER_NOT_REQUIRED',
+      'CONTINUITY_ENTER_MONITORING_CONFIRMED',
+      'CONTINUITY_ENTER_RECONCILIATION_PENDING',
+    ].includes(status)
+    if (actionableBlocker && evidenceLifecycle) {
+      recordEntryValidation({
+        eventType:'validation_error',
+        correlationId:correlationId(evidenceLifecycle),
+        lifecycleId:evidenceLifecycle?.lifecycleId,
+        lifecycleState:evidenceLifecycle?.state,
+        scanId:evidenceLifecycle?.scannerEvidence?.originScanId,
+        symbol:evidenceLifecycle?.selectedSymbol,
+        candidateObservedAt:evidenceLifecycle?.scannerEvidence?.observedAt,
+        candidateFresh:status==='FRESH_CANDIDATE_REQUIRED'?false:null,
+        validationStatus:[
+          'ENTER_SUBMISSION_REJECTED',
+          'ENTER_RECONCILIATION_FAILED_NEEDS_REVIEW',
+          'ENTER_RECONCILIATION_UNRESOLVED',
+        ].includes(status)?'FAILED_NEEDS_REVIEW':'WAITING_FOR_ELIGIBLE_ENTRY',
+        blocker:status,
+        blockers:[status],
+        gateSnapshot:{
+          marketOpen:status==='MARKET_OPEN_REQUIRED'||status==='PRE_SUBMIT_MARKET_OPEN_REQUIRED'?false:null,
+          marketClockFresh:['PAPER_MARKET_CLOCK_STALE','PRE_SUBMIT_MARKET_CLOCK_STALE'].includes(status)?false:null,
+          accountFresh:status==='PAPER_ACCOUNT_SNAPSHOT_STALE'?false:null,
+          accountHealthy:status==='PAPER_ACCOUNT_BLOCKED'?false:null,
+          degradedBrokerAllowed:status.includes('DEGRADED_BROKER')?false:null,
+          lifecycleConflictFree:['EXISTING_BROKER_POSITION_CONFLICT','GLOBAL_POSITION_CONCURRENCY_LIMIT','CONFLICTING_OPEN_ORDER','GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT'].includes(status)?false:null,
+          reentryAllowed:lastReentryControl?.allowed===true?true:lastReentryControl?.allowed===false?false:null,
+          portfolioGovernorAllowed:lastPortfolioCapitalGovernor?.allowed===true?true:lastPortfolioCapitalGovernor?.allowed===false?false:null,
+          capitalProtectionAllowed:null,
+          allocationPercent:lastSizing?.allocationPercent??null,
+          quantity:lastSizing?.quantity??null,
+          wholeSharesOnly:lastSizing?.wholeSharesOnly===true?true:lastSizing?.wholeSharesOnly===false?false:null,
+          maxAllocationPercent:lastSizing?.maxAllocationPercent??10,
+          hardCapVerified:lastSizing?.allocationPercent==null?null:Number(lastSizing.allocationPercent)<=10,
+          authorized:false,
+          blocker:status,
+        },
+      })
+    }
     return diagnostics()
   }
 
@@ -285,6 +358,23 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (!Number.isFinite(preSubmitClockObservedAtMs) || !Number.isFinite(preSubmitClockAgeMs) || preSubmitClockAgeMs < 0 || preSubmitClockAgeMs > 30000) {
         return fail('PRE_SUBMIT_MARKET_CLOCK_STALE', lifecycle)
       }
+      recordEntryValidation({
+        eventType:'gate_snapshot',correlationId:correlationId(lifecycle),lifecycleId:lifecycle?.lifecycleId,
+        lifecycleState:lifecycle?.state,scanId:lifecycle?.scannerEvidence?.originScanId,symbol,
+        candidateObservedAt:lifecycle?.scannerEvidence?.observedAt,candidateFresh:true,
+        validationStatus:'WAITING_FOR_ELIGIBLE_ENTRY',
+        gateSnapshot:{
+          marketOpen:true,marketClockFresh:true,accountFresh:true,
+          accountHealthy:account?.account?.tradingBlocked!==true&&account?.account?.accountBlocked!==true,
+          degradedBrokerAllowed:true,lifecycleConflictFree:true,
+          reentryAllowed:lastReentryControl?.allowed===true,
+          portfolioGovernorAllowed:lastPortfolioCapitalGovernor?.allowed===true,
+          capitalProtectionAllowed:null,allocationPercent:lastSizing?.allocationPercent,
+          quantity:lastSizing?.quantity,wholeSharesOnly:lastSizing?.wholeSharesOnly===true,
+          maxAllocationPercent:lastSizing?.maxAllocationPercent??10,
+          hardCapVerified:Number(lastSizing?.allocationPercent)<=10,authorized:true,blocker:null,
+        },
+      })
       const adapter = createAdapter({
         env: {
           ...effectiveEnv,
@@ -305,6 +395,20 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
           PAPER_AUTO_ENTER_SUBMISSION_ENABLED: '1',
           PAPER_AUTO_EXIT_SUBMISSION_ENABLED: '0',
         },
+      })
+      const submittedLifecycle = lastSubmission?.lifecycle ?? store.load()
+      recordEntryValidation({
+        eventType:'submission',correlationId:correlationId(submittedLifecycle??lifecycle),
+        lifecycleId:submittedLifecycle?.lifecycleId??lifecycle?.lifecycleId,
+        lifecycleState:submittedLifecycle?.state??lifecycle?.state,
+        scanId:submittedLifecycle?.scannerEvidence?.originScanId??lifecycle?.scannerEvidence?.originScanId,
+        symbol,candidateObservedAt:submittedLifecycle?.scannerEvidence?.observedAt??lifecycle?.scannerEvidence?.observedAt,
+        validationStatus:lastSubmission?.status??'SUBMISSION_RECORDED',
+        submission:{requestedQuantity:enterQuantity,
+          clientOrderId:lastSubmission?.identity?.clientOrderId??submittedLifecycle?.enterClientOrderId??null,
+          brokerOrderId:submittedLifecycle?.enterBrokerOrderId??lastSubmission?.result?.brokerOrderId??lastSubmission?.result?.orderId??null,
+          submittedAt:submittedLifecycle?.updatedAt??new Date(Number(now())).toISOString(),
+          status:lastSubmission?.status??null,adapterInvoked:lastSubmission?.adapterInvoked===true}
       })
       if (lastSubmission?.status === 'SUBMISSION_AMBIGUOUS_RECONCILIATION_REQUIRED') {
         const submissionException = Array.isArray(lastSubmission?.blockers) && lastSubmission.blockers.includes('submission_exception_requires_reconciliation')
@@ -347,6 +451,17 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       lifecycle = store.load()
       if (lifecycle?.state === S.POSITION_CONFIRMED) lifecycle = store.transition(S.MONITORING)
       lastLifecycle = lifecycle
+      recordEntryValidation({
+        eventType:'reconciliation',correlationId:correlationId(lifecycle),lifecycleId:lifecycle?.lifecycleId,
+        lifecycleState:lifecycle?.state,scanId:lifecycle?.scannerEvidence?.originScanId,
+        symbol:lifecycle?.selectedSymbol,candidateObservedAt:lifecycle?.scannerEvidence?.observedAt,
+        validationStatus:lifecycle?.state===S.MONITORING?'ENTRY_COMPLETED':(lastReconciliation?.status??'RECONCILIATION_RECORDED'),
+        fill:{filledQuantity:lifecycle?.filledQuantity??null,averageFillPrice:lifecycle?.averageFillPrice??null,
+          filledAt:lifecycle?.updatedAt??null,brokerPositionIdentity:lifecycle?.brokerPositionIdentity??null},
+        reconciliation:{status:lastReconciliation?.status??null,
+          resolved:lifecycle?.state===S.MONITORING||lifecycle?.state===S.POSITION_CONFIRMED,
+          changed:lastReconciliation?.status==='RECONCILED_STATE_UPDATED',blockers:lastReconciliation?.blockers??[]}
+      })
     }
 
     if (lifecycle?.state === S.MONITORING) return fail('CONTINUITY_ENTER_MONITORING_CONFIRMED', lifecycle)

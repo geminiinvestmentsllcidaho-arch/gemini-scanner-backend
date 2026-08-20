@@ -51,3 +51,35 @@ test("automatic PAPER runner observability is read only", () => {
   assert.match(html,/5% \/ 7\.5% \/ 10%/);
   assert.match(html,/does not invoke any runner/);
 });
+
+
+test("Module 13 Admin renders Automatic Entry Validation read-only evidence", () => {
+  const automaticPaper={
+    continuity:{enabled:true,lastStatus:"ACTIVE"},
+    enter:{enabled:true,lastStatus:"READY",lastSizing:{allocationPercent:10,quantity:4}},
+    scale:{enabled:true,scaleInEnabled:true,scaleOutEnabled:true},
+    exit:{enabled:true,running:true},
+    lifecycle:{state:"MONITORING",selectedSymbol:"M13"},
+    entryValidation:{
+      status:"ENTRY_COMPLETED",
+      lastCandidate:{symbol:"M13",decision:"ENTER",blocker:null},
+      allocationPercent:10,
+      proposedQuantity:4,
+      executedQuantity:4,
+      lastEntry:{symbol:"M13",brokerOrderId:"paper-order-m13",filledQuantity:4,averageFillPrice:5.25,reconciliationStatus:"RECONCILED_STATE_UPDATED"},
+      correlationId:"entry:0123456789abcdef01234567",
+    },
+    safety:{paperOnly:true},
+  };
+  const x=collectAdminTradingEngine({runsDir:"/definitely/missing",automaticPaper});
+  assert.equal(x.automaticPaper.entryValidation.status,"ENTRY_COMPLETED");
+  assert.equal(x.automaticPaper.entryValidation.correlationId,"entry:0123456789abcdef01234567");
+  const html=renderAdminTradingEngine(x);
+  assert.match(html,/Automatic Entry Validation/);
+  assert.match(html,/ENTRY_COMPLETED/);
+  assert.match(html,/paper-order-m13/);
+  assert.match(html,/entry:0123456789abcdef01234567/);
+  assert.match(html,/No controls, broker requests, order actions/);
+  assert.equal(x.automaticPaper.safety.liveTradingAllowed,false);
+  assert.equal(x.automaticPaper.safety.adminExecutionControls,false);
+});

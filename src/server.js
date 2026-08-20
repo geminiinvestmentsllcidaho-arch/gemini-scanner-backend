@@ -69,6 +69,8 @@ import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_moni
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
+import { listPaperAutoExecutionEntryValidationRecords } from './scanner/paper_auto_execution_entry_validation_store.mjs';
+import { buildPaperAutoExecutionSessionValidationReport } from './scanner/paper_auto_execution_session_validation_report.mjs';
 import { evaluatePaperAutoExecutionExecutionAssurance } from './scanner/paper_auto_execution_execution_assurance.mjs';
 import { createPaperAutoExecutionExitRecoveryRunner } from './scanner/paper_auto_execution_exit_recovery_runner.mjs';
 import { createPaperAutoExecutionExitReplacementRunner } from './scanner/paper_auto_execution_exit_replacement_runner.mjs';
@@ -1980,6 +1982,102 @@ function readAdminLocalJsonStatus(filePath) {
   catch { return null; }
 }
 
+function buildAdminAutomaticEntryValidation() {
+  const safety = Object.freeze({
+    observationalOnly: true,
+    brokerContactAllowed: false,
+    orderPlacementAllowed: false,
+    strategyMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    sizingMutationAllowed: false,
+    aiAuthorityMutationAllowed: false,
+    liveTradingAllowed: false,
+  });
+  const empty = (status = 'FAILED_NEEDS_REVIEW') => Object.freeze({
+    status,
+    correlationId: null,
+    lastCandidate: null,
+    allocationPercent: null,
+    proposedQuantity: null,
+    executedQuantity: null,
+    lastEntry: null,
+    noTrade: null,
+    readOnly: true,
+    localEvidenceOnly: true,
+    safety,
+  });
+
+  try {
+    const records = listPaperAutoExecutionEntryValidationRecords({
+      evidencePath: 'runs/paper_auto_execution_entry_validation.jsonl',
+      maxRecords: 500,
+    });
+    const latest = records[0] ?? null;
+    if (!latest) return empty('WAITING_FOR_ELIGIBLE_ENTRY');
+
+    const correlationId = latest.correlationId ?? null;
+    const correlated = correlationId
+      ? records.filter((record) => record?.correlationId === correlationId)
+      : [latest];
+
+    const lastCandidate = correlated.find((record) => record?.eventType === 'candidate_evaluation') ?? null;
+    const lastGate = correlated.find((record) => record?.eventType === 'gate_snapshot') ?? null;
+    const lastSubmission = correlated.find((record) => record?.eventType === 'submission') ?? null;
+    const lastReconciliation = correlated.find((record) => record?.eventType === 'reconciliation') ?? null;
+    const lastNoTrade = correlated.find((record) => record?.eventType === 'no_trade_closeout') ?? null;
+
+    let status = 'WAITING_FOR_ELIGIBLE_ENTRY';
+    if (latest.validationStatus === 'FAILED_NEEDS_REVIEW') status = 'FAILED_NEEDS_REVIEW';
+    else if (latest.eventType === 'no_trade_closeout' && latest.validationStatus === 'NO_ELIGIBLE_ENTRY') status = 'NO_ELIGIBLE_ENTRY';
+    else if (lastReconciliation?.validationStatus === 'ENTRY_COMPLETED') status = 'ENTRY_COMPLETED';
+
+    return Object.freeze({
+      status,
+      correlationId,
+      lastCandidate: lastCandidate ? Object.freeze({
+        eventAt: lastCandidate.eventAt ?? null,
+        symbol: lastCandidate.symbol ?? null,
+        decision: lastCandidate.decision ?? null,
+        blocker: lastCandidate.blocker ?? null,
+        blockers: Array.isArray(lastCandidate.blockers) ? Object.freeze([...lastCandidate.blockers]) : Object.freeze([]),
+        score: lastCandidate.candidate?.score ?? null,
+        candidateFresh: lastCandidate.candidateFresh ?? null,
+      }) : null,
+      allocationPercent: lastGate?.gateSnapshot?.allocationPercent ?? null,
+      proposedQuantity: lastGate?.gateSnapshot?.quantity ?? lastSubmission?.submission?.requestedQuantity ?? null,
+      executedQuantity: lastReconciliation?.fill?.filledQuantity ?? null,
+      lastEntry: lastSubmission || lastReconciliation ? Object.freeze({
+        symbol: lastReconciliation?.symbol ?? lastSubmission?.symbol ?? null,
+        brokerOrderId: lastSubmission?.submission?.brokerOrderId ?? null,
+        clientOrderId: lastSubmission?.submission?.clientOrderId ?? null,
+        requestedQuantity: lastSubmission?.submission?.requestedQuantity ?? null,
+        submittedAt: lastSubmission?.submission?.submittedAt ?? null,
+        filledQuantity: lastReconciliation?.fill?.filledQuantity ?? null,
+        averageFillPrice: lastReconciliation?.fill?.averageFillPrice ?? null,
+        brokerPositionIdentity: lastReconciliation?.fill?.brokerPositionIdentity ?? null,
+        reconciliationStatus: lastReconciliation?.reconciliation?.status ?? null,
+        validationStatus: lastReconciliation?.validationStatus ?? null,
+        lifecycleId: lastReconciliation?.lifecycleId ?? lastSubmission?.lifecycleId ?? null,
+        lifecycleState: lastReconciliation?.lifecycleState ?? lastSubmission?.lifecycleState ?? null,
+      }) : null,
+      noTrade: lastNoTrade ? Object.freeze({
+        eventAt: lastNoTrade.eventAt ?? null,
+        blocker: lastNoTrade.blocker ?? null,
+        candidatesReviewed: lastNoTrade.session?.candidatesReviewed ?? null,
+        eligibleCandidates: lastNoTrade.session?.eligibleCandidates ?? null,
+        bestCandidateSymbol: lastNoTrade.session?.bestCandidateSymbol ?? null,
+        bestCandidateScore: lastNoTrade.session?.bestCandidateScore ?? null,
+        orderSubmitted: lastNoTrade.session?.orderSubmitted === true,
+      }) : null,
+      readOnly: true,
+      localEvidenceOnly: true,
+      safety,
+    });
+  } catch {
+    return empty();
+  }
+}
+
 app.get('/admin', requireAdminAuthorization, async (_req, res) => {
   const mod = await import('./scanner/admin_surface.mjs');
   const accessMod = await import('./scanner/alpaca_master_access_switch.mjs');
@@ -1992,6 +2090,7 @@ app.get('/admin', requireAdminAuthorization, async (_req, res) => {
     scale: paperAutoExecutionScaleRunner.diagnostics(),
     exit: paperAutoExitMonitorWorker.diagnostics(),
     degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
+    entryValidation: buildAdminAutomaticEntryValidation(),
     readiness: readAdminLocalJsonStatus('runs/execution_readiness_watcher_status.json'),
     assurance: readAdminLocalJsonStatus('runs/paper_auto_execution_execution_assurance_watchdog_status.json'),
     lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
@@ -2063,6 +2162,7 @@ app.get('/admin/trading-engine', requireAdminAuthorization, async (_req, res) =>
     scale: paperAutoExecutionScaleRunner.diagnostics(),
     exit: paperAutoExitMonitorWorker.diagnostics(),
     degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
+    entryValidation: buildAdminAutomaticEntryValidation(),
     readiness: readAdminLocalJsonStatus('runs/execution_readiness_watcher_status.json'),
     assurance: readAdminLocalJsonStatus('runs/paper_auto_execution_execution_assurance_watchdog_status.json'),
     lifecycle: paperAutoExecutionContinuityRuntime.diagnostics()?.lastLifecycle ?? null,
@@ -3325,6 +3425,37 @@ app.get('/diagnostics/paper-auto-execution-execution-assurance', (_req, res) => 
     readOnly: true,
     remediationAllowed: false,
   });
+});
+
+app.get('/diagnostics/paper-auto-execution-session-validation', (_req, res) => {
+  const runtimeHealth = buildRuntimeHealthState();
+  const continuity = paperAutoExecutionContinuityRuntime.diagnostics();
+  const entryValidation = buildAdminAutomaticEntryValidation();
+  const report = buildPaperAutoExecutionSessionValidationReport({
+    scannerHealth: {
+      ok: runtimeHealth.degraded !== true,
+      healthy: runtimeHealth.degraded !== true,
+      status: runtimeHealth.degraded === true ? 'degraded' : 'ok',
+      issues: runtimeHealth.issues ?? [],
+    },
+    marketDataFresh: runtimeHealth.stream?.streamStale !== true
+      && runtimeHealth.stream?.marketClockStale !== true
+      && continuity?.lastSnapshotFresh === true,
+    continuity,
+    enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
+    scale: paperAutoExecutionScaleRunner.diagnostics(),
+    exit: paperAutoExitMonitorWorker.diagnostics(),
+    degradedBroker: paperAutoExecutionDegradedBrokerMode.diagnostics(),
+    readiness: readAdminLocalJsonStatus('runs/execution_readiness_watcher_status.json'),
+    assurance: {
+      report: paperAutoExecutionExecutionAssuranceLastReport,
+      incident: paperAutoExecutionExecutionAssuranceLastIncident,
+    },
+    entryValidation,
+    lifecycle: continuity?.lastLifecycle ?? null,
+  });
+  res.set('Cache-Control', 'no-store');
+  res.json(report);
 });
 
 

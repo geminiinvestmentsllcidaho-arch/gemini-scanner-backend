@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import path from 'node:path'
 
 test('server constructs and starts disabled-by-default PAPER auto-exit monitor and exposes diagnostics', () => {
   const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
@@ -236,4 +237,52 @@ test('execution assurance server wiring never submits orders or mutates strategy
   assert.ok(start !== -1 && end > start)
   const block = source.slice(start, end)
   assert.doesNotMatch(block, /submitPaperOrder|\/v2\/orders|cancelOrder|MIN_RANKING_SETUP_SCORE|MIN_RANKING_CONFIDENCE|MIN_RANKING_QUALITY/)
+})
+
+
+test('Module 13 server Admin entry validation remains correlation-coherent and read-only', () => {
+  const source = fs.readFileSync(path.resolve('src/server.js'), 'utf8')
+  assert.match(source, /const correlationId = latest\.correlationId \?\? null;/)
+  assert.match(source, /records\.filter\(\(record\) => record\?\.correlationId === correlationId\)/)
+  assert.match(source, /latest\.eventType === 'no_trade_closeout'/)
+  assert.match(source, /brokerContactAllowed: false/)
+  assert.match(source, /orderPlacementAllowed: false/)
+  assert.match(source, /strategyMutationAllowed: false/)
+  assert.match(source, /thresholdMutationAllowed: false/)
+  assert.match(source, /sizingMutationAllowed: false/)
+  assert.match(source, /aiAuthorityMutationAllowed: false/)
+  assert.match(source, /liveTradingAllowed: false/)
+})
+
+
+test('Module 13 session validation report route is local read-only and mutation-free', () => {
+  const source = fs.readFileSync(path.resolve('src/server.js'), 'utf8')
+  assert.match(source, /buildPaperAutoExecutionSessionValidationReport/)
+  assert.match(source, /app\.get\('\/diagnostics\/paper-auto-execution-session-validation'/)
+  const start = source.indexOf("app.get('/diagnostics/paper-auto-execution-session-validation'")
+  const end = source.indexOf("app.get('/diagnostics/paper-auto-execution-scale'", start)
+  assert.ok(start !== -1 && end > start)
+  const block = source.slice(start, end)
+  assert.match(block, /buildRuntimeHealthState\(\)/)
+  assert.match(block, /paperAutoExecutionContinuityRuntime\.diagnostics\(\)/)
+  assert.match(block, /paperAutoExecutionContinuityEnterRunner\.diagnostics\(\)/)
+  assert.match(block, /paperAutoExecutionScaleRunner\.diagnostics\(\)/)
+  assert.match(block, /paperAutoExitMonitorWorker\.diagnostics\(\)/)
+  assert.match(block, /paperAutoExecutionDegradedBrokerMode\.diagnostics\(\)/)
+  assert.match(block, /execution_readiness_watcher_status\.json/)
+  assert.match(block, /paperAutoExecutionExecutionAssuranceLastReport/)
+  assert.match(block, /buildAdminAutomaticEntryValidation\(\)/)
+  assert.match(block, /Cache-Control', 'no-store'/)
+  assert.doesNotMatch(block, /submitPaperOrder|\/v2\/orders|cancelOrder|replaceOrder|strategyMutationAllowed:\s*true|thresholdMutationAllowed:\s*true|sizingMutationAllowed:\s*true|aiAuthorityMutationAllowed:\s*true|liveTradingAllowed:\s*true/)
+})
+
+
+test('Module 13 Admin maps ordinary validation_error safety blockers to waiting rather than failed', () => {
+  const source = fs.readFileSync(path.resolve('src/server.js'), 'utf8')
+  const start = source.indexOf('function buildAdminAutomaticEntryValidation()')
+  const end = source.indexOf("app.get('/admin'", start)
+  assert.ok(start !== -1 && end > start)
+  const block = source.slice(start, end)
+  assert.doesNotMatch(block, /latest\.eventType === 'validation_error' \|\|/)
+  assert.match(block, /latest\.validationStatus === 'FAILED_NEEDS_REVIEW'/)
 })
