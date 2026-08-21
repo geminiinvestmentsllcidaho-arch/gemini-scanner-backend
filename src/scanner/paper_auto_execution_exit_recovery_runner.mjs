@@ -5,6 +5,7 @@ import { fetchAlpacaPaperAccountReadonly } from './alpaca_paper_account_readonly
 import { fetchAlpacaPaperHistoricalOrdersReadonly } from './paper_auto_execution_reporting_history_fetch.mjs'
 import { runPaperAutoExecutionReconciliation } from './paper_auto_execution_reconciliation_runner.mjs'
 import { resolveInternalOwnerAlpacaReadonlyCredentials } from './internal_owner_alpaca_readonly_credentials.mjs'
+import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
 
 export const VERSION = 'paper_auto_execution_exit_recovery_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -19,6 +20,7 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
   const fetchHistory = options.fetchHistoricalOrders ?? (args => fetchAlpacaPaperHistoricalOrdersReadonly(args))
   const reconcile = options.reconcile ?? runPaperAutoExecutionReconciliation
   const degradedBrokerMode = options.degradedBrokerMode ?? null
+  const executionNotifier = options.executionNotifier ?? emitPaperTradeNotificationFailOpen
   const now = options.now ?? Date.now
   let inFlight = null
   let cycles = 0
@@ -135,6 +137,20 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
     reconciliations += 1
     lastLifecycle = lastReconciliation?.lifecycle ?? store.load()
     lastStatus = lastReconciliation?.status ?? 'EXIT_RECOVERY_RECONCILIATION_COMPLETED'
+    if (lastLifecycle?.state === S.ROUND_TRIP_COMPLETED) {
+      try {
+        await executionNotifier({
+          action: 'EXIT',
+          symbol: lastLifecycle.selectedSymbol,
+          quantity: Number(lastLifecycle.filledQuantity),
+          averageFillPrice: lastLifecycle.exitAverageFillPrice ?? null,
+          filledAt: lastLifecycle.exitBrokerFilledAt,
+          brokerOrderId: lastLifecycle.exitBrokerOrderId,
+          lifecycleId: lastLifecycle.lifecycleId,
+          executionReason: lastReconciliation?.status ?? 'EXIT_RECOVERY_RECONCILED',
+        })
+      } catch {}
+    }
     return diagnostics()
   }
 

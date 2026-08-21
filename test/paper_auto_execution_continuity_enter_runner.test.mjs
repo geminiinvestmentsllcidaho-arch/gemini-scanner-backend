@@ -247,6 +247,7 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
     const store = new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => 'life-1' })
     store.create({ selectedSymbol: 'ABC' })
     let submitted = 0
+    let notifications = 0
     const now = Date.now()
     const runner = createPaperAutoExecutionContinuityEnterRunner({
       env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
@@ -265,6 +266,15 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
       fetchHistoricalOrders: async () => ({
         historicalOrders: submitted ? [{ id: 'order-1', client_order_id: store.load()?.enterClientOrderId, symbol: 'ABC', side: 'buy', status: 'filled', filled_qty: '10', filled_avg_price: '10' }] : [],
       }),
+      executionNotifier: async event => {
+        notifications += 1
+        assert.equal(event.action, 'ENTER')
+        assert.equal(event.symbol, 'ABC')
+        assert.equal(event.quantity, 10)
+        assert.equal(event.brokerOrderId, 'order-1')
+        assert.equal(event.lifecycleId, 'life-1')
+        throw new Error('notification_test_failure')
+      },
       createAdapter: () => ({
         submitPaperOrder: async order => {
           submitted += 1
@@ -278,6 +288,7 @@ test('candidate selected submits one PAPER ENTER, reconciles, and reaches MONITO
     })
     const out = await runner.runOnce()
     assert.equal(submitted, 1)
+    assert.equal(notifications, 1)
     assert.equal(out.lastStatus, 'CONTINUITY_ENTER_MONITORING_CONFIRMED')
     assert.equal(out.lastLifecycle.state, 'MONITORING')
     assert.equal(out.lastLifecycle.filledQuantity, 10)

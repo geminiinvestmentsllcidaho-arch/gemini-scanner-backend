@@ -9,6 +9,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "true",
+        GS_PAPER_EXECUTION_EMAIL_SEND_AUTHORIZED: "true",
         PAPER_AUTO_DEGRADED_BROKER_MODE_ENABLED: "1",
         PAPER_AUTO_EXIT_MONITOR_ENABLED: "1",
       PAPER_AUTO_CONTINUITY_ENABLED: "1",

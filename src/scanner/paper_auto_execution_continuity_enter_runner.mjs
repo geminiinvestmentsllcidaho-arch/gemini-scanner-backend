@@ -14,6 +14,7 @@ import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arb
 import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
 import { buildPaperAutoExecutionStrategyEvidence } from './paper_auto_execution_strategy_evidence.mjs'
 import { appendPaperAutoExecutionEntryValidationRecord, buildEntryValidationCorrelationId } from './paper_auto_execution_entry_validation_store.mjs'
+import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -61,6 +62,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const now = options.now ?? Date.now
   const appendEntryValidation = options.appendEntryValidation ?? appendPaperAutoExecutionEntryValidationRecord
   const entryValidationEvidencePath = options.entryValidationEvidencePath ?? 'runs/paper_auto_execution_entry_validation.jsonl'
+  const executionNotifier = options.executionNotifier ?? emitPaperTradeNotificationFailOpen
   let inFlight = null
   let cycles = 0
   let submissions = 0
@@ -464,7 +466,21 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       })
     }
 
-    if (lifecycle?.state === S.MONITORING) return fail('CONTINUITY_ENTER_MONITORING_CONFIRMED', lifecycle)
+    if (lifecycle?.state === S.MONITORING) {
+      try {
+        await executionNotifier({
+          action:'ENTER',
+          symbol:lifecycle?.selectedSymbol,
+          quantity:lifecycle?.filledQuantity,
+          averageFillPrice:lifecycle?.averageFillPrice,
+          filledAt:lifecycle?.updatedAt,
+          brokerOrderId:lifecycle?.enterBrokerOrderId,
+          lifecycleId:lifecycle?.lifecycleId,
+          executionReason:lifecycle?.scannerEvidence?.strategyEvidence?.strategyAuthorization?.state ?? 'CONTINUITY_ENTER_MONITORING_CONFIRMED',
+        })
+      } catch {}
+      return fail('CONTINUITY_ENTER_MONITORING_CONFIRMED', lifecycle)
+    }
     if (lifecycle?.state === S.FAILED_NEEDS_REVIEW || lifecycle?.state === S.UNRESOLVED_NEEDS_RECONCILIATION) {
       return fail('CONTINUITY_ENTER_FAILED_CLOSED', lifecycle)
     }

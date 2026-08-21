@@ -441,3 +441,42 @@ test('conflicting open symbol order blocks replacement before prepare or submiss
     assert.equal(submits,0)
   } finally { fs.rmSync(dir,{recursive:true,force:true}) }
 })
+
+const makeCompletedReplacement = async () => {
+  const {dir,file}=makeEligibleLifecycleFile()
+  const {PaperAutoExecutionLifecycleStore}=await import('../src/scanner/paper_auto_execution_lifecycle_store.mjs')
+  const {STATES:LS}=await import('../src/scanner/paper_auto_execution_state_machine.mjs')
+  const {PaperAutoExecutionExitReplacementActionStore,STATES:AS}=await import('../src/scanner/paper_auto_execution_exit_replacement_action_store.mjs')
+  const ls=new PaperAutoExecutionLifecycleStore({filePath:file})
+  const rs=new PaperAutoExecutionExitReplacementActionStore({filePath:derivePaperExitReplacementActionFile(file),clock:()=>Date.parse('2026-08-16T20:50:00.000Z')})
+  let a=rs.prepare({lifecycleId:'life-runner-1',symbol:'ABC',residualQuantity:2,priorExitClientOrderId:'exit-c1',priorExitBrokerOrderId:'exit-b1',terminalReason:'canceled'})
+  a=rs.transition({expectedReplacementSequence:1,expectedClientOrderId:a.clientOrderId,expectedState:AS.PREPARED,nextState:AS.SUBMITTING})
+  ls.transition(LS.ROUND_TRIP_COMPLETED)
+  rs.transition({expectedReplacementSequence:1,expectedClientOrderId:a.clientOrderId,expectedState:AS.SUBMITTING,nextState:AS.FILLED_RECONCILED,patch:{brokerOrderId:'repl-filled-1',brokerOrderStatus:'filled',observedFilledQuantity:2,observedResidualQuantity:0,reconciledAt:'2026-08-16T20:50:00.000Z'}})
+  return {dir,file}
+}
+
+test('completed replacement emits EXIT notification once and notifier failure is fail-open', async () => {
+  const {dir,file}=await makeCompletedReplacement()
+  let notifications=0
+  try{
+    const runner=createPaperAutoExecutionExitReplacementRunner({
+      env:{PAPER_AUTO_EXIT_REPLACEMENT_RUNNER_ENABLED:'1'},
+      getLifecycleFile:()=>file,
+      executionNotifier:async event=>{
+        notifications++
+        assert.equal(event.action,'EXIT')
+        assert.equal(event.symbol,'ABC')
+        assert.equal(event.quantity,2)
+        assert.equal(event.brokerOrderId,'repl-filled-1')
+        assert.equal(event.lifecycleId,'life-runner-1')
+        throw new Error('notification_test_failure')
+      },
+    })
+    const d=await runner.runOnce()
+    assert.equal(d.lastStatus,'EXIT_REPLACEMENT_ROUND_TRIP_COMPLETED')
+    assert.equal(d.lastLifecycle.state,'ROUND_TRIP_COMPLETED')
+    assert.equal(d.lastAction.state,'FILLED_RECONCILED')
+    assert.equal(notifications,1)
+  } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+})

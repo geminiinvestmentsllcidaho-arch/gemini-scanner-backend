@@ -85,6 +85,7 @@ test('EXIT recovery completes exact filled sell only when broker position is abs
   const { dir, filePath, store } = makeStore()
   try {
     armExitSubmitting(store)
+    let notifications = 0
     const runner = createPaperAutoExecutionExitRecoveryRunner({
       getLifecycleFile: () => filePath,
       accountCredentialResolver: credentials,
@@ -100,10 +101,19 @@ test('EXIT recovery completes exact filled sell only when broker position is abs
         filled_avg_price: '205.00',
         filled_at: '2026-08-04T04:39:59.000Z',
       }]),
+      executionNotifier: async event => {
+        notifications += 1
+        assert.equal(event.action, 'EXIT')
+        assert.equal(event.symbol, 'AAPL')
+        assert.equal(event.quantity, 1)
+        assert.equal(event.brokerOrderId, 'broker-exit-1')
+        throw new Error('notification_test_failure')
+      },
       now: () => Date.parse('2026-08-04T04:40:30.000Z'),
     })
     const result = await runner.runOnce()
     assert.equal(result.lastStatus, 'RECONCILED_STATE_UPDATED')
+    assert.equal(notifications, 1)
     assert.equal(result.lastLifecycle.state, S.ROUND_TRIP_COMPLETED)
     assert.equal(result.lastLifecycle.exitBrokerOrderId, 'broker-exit-1')
     assert.equal(result.reconciliations, 1)

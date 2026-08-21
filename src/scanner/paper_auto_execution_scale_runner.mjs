@@ -10,6 +10,7 @@ import { reconcilePaperScaleAction } from './paper_auto_execution_scale_reconcil
 import { derivePaperPositionMutationLockFile, acquirePaperPositionMutationLock, releasePaperPositionMutationLock } from './paper_auto_execution_position_mutation_lock.mjs'
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
 import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
+import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
 
 export const VERSION = 'paper_auto_execution_scale_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -46,6 +47,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
   const getScaleActionFile = options.getScaleActionFile ?? derivePaperScaleActionFile
   const degradedBrokerMode = options.degradedBrokerMode ?? null
   const now = options.now ?? Date.now
+  const executionNotifier = options.executionNotifier ?? emitPaperTradeNotificationFailOpen
   let inFlight = null
   let cycles = 0
   let submissions = 0
@@ -79,6 +81,24 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     lastLifecycle = lifecycle
     return diagnostics()
   }
+  const notifyScaleSuccess = async (res, lifecycle) => {
+    try {
+      if (res?.reconciled !== true || res?.status !== 'PAPER_SCALE_ACTION_RECONCILED_MONITORING' || res?.action?.state !== 'FILLED_RECONCILED' || lifecycle?.state !== 'MONITORING') return
+      const x = res.action ?? {}
+      await executionNotifier({
+        action: x.action === 'scale_out' ? 'SCALE-OUT' : 'SCALE-IN',
+        symbol: x.symbol ?? lifecycle?.selectedSymbol,
+        quantity: x.observedFilledQuantity ?? x.quantity ?? Math.abs((x.targetQuantity ?? 0) - (x.fromQuantity ?? 0)),
+        brokerOrderId: x.brokerOrderId,
+        lifecycleId: lifecycle?.lifecycleId ?? x.lifecycleId,
+        filledAt: x.filledAt ?? x.reconciledAt,
+        fromQuantity: x.fromQuantity,
+        targetQuantity: x.targetQuantity,
+        actionSequence: x.actionSequence,
+        executionReason: res.status,
+      })
+    } catch {}
+  }
 
   async function cycle({ action, targetQuantity } = {}) {
     cycles += 1
@@ -108,6 +128,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
       })
       lastReconciliation = recovery
       lifecycle = recovery?.lifecycle ?? store.load()
+      await notifyScaleSuccess(recovery, lifecycle)
       return finish(recovery?.status ?? 'PAPER_SCALE_RECOVERY_UNRESOLVED', lifecycle)
     }
     const a = clean(action).toLowerCase()
@@ -331,6 +352,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     })
     lastReconciliation = reconciliation
     lifecycle = reconciliation?.lifecycle ?? store.load()
+    await notifyScaleSuccess(reconciliation, lifecycle)
     return finish(reconciliation?.status ?? submission?.status ?? 'PAPER_SCALE_RECONCILIATION_STATUS_REQUIRED', lifecycle)
     } finally {
       releasePaperPositionMutationLock(mutationLock)

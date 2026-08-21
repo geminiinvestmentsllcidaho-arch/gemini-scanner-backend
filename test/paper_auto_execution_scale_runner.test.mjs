@@ -10,7 +10,7 @@ test('enabled SCALE-OUT submits once and exact fill reconciles MONITORING quanti
  const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-runner-fill-'))
  try{
   const f=path.join(d,'paper_auto_execution_life-1.json');life(f)
-  let submitCalls=0,accountCalls=0,submitted=null
+  let submitCalls=0,accountCalls=0,submitted=null,notifications=0
   const r=R({
    env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED:'1',PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1'},
    getLifecycleFile:()=>f,now:()=>N,
@@ -21,11 +21,13 @@ test('enabled SCALE-OUT submits once and exact fill reconciles MONITORING quanti
     return {ok:true,status:'connected_readonly',observedAt:new Date(N-5000).toISOString(),account:{tradingBlocked:false,accountBlocked:false,equity:10000,buyingPower:5000},positions:[{symbol:'ABC',qty,currentPrice:11,avg_entry_price:'10.5'}],openOrders:[]}
    },
    fetchOwnedMonitor:async()=>({ok:true,candidates:[{symbol:'ABC',resultState:'WATCH',ownedExitReviewTriggered:false,ownedScaleOutReviewTriggered:true,ownedScaleOutResultingQuantity:2,sourceCoverage:'owned_position_symbol_fetch',sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:180}]}),
+   executionNotifier:async event=>{notifications++;assert.equal(event.action,'SCALE-OUT');assert.equal(event.symbol,'ABC');assert.equal(event.quantity,2);assert.equal(event.brokerOrderId,'broker-scale-fill-1');assert.equal(event.lifecycleId,'life-1');throw new Error('notification_test_failure')},
    submitPaperOrder:async order=>{submitCalls++;submitted=order;return{orderSubmitAttempted:true,orderSubmitted:true,orderId:'broker-scale-fill-1',status:'accepted'}},
    fetchOrderByClientOrderId:async({clientOrderId})=>({ok:true,status:'order_found',order:{id:'broker-scale-fill-1',status:'filled',client_order_id:clientOrderId,filled_qty:'2',filled_at:'2026-08-15T12:00:00Z'}}),
   })
   const o=await r.runOnce({action:'scale_out',targetQuantity:2})
   assert.equal(o.lastStatus,'PAPER_SCALE_ACTION_RECONCILED_MONITORING')
+  assert.equal(notifications,1)
   assert.equal(submitCalls,1)
   assert.equal(submitted.side,'sell')
   assert.equal(submitted.qty,2)

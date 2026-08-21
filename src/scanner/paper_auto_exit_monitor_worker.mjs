@@ -7,6 +7,7 @@ import { runPaperAutoExecutionExitOnly } from './paper_auto_execution_exit_only_
 import { buildAuthoritativePaperExitDecision } from './paper_auto_execution_exit_decision.mjs'
 import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
 import { emitAdminPaperOperationalIncident } from './admin_paper_operational_incident_emitter.mjs'
+import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
 
 export const VERSION = 'paper_auto_exit_monitor_worker_v1'
 export const DEFAULT_INTERVAL_MS = 15000
@@ -48,6 +49,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const exitRunner = options.exitRunner ?? runPaperAutoExecutionExitOnly
   const buildExitDecision = options.buildExitDecision ?? buildAuthoritativePaperExitDecision
   const incidentEmitter = options.incidentEmitter ?? emitAdminPaperOperationalIncident
+  const executionNotifier = options.executionNotifier ?? emitPaperTradeNotificationFailOpen
   const accountCredentialResolver = options.accountCredentialResolver
   const onTerminalLifecycle = options.onTerminalLifecycle ?? null
   const degradedBrokerMode = options.degradedBrokerMode ?? null
@@ -286,7 +288,19 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
           result?.status === 'EXACT_POSITION_PAPER_EXIT_COMPLETED' &&
           result?.lifecycle?.state === 'ROUND_TRIP_COMPLETED'
         ) {
-          lastReconciliationCompletedObservedAt = lastRunnerCompletedAt
+         lastReconciliationCompletedObservedAt = lastRunnerCompletedAt
+          try {
+            await executionNotifier({
+              action: 'EXIT',
+              symbol,
+              quantity: Number(life?.filledQuantity ?? result?.lifecycle?.filledQuantity),
+              averageFillPrice: result?.lifecycle?.exitAverageFillPrice ?? null,
+              filledAt: lastBrokerFilledAt ?? result?.lifecycle?.exitBrokerFilledAt,
+              brokerOrderId: lastBrokerOrderId,
+              lifecycleId: life.lifecycleId,
+              executionReason: lastExitDecision?.reasonCodes?.[0] ?? result.status,
+            })
+          } catch {}
           if (typeof onTerminalLifecycle === 'function') {
             try {
               await onTerminalLifecycle({

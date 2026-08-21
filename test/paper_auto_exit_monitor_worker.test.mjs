@@ -518,6 +518,7 @@ test('completed controlled lifecycle is benign and does not alert or refetch acc
 
 test('terminal lifecycle callback fires once only after exact completed strategy exit', async () => {
   const terminal = []
+  let notifications = 0
   const w=createPaperAutoExitMonitorWorker({
     env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1',PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH:'/tmp/lifecycle.json'},
     readConfiguredMonitoringLifecycle:async()=>row,
@@ -525,10 +526,12 @@ test('terminal lifecycle callback fires once only after exact completed strategy
     fetchOwnedMonitor:async()=>({candidates:[{symbol:'BTG',resultState:'EXIT',decision:'EXIT',ownedExitReviewTriggered:true,ownedExitReviewReason:'OWNED_POSITION_HARD_LOSS_REVIEW',sourceStale:false}]}),
     fetchMarketClock:async({nowMs}={})=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true,timestamp:new Date(nowMs??Date.now()).toISOString()}}),
     exitRunner:async()=>({status:'EXACT_POSITION_PAPER_EXIT_COMPLETED',lifecycle:{state:'ROUND_TRIP_COMPLETED',exitBrokerOrderId:'bo-terminal'}}),
+    executionNotifier:async event=>{notifications++;assert.equal(event.action,'EXIT');throw new Error('notification_test_failure')},
     onTerminalLifecycle:async payload=>terminal.push(payload),
   })
   const r=await w.runOnce({source:'market_event',eventSymbol:'BTG'})
   assert.equal(r.lastStatus,'EXIT_TRIGGERED')
+  assert.equal(notifications,1)
   assert.equal(terminal.length,1)
   assert.equal(terminal[0].lifecycleId,'life-1')
   assert.equal(terminal[0].symbol,'BTG')

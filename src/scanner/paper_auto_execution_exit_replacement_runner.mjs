@@ -5,13 +5,18 @@ import{derivePaperExitReplacementEligibility as E}from'./paper_auto_execution_ex
 import{submitPaperExitReplacementOrder as S}from'./paper_auto_execution_exit_replacement_submission_boundary.mjs';
 import{reconcilePaperExitReplacementAction as C}from'./paper_auto_execution_exit_replacement_reconciliation_service.mjs';
 import{derivePaperPositionMutationLockFile as D,acquirePaperPositionMutationLock as Q,releasePaperPositionMutationLock as X}from'./paper_auto_execution_position_mutation_lock.mjs';
+import{emitPaperTradeNotificationFailOpen}from'./paper_auto_execution_trade_notification.mjs';
 export const VERSION='paper_auto_execution_exit_replacement_runner_v1';const c=v=>String(v??'').trim(),U=new Set([A.SUBMITTING,A.UNKNOWN,A.OPEN,A.PARTIALLY_FILLED]);
 export const derivePaperExitReplacementActionFile=f=>{const r=path.resolve(c(f)),b=path.basename(r);if(!b.endsWith('.json'))throw Error('paper_exit_replacement_lifecycle_json_required');return path.join(path.dirname(r),`${b.slice(0,-5)}.exit_replacement_action.json`)};
 export function createPaperAutoExecutionExitReplacementRunner(o={}){
- const env=o.env??process.env,getFile=o.getLifecycleFile??(()=>c(env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH??env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH)),fetchAccount=o.fetchAccount,fetchClock=o.fetchMarketClock,fetchOrder=o.fetchOrderByClientOrderId,submit=o.submitPaperOrder,degradedBrokerMode=o.degradedBrokerMode??null,now=o.now??Date.now;
+ const env=o.env??process.env,getFile=o.getLifecycleFile??(()=>c(env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH??env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH)),fetchAccount=o.fetchAccount,fetchClock=o.fetchMarketClock,fetchOrder=o.fetchOrderByClientOrderId,submit=o.submitPaperOrder,degradedBrokerMode=o.degradedBrokerMode??null,now=o.now??Date.now,executionNotifier=o.executionNotifier??emitPaperTradeNotificationFailOpen;
  let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastError=null,lastLifecycleFile=null,lastLifecycle=null,lastAction=null,lastEligibility=null,lastReconciliation=null,lastSubmission=null;
  const diagnostics=()=>Object.freeze({ok:true,version:VERSION,cycles,lastStatus,lastError,lastLifecycleFile,lastLifecycle,lastAction,lastEligibility,lastReconciliation,lastSubmission,degradedBrokerMode:degradedBrokerMode?.diagnostics?.()??null,safety:{paperOnly:true,exactActiveLifecycleOnly:true,sharedExitMutationLock:true,cancellationAllowed:false,blindRetryAllowed:false,liveTradingAllowed:false}});
- const finish=(s,l=lastLifecycle)=>{lastStatus=s;lastLifecycle=l;return diagnostics()};
+ const finish=async(s,l=lastLifecycle)=>{lastStatus=s;lastLifecycle=l;
+  if(s==='EXIT_REPLACEMENT_ROUND_TRIP_COMPLETED'&&lastAction?.state===A.FILLED_RECONCILED&&l?.state==='ROUND_TRIP_COMPLETED'){
+   try{await executionNotifier({action:'EXIT',symbol:lastAction?.symbol??l?.selectedSymbol,quantity:lastAction?.observedFilledQuantity??lastAction?.quantity,averageFillPrice:lastAction?.observedAverageFillPrice??lastAction?.averageFillPrice??null,filledAt:lastAction?.filledAt??lastAction?.reconciledAt,brokerOrderId:lastAction?.brokerOrderId,lifecycleId:l?.lifecycleId??lastAction?.lifecycleId,executionReason:'EXIT_REPLACEMENT_ROUND_TRIP_COMPLETED'})}catch{}
+  }
+  return diagnostics()};
  async function cycle(){
   cycles++;lastError=null;lastReconciliation=null;lastSubmission=null;lastEligibility=null;
   if(c(env.PAPER_AUTO_EXIT_REPLACEMENT_RUNNER_ENABLED)!=='1')return finish('EXIT_REPLACEMENT_RUNNER_DISABLED',null);
