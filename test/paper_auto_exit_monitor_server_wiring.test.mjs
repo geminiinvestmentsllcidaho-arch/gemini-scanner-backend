@@ -301,3 +301,13 @@ test('Module 13 continuity snapshot supplies deterministic scan provenance and r
   assert.match(block, /getStreamTelemetry\(\)/)
   assert.match(block, /degradedBrokerStatus/)
 })
+
+test('server self-heals missing current-session PAPER capital baseline before ENTER or SCALE', () => {
+  const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
+  assert.match(source, /collectPremarketCapitalBaseline, getPersistedPremarketCapitalBaseline/)
+  assert.match(source, /const getCurrentPaperPremarketBaseline = async/)
+  assert.match(source, /if \(persisted\) return persisted/)
+  assert.match(source, /fetchPaperAccount: \(\) => fetchAlpacaPaperAccountReadonly/)
+  assert.match(source, /getPremarketBaseline: getCurrentPaperPremarketBaseline/)
+  assert.match(source, /getPremarketBaseline:getCurrentPaperPremarketBaseline/)
+})

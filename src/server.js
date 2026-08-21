@@ -75,7 +75,7 @@ import { evaluatePaperAutoExecutionExecutionAssurance } from './scanner/paper_au
 import { createPaperAutoExecutionExitRecoveryRunner } from './scanner/paper_auto_execution_exit_recovery_runner.mjs';
 import { createPaperAutoExecutionExitReplacementRunner } from './scanner/paper_auto_execution_exit_replacement_runner.mjs';
 import { fetchAlpacaPaperExitReplacementOrderByClientOrderIdReadonly } from './scanner/paper_auto_execution_exit_replacement_order_lookup.mjs';
-import { getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
+import { collectPremarketCapitalBaseline, getPersistedPremarketCapitalBaseline } from './scanner/premarket_capital_baseline_runtime.mjs';
 import { createPaperAutoExecutionScaleRunner, derivePaperScaleActionFile } from './scanner/paper_auto_execution_scale_runner.mjs';
 import { createPaperAutoExecutionDegradedBrokerMode } from './scanner/paper_auto_execution_degraded_broker_mode.mjs';
 import { PaperAutoExecutionScaleActionStore } from './scanner/paper_auto_execution_scale_action_store.mjs';
@@ -2979,10 +2979,22 @@ const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRu
   },
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
 });
+const getCurrentPaperPremarketBaseline = async () => {
+  const now = new Date();
+  const persisted = getPersistedPremarketCapitalBaseline({ now });
+  if (persisted) return persisted;
+  return collectPremarketCapitalBaseline({
+    now,
+    fetchPaperAccount: () => fetchAlpacaPaperAccountReadonly({
+      credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
+    }),
+  });
+};
+
 const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner({
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
-  getPremarketBaseline: () => getPersistedPremarketCapitalBaseline({ now: new Date() }),
+  getPremarketBaseline: getCurrentPaperPremarketBaseline,
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
@@ -3110,7 +3122,7 @@ const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
  fetchAccount:()=>fetchAlpacaPaperAccountReadonly({credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
  fetchMarketClock:()=>fetchAlpacaMarketClockReadonly({credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
  fetchOwnedMonitor:getPaperAutoExecutionOwnedMonitor,
- getPremarketBaseline:()=>getPersistedPremarketCapitalBaseline({now:new Date()}),
+ getPremarketBaseline:getCurrentPaperPremarketBaseline,
  fetchOrderByClientOrderId:({clientOrderId})=>fetchAlpacaPaperOrderByClientOrderIdReadonly({clientOrderId,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
  submitPaperOrder:paperAutoExecutionScaleSubmit,serverIntegrated:true,automaticStartAllowed:true,
  degradedBrokerMode:paperAutoExecutionDegradedBrokerMode,
