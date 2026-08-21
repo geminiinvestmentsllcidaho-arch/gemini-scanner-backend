@@ -35,6 +35,14 @@ test('builds deterministic sanitized PAPER trade notification event and message'
   assert.match(m.subject, /\[GeminiScanner PAPER\] SCALE-IN FILLED: ABC/)
   assert.match(m.text, /PAPER only: YES/)
   assert.match(m.text, /Live trading: DISABLED/)
+  assert.match(m.text, /Reason: Strategy authorized/)
+})
+
+test('humanizes internal execution reason codes for email', () => {
+  const event = buildPaperTradeNotificationEvent({action: 'ENTER', symbol: 'GFI', quantity: 208, averageFillPrice: 47.86, filledAt: '2026-08-21T18:28:17.812Z', brokerOrderId: 'order-gfi', lifecycleId: 'life-gfi', executionReason: 'CONTINUITY_ENTER_MONITORING_CONFIRMED'})
+  const m = buildPaperTradeNotificationMessage(event)
+  assert.match(m.text, /Reason: Automatic entry completed and monitoring confirmed/)
+  assert.doesNotMatch(m.text, /CONTINUITY_ENTER_MONITORING_CONFIRMED/)
 })
 
 test('rejects incomplete authoritative fill evidence', () => {

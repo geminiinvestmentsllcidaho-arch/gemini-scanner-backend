@@ -20,6 +20,16 @@ const safeAction = v => {
   const a = upper(v).replace(/_/g, '-')
   return ['ENTER', 'SCALE-IN', 'SCALE-OUT', 'EXIT'].includes(a) ? a : null
 }
+const HUMAN_EXECUTION_REASONS = Object.freeze({
+  CONTINUITY_ENTER_MONITORING_CONFIRMED: 'Automatic entry completed and monitoring confirmed',
+})
+const humanizeExecutionReason = v => {
+  const raw = clean(v, 500)
+  if (!raw) return 'Authoritative broker reconciliation completed'
+  if (HUMAN_EXECUTION_REASONS[raw]) return HUMAN_EXECUTION_REASONS[raw]
+  const text = raw.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+  return text ? text[0].toUpperCase() + text.slice(1) : 'Authoritative broker reconciliation completed'
+}
 
 export function buildPaperTradeNotificationEvent(input = {}) {
   const action = safeAction(input.action)
@@ -74,7 +84,7 @@ export function buildPaperTradeNotificationMessage(event = {}) {
     `Filled at: ${event.filledAt ?? 'unavailable'}`,
     `Broker order: ${event.brokerOrderId}`,
     `Lifecycle: ${event.lifecycleId}`,
-    `Reason: ${event.executionReason ?? 'authoritative broker reconciliation completed'}`,
+    `Reason: ${humanizeExecutionReason(event.executionReason)}`,
     'PAPER only: YES',
     'Live trading: DISABLED',
     '',
