@@ -337,7 +337,7 @@ app.use((_req, res, next) => {
 const underFiveSharedCachePromise = import('./scanner/alpaca_under_five_shared_scan_cache.mjs')
   .then(async (mod) => {
     const cache = mod.createAlpacaUnderFiveSharedScanCache({
-    scanOptions: { minPrice: 0, maxPrice: 1000 },
+    scanOptions: { minPrice: 0.5, maxPrice: 5 },
     onScanComplete(snapshot) {
       appendOpportunityFunnelAuditRecord({
         scanId: `under-five-${snapshot?.sharedCache?.scanCount ?? 'unknown'}-${snapshot?.sharedCache?.generatedAt ?? Date.now()}`,

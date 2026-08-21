@@ -5,6 +5,7 @@ import {
   MIN_RANKING_CONFIDENCE,
   MIN_RANKING_QUALITY,
   MIN_RANKING_SETUP_SCORE,
+  MAX_ENTRY_PRICE,
   getPaperAutoExecutionStrategyAuthorizationPolicy,
   authorizePaperAutoExecutionCandidate,
 } from "../src/scanner/paper_auto_execution_strategy_authorization.mjs";
@@ -21,6 +22,7 @@ function qualified(overrides = {}) {
     rankingSetupScore: 82,
     rankingConfidence: 0.8,
     rankingQuality: 0.9,
+    price: 4,
     ...overrides,
   };
 }
@@ -29,6 +31,7 @@ test("exposes canonical read-only strategy authorization policy from the determi
   const policy = getPaperAutoExecutionStrategyAuthorizationPolicy();
   assert.equal(policy.version, "paper_auto_execution_strategy_authorization_v1");
   assert.equal(policy.requiredState, "ENTER");
+  assert.equal(policy.maximumEntryPrice, MAX_ENTRY_PRICE);
   assert.deepEqual(policy.minimums, {
     setupScore: MIN_RANKING_SETUP_SCORE,
     rankingConfidence: MIN_RANKING_CONFIDENCE,
@@ -131,4 +134,25 @@ test("fails closed when required ranking metrics are absent or non-finite", () =
   assert.ok(out.blockers.includes("STRATEGY_SETUP_SCORE_REQUIRED"));
   assert.ok(out.blockers.includes("STRATEGY_RANKING_CONFIDENCE_REQUIRED"));
   assert.ok(out.blockers.includes("STRATEGY_RANKING_QUALITY_REQUIRED"));
+});
+
+test("fails closed above the under-five automatic entry ceiling and permits exactly five dollars", () => {
+  const above = authorizePaperAutoExecutionCandidate(qualified({
+    price: MAX_ENTRY_PRICE + 0.01,
+  }));
+  assert.equal(above.authorized, false);
+  assert.ok(above.blockers.includes("STRATEGY_ENTRY_PRICE_ABOVE_MAXIMUM"));
+
+  const boundary = authorizePaperAutoExecutionCandidate(qualified({
+    price: MAX_ENTRY_PRICE,
+  }));
+  assert.equal(boundary.authorized, true);
+});
+
+test("fails closed when automatic entry price is missing or non-finite", () => {
+  for (const price of [null, undefined, "not-a-number"]) {
+    const out = authorizePaperAutoExecutionCandidate(qualified({ price }));
+    assert.equal(out.authorized, false);
+    assert.ok(out.blockers.includes("STRATEGY_ENTRY_PRICE_REQUIRED"));
+  }
 });

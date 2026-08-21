@@ -174,6 +174,7 @@ test("fresh closed-session runtime health preserves eligible customer candidate 
         sourceStale: false,
         decision: "ENTER",
         permission: "APPROVED",
+        price: 4,
       }],
     },
     {
@@ -267,6 +268,7 @@ test("canonical strategy authorization controls visible ENTER while preserving m
       decision: "ENTER",
       sourceStale: false,
       blockingFlags: [],
+      price: 4,
       briefExplanation: "Manual potential logic produced ENTER.",
     }],
   };

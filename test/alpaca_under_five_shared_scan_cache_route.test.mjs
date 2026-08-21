@@ -135,3 +135,10 @@ test("shared source captures idle state before noteDemand clears the wake-refres
   assert.ok(wakeIndex < demandIndex);
   assert.ok(demandIndex < refreshIndex);
 });
+
+test("production shared under-five cache is bounded to fifty cents through five dollars", () => {
+  assert.match(
+    server,
+    /createAlpacaUnderFiveSharedScanCache\(\{[\s\S]*?scanOptions:\s*\{\s*minPrice:\s*0\.5,\s*maxPrice:\s*5\s*\}/,
+  );
+});
