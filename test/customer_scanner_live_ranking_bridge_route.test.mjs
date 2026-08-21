@@ -7,7 +7,7 @@ const server = fs.readFileSync(new URL("../src/server.js", import.meta.url), "ut
 test("customer under-five bridge ranks the current shared-cache candidates instead of historical dryruns", () => {
   assert.match(
     server,
-    /function readUnderFiveLiveRankings\(source = \{\}\) \{[\s\S]*rows = Array\.isArray\(source\?\.candidates\)[\s\S]*readScannerRankings\(\{[\s\S]*rows,[\s\S]*nowMs: Date\.now\(\),[\s\S]*\}\);[\s\S]*\}/
+    /function readUnderFiveLiveRankings\(source = \{\}\) \{[\s\S]*mapLiveUnderFiveUniverseToRankingEnvelope\(source, nowMs\)[\s\S]*rows = Array\.isArray\(envelope\?\.rankings\)[\s\S]*readScannerRankings\(\{[\s\S]*rows,[\s\S]*nowMs,[\s\S]*\}\);[\s\S]*\}/
   );
   assert.match(
     server,

@@ -425,10 +425,12 @@ const premarketSharedCachePromise = import('./scanner/alpaca_premarket_shared_sc
   });
 
 function readUnderFiveLiveRankings(source = {}) {
-  const rows = Array.isArray(source?.candidates) ? source.candidates : [];
+  const nowMs = Date.now();
+  const envelope = mapLiveUnderFiveUniverseToRankingEnvelope(source, nowMs);
+  const rows = Array.isArray(envelope?.rankings) ? envelope.rankings : [];
   return readScannerRankings({
     rows,
-    nowMs: Date.now(),
+    nowMs,
   });
 }
 
