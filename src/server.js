@@ -3114,7 +3114,7 @@ const getPaperAutoExecutionOwnedMonitor=async({paperAccount,nowMs=Date.now()}={}
   const source=cache?(wake?await cache.refreshNow():current):null;
   capitalProtectionRoot=source?readUnderFiveLiveRankings(source):null;
  }catch{}
- return fetchCustomerOwnedPositionMonitorSource({paperAccount,fetchSymbols:a=>fetchAlpacaUnderFiveUniverseReadonly({...a,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),nowMs,maxAssets:1,capitalProtectionRoot});
+ return fetchCustomerOwnedPositionMonitorSource({paperAccount,fetchSymbols:({nowMs:_ignoredNowMs,...a})=>fetchAlpacaUnderFiveUniverseReadonly({...a,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),nowMs,maxAssets:1,capitalProtectionRoot});
 };
 
 const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
