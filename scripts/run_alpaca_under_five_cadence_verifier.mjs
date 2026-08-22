@@ -54,7 +54,6 @@ if (process.argv.includes("--once")) {
 
   await tick();
   const timer = setInterval(tick, intervalMs);
-  timer?.unref?.();
 
   const stop = () => {
     clearInterval(timer);
