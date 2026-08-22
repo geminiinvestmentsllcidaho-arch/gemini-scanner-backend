@@ -5404,7 +5404,7 @@ app.get('/customer/scanner/under-five', requireCustomerSession, async (req, res)
       portfolioWindDownActive: req.customerAccount?.portfolioWindDownRequested === true,
       title: `$0–$${maxPrice.toLocaleString('en-US')} Scanner`,
       maxPrice,
-      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh,
+      refreshIntervalSec: req.query.refreshIntervalSec ?? req.query.refresh ?? 15,
       now,
     });
     res.set('Cache-Control', 'no-store');

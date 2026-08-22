@@ -127,6 +127,7 @@ test("authenticated customer under-five route loads account result filters", () 
 
   assert.match(block, /getCustomerZeroResultFilters\(req\.customerAccount\?\.id\)\.filters/);
   assert.match(block, /resultFilters,/);
+  assert.match(block, /refreshIntervalSec:\s*req\.query\.refreshIntervalSec\s*\?\?\s*req\.query\.refresh\s*\?\?\s*15/);
 });
 
 
