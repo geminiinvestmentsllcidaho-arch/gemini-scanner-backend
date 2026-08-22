@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createAdminOperationalEmailDelivery } from './admin_operational_notification_delivery.mjs'
+import { listCustomerAccountRecords } from './customer_account_store.mjs'
 
 export const VERSION = 'paper_auto_execution_trade_notification_v1'
 export const DEFAULT_LEDGER_PATH = path.resolve('runs/paper_auto_execution_trade_notifications.jsonl')
@@ -29,6 +29,64 @@ const humanizeExecutionReason = v => {
   if (HUMAN_EXECUTION_REASONS[raw]) return HUMAN_EXECUTION_REASONS[raw]
   const text = raw.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
   return text ? text[0].toUpperCase() + text.slice(1) : 'Authoritative broker reconciliation completed'
+}
+
+export function resolvePaperTradeNotificationRecipient({ accounts = listCustomerAccountRecords() } = {}) {
+  const recipients = [...new Set(
+    (Array.isArray(accounts) ? accounts : [])
+      .filter(account =>
+        clean(account?.status).toLowerCase() === 'active' &&
+        account?.emailVerified === true &&
+        account?.notificationPreferences?.exitEmailEnabled === true
+      )
+      .map(account => clean(account?.notificationPreferences?.exitNotificationEmail || account?.email, 320).toLowerCase())
+      .filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+  )]
+  if (recipients.length === 0) return Object.freeze({ ok: false, status: 'TRADE_NOTIFICATION_RECIPIENT_NOT_CONFIGURED', recipient: null })
+  if (recipients.length !== 1) return Object.freeze({ ok: false, status: 'TRADE_NOTIFICATION_RECIPIENT_AMBIGUOUS', recipient: null })
+  return Object.freeze({ ok: true, status: 'TRADE_NOTIFICATION_RECIPIENT_RESOLVED', recipient: recipients[0] })
+}
+
+export function createPaperTradeNotificationEmailDelivery({
+  fetchImpl = globalThis.fetch,
+  env = process.env,
+  accountLoader = () => listCustomerAccountRecords(),
+} = {}) {
+  return Object.freeze({
+    async sendMessage({ subject, text } = {}) {
+      const provider = clean(env.CUSTOMER_EMAIL_PROVIDER, 80).toLowerCase()
+      const apiKey = clean(env.RESEND_API_KEY, 500)
+      const sender = clean(env.CUSTOMER_EMAIL_FROM, 320)
+      if (provider !== 'resend') return Object.freeze({ delivered: false, reason: 'email_provider_not_configured' })
+      if (!apiKey || !sender || typeof fetchImpl !== 'function') return Object.freeze({ delivered: false, reason: 'resend_not_configured' })
+
+      let resolved
+      try {
+        resolved = resolvePaperTradeNotificationRecipient({ accounts: accountLoader() })
+      } catch {
+        return Object.freeze({ delivered: false, reason: 'trade_notification_recipient_lookup_failed' })
+      }
+      if (resolved.ok !== true) return Object.freeze({ delivered: false, reason: resolved.status.toLowerCase() })
+
+      const safeSubject = clean(subject, 240)
+      const safeText = String(text ?? '').replace(/\r/g, '').slice(0, 8000)
+      if (!safeSubject || !safeText) return Object.freeze({ delivered: false, reason: 'email_message_invalid' })
+
+      const response = await fetchImpl('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: sender, to: [resolved.recipient], subject: safeSubject, text: safeText }),
+      })
+      const body = await response.json().catch(() => ({}))
+      const delivered = response.ok && Boolean(clean(body?.id, 240))
+      return Object.freeze({
+        delivered,
+        provider: 'resend',
+        statusCode: response.status,
+        reason: delivered ? null : 'resend_delivery_failed',
+      })
+    },
+  })
 }
 
 export function buildPaperTradeNotificationEvent(input = {}) {
@@ -122,7 +180,7 @@ function appendLedger(ledgerPath, row) {
 export function createPaperTradeNotificationEmitter({
   env = process.env,
   ledgerPath = DEFAULT_LEDGER_PATH,
-  delivery = createAdminOperationalEmailDelivery({ env }),
+  delivery = createPaperTradeNotificationEmailDelivery({ env }),
   now = () => new Date().toISOString(),
 } = {}) {
   const authorized = String(env.GS_PAPER_EXECUTION_EMAIL_SEND_AUTHORIZED ?? '').trim().toLowerCase() === 'true'
@@ -197,6 +255,8 @@ export default {
   DEFAULT_LEDGER_PATH,
   buildPaperTradeNotificationEvent,
   buildPaperTradeNotificationMessage,
+  resolvePaperTradeNotificationRecipient,
+  createPaperTradeNotificationEmailDelivery,
   createPaperTradeNotificationEmitter,
   emitPaperTradeNotificationFailOpen,
 }

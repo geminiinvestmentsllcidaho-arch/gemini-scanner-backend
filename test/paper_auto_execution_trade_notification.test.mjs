@@ -7,6 +7,8 @@ import path from 'node:path'
 import {
   buildPaperTradeNotificationEvent,
   buildPaperTradeNotificationMessage,
+  resolvePaperTradeNotificationRecipient,
+  createPaperTradeNotificationEmailDelivery,
   createPaperTradeNotificationEmitter,
 } from '../src/scanner/paper_auto_execution_trade_notification.mjs'
 
@@ -206,4 +208,50 @@ test('malformed ledger line preserves prior delivered dedup evidence', async () 
   } finally {
     fs.rmSync(d, { recursive: true, force: true })
   }
+})
+
+test('resolves exactly one active verified opted-in customer trade notification recipient', () => {
+  const accounts = [
+    { status: 'pending_email_verification', emailVerified: false, email: 'pending@example.test', notificationPreferences: { exitEmailEnabled: true, exitNotificationEmail: 'pending@example.test' } },
+    { status: 'active', emailVerified: true, email: 'owner@example.test', notificationPreferences: { exitEmailEnabled: true, exitNotificationEmail: 'owner@example.test' } },
+  ]
+  const out = resolvePaperTradeNotificationRecipient({ accounts })
+  assert.equal(out.ok, true)
+  assert.equal(out.recipient, 'owner@example.test')
+})
+
+test('fails closed when customer trade notification recipient is absent or ambiguous', () => {
+  assert.equal(resolvePaperTradeNotificationRecipient({ accounts: [] }).status, 'TRADE_NOTIFICATION_RECIPIENT_NOT_CONFIGURED')
+  const out = resolvePaperTradeNotificationRecipient({ accounts: [
+    { status: 'active', emailVerified: true, email: 'a@example.test', notificationPreferences: { exitEmailEnabled: true, exitNotificationEmail: 'a@example.test' } },
+    { status: 'active', emailVerified: true, email: 'b@example.test', notificationPreferences: { exitEmailEnabled: true, exitNotificationEmail: 'b@example.test' } },
+  ] })
+  assert.equal(out.status, 'TRADE_NOTIFICATION_RECIPIENT_AMBIGUOUS')
+})
+
+test('trade notification email delivery sends to resolved customer destination rather than watchdog recipient', async () => {
+  let request = null
+  const delivery = createPaperTradeNotificationEmailDelivery({
+    env: {
+      CUSTOMER_EMAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 'secret-test-key',
+      CUSTOMER_EMAIL_FROM: 'sender@example.test',
+      GS_WATCHDOG_ALERT_RECIPIENT: 'watchdog@example.test',
+    },
+    accountLoader: () => [{
+      status: 'active',
+      emailVerified: true,
+      email: 'owner@example.test',
+      notificationPreferences: { exitEmailEnabled: true, exitNotificationEmail: 'owner@example.test' },
+    }],
+    fetchImpl: async (url, options) => {
+      request = { url, options }
+      return { ok: true, status: 200, json: async () => ({ id: 'delivery-id' }) }
+    },
+  })
+  const out = await delivery.sendMessage({ subject: 'subject', text: 'body' })
+  assert.equal(out.delivered, true)
+  const body = JSON.parse(request.options.body)
+  assert.deepEqual(body.to, ['owner@example.test'])
+  assert.equal(body.to.includes('watchdog@example.test'), false)
 })
