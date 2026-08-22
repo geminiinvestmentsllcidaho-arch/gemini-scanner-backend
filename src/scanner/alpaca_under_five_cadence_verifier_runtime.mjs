@@ -131,7 +131,6 @@ function notificationKey(result = {}) {
   return [
     result.status,
     result?.state?.startedAt ?? "unknown-session",
-    ...(Array.isArray(result?.violations) ? result.violations : []),
   ].join("|");
 }
 
@@ -156,8 +155,19 @@ export async function runUnderFiveCadenceVerifierOnce(options = {}) {
 
   const priorTerminalResultKey = clean(previousState?.lastTerminalResultKey, 1000);
   const priorNotificationKey = clean(previousState?.lastNotificationKey, 1000);
+  const priorNotificationAttemptKey = clean(previousState?.lastNotificationAttemptKey, 1000);
+  const priorNotificationAttemptAt = clean(previousState?.lastNotificationAttemptAt, 80);
+  const priorNotificationAttemptCount = Number.isFinite(Number(previousState?.notificationAttemptCount))
+    ? Math.max(0, Math.trunc(Number(previousState.notificationAttemptCount)))
+    : 0;
+  const retryCooldownMs = Math.max(0, Number(options.notificationRetryCooldownMs ?? 60000));
+  const maxNotificationAttempts = Math.max(1, Math.trunc(Number(options.maxNotificationAttempts ?? 3)));
+
   let lastTerminalResultKey = priorTerminalResultKey || null;
   let lastNotificationKey = priorNotificationKey || null;
+  let lastNotificationAttemptKey = priorNotificationAttemptKey || null;
+  let lastNotificationAttemptAt = priorNotificationAttemptAt || null;
+  let notificationAttemptCount = priorNotificationAttemptCount;
   let ledger = Object.freeze({ appended: false, reason: "non_terminal" });
   let alert = Object.freeze({ attempted: false, delivered: false, reason: "non_terminal" });
 
@@ -180,16 +190,38 @@ export async function runUnderFiveCadenceVerifierOnce(options = {}) {
       ledger = Object.freeze({ appended: false, reason: "terminal_result_already_recorded" });
     }
 
-    if (key && key !== priorNotificationKey) {
-      if (options.allowEmailSend === true) {
+    if (key && key === priorNotificationKey) {
+      alert = Object.freeze({ attempted: false, delivered: false, reason: "terminal_result_already_notified" });
+    } else if (key) {
+      const sameAttemptKey = priorNotificationAttemptKey === key;
+      const attemptCount = sameAttemptKey ? priorNotificationAttemptCount : 0;
+      const lastAttemptMs = sameAttemptKey ? Date.parse(priorNotificationAttemptAt) : NaN;
+      const retryElapsed = !Number.isFinite(lastAttemptMs) || now.getTime() - lastAttemptMs >= retryCooldownMs;
+
+      if (attemptCount >= maxNotificationAttempts) {
+        alert = Object.freeze({ attempted: false, delivered: false, reason: "email_retry_exhausted" });
+      } else if (!retryElapsed) {
+        alert = Object.freeze({ attempted: false, delivered: false, reason: "email_retry_cooldown" });
+      } else if (options.allowEmailSend === true) {
         const message = buildCadenceVerifierEmail(result);
-        alert = Object.freeze({ attempted: true, ...(await delivery.sendMessage(message)) });
-        lastNotificationKey = key;
+        let deliveryResult;
+        try {
+          deliveryResult = await delivery.sendMessage(message);
+        } catch (error) {
+          deliveryResult = Object.freeze({
+            delivered: false,
+            reason: "notification_delivery_exception",
+            errorCode: clean(error?.code || error?.name || "DELIVERY_EXCEPTION", 80),
+          });
+        }
+        alert = Object.freeze({ attempted: true, ...deliveryResult, delivered: deliveryResult?.delivered === true });
+        lastNotificationAttemptKey = key;
+        lastNotificationAttemptAt = now.toISOString();
+        notificationAttemptCount = attemptCount + 1;
+        if (alert.delivered === true) lastNotificationKey = key;
       } else {
         alert = Object.freeze({ attempted: false, delivered: false, reason: "email_send_not_authorized" });
       }
-    } else {
-      alert = Object.freeze({ attempted: false, delivered: false, reason: "terminal_result_already_notified" });
     }
   }
 
@@ -197,6 +229,9 @@ export async function runUnderFiveCadenceVerifierOnce(options = {}) {
     ...result.state,
     ...(lastTerminalResultKey ? { lastTerminalResultKey } : {}),
     ...(lastNotificationKey ? { lastNotificationKey } : {}),
+    ...(lastNotificationAttemptKey ? { lastNotificationAttemptKey } : {}),
+    ...(lastNotificationAttemptAt ? { lastNotificationAttemptAt } : {}),
+    ...(notificationAttemptCount > 0 ? { notificationAttemptCount } : {}),
   });
   const persistence = writeCadenceVerifierState(persistedState, { statePath });
 

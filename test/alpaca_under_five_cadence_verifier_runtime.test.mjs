@@ -304,3 +304,186 @@ test("terminal FAIL is recorded but email remains externally gated", async () =>
   assert.equal(sends, 0);
   assert.equal(run.ledger.appended, true);
 });
+
+
+test("failed authorized cadence email is not marked notified and retries after 60-second cooldown", async () => {
+  const { statePath, ledgerPath } = tempPaths();
+  let sends = 0;
+  const bad = {
+    ...healthyInput,
+    diagnostics: {
+      ...healthyInput.diagnostics,
+      focusedIntervalSec: 30,
+    },
+  };
+  const delivery = {
+    async sendMessage() {
+      sends += 1;
+      return { delivered: false, provider: "test", statusCode: 503, reason: "resend_delivery_failed" };
+    },
+  };
+
+  const first = await runUnderFiveCadenceVerifierOnce({
+    now: new Date("2026-08-24T13:30:00.000Z"),
+    input: bad,
+    statePath,
+    ledgerPath,
+    allowEmailSend: true,
+    delivery,
+  });
+  assert.equal(first.alert.attempted, true);
+  assert.equal(first.alert.delivered, false);
+  assert.equal(sends, 1);
+
+  let persisted = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(persisted.lastNotificationKey, undefined);
+  assert.equal(persisted.notificationAttemptCount, 1);
+  assert.equal(typeof persisted.lastNotificationAttemptKey, "string");
+  assert.equal(persisted.lastNotificationAttemptAt, "2026-08-24T13:30:00.000Z");
+
+  const early = await runUnderFiveCadenceVerifierOnce({
+    now: new Date("2026-08-24T13:30:59.000Z"),
+    input: bad,
+    statePath,
+    ledgerPath,
+    allowEmailSend: true,
+    delivery,
+  });
+  assert.equal(early.alert.attempted, false);
+  assert.equal(early.alert.reason, "email_retry_cooldown");
+  assert.equal(sends, 1);
+
+  const retry = await runUnderFiveCadenceVerifierOnce({
+    now: new Date("2026-08-24T13:31:00.000Z"),
+    input: bad,
+    statePath,
+    ledgerPath,
+    allowEmailSend: true,
+    delivery,
+  });
+  assert.equal(retry.alert.attempted, true);
+  assert.equal(retry.alert.delivered, false);
+  assert.equal(sends, 2);
+
+  persisted = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(persisted.lastNotificationKey, undefined);
+  assert.equal(persisted.notificationAttemptCount, 2);
+});
+
+test("cadence email delivery exception is contained sanitized and remains retryable", async () => {
+  const { statePath, ledgerPath } = tempPaths();
+  const bad = {
+    ...healthyInput,
+    diagnostics: {
+      ...healthyInput.diagnostics,
+      focusedIntervalSec: 30,
+    },
+  };
+
+  const run = await runUnderFiveCadenceVerifierOnce({
+    now: new Date("2026-08-24T13:30:00.000Z"),
+    input: bad,
+    statePath,
+    ledgerPath,
+    allowEmailSend: true,
+    delivery: {
+      async sendMessage() {
+        throw Object.assign(new Error("secret detail"), { code: "ETIMEDOUT" });
+      },
+    },
+  });
+
+  assert.equal(run.alert.attempted, true);
+  assert.equal(run.alert.delivered, false);
+  assert.equal(run.alert.reason, "notification_delivery_exception");
+  assert.equal(run.alert.errorCode, "ETIMEDOUT");
+  const raw = fs.readFileSync(statePath, "utf8");
+  assert.doesNotMatch(raw, /secret detail/);
+  const persisted = JSON.parse(raw);
+  assert.equal(persisted.lastNotificationKey, undefined);
+  assert.equal(persisted.notificationAttemptCount, 1);
+});
+
+test("failed cadence email stops after three attempts and successful retry deduplicates thereafter", async () => {
+  const { statePath, ledgerPath } = tempPaths();
+  let sends = 0;
+  const bad = {
+    ...healthyInput,
+    diagnostics: {
+      ...healthyInput.diagnostics,
+      focusedIntervalSec: 30,
+    },
+  };
+  const delivery = {
+    async sendMessage() {
+      sends += 1;
+      return sends === 3
+        ? { delivered: true, provider: "test", statusCode: 200 }
+        : { delivered: false, provider: "test", statusCode: 503 };
+    },
+  };
+
+  for (const at of [
+    "2026-08-24T13:30:00.000Z",
+    "2026-08-24T13:31:00.000Z",
+    "2026-08-24T13:32:00.000Z",
+  ]) {
+    await runUnderFiveCadenceVerifierOnce({
+      now: new Date(at),
+      input: bad,
+      statePath,
+      ledgerPath,
+      allowEmailSend: true,
+      delivery,
+    });
+  }
+  assert.equal(sends, 3);
+  let persisted = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(typeof persisted.lastNotificationKey, "string");
+
+  const dedup = await runUnderFiveCadenceVerifierOnce({
+    now: new Date("2026-08-24T13:33:00.000Z"),
+    input: bad,
+    statePath,
+    ledgerPath,
+    allowEmailSend: true,
+    delivery,
+  });
+  assert.equal(dedup.alert.attempted, false);
+  assert.equal(dedup.alert.reason, "terminal_result_already_notified");
+  assert.equal(sends, 3);
+
+  const exhaustedPaths = tempPaths();
+  let failedSends = 0;
+  const alwaysFail = {
+    async sendMessage() {
+      failedSends += 1;
+      return { delivered: false, provider: "test", statusCode: 503 };
+    },
+  };
+  for (const at of [
+    "2026-08-24T13:30:00.000Z",
+    "2026-08-24T13:31:00.000Z",
+    "2026-08-24T13:32:00.000Z",
+  ]) {
+    await runUnderFiveCadenceVerifierOnce({
+      now: new Date(at),
+      input: bad,
+      statePath: exhaustedPaths.statePath,
+      ledgerPath: exhaustedPaths.ledgerPath,
+      allowEmailSend: true,
+      delivery: alwaysFail,
+    });
+  }
+  const exhausted = await runUnderFiveCadenceVerifierOnce({
+    now: new Date("2026-08-24T13:33:00.000Z"),
+    input: bad,
+    statePath: exhaustedPaths.statePath,
+    ledgerPath: exhaustedPaths.ledgerPath,
+    allowEmailSend: true,
+    delivery: alwaysFail,
+  });
+  assert.equal(exhausted.alert.attempted, false);
+  assert.equal(exhausted.alert.reason, "email_retry_exhausted");
+  assert.equal(failedSends, 3);
+});
