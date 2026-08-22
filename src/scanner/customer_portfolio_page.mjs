@@ -122,6 +122,22 @@ export function renderCustomerPortfolioPageHtml(page = {}) {
 </tr>`).join("")
     : '<tr><td colspan="9">No paper positions are currently available.</td></tr>';
 
+  const mobileRows = positions.length
+    ? positions.map((position) => `<article class="mobile-position-card">
+<div class="mobile-position-card-head"><strong>${esc(position.symbol)}</strong><span class="${position.unrealizedPl > 0 ? "positive" : position.unrealizedPl < 0 ? "negative" : ""}">${esc(money(position.unrealizedPl, locale))}</span></div>
+<div class="mobile-position-grid">
+<div class="mobile-position-field"><span>Quantity</span><strong>${esc(amount(position.qty, locale))}</strong></div>
+<div class="mobile-position-field"><span>Avg entry</span><strong>${esc(money(position.averageEntryPrice, locale))}</strong></div>
+<div class="mobile-position-field"><span>Current price</span><strong>${esc(money(position.currentPrice, locale))}</strong></div>
+<div class="mobile-position-field"><span>Market value</span><strong>${esc(money(position.marketValue, locale))}</strong></div>
+<div class="mobile-position-field"><span>Unrealized P/L</span><strong class="${position.unrealizedPl > 0 ? "positive" : position.unrealizedPl < 0 ? "negative" : ""}">${esc(money(position.unrealizedPl, locale))}</strong></div>
+<div class="mobile-position-field"><span>P/L %</span><strong>${esc(amount(position.unrealizedPlPct, locale, "%"))}</strong></div>
+<div class="mobile-position-field"><span>Cost basis</span><strong>${esc(money(position.costBasis, locale))}</strong></div>
+<div class="mobile-position-field"><span>Allocation</span><strong>${esc(amount(position.allocationPct, locale, "%"))}</strong></div>
+</div>
+</article>`).join("")
+    : '<article class="mobile-position-card">No paper positions are currently available.</article>';
+
   const warningItems = warnings.length
     ? warnings.map((warning) => `<li>${esc(WARNING_LABELS[warning] ?? warning)}</li>`).join("")
     : "<li>No portfolio risk warnings are currently active.</li>";
@@ -155,9 +171,18 @@ ${renderCustomerPrimaryNavigationCss()}
 .lifetime-breakdown strong{margin-top:6px;font-size:18px}
 .lifetime-note{margin:14px 0 0;color:var(--gs-muted);font-size:13px}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow-x:auto;max-width:100%}
 table{width:100%;border-collapse:collapse;min-width:920px}
 th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
+.mobile-position-cards{display:none}
+.mobile-position-card{padding:14px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.34);margin:10px 0}
+.mobile-position-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.mobile-position-card-head strong{font-size:20px}
+.mobile-position-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mobile-position-field{min-width:0;padding:10px;border-radius:10px;background:rgba(0,0,0,.3)}
+.mobile-position-field span,.mobile-position-field strong{display:block}
+.mobile-position-field span{font-size:11px;color:var(--gs-muted);text-transform:uppercase;letter-spacing:.04em}
+.mobile-position-field strong{margin-top:5px;font-size:16px;overflow-wrap:anywhere}
 .positive{color:var(--gs-accent)}
 .negative{color:#ff6b6b}
 .stale{color:#ffd166}
@@ -179,7 +204,7 @@ button{padding:11px 15px;border-radius:10px;font-weight:850;cursor:pointer}
 .wind-active .wind-summary{background:rgba(255,107,107,.14);border-color:#ff6b6b}
 .wind-actions{margin:14px 0 10px}
 .wind-actions button{width:100%;max-width:620px}
-@media(max-width:760px){.position-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.grid,.two,.lifetime-breakdown{grid-template-columns:minmax(0,1fr)}.metric,.lifetime-earnings,.position-row{min-width:0}.metric strong{font-size:19px}.lifetime-total{font-size:clamp(28px,10vw,42px)}.wind-actions button{max-width:none}.table-wrap{-webkit-overflow-scrolling:touch}}@media(max-width:420px){.position-row{grid-template-columns:minmax(0,1fr)}.position-row label:nth-child(3),.position-row label:nth-child(4),.remove-row{grid-column:auto}.wrap{padding-left:10px;padding-right:10px}}
+@media(max-width:760px){.position-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.position-row label:nth-child(3),.position-row label:nth-child(4){grid-column:span 2}.remove-row{grid-column:span 2}.wrap{padding:24px 12px 48px}.panel{padding:16px}.grid,.two,.lifetime-breakdown{grid-template-columns:minmax(0,1fr)}.metric,.lifetime-earnings,.position-row{min-width:0}.metric strong{font-size:19px}.lifetime-total{font-size:clamp(28px,10vw,42px)}.wind-actions button{max-width:none}.table-wrap{-webkit-overflow-scrolling:touch}.open-position-table{display:none}.mobile-position-cards{display:block}}@media(max-width:420px){.position-row{grid-template-columns:minmax(0,1fr)}.position-row label:nth-child(3),.position-row label:nth-child(4),.remove-row{grid-column:auto}.wrap{padding-left:10px;padding-right:10px}}
 </style>
 </head>
 <body data-gs-page="customer-portfolio">
@@ -306,12 +331,13 @@ ${metric("Last EXIT", String(automaticPaper?.exit?.lastStatus ?? "Unavailable").
 
 <section class="card panel">
 <h2>Open paper positions</h2>
-<div class="table-wrap">
+<div class="table-wrap open-position-table">
 <table>
 <thead><tr><th>Symbol</th><th>Qty</th><th>Avg entry</th><th>Current</th><th>Cost basis</th><th>Market value</th><th>Unrealized P/L</th><th>P/L %</th><th>Allocation</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
 </div>
+<div class="mobile-position-cards">${mobileRows}</div>
 </section>
 </main>
 ${renderGlobalFooter()}
