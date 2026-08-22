@@ -119,6 +119,7 @@ export function createAlpacaUnderFiveSharedScanCache({
           }
         }
 
+        if (running && demandActive() && timer === null) scheduleNext();
         return latest;
       } catch (error) {
         lastError = error?.message ?? String(error);
@@ -214,7 +215,7 @@ export function createAlpacaUnderFiveSharedScanCache({
         },
       };
     }
-    if (running) scheduleNext();
+    if (running && timer === null && latest !== null) scheduleNext();
     return diagnostics();
   };
 

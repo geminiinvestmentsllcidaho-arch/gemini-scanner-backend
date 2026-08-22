@@ -82,6 +82,80 @@ test("demand expiry returns scanner to idle without further polling", async () =
   assert.equal(cache.getLatest().idleNoDemand, true);
 });
 
+test("repeated demand does not postpone an already scheduled market-open scan", async () => {
+  let nowMs = 0;
+  let scanCalls = 0;
+  let timerId = 0;
+  const timers = new Map();
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => nowMs,
+    setTimeoutImpl(fn, delayMs) {
+      const id = ++timerId;
+      timers.set(id, { fn, at: nowMs + delayMs, cancelled: false });
+      return id;
+    },
+    clearTimeoutImpl(id) {
+      const timer = timers.get(id);
+      if (timer) timer.cancelled = true;
+    },
+    async fetchMarketClock() {
+      return { ok: true, marketClock: { isOpen: true } };
+    },
+    async fetchScan() {
+      scanCalls += 1;
+      return { ok: true, status: "connected_readonly", marketClock: { isOpen: true }, candidates: [] };
+    },
+  });
+
+  await cache.start();
+  cache.noteDemand();
+  await cache.refreshNow();
+  assert.equal(scanCalls, 1);
+  assert.equal(cache.getDiagnostics().nextWakeAt, new Date(15_000).toISOString());
+
+  for (const t of [5_000, 10_000, 14_999]) {
+    nowMs = t;
+    cache.noteDemand();
+    assert.equal(cache.getDiagnostics().nextWakeAt, new Date(15_000).toISOString());
+  }
+
+  nowMs = 15_000;
+  const due = [...timers.values()]
+    .filter((timer) => !timer.cancelled && timer.at <= nowMs)
+    .sort((a, b) => a.at - b.at)[0];
+  assert.ok(due);
+  await due.fn();
+
+  assert.equal(scanCalls, 2);
+  assert.equal(cache.getDiagnostics().nextWakeAt, new Date(30_000).toISOString());
+});
+
+test("wake refresh schedules market-open cadence after idle without waiting for demand expiry", async () => {
+  let nowMs = 0;
+  const scheduled = [];
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => nowMs,
+    setTimeoutImpl(fn, delayMs) {
+      scheduled.push({ fn, delayMs, at: nowMs + delayMs });
+      return scheduled.length;
+    },
+    clearTimeoutImpl() {},
+    async fetchMarketClock() {
+      return { ok: true, marketClock: { isOpen: true } };
+    },
+    async fetchScan() {
+      return { ok: true, status: "connected_readonly", marketClock: { isOpen: true }, candidates: [] };
+    },
+  });
+
+  await cache.start();
+  cache.noteDemand();
+  assert.equal(cache.getDiagnostics().timerScheduled, false);
+
+  await cache.refreshNow();
+  assert.equal(cache.getDiagnostics().nextWakeAt, new Date(15_000).toISOString());
+});
+
 test("shared cache does not freeze source freshness at scan start", async () => {
   let receivedOptions = null;
   const cache = createAlpacaUnderFiveSharedScanCache({
