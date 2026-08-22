@@ -1,11 +1,13 @@
 import { fetchAlpacaUnderFiveUniverseReadonly } from "./alpaca_under_five_universe_readonly.mjs";
 import { fetchAlpacaMarketClockReadonly } from "./alpaca_market_clock_readonly.mjs";
 
-export const VERSION = "alpaca_under_five_shared_scan_cache_v2";
+export const VERSION = "alpaca_under_five_shared_scan_cache_v3";
 export const DEFAULT_DEMAND_WINDOW_SEC = 120;
+export const MARKET_OPEN_FOCUSED_INTERVAL_SEC = 15;
+export const MARKET_OPEN_BROAD_INTERVAL_SEC = 300;
 
 export function intervalSecForMarket(isOpen) {
-  return isOpen === true ? 15 : 300;
+  return isOpen === true ? MARKET_OPEN_FOCUSED_INTERVAL_SEC : 300;
 }
 
 export function msUntilNextBoundary(nowMs = Date.now(), intervalSec = 30) {
@@ -29,6 +31,10 @@ export function createAlpacaUnderFiveSharedScanCache({
   let running = false;
   let inFlight = null;
   let scanCount = 0;
+  let broadScanCount = 0;
+  let focusedScanCount = 0;
+  let lastBroadScanAtMs = null;
+  let broadCandidateSymbols = [];
   let lastError = null;
   let nextWakeAt = null;
   let demandUntilMs = null;
@@ -43,6 +49,12 @@ export function createAlpacaUnderFiveSharedScanCache({
     version: VERSION,
     running,
     scanCount,
+    broadScanCount,
+    focusedScanCount,
+    lastBroadScanAt: Number.isFinite(lastBroadScanAtMs) ? new Date(lastBroadScanAtMs).toISOString() : null,
+    broadCandidateSymbols: [...broadCandidateSymbols],
+    broadIntervalSec: MARKET_OPEN_BROAD_INTERVAL_SEC,
+    focusedIntervalSec: MARKET_OPEN_FOCUSED_INTERVAL_SEC,
     lastError,
     latest,
     hasSnapshot: latest !== null,
@@ -86,6 +98,52 @@ export function createAlpacaUnderFiveSharedScanCache({
     }
   };
 
+  const applyScanResult = async (source, { broad = false } = {}) => {
+    const generatedAtMs = Number(now());
+    scanCount += 1;
+    if (broad) {
+      broadScanCount += 1;
+      lastBroadScanAtMs = generatedAtMs;
+      broadCandidateSymbols = Array.isArray(source?.candidates)
+        ? [...new Set(source.candidates.map((candidate) => String(candidate?.symbol ?? "").trim().toUpperCase()).filter(Boolean))]
+        : [];
+    } else {
+      focusedScanCount += 1;
+    }
+    lastError = null;
+    idleReason = demandActive() ? null : "manual_refresh_without_active_demand";
+    latest = {
+      ...source,
+      idleNoDemand: !demandActive(),
+      sharedCache: {
+        version: VERSION,
+        generatedAt: new Date(generatedAtMs).toISOString(),
+        scanCount,
+        broadScanCount,
+        focusedScanCount,
+        lastBroadScanAt: Number.isFinite(lastBroadScanAtMs) ? new Date(lastBroadScanAtMs).toISOString() : null,
+        broadCandidateSymbols: [...broadCandidateSymbols],
+        scanTier: broad ? "broad" : "focused",
+        broadIntervalSec: MARKET_OPEN_BROAD_INTERVAL_SEC,
+        focusedIntervalSec: MARKET_OPEN_FOCUSED_INTERVAL_SEC,
+        sharedAcrossRequests: true,
+        readOnly: true,
+        demandAware: true,
+        idleNoDemand: !demandActive(),
+      },
+    };
+
+    if (typeof onScanComplete === "function") {
+      try {
+        await onScanComplete(latest);
+      } catch {
+      }
+    }
+
+    if (running && demandActive() && timer === null) scheduleNext();
+    return latest;
+  };
+
   const refreshNow = async () => {
     if (inFlight) return inFlight;
 
@@ -94,33 +152,32 @@ export function createAlpacaUnderFiveSharedScanCache({
         const source = await fetchScan({
           ...scanOptions,
         });
+        return await applyScanResult(source, { broad: true });
+      } catch (error) {
+        lastError = error?.message ?? String(error);
+        throw error;
+      } finally {
+        inFlight = null;
+      }
+    })();
 
-        scanCount += 1;
-        lastError = null;
-        idleReason = demandActive() ? null : "manual_refresh_without_active_demand";
-        latest = {
-          ...source,
-          idleNoDemand: !demandActive(),
-          sharedCache: {
-            version: VERSION,
-            generatedAt: new Date(now()).toISOString(),
-            scanCount,
-            sharedAcrossRequests: true,
-            readOnly: true,
-            demandAware: true,
-            idleNoDemand: !demandActive(),
-          },
-        };
+    return inFlight;
+  };
 
-        if (typeof onScanComplete === "function") {
-          try {
-            await onScanComplete(latest);
-          } catch {
-          }
-        }
+  const refreshFocusedNow = async () => {
+    if (inFlight) return inFlight;
 
-        if (running && demandActive() && timer === null) scheduleNext();
-        return latest;
+    const symbols = [...broadCandidateSymbols];
+
+    if (symbols.length === 0) return refreshNow();
+
+    inFlight = (async () => {
+      try {
+        const source = await fetchScan({
+          ...scanOptions,
+          symbols,
+        });
+        return await applyScanResult(source, { broad: false });
       } catch (error) {
         lastError = error?.message ?? String(error);
         throw error;
@@ -142,7 +199,11 @@ export function createAlpacaUnderFiveSharedScanCache({
     const marketClock = clockSource?.marketClock ?? {};
 
     if (marketClock?.isOpen === true) {
-      return refreshNow();
+      const nowMs = Number(now());
+      const broadDue =
+        !Number.isFinite(lastBroadScanAtMs)
+        || nowMs - lastBroadScanAtMs >= MARKET_OPEN_BROAD_INTERVAL_SEC * 1000;
+      return broadDue ? refreshNow() : refreshFocusedNow();
     }
 
     lastError = null;
@@ -240,6 +301,7 @@ export function createAlpacaUnderFiveSharedScanCache({
     stop,
     noteDemand,
     refreshNow,
+    refreshFocusedNow,
     getLatest: () => latest,
     getDiagnostics: diagnostics,
   };
