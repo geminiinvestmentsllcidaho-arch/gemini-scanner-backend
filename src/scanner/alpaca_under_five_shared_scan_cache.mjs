@@ -169,7 +169,10 @@ export function createAlpacaUnderFiveSharedScanCache({
 
     const symbols = [...broadCandidateSymbols];
 
-    if (symbols.length === 0) return refreshNow();
+    if (symbols.length === 0) {
+      lastError = null;
+      return latest;
+    }
 
     inFlight = (async () => {
       try {

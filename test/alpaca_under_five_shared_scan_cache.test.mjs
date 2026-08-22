@@ -130,7 +130,9 @@ test("repeated demand does not postpone an already scheduled market-open scan", 
   assert.ok(due);
   await due.fn();
 
-  assert.equal(scanCalls, 2);
+  assert.equal(scanCalls, 1);
+  assert.equal(cache.getDiagnostics().broadScanCount, 1);
+  assert.equal(cache.getDiagnostics().focusedScanCount, 0);
   assert.equal(cache.getDiagnostics().nextWakeAt, new Date(30_000).toISOString());
 });
 
@@ -193,21 +195,33 @@ test("market-open scheduler performs focused candidate refreshes between five-mi
 test("market-open scheduler returns to broad discovery at the five-minute boundary", async () => {
   let nowMs = 0;
   const calls = [];
+  let timerId = 0;
+  const timers = new Map();
   const cache = createAlpacaUnderFiveSharedScanCache({
     now: () => nowMs,
     demandWindowSec: 600,
-    setTimeoutImpl() { return 1; },
-    clearTimeoutImpl() {},
+    setTimeoutImpl(fn, delayMs) {
+      const id = ++timerId;
+      timers.set(id, { fn, at: nowMs + delayMs, cancelled: false });
+      return id;
+    },
+    clearTimeoutImpl(id) {
+      const timer = timers.get(id);
+      if (timer) timer.cancelled = true;
+    },
     async fetchMarketClock() {
       return { ok: true, marketClock: { isOpen: true } };
     },
     async fetchScan(options = {}) {
       calls.push(options);
+      const symbols = Array.isArray(options.symbols) ? options.symbols : null;
       return {
         ok: true,
         status: "connected_readonly",
         marketClock: { isOpen: true },
-        candidates: [{ symbol: "AAA" }],
+        candidates: symbols
+          ? symbols.map((symbol) => ({ symbol }))
+          : [{ symbol: "AAA" }],
       };
     },
   });
@@ -215,12 +229,33 @@ test("market-open scheduler returns to broad discovery at the five-minute bounda
   await cache.start();
   cache.noteDemand();
   await cache.refreshNow();
-  nowMs = 300_000;
-  await cache.refreshFocusedNow();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].symbols, undefined);
+  assert.equal(cache.getDiagnostics().broadScanCount, 1);
+  assert.equal(cache.getDiagnostics().focusedScanCount, 0);
+
+  nowMs = 15_000;
+  let due = [...timers.entries()]
+    .filter(([, timer]) => !timer.cancelled && timer.at <= nowMs)
+    .sort((a, b) => a[1].at - b[1].at)[0];
+  assert.ok(due);
+  timers.delete(due[0]);
+  await due[1].fn();
+
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[1].symbols, ["AAA"]);
+  assert.equal(cache.getDiagnostics().broadScanCount, 1);
+  assert.equal(cache.getDiagnostics().focusedScanCount, 1);
 
-  await cache.refreshNow();
+  nowMs = 300_000;
+  due = [...timers.entries()]
+    .filter(([, timer]) => !timer.cancelled && timer.at <= nowMs)
+    .sort((a, b) => a[1].at - b[1].at)[0];
+  assert.ok(due);
+  timers.delete(due[0]);
+  await due[1].fn();
+
   assert.equal(calls.length, 3);
   assert.equal(calls[2].symbols, undefined);
   assert.equal(cache.getDiagnostics().broadScanCount, 2);
@@ -363,4 +398,71 @@ test("audit hook failures remain non-blocking", async () => {
   const result = await cache.refreshNow();
   assert.equal(result.ok, true);
   assert.equal(cache.getDiagnostics().lastError, null);
+});
+
+test("empty focused cohort performs no provider fetch before the five-minute broad boundary", async () => {
+  let nowMs = 0;
+  const calls = [];
+  let timerId = 0;
+  const timers = new Map();
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => nowMs,
+    demandWindowSec: 600,
+    setTimeoutImpl(fn, delayMs) {
+      const id = ++timerId;
+      timers.set(id, { fn, at: nowMs + delayMs, cancelled: false });
+      return id;
+    },
+    clearTimeoutImpl(id) {
+      const timer = timers.get(id);
+      if (timer) timer.cancelled = true;
+    },
+    async fetchMarketClock() {
+      return { ok: true, marketClock: { isOpen: true } };
+    },
+    async fetchScan(options = {}) {
+      calls.push(options);
+      return {
+        ok: true,
+        status: "connected_readonly",
+        marketClock: { isOpen: true },
+        candidates: [],
+      };
+    },
+  });
+
+  await cache.start();
+  cache.noteDemand();
+  await cache.refreshNow();
+
+  assert.equal(calls.length, 1);
+  assert.equal(cache.getDiagnostics().broadScanCount, 1);
+  assert.equal(cache.getDiagnostics().focusedScanCount, 0);
+  const generatedAt = cache.getDiagnostics().latest.sharedCache.generatedAt;
+
+  nowMs = 15_000;
+  let due = [...timers.entries()]
+    .filter(([, timer]) => !timer.cancelled && timer.at <= nowMs)
+    .sort((a, b) => a[1].at - b[1].at)[0];
+  assert.ok(due);
+  timers.delete(due[0]);
+  await due[1].fn();
+
+  assert.equal(calls.length, 1);
+  assert.equal(cache.getDiagnostics().broadScanCount, 1);
+  assert.equal(cache.getDiagnostics().focusedScanCount, 0);
+  assert.equal(cache.getDiagnostics().latest.sharedCache.generatedAt, generatedAt);
+
+  nowMs = 300_000;
+  due = [...timers.entries()]
+    .filter(([, timer]) => !timer.cancelled && timer.at <= nowMs)
+    .sort((a, b) => a[1].at - b[1].at)[0];
+  assert.ok(due);
+  timers.delete(due[0]);
+  await due[1].fn();
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].symbols, undefined);
+  assert.equal(cache.getDiagnostics().broadScanCount, 2);
+  assert.equal(cache.getDiagnostics().focusedScanCount, 0);
 });

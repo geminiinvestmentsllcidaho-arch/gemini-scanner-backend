@@ -81,5 +81,20 @@ module.exports = {
         GS_EXECUTION_ASSURANCE_SAFE_REPAIR_AUTHORIZED: "true",
       },
     },
+    {
+      name: "gemini-under-five-cadence-verifier",
+      cwd: "/home/gemini/apps/gemini-scanner-backend",
+      script: "./scripts/run_alpaca_under_five_cadence_verifier.mjs",
+      interpreter: "/usr/bin/node",
+      exec_mode: "fork",
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 20,
+      env: {
+        NODE_ENV: "production",
+        GS_CADENCE_VERIFIER_INTERVAL_MS: "15000",
+        GS_CADENCE_VERIFIER_EMAIL_SEND_AUTHORIZED: "true",
+      },
+    },
   ],
 };
