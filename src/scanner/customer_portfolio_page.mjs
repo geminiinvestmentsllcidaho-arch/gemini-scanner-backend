@@ -297,9 +297,9 @@ ${metric("EXIT", automaticPaperExitArmed ? "ARMED" : "OFF")}
 ${metric("Lifecycle", automaticPaper?.lifecycle?.state ?? "Unavailable")}
 ${metric("Symbol", automaticPaper?.lifecycle?.selectedSymbol ?? "Unavailable")}
 ${metric("Quantity", automaticPaper?.lifecycle?.filledQuantity ?? "Unavailable")}
-${metric("Last ENTER", automaticPaper?.enter?.lastStatus ?? "Unavailable")}
-${metric("Last SCALE", automaticPaper?.scale?.lastStatus ?? "Unavailable")}
-${metric("Last EXIT", automaticPaper?.exit?.lastStatus ?? "Unavailable")}
+${metric("Last ENTER", String(automaticPaper?.enter?.lastStatus ?? "Unavailable").replaceAll("_", " "))}
+${metric("Last SCALE", String(automaticPaper?.scale?.lastStatus ?? "Unavailable").replaceAll("_", " "))}
+${metric("Last EXIT", String(automaticPaper?.exit?.lastStatus ?? "Unavailable").replaceAll("_", " "))}
 </div>
 <p>Automatic execution is PAPER-only and fail-closed. Live trading is disabled. Portfolio observability does not bypass freshness, buying-power, position-sizing, duplicate/in-flight, lifecycle-identity, reconciliation, or EXIT protections.</p>
 </section>
