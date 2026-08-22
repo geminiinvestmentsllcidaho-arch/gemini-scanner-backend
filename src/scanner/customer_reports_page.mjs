@@ -277,7 +277,17 @@ ${renderCustomerPrimaryNavigationCss()}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow-x:auto;max-width:100%}
+.current-broker-table{display:block}
+.broker-holding-cards{display:none}
+.broker-holding-card{padding:14px;border:1px solid var(--gs-line);border-radius:14px;background:rgba(0,0,0,.38);margin:10px 0}
+.broker-holding-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.broker-holding-head strong{font-size:20px}
+.broker-holding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.broker-holding-field{min-width:0;padding:10px;border-radius:10px;background:rgba(0,0,0,.28)}
+.broker-holding-field span,.broker-holding-field strong{display:block}
+.broker-holding-field span{font-size:11px;color:var(--gs-muted);text-transform:uppercase;letter-spacing:.04em}
+.broker-holding-field strong{margin-top:5px;font-size:16px;overflow-wrap:anywhere}
 .placeholder{min-height:130px;display:grid;place-items:center;border:1px dashed var(--gs-line);border-radius:14px;color:var(--gs-muted)}
 .status{font-weight:800;color:var(--gs-accent)}
 .status.stale{color:#ffd166}
@@ -285,7 +295,7 @@ th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--gs-line)}
 .report-row h3{margin:0 0 8px}
 .safety-locks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .safety-locks span{border:1px solid var(--gs-line);border-radius:999px;padding:6px 9px;font-size:12px;color:var(--gs-muted)}
-@media(max-width:620px){.wrap{padding:24px 12px 56px}.hero,.panel{padding:16px}.grid,.two{grid-template-columns:minmax(0,1fr)}.metric{min-width:0;padding:14px}.metric strong{font-size:19px}.report-section-nav{gap:8px;padding:10px}.report-section-nav a{min-height:44px;padding:8px 10px;max-width:100%;overflow-wrap:anywhere}.report-section-icon{width:24px;height:24px;flex-basis:24px}.ai-holding{min-width:0}.ai-holding strong,.ai-holding span,.report-row,h1,h2,h3,p{overflow-wrap:anywhere}.table-wrap{-webkit-overflow-scrolling:touch}}
+@media(max-width:620px){.wrap{padding:24px 12px 56px}.hero,.panel{padding:16px}.grid,.two{grid-template-columns:minmax(0,1fr)}.metric{min-width:0;padding:14px}.metric strong{font-size:19px}.report-section-nav{gap:8px;padding:10px}.report-section-nav a{min-height:44px;padding:8px 10px;max-width:100%;overflow-wrap:anywhere}.report-section-icon{width:24px;height:24px;flex-basis:24px}.ai-holding{min-width:0}.ai-holding strong,.ai-holding span,.report-row,h1,h2,h3,p{overflow-wrap:anywhere}.table-wrap{-webkit-overflow-scrolling:touch}.current-broker-table{display:none}.broker-holding-cards{display:block}}
 </style>
 </head>
 <body data-gs-page="customer-reports">
@@ -323,7 +333,20 @@ ${metric(brokerBackedPerformance ? "Completed-trade entry capital" : "Capital us
 <section class="card panel" id="current-broker-holdings">
 <h2>Current broker holdings</h2>
 <p class="muted">Current positions fetched read-only from the connected Alpaca paper account. ${brokerBackedPerformance ? "Historical broker order-lifecycle evidence is shown separately below." : "Historical simulated-ledger activity is shown separately below."}</p>
-<div class="table-wrap"><table><thead><tr><th>Symbol</th><th>Qty</th><th>Side</th><th>Avg entry</th><th>Current price</th><th>Market value</th><th>Unrealized P/L</th></tr></thead><tbody>${currentBrokerPositionRows}</tbody></table></div>
+<div class="table-wrap current-broker-table"><table><thead><tr><th>Symbol</th><th>Qty</th><th>Side</th><th>Avg entry</th><th>Current price</th><th>Market value</th><th>Unrealized P/L</th></tr></thead><tbody>${currentBrokerPositionRows}</tbody></table></div>
+<div class="broker-holding-cards">${currentBrokerPositions.length
+  ? currentBrokerPositions.map((position) => `<article class="broker-holding-card">
+<div class="broker-holding-head"><strong>${esc(position.symbol ?? "—")}</strong><span class="${Number(position.unrealizedPl) > 0 ? "positive" : Number(position.unrealizedPl) < 0 ? "negative" : ""}">${esc(money(position.unrealizedPl, locale))}</span></div>
+<div class="broker-holding-grid">
+<div class="broker-holding-field"><span>Quantity</span><strong>${esc(number(position.qty, locale))}</strong></div>
+<div class="broker-holding-field"><span>Side</span><strong>${esc(position.side ?? "—")}</strong></div>
+<div class="broker-holding-field"><span>Avg entry</span><strong>${esc(money(position.averageEntryPrice, locale))}</strong></div>
+<div class="broker-holding-field"><span>Current price</span><strong>${esc(money(position.currentPrice, locale))}</strong></div>
+<div class="broker-holding-field"><span>Market value</span><strong>${esc(money(position.marketValue, locale))}</strong></div>
+<div class="broker-holding-field"><span>Unrealized P/L</span><strong class="${Number(position.unrealizedPl) > 0 ? "positive" : Number(position.unrealizedPl) < 0 ? "negative" : ""}">${esc(money(position.unrealizedPl, locale))}</strong></div>
+</div>
+</article>`).join("")
+  : '<article class="broker-holding-card">No current broker positions are reported by the connected Alpaca paper account.</article>'}</div>
 </section>
 
 <div class="two">
