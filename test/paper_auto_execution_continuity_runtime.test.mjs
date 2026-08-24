@@ -412,6 +412,111 @@ test('portfolio mode stops before scan when lifecycle concurrency cap is reached
   assert.equal(scanCalls, 0)
 })
 
+
+test('portfolio mode expires stale candidate-selected lifecycle after one fresh scan shows symbol no longer eligible', async () => {
+  const d = tmp()
+  const file = path.join(d, 'paper_auto_execution_old.json')
+  ownedCandidate(file, { symbol: 'OLD' })
+  const nowMs = Date.parse('2026-08-13T01:01:00Z')
+  let reads = 0
+  let scans = 0
+  const portfolio = () => {
+    reads += 1
+    const lifecycle = new PaperAutoExecutionLifecycleStore({ filePath: file }).load()
+    return lifecycle?.state === 'CANDIDATE_SELECTED'
+      ? { rows: [{ file, lifecycle, lifecycleId: lifecycle.lifecycleId, symbol: lifecycle.selectedSymbol, state: lifecycle.state }], symbols: [lifecycle.selectedSymbol] }
+      : { rows: [], symbols: [] }
+  }
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: {
+      PAPER_AUTO_CONTINUITY_ENABLED: '1',
+      PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED: '1',
+    },
+    runsDir: d,
+    now: () => nowMs,
+    maxConcurrentLifecycles: 3,
+    getLifecyclePortfolio: portfolio,
+    filterSnapshotForPortfolio: snapshot => snapshot,
+    getScanSnapshot: async () => {
+      scans += 1
+      return { observedAt: '2026-08-13T01:01:00Z', candidates: [] }
+    },
+  })
+  const out = await r.runOnce()
+  const expired = new PaperAutoExecutionLifecycleStore({ filePath: file }).load()
+  assert.equal(out.lastStatus, 'STALE_CANDIDATE_EXPIRED')
+  assert.equal(out.lastLifecycleFile, file)
+  assert.equal(out.lastLifecycle.state, 'CANDIDATE_EXPIRED')
+  assert.equal(expired.state, 'CANDIDATE_EXPIRED')
+  assert.equal(expired.reconciliation.at(-1).reason, 'FRESH_SCAN_NO_LONGER_ELIGIBLE')
+  assert.equal(scans, 1)
+  assert.equal(reads, 2)
+})
+
+test('portfolio mode preserves stale candidate-selected lifecycle when fresh scan still revalidates symbol', async () => {
+  const d = tmp()
+  const file = path.join(d, 'paper_auto_execution_old.json')
+  ownedCandidate(file, { symbol: 'OLD' })
+  const nowMs = Date.parse('2026-08-13T01:01:00Z')
+  let scans = 0
+  const getLifecyclePortfolio = () => {
+    const lifecycle = new PaperAutoExecutionLifecycleStore({ filePath: file }).load()
+    return { rows: [{ file, lifecycle, lifecycleId: lifecycle.lifecycleId, symbol: lifecycle.selectedSymbol, state: lifecycle.state }], symbols: [lifecycle.selectedSymbol] }
+  }
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: {
+      PAPER_AUTO_CONTINUITY_ENABLED: '1',
+      PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED: '1',
+    },
+    runsDir: d,
+    now: () => nowMs,
+    maxConcurrentLifecycles: 1,
+    getLifecyclePortfolio,
+    filterSnapshotForPortfolio: (snapshot, portfolio) => ({
+      ...snapshot,
+      candidates: snapshot.candidates.filter(candidate => !portfolio.symbols.includes(candidate.symbol)),
+    }),
+    getScanSnapshot: async () => {
+      scans += 1
+      return {
+        observedAt: '2026-08-13T01:01:00Z',
+        candidates: [{ symbol: 'OLD', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 100 }],
+      }
+    },
+  })
+  const out = await r.runOnce()
+  assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED')
+  assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+  assert.equal(scans, 1)
+})
+
+test('portfolio mode fails closed without expiring stale candidate when expiration snapshot is stale', async () => {
+  const d = tmp()
+  const file = path.join(d, 'paper_auto_execution_old.json')
+  ownedCandidate(file, { symbol: 'OLD' })
+  const nowMs = Date.parse('2026-08-13T01:01:00Z')
+  const getLifecyclePortfolio = () => {
+    const lifecycle = new PaperAutoExecutionLifecycleStore({ filePath: file }).load()
+    return { rows: [{ file, lifecycle, lifecycleId: lifecycle.lifecycleId, symbol: lifecycle.selectedSymbol, state: lifecycle.state }], symbols: [lifecycle.selectedSymbol] }
+  }
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: {
+      PAPER_AUTO_CONTINUITY_ENABLED: '1',
+      PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED: '1',
+    },
+    runsDir: d,
+    now: () => nowMs,
+    maxConcurrentLifecycles: 3,
+    getLifecyclePortfolio,
+    filterSnapshotForPortfolio: snapshot => snapshot,
+    getScanSnapshot: async () => ({ observedAt: '2026-08-13T01:00:29Z', candidates: [] }),
+  })
+  const out = await r.runOnce()
+  assert.equal(out.lastStatus, 'FRESH_SCAN_REQUIRED_FOR_EXPIRATION')
+  assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+})
+
+
 test('portfolio mode rechecks hard cap immediately before lifecycle creation', async () => {
   const d=tmp(), nowMs=Date.parse('2026-08-24T15:00:10Z')
   let reads=0

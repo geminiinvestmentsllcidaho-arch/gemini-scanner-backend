@@ -24,17 +24,33 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
  const diagnostics=()=>Object.freeze({ok:true,version:VERSION,enabled:on(env,'PAPER_AUTO_CONTINUITY_ENABLED'),cycles,lastStatus,lastLifecycleFile,lastLifecycle,lastCycleStartedAt,lastCycleCompletedAt,lastSnapshotObservedAt,lastSnapshotFresh,lastSnapshotCandidateCount,lastEligibleCandidateCount,lastEligibleCandidateSymbol,entryValidationWrites,entryValidationWriteFailures,lastEntryValidationError,lastEntryValidationRecord,safety:Object.freeze({paperOnly:true,disabledByDefault:true,brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false,liveTradingAllowed:false,entryValidationObservationalOnly:true,entryValidationFailureBlocksExecution:false})})
  const cycle=async()=>{cycles++;lastCycleStartedAt=new Date(now()).toISOString();if(!on(env,'PAPER_AUTO_CONTINUITY_ENABLED')){lastStatus='CONTINUITY_DISABLED_BY_ENV';return diagnostics()}
   const portfolioMode=typeof getLifecyclePortfolio==='function'
-  const portfolio=portfolioMode?await getLifecyclePortfolio():null
+  let portfolio=portfolioMode?await getLifecyclePortfolio():null
+  let snapshot=null
   if(portfolioMode){
-   const rows=portfolio?.rows,cap=Number(maxConcurrentLifecycles)
+   let rows=portfolio?.rows,cap=Number(maxConcurrentLifecycles)
    if(!Array.isArray(rows)){lastStatus='LIFECYCLE_PORTFOLIO_REQUIRED';return diagnostics()}
    if(!Number.isInteger(cap)||cap<1){lastStatus='LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED';return diagnostics()}
+   const staleRows=on(env,'PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED')?rows.filter(row=>expirable(row?.lifecycle,now())):[]
+   if(staleRows.length){
+    if(typeof getScanSnapshot!=='function'){lastStatus='SCAN_SNAPSHOT_REQUIRED';lastLifecycleFile=staleRows[0]?.file??null;lastLifecycle=staleRows[0]?.lifecycle??null;return diagnostics()}
+    snapshot=recordSnapshot(await getScanSnapshot())
+    if(!snapshotFresh(snapshot,now())){lastStatus='FRESH_SCAN_REQUIRED_FOR_EXPIRATION';lastLifecycleFile=staleRows[0]?.file??null;lastLifecycle=staleRows[0]?.lifecycle??null;return diagnostics()}
+    let lastExpired=null,lastExpiredFile=null
+    for(const row of staleRows){
+     const lifecycle=row?.lifecycle
+     const stillEligible=(Array.isArray(snapshot?.candidates)?snapshot.candidates:[]).some(c=>upper(c?.symbol)===upper(lifecycle?.selectedSymbol)&&eligible(c))
+     if(stillEligible)continue
+     lastExpired=storeFactory(row.file).transition(S.CANDIDATE_EXPIRED,{reconciliation:[...(lifecycle?.reconciliation??[]),{kind:'candidate_expired',source:'continuity_runtime',observedAt:lifecycle?.scannerEvidence?.observedAt??null,revalidatedAt:snapshot?.observedAt??null,expiredAt:new Date(now()).toISOString(),reason:'FRESH_SCAN_NO_LONGER_ELIGIBLE',candidateFreshnessMs:CANDIDATE_FRESHNESS_MS}]})
+     lastExpiredFile=row.file
+    }
+    if(lastExpired){portfolio=await getLifecyclePortfolio();lastStatus='STALE_CANDIDATE_EXPIRED';lastLifecycleFile=lastExpiredFile;lastLifecycle=lastExpired;return diagnostics()}
+   }
+   rows=portfolio?.rows
    if(rows.length>=cap){lastStatus='LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED';return diagnostics()}
   }
   const externallyActiveFile=clean(typeof getActiveLifecycleFile==='function'?await getActiveLifecycleFile():env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH)
   const activeFile=clean(pendingLifecycleFile)||externallyActiveFile;let active=null
   if(activeFile&&fs.existsSync(activeFile))active=storeFactory(activeFile).load()
-  let snapshot=null
   if(!portfolioMode&&active&&!terminalStates.has(active.state)&&active.state!=='IDLE'){
    const expirationEnabled=on(env,'PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED')
    if(!clean(pendingLifecycleFile)&&expirationEnabled&&expirable(active,now())){
