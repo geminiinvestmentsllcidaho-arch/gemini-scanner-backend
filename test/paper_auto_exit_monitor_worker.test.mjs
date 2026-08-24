@@ -579,3 +579,49 @@ test('terminal lifecycle callback failure is contained after completed exit', as
   assert.equal(r.lastError,null)
   assert.equal(r.lastReconciliationCompletedObservedAt,'1970-01-01T00:16:40.000Z')
 })
+
+test('portfolio mode monitors two independent lifecycle symbols in one fallback cycle', async () => {
+  const rows = {
+    '/tmp/a.json': { status:'MONITORING', file:'/tmp/a.json', lifecycle:{ lifecycleId:'life-a', state:'MONITORING', selectedSymbol:'AAA', filledQuantity:1, brokerPositionIdentity:'AAA:1' } },
+    '/tmp/b.json': { status:'MONITORING', file:'/tmp/b.json', lifecycle:{ lifecycleId:'life-b', state:'MONITORING', selectedSymbol:'BBB', filledQuantity:2, brokerPositionIdentity:'BBB:2' } },
+  }
+  const assessed=[]
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1'},
+    getConfiguredLifecycleFiles:()=>['/tmp/b.json','/tmp/a.json'],
+    readConfiguredMonitoringLifecycle:({lifecycleFile})=>rows[lifecycleFile],
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'AAA',qty:1},{symbol:'BBB',qty:2}],openOrders:[]}),
+    fetchOwnedMonitor:async({paperAccount})=>{
+      const symbol=paperAccount.positions[0].symbol
+      assessed.push(symbol)
+      return {candidates:[{symbol,resultState:'WAIT',decision:'WAIT',ownedExitReviewTriggered:false,sourceStale:false}]}
+    },
+  })
+  const r=await w.runOnce()
+  assert.deepEqual(w.configuredMonitoringSymbols(),['AAA','BBB'])
+  assert.deepEqual(assessed.sort(),['AAA','BBB'])
+  assert.deepEqual(r.lastResult.map(x=>x.symbol).sort(),['AAA','BBB'])
+  assert.ok(r.lastResult.every(x=>x.status==='MONITORING_NO_EXIT'))
+})
+
+test('portfolio market event scopes evaluation to matching lifecycle only', async () => {
+  const rows = {
+    '/tmp/a.json': { status:'MONITORING', file:'/tmp/a.json', lifecycle:{ lifecycleId:'life-a', state:'MONITORING', selectedSymbol:'AAA', filledQuantity:1, brokerPositionIdentity:'AAA:1' } },
+    '/tmp/b.json': { status:'MONITORING', file:'/tmp/b.json', lifecycle:{ lifecycleId:'life-b', state:'MONITORING', selectedSymbol:'BBB', filledQuantity:2, brokerPositionIdentity:'BBB:2' } },
+  }
+  const assessed=[]
+  const w=createPaperAutoExitMonitorWorker({
+    env:{PAPER_AUTO_EXIT_MONITOR_ENABLED:'1'},
+    getConfiguredLifecycleFiles:()=>['/tmp/a.json','/tmp/b.json'],
+    readConfiguredMonitoringLifecycle:({lifecycleFile})=>rows[lifecycleFile],
+    fetchAccount:async()=>({ok:true,status:'connected_readonly',positions:[{symbol:'AAA',qty:1},{symbol:'BBB',qty:2}],openOrders:[]}),
+    fetchOwnedMonitor:async({paperAccount})=>{
+      const symbol=paperAccount.positions[0].symbol
+      assessed.push(symbol)
+      return {candidates:[{symbol,resultState:'WAIT',decision:'WAIT',ownedExitReviewTriggered:false,sourceStale:false}]}
+    },
+  })
+  const r=await w.runOnce({eventSymbol:'BBB',source:'market_event'})
+  assert.deepEqual(assessed,['BBB'])
+  assert.deepEqual(r.lastResult.map(x=>x.symbol),['BBB'])
+})

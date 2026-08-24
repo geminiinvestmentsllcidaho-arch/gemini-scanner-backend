@@ -153,6 +153,30 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
     failureCodes.push('ENTER_RECONCILIATION_STALLED')
   }
 
+  const portfolioLifecycles = Array.isArray(input.lifecycles)
+    ? input.lifecycles.filter(item => item && typeof item === 'object' && !Array.isArray(item))
+    : []
+  for (const item of portfolioLifecycles) {
+    if (item === lifecycle) continue
+    const state = upper(item?.state)
+    const createdAt = item?.createdAt ?? null
+    const updatedAt = item?.updatedAt ?? createdAt
+    const createdAge = ageMs(createdAt, nowMs)
+    const updatedAge = ageMs(updatedAt, nowMs)
+    const evidence = hasEnterEvidence(item)
+    if (marketOpen && ((createdAge !== null && createdAge < 0) || (updatedAge !== null && updatedAge < 0))) {
+      failureCodes.push('LIFECYCLE_TIMESTAMP_FUTURE')
+    }
+    if (marketOpen && state === 'CANDIDATE_SELECTED' && !evidence &&
+        nonnegativeFinite(updatedAge) && updatedAge > thresholds.candidateSelectedStallMs) {
+      failureCodes.push('ELIGIBLE_ENTER_STALLED')
+    }
+    if (marketOpen && ENTER_RECONCILIATION_STATES.has(state) &&
+        nonnegativeFinite(updatedAge) && updatedAge > thresholds.enterReconciliationStallMs) {
+      failureCodes.push('ENTER_RECONCILIATION_STALLED')
+    }
+  }
+
   const continuityStatus = upper(continuity.lastStatus)
   const enterStatus = upper(enter.lastStatus)
 
@@ -224,6 +248,25 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
         createdAgeMs: lifecycleCreatedAgeMs,
         updatedAgeMs: lifecycleUpdatedAgeMs,
         hasEnterEvidence: enterEvidence,
+      }),
+      lifecycles: Object.freeze({
+        count: portfolioLifecycles.length,
+        items: Object.freeze(portfolioLifecycles.map(item => {
+          const state = upper(item?.state)
+          const createdAt = item?.createdAt ?? null
+          const updatedAt = item?.updatedAt ?? createdAt
+          return Object.freeze({
+            lifecycleId: item?.lifecycleId ?? null,
+            symbol: item?.selectedSymbol ?? null,
+            state: state || null,
+            terminal: TERMINAL_STATES.has(state),
+            createdAt,
+            updatedAt,
+            createdAgeMs: ageMs(createdAt, nowMs),
+            updatedAgeMs: ageMs(updatedAt, nowMs),
+            hasEnterEvidence: hasEnterEvidence(item),
+          })
+        })),
       }),
     }),
     thresholds,

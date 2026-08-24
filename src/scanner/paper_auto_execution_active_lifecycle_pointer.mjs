@@ -66,8 +66,8 @@ export function readPaperAutoExecutionActiveLifecyclePointer({ pointerFile = DEF
   return target
 }
 
-export function discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir = path.dirname(DEFAULT_POINTER_FILE), pointerFile = path.join(runsDir, path.basename(DEFAULT_POINTER_FILE)) } = {}) {
-  if (!fs.existsSync(runsDir)) return null
+export function discoverNonterminalPaperAutoExecutionLifecycles({ runsDir = path.dirname(DEFAULT_POINTER_FILE), pointerFile = path.join(runsDir, path.basename(DEFAULT_POINTER_FILE)) } = {}) {
+  if (!fs.existsSync(runsDir)) return []
   const matches = []
   for (const name of fs.readdirSync(runsDir)) {
     if (!/^paper_auto_execution_[A-Za-z0-9._-]+\.json$/.test(name)) continue
@@ -80,10 +80,17 @@ export function discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir =
       continue
     }
     if (!isOwnedContinuityLifecycle(lifecycle)) continue
-    if (lifecycle.state !== 'IDLE' && !terminalStates.has(lifecycle.state)) matches.push(file)
+    if (lifecycle.state !== 'IDLE' && !terminalStates.has(lifecycle.state)) {
+      matches.push(Object.freeze({ file, lifecycle: Object.freeze({ ...lifecycle }) }))
+    }
   }
+  return Object.freeze(matches.sort((a,b) => String(a.lifecycle?.selectedSymbol ?? '').localeCompare(String(b.lifecycle?.selectedSymbol ?? ''))))
+}
+
+export function discoverSingleNonterminalPaperAutoExecutionLifecycle(options = {}) {
+  const matches = discoverNonterminalPaperAutoExecutionLifecycles(options)
   if (matches.length > 1) throw new Error('paper_auto_multiple_nonterminal_continuity_lifecycles')
-  return matches[0] ?? null
+  return matches[0]?.file ?? null
 }
 
 export function resolvePaperAutoExecutionActiveLifecycleFile({
@@ -105,6 +112,7 @@ export default {
   DEFAULT_POINTER_FILE,
   writePaperAutoExecutionActiveLifecyclePointer,
   readPaperAutoExecutionActiveLifecyclePointer,
+  discoverNonterminalPaperAutoExecutionLifecycles,
   discoverSingleNonterminalPaperAutoExecutionLifecycle,
   resolvePaperAutoExecutionActiveLifecycleFile,
 }

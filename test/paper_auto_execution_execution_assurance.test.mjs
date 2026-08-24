@@ -282,3 +282,70 @@ test('open-market NO_ELIGIBLE_CANDIDATE contradicted by eligible snapshot fails 
   assert.equal(out.checks.continuity.lastEligibleCandidateCount, 1)
   assert.equal(out.checks.continuity.lastEligibleCandidateSymbol, 'QUAL')
 })
+
+test('multi-lifecycle assurance detects stalled non-pointer lifecycle', () => {
+  const report = evaluate({
+    nowMs: NOW,
+    marketOpen: true,
+    continuity: {
+      enabled: true,
+      lastStatus: 'NO_ELIGIBLE_CANDIDATE',
+      lastCycleCompletedAt: isoAgo(1000),
+      lastSnapshotObservedAt: isoAgo(1000),
+      lastSnapshotFresh: true,
+      lastSnapshotCandidateCount: 0,
+      lastEligibleCandidateCount: 0,
+    },
+    enter: {
+      enabled: true,
+      lastStatus: 'CONTINUITY_ENTER_NOT_REQUIRED',
+      lastCycleCompletedAt: isoAgo(1000),
+    },
+    lifecycle: {
+      lifecycleId: 'pointer-life',
+      selectedSymbol: 'AAA',
+      state: 'MONITORING',
+      createdAt: isoAgo(120000),
+      updatedAt: isoAgo(1000),
+      filledQuantity: 1,
+    },
+    lifecycles: [
+      {
+        lifecycleId: 'pointer-life',
+        selectedSymbol: 'AAA',
+        state: 'MONITORING',
+        createdAt: isoAgo(120000),
+        updatedAt: isoAgo(1000),
+        filledQuantity: 1,
+      },
+      {
+        lifecycleId: 'other-life',
+        selectedSymbol: 'BBB',
+        state: 'CANDIDATE_SELECTED',
+        createdAt: isoAgo(120000),
+        updatedAt: isoAgo(60000),
+      },
+    ],
+  })
+  assert.equal(report.healthy, false)
+  assert.ok(report.failureCodes.includes('ELIGIBLE_ENTER_STALLED'))
+  assert.equal(report.checks.lifecycles.count, 2)
+  assert.equal(report.checks.lifecycles.items.some(item => item.symbol === 'BBB' && item.state === 'CANDIDATE_SELECTED'), true)
+})
+
+test('legacy single lifecycle assurance remains compatible when lifecycles input is absent', () => {
+  const report = evaluate({
+    nowMs: NOW,
+    marketOpen: false,
+    lifecycle: {
+      lifecycleId: 'legacy-life',
+      selectedSymbol: 'AAA',
+      state: 'MONITORING',
+      createdAt: isoAgo(120000),
+      updatedAt: isoAgo(1000),
+      filledQuantity: 1,
+    },
+  })
+  assert.equal(report.healthy, true)
+  assert.equal(report.checks.lifecycle.symbol, 'AAA')
+})

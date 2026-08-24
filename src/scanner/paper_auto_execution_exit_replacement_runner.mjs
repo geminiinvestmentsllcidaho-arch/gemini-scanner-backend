@@ -17,10 +17,10 @@ export function createPaperAutoExecutionExitReplacementRunner(o={}){
    try{await executionNotifier({action:'EXIT',symbol:lastAction?.symbol??l?.selectedSymbol,quantity:lastAction?.observedFilledQuantity??lastAction?.quantity,averageFillPrice:lastAction?.observedAverageFillPrice??lastAction?.averageFillPrice??null,filledAt:lastAction?.filledAt??lastAction?.reconciledAt,brokerOrderId:lastAction?.brokerOrderId,lifecycleId:l?.lifecycleId??lastAction?.lifecycleId,executionReason:'EXIT_REPLACEMENT_ROUND_TRIP_COMPLETED'})}catch{}
   }
   return diagnostics()};
- async function cycle(){
+ async function cycle({lifecycleFile:lifecycleFileOverride=null}={}){
   cycles++;lastError=null;lastReconciliation=null;lastSubmission=null;lastEligibility=null;
   if(c(env.PAPER_AUTO_EXIT_REPLACEMENT_RUNNER_ENABLED)!=='1')return finish('EXIT_REPLACEMENT_RUNNER_DISABLED',null);
-  const f=c(await getFile?.());lastLifecycleFile=f||null;if(!f)return finish('ACTIVE_LIFECYCLE_PATH_REQUIRED',null);if(!fs.existsSync(f))return finish('ACTIVE_LIFECYCLE_FILE_MISSING',null);
+  const f=c(lifecycleFileOverride||await getFile?.());lastLifecycleFile=f||null;if(!f)return finish('ACTIVE_LIFECYCLE_PATH_REQUIRED',null);if(!fs.existsSync(f))return finish('ACTIVE_LIFECYCLE_FILE_MISSING',null);
   const ls=new L({filePath:f}),rs=new R({filePath:derivePaperExitReplacementActionFile(f),clock:now});let l=ls.load();lastLifecycle=l;if(!l)return finish('ACTIVE_LIFECYCLE_REQUIRED',null);if(l?.scannerEvidence?.paperOnly!==true)return finish('PAPER_ONLY_LIFECYCLE_REQUIRED',l);
   let a=rs.load()?.current??null;lastAction=a;
   if(a?.state===A.FAILED_NEEDS_REVIEW)return finish('EXIT_REPLACEMENT_FAILED_NEEDS_REVIEW',l);if(a?.state===A.FILLED_RECONCILED)return finish('EXIT_REPLACEMENT_ROUND_TRIP_COMPLETED',l);
@@ -73,6 +73,6 @@ export function createPaperAutoExecutionExitReplacementRunner(o={}){
    return finish(lastAction?.state===A.FILLED_RECONCILED?'EXIT_REPLACEMENT_ROUND_TRIP_COMPLETED':lastAction?.state===A.FAILED_NEEDS_REVIEW?'EXIT_REPLACEMENT_FAILED_NEEDS_REVIEW':lastAction?.state===A.PREPARED?(lastSubmission?.status??'EXIT_REPLACEMENT_PREPARED'):'EXIT_REPLACEMENT_SUBMITTED_RECONCILIATION_REQUIRED',lastLifecycle);
   }finally{X(lock)}
  }
- return Object.freeze({diagnostics,runOnce(){if(inFlight)return inFlight;inFlight=cycle().catch(e=>{lastError=e?.message??String(e);lastStatus='EXIT_REPLACEMENT_FAILED_CLOSED';return diagnostics()}).finally(()=>{inFlight=null});return inFlight}})
+ return Object.freeze({diagnostics,runOnce({lifecycleFile=null}={}){if(inFlight)return inFlight;inFlight=cycle({lifecycleFile}).catch(e=>{lastError=e?.message??String(e);lastStatus='EXIT_REPLACEMENT_FAILED_CLOSED';return diagnostics()}).finally(()=>{inFlight=null});return inFlight}})
 }
 export default{VERSION,derivePaperExitReplacementActionFile,createPaperAutoExecutionExitReplacementRunner};

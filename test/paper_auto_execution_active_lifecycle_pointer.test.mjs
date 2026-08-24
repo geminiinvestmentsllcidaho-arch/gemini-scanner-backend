@@ -8,6 +8,7 @@ import {
   VERSION,
   writePaperAutoExecutionActiveLifecyclePointer,
   readPaperAutoExecutionActiveLifecyclePointer,
+  discoverNonterminalPaperAutoExecutionLifecycles,
   discoverSingleNonterminalPaperAutoExecutionLifecycle,
   resolvePaperAutoExecutionActiveLifecycleFile,
 } from '../src/scanner/paper_auto_execution_active_lifecycle_pointer.mjs'
@@ -75,6 +76,16 @@ test('restart discovery ignores terminal expired continuity lifecycle', () => {
   store.transition('CANDIDATE_EXPIRED')
   assert.equal(discoverSingleNonterminalPaperAutoExecutionLifecycle({ runsDir, pointerFile }), null)
   assert.equal(resolvePaperAutoExecutionActiveLifecycleFile({ pointerFile, configuredLifecycleFile: '' }), '')
+})
+
+test('multi-lifecycle discovery returns all owned nonterminal lifecycles deterministically', () => {
+  const runsDir = tmp()
+  const pointerFile = path.join(runsDir, 'paper_auto_execution_active_lifecycle_pointer.json')
+  createLifecycle(path.join(runsDir, 'paper_auto_execution_b.json'), 'BBB', { continuityOwned: true })
+  createLifecycle(path.join(runsDir, 'paper_auto_execution_a.json'), 'AAA', { continuityOwned: true })
+  const rows = discoverNonterminalPaperAutoExecutionLifecycles({ runsDir, pointerFile })
+  assert.deepEqual(rows.map(row => row.lifecycle.selectedSymbol), ['AAA','BBB'])
+  assert.equal(rows.every(row => path.isAbsolute(row.file)), true)
 })
 
 test('multiple nonterminal continuity lifecycle files fail closed instead of selecting one', () => {

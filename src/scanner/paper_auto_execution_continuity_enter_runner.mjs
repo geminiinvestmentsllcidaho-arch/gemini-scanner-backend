@@ -52,6 +52,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const credentialResolver = options.accountCredentialResolver ?? resolveInternalOwnerAlpacaReadonlyCredentials
   const getScanSnapshot = options.getScanSnapshot ?? null
   const getPremarketBaseline = options.getPremarketBaseline ?? null
+  const getLifecyclePortfolio = options.getLifecyclePortfolio ?? null
+  const maxConcurrentLifecycles = options.maxConcurrentLifecycles ?? env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES
   const fetchAccount = options.fetchAccount ?? ((args) => fetchAlpacaPaperAccountReadonly(args))
   const fetchClock = options.fetchClock ?? ((args) => fetchAlpacaMarketClockReadonly(args))
   const fetchHistory = options.fetchHistoricalOrders ?? ((args) => fetchAlpacaPaperHistoricalOrdersReadonly(args))
@@ -76,6 +78,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastSizing = null
   let lastReentryControl = null
   let lastPortfolioCapitalGovernor = null
+  let lastLifecyclePortfolioGuard = null
   let lastCycleStartedAt = null
   let lastCycleCompletedAt = null
   let entryValidationWrites = 0
@@ -109,6 +112,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastSizing,
     lastReentryControl,
     lastPortfolioCapitalGovernor,
+    lastLifecyclePortfolioGuard,
     lastCycleStartedAt,
     lastCycleCompletedAt,
     entryValidationWrites,
@@ -186,12 +190,12 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     return diagnostics()
   }
 
-  async function cycle() {
+  async function cycle({ lifecycleFile: lifecycleFileOverride = null } = {}) {
     cycles += 1
     lastCycleStartedAt = new Date(Number(now())).toISOString()
     lastError = null
     if (!on(env, 'PAPER_AUTO_CONTINUITY_ENTER_ENABLED')) return fail('CONTINUITY_ENTER_DISABLED_BY_ENV')
-    const lifecycleFile = clean(await getLifecycleFile?.())
+    const lifecycleFile = clean(lifecycleFileOverride || await getLifecycleFile?.())
     lastLifecycleFile = lifecycleFile || null
     if (!lifecycleFile) return fail('ACTIVE_LIFECYCLE_PATH_REQUIRED')
     if (!fs.existsSync(lifecycleFile)) return fail('ACTIVE_LIFECYCLE_FILE_MISSING')
@@ -251,6 +255,28 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       })
       if (actionArbitration?.ok !== true || actionArbitration?.action !== 'ENTER') {
         return fail(actionArbitration?.status ?? 'ENTER_ACTION_ARBITRATION_FAIL_CLOSED', lifecycle)
+      }
+      if (typeof getLifecyclePortfolio === 'function') {
+        const rows = (await getLifecyclePortfolio())?.rows
+        const cap = Number(maxConcurrentLifecycles)
+        const owned = Array.isArray(rows) && rows.some(row =>
+          clean(row?.lifecycleId ?? row?.lifecycle?.lifecycleId) === clean(lifecycle.lifecycleId)
+          && upper(row?.symbol ?? row?.lifecycle?.selectedSymbol) === upper(lifecycle.selectedSymbol))
+        let status = null
+        if (!Array.isArray(rows)) status = 'LIFECYCLE_PORTFOLIO_REQUIRED'
+        else if (!Number.isInteger(cap) || cap < 1) status = 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED'
+        else if (!owned) status = 'LIFECYCLE_PORTFOLIO_OWNERSHIP_REQUIRED'
+        else if (rows.length > cap) status = 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_EXCEEDED'
+        else if (!on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) status = 'LIFECYCLE_PORTFOLIO_CAPITAL_GOVERNOR_REQUIRED'
+        lastLifecyclePortfolioGuard = Object.freeze({
+          allowed: !status,
+          status: status ?? 'LIFECYCLE_PORTFOLIO_GUARD_ALLOWED',
+          activeLifecycleCount: Array.isArray(rows) ? rows.length : null,
+          maxConcurrentLifecycles: Number.isInteger(cap) && cap > 0 ? cap : null,
+        })
+        if (status) return fail(status, lifecycle)
+      } else {
+        lastLifecyclePortfolioGuard = Object.freeze({ allowed:true, status:'LIFECYCLE_PORTFOLIO_GUARD_LEGACY_SINGLE_POINTER_MODE' })
       }
     }
 
@@ -324,18 +350,14 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       const enterQuantity = lastSizing.quantity
       const symbol = upper(lifecycle.selectedSymbol)
       const openPositions = (account?.positions ?? []).filter(p => Number(p?.qty ?? p?.quantity) > 0)
-      if (openPositions.length > 0) {
-        return fail(openPositions.some(p => upper(p?.symbol) === symbol)
-          ? 'EXISTING_BROKER_POSITION_CONFLICT'
-          : 'GLOBAL_POSITION_CONCURRENCY_LIMIT', lifecycle)
+      if (openPositions.some(p => upper(p?.symbol) === symbol)) {
+        return fail('EXISTING_BROKER_POSITION_CONFLICT', lifecycle)
       }
       const conflictingOpenOrders = (account?.openOrders ?? []).filter(o =>
         ['buy', 'sell'].includes(clean(o?.side).toLowerCase())
       )
-      if (conflictingOpenOrders.length > 0) {
-        return fail(conflictingOpenOrders.some(o => upper(o?.symbol) === symbol)
-          ? 'CONFLICTING_OPEN_ORDER'
-          : 'GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT', lifecycle)
+      if (conflictingOpenOrders.some(o => upper(o?.symbol) === symbol)) {
+        return fail('CONFLICTING_OPEN_ORDER', lifecycle)
       }
       if (on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) {
         lastPortfolioCapitalGovernor = evaluatePaperPortfolioCapitalGovernor({
@@ -344,6 +366,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
           symbol,
           proposedAdditionalNotional: lastSizing.requiredBuyingPower,
           resultingSymbolNotional: lastSizing.requiredBuyingPower,
+          maxGrossExposurePercent: env.PAPER_AUTO_PORTFOLIO_MAX_GROSS_EXPOSURE_PERCENT,
         })
         if (lastPortfolioCapitalGovernor?.allowed !== true) return fail(lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED', lifecycle)
       } else {
@@ -487,7 +510,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     return fail('CONTINUITY_ENTER_RECONCILIATION_PENDING', lifecycle)
   }
 
-  const runOnce = () => inFlight ?? (inFlight = Promise.resolve().then(cycle).catch((error) => {
+  const runOnce = ({ lifecycleFile = null } = {}) => inFlight ?? (inFlight = Promise.resolve().then(() => cycle({ lifecycleFile })).catch((error) => {
     lastError = error?.message ?? String(error)
     lastStatus = 'CONTINUITY_ENTER_ERROR_FAIL_CLOSED'
     return diagnostics()

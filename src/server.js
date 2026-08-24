@@ -68,6 +68,7 @@ import { startMarketDataStream } from './market_data_stream.js';
 import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_monitor_worker.mjs';
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
+import { filterContinuitySnapshotForUnownedSymbols, readPaperAutoExecutionLifecyclePortfolio, selectLifecycleRowsForState } from './scanner/paper_auto_execution_lifecycle_portfolio.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
 import { listPaperAutoExecutionEntryValidationRecords } from './scanner/paper_auto_execution_entry_validation_store.mjs';
 import { buildPaperAutoExecutionSessionValidationReport } from './scanner/paper_auto_execution_session_validation_report.mjs';
@@ -2867,6 +2868,12 @@ let activePaperAutoExecutionLifecycleFile = resolvePaperAutoExecutionActiveLifec
   pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,
   configuredLifecycleFile: configuredPaperAutoExecutionLifecycleFile,
 });
+const readPaperAutoExecutionServerLifecyclePortfolio = () => readPaperAutoExecutionLifecyclePortfolio({
+  runsDir: 'runs',
+  pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,
+});
+const paperAutoMultiLifecycleEnabled =
+  String(process.env.PAPER_AUTO_MULTI_LIFECYCLE_ENABLED ?? '').trim() === '1';
 
 const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const cache = await underFiveSharedCachePromise;
@@ -2969,6 +2976,11 @@ const runPaperAutoExecutionDegradedBrokerRecoveryProbe = async () => {
 };
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
   getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  ...(paperAutoMultiLifecycleEnabled ? {
+    getLifecyclePortfolio: readPaperAutoExecutionServerLifecyclePortfolio,
+    filterSnapshotForPortfolio: filterContinuitySnapshotForUnownedSymbols,
+    maxConcurrentLifecycles: process.env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES,
+  } : {}),
   setActiveLifecycleFile: (file) => {
     const nextLifecycleFile = String(file ?? '').trim();
     writePaperAutoExecutionActiveLifecyclePointer({
@@ -2993,6 +3005,10 @@ const getCurrentPaperPremarketBaseline = async () => {
 
 const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner({
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  ...(paperAutoMultiLifecycleEnabled ? {
+    getLifecyclePortfolio: readPaperAutoExecutionServerLifecyclePortfolio,
+    maxConcurrentLifecycles: process.env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES,
+  } : {}),
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
   getPremarketBaseline: getCurrentPaperPremarketBaseline,
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
@@ -3043,6 +3059,9 @@ const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = 
     continuity: paperAutoExecutionContinuityRuntime.diagnostics(),
     enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
     lifecycle: readActivePaperAutoExecutionLifecycleReadonly(),
+    ...(paperAutoMultiLifecycleEnabled ? {
+      lifecycles: readPaperAutoExecutionServerLifecyclePortfolio().rows.map(row => row.lifecycle),
+    } : {}),
   });
   paperAutoExecutionExecutionAssuranceLastReport = report;
 
@@ -3128,22 +3147,25 @@ const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
  degradedBrokerMode:paperAutoExecutionDegradedBrokerMode,
 });
 
-const runPaperAutoExecutionScaleCycle=async(source='runtime')=>{try{
- const f=String(activePaperAutoExecutionLifecycleFile??'').trim();if(!f||!fs.existsSync(f))return paperAutoExecutionScaleRunner.diagnostics();
+const runPaperAutoExecutionScaleCycle=async(source='runtime',lifecycleFileOverride=null)=>{try{
+ const f=String(lifecycleFileOverride || activePaperAutoExecutionLifecycleFile || '').trim();if(!f||!fs.existsSync(f))return paperAutoExecutionScaleRunner.diagnostics();
  let l;try{l=JSON.parse(fs.readFileSync(f,'utf8'))}catch{return paperAutoExecutionScaleRunner.diagnostics()}if(l?.state!=='MONITORING')return paperAutoExecutionScaleRunner.diagnostics();
- const q=new PaperAutoExecutionScaleActionStore({filePath:derivePaperScaleActionFile(f)});if(q.mutationLocked())return paperAutoExecutionScaleRunner.runOnce();
+ const q=new PaperAutoExecutionScaleActionStore({filePath:derivePaperScaleActionFile(f)});if(q.mutationLocked())return paperAutoExecutionScaleRunner.runOnce({lifecycleFile:f});
  const a=await fetchAlpacaPaperAccountReadonly({credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials});if(a?.ok!==true||a?.status!=='connected_readonly')return paperAutoExecutionScaleRunner.diagnostics();
  const m=await getPaperAutoExecutionOwnedMonitor({paperAccount:a,nowMs:Date.now()});
  const s=String(l.selectedSymbol??'').trim().toUpperCase(),c=(m?.candidates??[]).find(x=>String(x?.symbol??'').trim().toUpperCase()===s);if(!c)return paperAutoExecutionScaleRunner.diagnostics();
  if(c.ownedExitReviewTriggered===true||String(c.resultState??c.decision??'').trim().toUpperCase()==='EXIT')return paperAutoExecutionScaleRunner.diagnostics();
- const o=Number(c.ownedScaleOutResultingQuantity);if(c.ownedScaleOutReviewTriggered===true&&Number.isSafeInteger(o)&&o>0)return paperAutoExecutionScaleRunner.runOnce({action:'scale_out',targetQuantity:o});
- const i=Number(c.ownedScaleInTargetQuantity);if(c.ownedScaleInReviewTriggered===true&&Number.isSafeInteger(i)&&i>0)return paperAutoExecutionScaleRunner.runOnce({action:'scale_in',targetQuantity:i});
+ const o=Number(c.ownedScaleOutResultingQuantity);if(c.ownedScaleOutReviewTriggered===true&&Number.isSafeInteger(o)&&o>0)return paperAutoExecutionScaleRunner.runOnce({action:'scale_out',targetQuantity:o,lifecycleFile:f});
+ const i=Number(c.ownedScaleInTargetQuantity);if(c.ownedScaleInReviewTriggered===true&&Number.isSafeInteger(i)&&i>0)return paperAutoExecutionScaleRunner.runOnce({action:'scale_in',targetQuantity:i,lifecycleFile:f});
  return paperAutoExecutionScaleRunner.diagnostics();
 }catch(e){console.error('[paper-auto-execution-scale] cycle failed closed',{source,error:e?.message??String(e)});return paperAutoExecutionScaleRunner.diagnostics()}};
 
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
+  ...(paperAutoMultiLifecycleEnabled ? {
+    getConfiguredLifecycleFiles: () => readPaperAutoExecutionServerLifecyclePortfolio().rows.map(row => row.file),
+  } : {}),
   fetchOwnedMonitor: getPaperAutoExecutionOwnedMonitor,
   onTerminalLifecycle: () => runPaperAutoExecutionContinuityCycle('terminal_exit'),
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
@@ -3172,6 +3194,20 @@ const paperAutoExecutionExitReplacementRunner = createPaperAutoExecutionExitRepl
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
 });
 
+const runPaperAutoExecutionPortfolioRunner = async (runner) => {
+  const portfolio = readPaperAutoExecutionServerLifecyclePortfolio();
+  for (const row of portfolio.rows) await runner.runOnce({ lifecycleFile: row.file });
+  return runner.diagnostics();
+};
+
+const runPaperAutoExecutionPortfolioScaleCycle = async (source = 'runtime') => {
+  const portfolio = readPaperAutoExecutionServerLifecyclePortfolio();
+  for (const row of selectLifecycleRowsForState(portfolio, ['MONITORING'])) {
+    await runPaperAutoExecutionScaleCycle(source, row.file);
+  }
+  return paperAutoExecutionScaleRunner.diagnostics();
+};
+
 const PAPER_AUTO_EXECUTION_CONTINUITY_INTERVAL_MS = 15000;
 let paperAutoExecutionContinuityCycleInFlight = null;
 const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
@@ -3186,7 +3222,8 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       });
     }
     try {
-      await paperAutoExecutionExitRecoveryRunner.runOnce();
+      if (paperAutoMultiLifecycleEnabled) await runPaperAutoExecutionPortfolioRunner(paperAutoExecutionExitRecoveryRunner);
+      else await paperAutoExecutionExitRecoveryRunner.runOnce();
     } catch (error) {
       console.error('[paper-auto-execution-exit-recovery] runner cycle failed closed', {
         source,
@@ -3194,7 +3231,8 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       });
     }
     try {
-      await paperAutoExecutionExitReplacementRunner.runOnce();
+      if (paperAutoMultiLifecycleEnabled) await runPaperAutoExecutionPortfolioRunner(paperAutoExecutionExitReplacementRunner);
+      else await paperAutoExecutionExitReplacementRunner.runOnce();
     } catch (error) {
       console.error('[paper-auto-execution-exit-replacement] runner cycle failed closed', {
         source,
@@ -3210,7 +3248,8 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       });
     }
     try {
-      await paperAutoExecutionContinuityEnterRunner.runOnce();
+      if (paperAutoMultiLifecycleEnabled) await runPaperAutoExecutionPortfolioRunner(paperAutoExecutionContinuityEnterRunner);
+      else await paperAutoExecutionContinuityEnterRunner.runOnce();
     } catch (error) {
       console.error('[paper-auto-execution-continuity-enter] runner cycle failed closed', {
         source,
@@ -3244,7 +3283,8 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       } catch {}
     }
     try {
-      await runPaperAutoExecutionScaleCycle(source);
+      if (paperAutoMultiLifecycleEnabled) await runPaperAutoExecutionPortfolioScaleCycle(source);
+      else await runPaperAutoExecutionScaleCycle(source);
     } catch (error) {
       console.error('[paper-auto-execution-scale] runner cycle failed closed', {
         source,
@@ -3342,17 +3382,30 @@ app.listen(PORT, HOST, async () => {
   paperAutoExecutionContinuityTimer.unref?.();
   try {
     const paperAutoExitMonitoringSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
+    const paperAutoExitMonitoringSymbols = paperAutoMultiLifecycleEnabled
+      ? paperAutoExitMonitorWorker.configuredMonitoringSymbols()
+      : (paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : []);
     let marketDataStream = null;
     marketDataStream = await startMarketDataStream({
-      runtime: { additionalSymbols: paperAutoExitMonitoringSymbol ? [paperAutoExitMonitoringSymbol] : [] },
+      runtime: { additionalSymbols: paperAutoExitMonitoringSymbols },
       onMarketDataEvent: (event) => {
         paperAutoExitMonitorWorker.onMarketDataEvent(event);
-        const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
-        if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
+        if (paperAutoMultiLifecycleEnabled) {
+          const activePaperExitSymbols = paperAutoExitMonitorWorker.configuredMonitoringSymbols();
+          if (activePaperExitSymbols.length) marketDataStream?.addSymbols?.(activePaperExitSymbols);
+        } else {
+          const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
+          if (activePaperExitSymbol) marketDataStream?.addSymbols?.([activePaperExitSymbol]);
+        }
       },
     });
-    const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
-    if (activePaperExitSymbol) marketDataStream.addSymbols?.([activePaperExitSymbol]);
+    if (paperAutoMultiLifecycleEnabled) {
+      const activePaperExitSymbols = paperAutoExitMonitorWorker.configuredMonitoringSymbols();
+      if (activePaperExitSymbols.length) marketDataStream.addSymbols?.(activePaperExitSymbols);
+    } else {
+      const activePaperExitSymbol = paperAutoExitMonitorWorker.configuredMonitoringSymbol();
+      if (activePaperExitSymbol) marketDataStream.addSymbols?.([activePaperExitSymbol]);
+    }
     console.log('[server] market data stream started');
   } catch (e) {
     console.error('[server] market data stream failed to start:', e);

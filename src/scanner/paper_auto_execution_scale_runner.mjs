@@ -100,13 +100,13 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     } catch {}
   }
 
-  async function cycle({ action, targetQuantity } = {}) {
+  async function cycle({ action, targetQuantity, lifecycleFile = null } = {}) {
     cycles += 1
     lastError = null
     lastSubmission = null
     lastReconciliation = null
     if (!on(env, 'PAPER_AUTO_SCALE_RUNNER_ENABLED')) return finish('PAPER_SCALE_RUNNER_DISABLED_BY_ENV')
-    const file = clean(await getLifecycleFile?.())
+    const file = clean(lifecycleFile || await getLifecycleFile?.())
     if (!file) return finish('ACTIVE_LIFECYCLE_PATH_REQUIRED')
     if (!fs.existsSync(file)) return finish('ACTIVE_LIFECYCLE_FILE_MISSING')
     const store = new PaperAutoExecutionLifecycleStore({ filePath: file })
@@ -306,6 +306,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
           symbol,
           proposedAdditionalNotional: additionalQty * lockedCurrentPrice,
           resultingSymbolNotional: target * lockedCurrentPrice,
+          maxGrossExposurePercent: env.PAPER_AUTO_PORTFOLIO_MAX_GROSS_EXPOSURE_PERCENT,
         })
         if (lastPortfolioCapitalGovernor?.allowed !== true) return finish(`POST_LOCK_${lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED'}`, lifecycle)
       } else if (a === 'scale_in') {

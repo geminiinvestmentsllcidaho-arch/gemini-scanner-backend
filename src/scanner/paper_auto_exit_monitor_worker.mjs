@@ -40,8 +40,18 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const clearIntervalFn = options.clearIntervalFn ?? clearInterval
   const configuredLifecycleFile = clean(options.lifecycleFile ?? env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH ?? env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH)
   const getConfiguredLifecycleFile = options.getConfiguredLifecycleFile ?? (() => configuredLifecycleFile)
+  const getConfiguredLifecycleFiles = options.getConfiguredLifecycleFiles ?? null
   const resolveConfiguredLifecycleFile = () => clean(getConfiguredLifecycleFile?.() ?? configuredLifecycleFile)
-  const readLifecycle = options.readConfiguredMonitoringLifecycle ?? (() => readConfiguredMonitoringLifecycle({ lifecycleFile: resolveConfiguredLifecycleFile() }))
+  const resolveConfiguredLifecycleFiles = () => {
+    if (typeof getConfiguredLifecycleFiles === 'function') {
+      return [...new Set((getConfiguredLifecycleFiles?.() ?? []).map(clean).filter(Boolean))]
+    }
+    const single = resolveConfiguredLifecycleFile()
+    return single ? [single] : []
+  }
+  const readLifecycleFile = lifecycleFile => options.readConfiguredMonitoringLifecycle
+    ? options.readConfiguredMonitoringLifecycle({ lifecycleFile })
+    : readConfiguredMonitoringLifecycle({ lifecycleFile })
   const fetchAccount = options.fetchAccount ?? (args => fetchAlpacaPaperAccountReadonly(args))
   const fetchOwned = options.fetchOwnedMonitor ?? (args => fetchCustomerOwnedPositionMonitorSource(args))
   const fetchSymbols = options.fetchSymbols ?? (args => fetchAlpacaUnderFiveUniverseReadonly(args))
@@ -80,6 +90,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
   const diagnostics = () => ({
     ok: true, version: VERSION, enabled: enabled(env), running, busy, intervalMs, cycles, eventCycles, fallbackCycles,
     configuredLifecycleFile: resolveConfiguredLifecycleFile() || null,
+    configuredLifecycleFiles: Object.freeze(resolveConfiguredLifecycleFiles()),
     exitTriggers, exitAttempts, lastStatus, lastError, lastResult, lastTriggerDetectedAt,
     lastRunnerCompletedAt, lastSubmissionConfirmedObservedAt, lastReconciliationCompletedObservedAt,
     lastBrokerOrderId, lastSubmissionStatus, lastReconciliationStatus, lastBrokerSubmittedAt, lastBrokerFilledAt,
@@ -111,43 +122,50 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     busy = true
     lastError = null
     try {
-      const lifecycleFile = resolveConfiguredLifecycleFile()
-      if (!lifecycleFile) {
+      const lifecycleFiles = resolveConfiguredLifecycleFiles()
+      if (lifecycleFiles.length === 0) {
         lastStatus = 'ACTIVE_LIFECYCLE_PATH_REQUIRED'
         lastResult = []
         await incident('paper_auto_exit_monitor_lifecycle_path_required')
         return diagnostics()
       }
-      const row = await readLifecycle()
-      if (!row || row.status === 'LIFECYCLE_FILE_MISSING') {
-        lastStatus = 'ACTIVE_LIFECYCLE_FILE_MISSING'
-        lastResult = []
-        await incident('paper_auto_exit_monitor_lifecycle_file_missing')
-        return diagnostics()
-      }
-      if (row.status === 'LIFECYCLE_FILE_CORRUPT' || row.status === 'LIFECYCLE_MONITORING_INVALID') {
-        throw new Error(`paper_auto_exit_monitor_${String(row.status).toLowerCase()}`)
-      }
-      if (row.status !== 'MONITORING') {
-        if (row?.lifecycle?.state === 'ROUND_TRIP_COMPLETED' && row?.lifecycle?.scannerEvidence?.mechanicalAutoExitProof === true) {
-          lastStatus = 'CONTROLLED_EXIT_LIFECYCLE_COMPLETED'
+      const rows = []
+      let controlledCompleted = false
+      for (const lifecycleFile of lifecycleFiles) {
+        const row = await readLifecycleFile(lifecycleFile)
+        if (!row || row.status === 'LIFECYCLE_FILE_MISSING') {
+          lastStatus = 'ACTIVE_LIFECYCLE_FILE_MISSING'
           lastResult = []
-          clearIncidentLatch()
+          await incident('paper_auto_exit_monitor_lifecycle_file_missing')
           return diagnostics()
         }
-        lastStatus = 'ACTIVE_LIFECYCLE_NOT_MONITORING'
-        lastResult = []
-        await incident('paper_auto_exit_monitor_lifecycle_not_monitoring')
-        return diagnostics()
+        if (row.status === 'LIFECYCLE_FILE_CORRUPT' || row.status === 'LIFECYCLE_MONITORING_INVALID') {
+          throw new Error(`paper_auto_exit_monitor_${String(row.status).toLowerCase()}`)
+        }
+        if (row.status === 'MONITORING') {
+          rows.push(row)
+        } else if (row?.lifecycle?.state === 'ROUND_TRIP_COMPLETED' && row?.lifecycle?.scannerEvidence?.mechanicalAutoExitProof === true) {
+          controlledCompleted = true
+        }
       }
       clearIncidentLatch()
       const wanted = upper(eventSymbol)
-      if (wanted && upper(row.lifecycle.selectedSymbol) !== wanted) {
+      const scoped = wanted ? rows.filter(row => upper(row?.lifecycle?.selectedSymbol) === wanted) : rows
+      if (wanted && scoped.length === 0) {
         lastStatus = 'EVENT_SYMBOL_NOT_MONITORED'
         lastResult = []
         return diagnostics()
       }
-      const scoped = [row]
+      if (scoped.length === 0) {
+        if (!wanted && controlledCompleted) {
+          lastStatus = 'CONTROLLED_EXIT_LIFECYCLE_COMPLETED'
+          lastResult = []
+          return diagnostics()
+        }
+        lastStatus = 'ACTIVE_LIFECYCLE_NOT_MONITORING'
+        lastResult = []
+        return diagnostics()
+      }
 
       const account = await fetchAccount({ env, fetchImpl })
       if (account?.ok !== true || account?.status !== 'connected_readonly') {
@@ -358,23 +376,31 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     return diagnostics()
   }
 
+  function configuredMonitoringSymbols() {
+    const symbols = []
+    for (const lifecycleFile of resolveConfiguredLifecycleFiles()) {
+      const row = readLifecycleFile(lifecycleFile)
+      if (row?.status === 'MONITORING') {
+        const symbol = upper(row?.lifecycle?.selectedSymbol)
+        if (symbol) symbols.push(symbol)
+      }
+    }
+    return [...new Set(symbols)].sort()
+  }
+
   function configuredMonitoringSymbol() {
-    const lifecycleFile = resolveConfiguredLifecycleFile()
-    if (!lifecycleFile) return null
-    const row = readLifecycle({ lifecycleFile })
-    return row?.status === 'MONITORING' ? (upper(row?.lifecycle?.selectedSymbol) || null) : null
+    return configuredMonitoringSymbols()[0] ?? null
   }
 
   function onMarketDataEvent(event = {}) {
     const symbol = upper(event.symbol ?? event.S)
     if (!symbol || !enabled(env)) return diagnostics()
-    const monitoredSymbol = configuredMonitoringSymbol()
-    if (!monitoredSymbol || symbol !== monitoredSymbol) return diagnostics()
+    if (!configuredMonitoringSymbols().includes(symbol)) return diagnostics()
     void runOnce({ eventSymbol: symbol, source: 'market_event' })
     return diagnostics()
   }
 
-  return { start, stop, runOnce, onMarketDataEvent, diagnostics, configuredMonitoringSymbol }
+  return { start, stop, runOnce, onMarketDataEvent, diagnostics, configuredMonitoringSymbol, configuredMonitoringSymbols }
 }
 
 export default { VERSION, DEFAULT_INTERVAL_MS, readConfiguredMonitoringLifecycle, createPaperAutoExitMonitorWorker }

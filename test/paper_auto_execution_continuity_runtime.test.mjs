@@ -345,3 +345,177 @@ test('Module 13 no-trade evidence preserves snapshot provenance and authoritativ
  assert.equal(closeout.session.brokerHealthy,true)
  assert.equal(closeout.session.orderSubmitted,false)
 })
+
+test('portfolio mode permits fresh different-symbol lifecycle while monitored symbol remains independently owned',async()=>{
+ const d=tmp(),owned=path.join(d,'paper_auto_execution_owned.json')
+ const s=new PaperAutoExecutionLifecycleStore({filePath:owned,idFactory:()=> 'owned-life'})
+ s.create({selectedSymbol:'OWN',scannerEvidence:{source:'paper_auto_continuity_scanner_candidate',paperOnly:true}})
+ s.transition('ENTER_SUBMITTING',{enterClientOrderId:'e'})
+ s.transition('ENTER_OPEN',{enterBrokerOrderId:'b'})
+ s.transition('POSITION_CONFIRMED',{filledQuantity:1,averageFillPrice:4,brokerPositionIdentity:'OWN:1'})
+ s.transition('MONITORING')
+ let published=null
+ const nowMs=Date.parse('2026-08-24T15:00:10Z')
+ const portfolio={rows:[{file:owned,lifecycle:s.load(),lifecycleId:'owned-life',symbol:'OWN',state:'MONITORING'}],symbols:['OWN']}
+ const r=createPaperAutoExecutionContinuityRuntime({
+  env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,
+  getActiveLifecycleFile:()=>owned,
+  getLifecyclePortfolio:()=>portfolio,
+  filterSnapshotForPortfolio:(snapshot,p)=>({...snapshot,candidates:snapshot.candidates.filter(c=>!p.symbols.includes(c.symbol))}),
+  maxConcurrentLifecycles:2,
+  setActiveLifecycleFile:(file)=>{published=file},
+  getScanSnapshot:async()=>({observedAt:'2026-08-24T15:00:00Z',candidates:[
+   {symbol:'OWN',state:'ENTER',buyRecommendation:true,score:100},
+   {symbol:'NEW',state:'ENTER',buyRecommendation:true,score:99},
+  ]}),
+  idFactory:()=> 'new-life',now:()=>nowMs,
+ })
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'FRESH_CANDIDATE_LIFECYCLE_CREATED')
+ assert.equal(out.lastLifecycle.selectedSymbol,'NEW')
+ assert.equal(new PaperAutoExecutionLifecycleStore({filePath:owned}).load().state,'MONITORING')
+ assert.equal(published,path.join(d,'paper_auto_execution_new-life.json'))
+})
+
+test('portfolio mode fails closed when lifecycle concurrency cap is missing', async () => {
+  const d = tmp()
+  const nowMs = Date.parse('2026-08-24T15:00:10Z')
+  let scanCalls = 0
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
+    runsDir: d,
+    getLifecyclePortfolio: () => ({ rows: [], symbols: [] }),
+    filterSnapshotForPortfolio: snapshot => snapshot,
+    getScanSnapshot: async () => { scanCalls += 1; return { observedAt: '2026-08-24T15:00:00Z', candidates: [] } },
+    now: () => nowMs,
+  })
+  const out = await r.runOnce()
+  assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED')
+  assert.equal(scanCalls, 0)
+})
+
+test('portfolio mode stops before scan when lifecycle concurrency cap is reached', async () => {
+  const d = tmp()
+  const nowMs = Date.parse('2026-08-24T15:00:10Z')
+  let scanCalls = 0
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
+    runsDir: d,
+    getLifecyclePortfolio: () => ({ rows: [{ file: 'one' }, { file: 'two' }], symbols: ['ONE', 'TWO'] }),
+    filterSnapshotForPortfolio: snapshot => snapshot,
+    maxConcurrentLifecycles: 2,
+    getScanSnapshot: async () => { scanCalls += 1; return { observedAt: '2026-08-24T15:00:00Z', candidates: [] } },
+    now: () => nowMs,
+  })
+  const out = await r.runOnce()
+  assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED')
+  assert.equal(scanCalls, 0)
+})
+
+test('portfolio mode rechecks hard cap immediately before lifecycle creation', async () => {
+  const d=tmp(), nowMs=Date.parse('2026-08-24T15:00:10Z')
+  let reads=0
+  const r=createPaperAutoExecutionContinuityRuntime({
+    env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,now:()=>nowMs,idFactory:()=> 'must-not-create',
+    maxConcurrentLifecycles:1,getActiveLifecycleFile:()=>null,
+    getLifecyclePortfolio:async()=>++reads===1
+      ? {rows:[],symbols:[]}
+      : {rows:[{file:'owned.json',lifecycleId:'owned',symbol:'OWN',state:'MONITORING'}],symbols:['OWN']},
+    filterSnapshotForPortfolio:(s,p)=>({...s,candidates:s.candidates.filter(c=>!p.symbols.includes(c.symbol))}),
+    getScanSnapshot:async()=>({observedAt:'2026-08-24T15:00:00Z',candidates:[
+      {symbol:'NEW',state:'ENTER',buyRecommendation:true,blocked:false,blockers:[],score:99},
+    ]}),
+  })
+  const out=await r.runOnce()
+  assert.equal(reads,2)
+  assert.equal(out.lastStatus,'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED')
+  assert.equal(fs.existsSync(path.join(d,'paper_auto_execution_must-not-create.json')),false)
+})
+
+test('portfolio mode rechecks ownership before creation and reselects highest remaining eligible symbol', async () => {
+  const d = tmp()
+  const nowMs = Date.parse('2026-08-24T15:00:10Z')
+  let reads = 0
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
+    runsDir: d,
+    now: () => nowMs,
+    idFactory: () => 'reselected',
+    maxConcurrentLifecycles: 3,
+    getActiveLifecycleFile: () => null,
+    getLifecyclePortfolio: async () => ++reads === 1
+      ? { rows: [], symbols: [] }
+      : { rows: [{ file: 'aaa.json', lifecycleId: 'aaa', symbol: 'AAA', state: 'MONITORING' }], symbols: ['AAA'] },
+    filterSnapshotForPortfolio: (s, p) => ({ ...s, candidates: s.candidates.filter(c => !p.symbols.includes(c.symbol)) }),
+    getScanSnapshot: async () => ({
+      observedAt: '2026-08-24T15:00:00Z',
+      candidates: [
+        { symbol: 'AAA', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 100 },
+        { symbol: 'BBB', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 90 },
+      ],
+    }),
+  })
+  const out = await r.runOnce()
+  assert.equal(reads, 2)
+  assert.equal(out.lastStatus, 'FRESH_CANDIDATE_LIFECYCLE_CREATED')
+  assert.equal(out.lastLifecycle.selectedSymbol, 'BBB')
+  assert.equal(fs.existsSync(path.join(d, 'paper_auto_execution_reselected.json')), true)
+})
+
+test('portfolio mode creates nothing when creation-time ownership consumes every eligible symbol', async () => {
+  const d = tmp()
+  const nowMs = Date.parse('2026-08-24T15:00:10Z')
+  let reads = 0
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
+    runsDir: d,
+    now: () => nowMs,
+    idFactory: () => 'must-not-create',
+    maxConcurrentLifecycles: 3,
+    getActiveLifecycleFile: () => null,
+    getLifecyclePortfolio: async () => ++reads === 1
+      ? { rows: [], symbols: [] }
+      : { rows: [{ file: 'aaa.json', lifecycleId: 'aaa', symbol: 'AAA', state: 'MONITORING' }], symbols: ['AAA'] },
+    filterSnapshotForPortfolio: (s, p) => ({ ...s, candidates: s.candidates.filter(c => !p.symbols.includes(c.symbol)) }),
+    getScanSnapshot: async () => ({
+      observedAt: '2026-08-24T15:00:00Z',
+      candidates: [
+        { symbol: 'AAA', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 100 },
+      ],
+    }),
+  })
+  const out = await r.runOnce()
+  assert.equal(reads, 2)
+  assert.equal(out.lastStatus, 'NO_ELIGIBLE_CANDIDATE')
+  assert.equal(fs.existsSync(path.join(d, 'paper_auto_execution_must-not-create.json')), false)
+})
+
+test('portfolio mode creation-time recheck can reintroduce strongest candidate when prior ownership disappears', async () => {
+  const d = tmp()
+  const nowMs = Date.parse('2026-08-24T15:00:10Z')
+  let reads = 0
+  const r = createPaperAutoExecutionContinuityRuntime({
+    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
+    runsDir: d,
+    now: () => nowMs,
+    idFactory: () => 'reintroduced',
+    maxConcurrentLifecycles: 3,
+    getActiveLifecycleFile: () => null,
+    getLifecyclePortfolio: async () => ++reads === 1
+      ? { rows: [{ file: 'aaa.json', lifecycleId: 'aaa', symbol: 'AAA', state: 'MONITORING' }], symbols: ['AAA'] }
+      : { rows: [{ file: 'bbb.json', lifecycleId: 'bbb', symbol: 'BBB', state: 'MONITORING' }], symbols: ['BBB'] },
+    filterSnapshotForPortfolio: (s, p) => ({ ...s, candidates: s.candidates.filter(c => !p.symbols.includes(c.symbol)) }),
+    getScanSnapshot: async () => ({
+      observedAt: '2026-08-24T15:00:00Z',
+      candidates: [
+        { symbol: 'AAA', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 100 },
+        { symbol: 'BBB', state: 'ENTER', buyRecommendation: true, blocked: false, blockers: [], score: 90 },
+      ],
+    }),
+  })
+  const out = await r.runOnce()
+  assert.equal(reads, 2)
+  assert.equal(out.lastStatus, 'FRESH_CANDIDATE_LIFECYCLE_CREATED')
+  assert.equal(out.lastLifecycle.selectedSymbol, 'AAA')
+  assert.equal(fs.existsSync(path.join(d, 'paper_auto_execution_reintroduced.json')), true)
+})

@@ -465,7 +465,7 @@ test('existing position or open-order conflict fails closed before submission', 
   }
 })
 
-test('different-symbol open PAPER order blocks continuity ENTER under global single-flight policy', async () => {
+test('different-symbol open PAPER order does not block independent-symbol continuity ENTER', async () => {
   const dir = tmp()
   try {
     const file = path.join(dir, 'life.json')
@@ -489,14 +489,13 @@ test('different-symbol open PAPER order blocks continuity ENTER under global sin
       createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
     })
     const out = await runner.runOnce()
-    assert.equal(out.lastStatus, 'GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT')
-    assert.equal(submitted, 0)
-    assert.equal(out.submissions, 0)
-    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+    assert.notEqual(out.lastStatus, 'GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT')
+    assert.equal(submitted, 1)
+    assert.equal(out.submissions, 1)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('different-symbol existing PAPER position blocks continuity ENTER under global one-position policy', async () => {
+test('different-symbol existing PAPER position does not block independent-symbol continuity ENTER', async () => {
   const dir = tmp()
   try {
     const file = path.join(dir, 'life.json')
@@ -520,10 +519,9 @@ test('different-symbol existing PAPER position blocks continuity ENTER under glo
       createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1 } }),
     })
     const out = await runner.runOnce()
-    assert.equal(out.lastStatus, 'GLOBAL_POSITION_CONCURRENCY_LIMIT')
-    assert.equal(submitted, 0)
-    assert.equal(out.submissions, 0)
-    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
+    assert.notEqual(out.lastStatus, 'GLOBAL_POSITION_CONCURRENCY_LIMIT')
+    assert.equal(submitted, 1)
+    assert.equal(out.submissions, 1)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
@@ -1129,4 +1127,146 @@ test('Module 13 ordinary safety blockers do not surface as FAILED_NEEDS_REVIEW',
     assert.equal(failure.gateSnapshot.authorized,false)
     assert.equal(out.submissions,0)
   } finally { fs.rmSync(dir,{recursive:true,force:true}) }
+})
+
+test('multi-lifecycle ENTER fails closed when lifecycle concurrency cap is missing', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const life = new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NEW' })
+    const now = Date.now()
+    let credentialCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1', PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getLifecyclePortfolio: async () => ({ rows: [{ lifecycleId: life.lifecycleId, symbol: 'NEW', lifecycle: life }] }),
+      getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
+      now: () => now,
+      accountCredentialResolver: async () => { credentialCalls += 1; return readyCredentials() },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED')
+    assert.equal(out.lastLifecyclePortfolioGuard?.allowed, false)
+    assert.equal(credentialCalls, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('multi-lifecycle ENTER fails closed when active lifecycle count exceeds hard cap', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const life = new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NEW' })
+    const now = Date.now()
+    const rows = [
+      { lifecycleId: life.lifecycleId, symbol: 'NEW', lifecycle: life },
+      { lifecycleId: 'life-a', symbol: 'AAA', lifecycle: { lifecycleId: 'life-a', selectedSymbol: 'AAA' } },
+      { lifecycleId: 'life-b', symbol: 'BBB', lifecycle: { lifecycleId: 'life-b', selectedSymbol: 'BBB' } },
+    ]
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1', PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED: '1' },
+      maxConcurrentLifecycles: 2,
+      getLifecycleFile: () => file,
+      getLifecyclePortfolio: async () => ({ rows }),
+      getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
+      now: () => now,
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_EXCEEDED')
+    assert.equal(out.lastLifecyclePortfolioGuard?.activeLifecycleCount, 3)
+    assert.equal(out.lastLifecyclePortfolioGuard?.maxConcurrentLifecycles, 2)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('multi-lifecycle ENTER requires aggregate capital governor before broker work', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const life = new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NEW' })
+    const now = Date.now()
+    let credentialCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      maxConcurrentLifecycles: 3,
+      getLifecycleFile: () => file,
+      getLifecyclePortfolio: async () => ({ rows: [{ lifecycleId: life.lifecycleId, symbol: 'NEW', lifecycle: life }] }),
+      getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
+      now: () => now,
+      accountCredentialResolver: async () => { credentialCalls += 1; return readyCredentials() },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CAPITAL_GOVERNOR_REQUIRED')
+    assert.equal(out.lastLifecyclePortfolioGuard?.allowed, false)
+    assert.equal(credentialCalls, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('multi-lifecycle ENTER fails closed when current lifecycle is absent from portfolio ownership', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const life = new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NEW' })
+    const now = Date.now()
+    let credentialCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1', PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED: '1' },
+      maxConcurrentLifecycles: 3,
+      getLifecycleFile: () => file,
+      getLifecyclePortfolio: async () => ({
+        rows: [{ lifecycleId: 'other-life', symbol: 'OTHER', lifecycle: { lifecycleId: 'other-life', selectedSymbol: 'OTHER' } }],
+      }),
+      getScanSnapshot: async () => freshCandidateSnapshot('NEW', now),
+      now: () => now,
+      accountCredentialResolver: async () => { credentialCalls += 1; return readyCredentials() },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_OWNERSHIP_REQUIRED')
+    assert.equal(out.lastLifecyclePortfolioGuard?.allowed, false)
+    assert.equal(credentialCalls, 0)
+    assert.equal(life.selectedSymbol, 'NEW')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('multi-lifecycle ENTER permits different-symbol PAPER position when ownership cap and aggregate governor allow it', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const life = new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'NEW' })
+    const now = Date.now()
+    let submitted = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: {
+        PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1',
+        PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED: '1',
+        PAPER_AUTO_PORTFOLIO_MAX_GROSS_EXPOSURE_PERCENT: '20',
+      },
+      maxConcurrentLifecycles: 3,
+      getLifecycleFile: () => file,
+      getLifecyclePortfolio: async () => ({
+        rows: [
+          { lifecycleId: life.lifecycleId, symbol: 'NEW', lifecycle: life },
+          { lifecycleId: 'owned-life', symbol: 'OWN', lifecycle: { lifecycleId: 'owned-life', selectedSymbol: 'OWN', state: 'MONITORING' } },
+        ],
+      }),
+      getPremarketBaseline: async () => currentBaseline(),
+      getScanSnapshot: async () => freshCandidateSnapshot('NEW', now, 10),
+      now: () => now,
+      accountCredentialResolver: readyCredentials,
+      fetchClock: clockOpen,
+      fetchAccount: async () => ({
+        ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(),
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        positions: [{ symbol: 'OWN', qty: 1, marketValue: 50, currentPrice: 50 }],
+        openOrders: [],
+      }),
+      createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1; return { ok: true } } }),
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastLifecyclePortfolioGuard?.allowed, true)
+    assert.equal(out.lastPortfolioCapitalGovernor?.allowed, true)
+    assert.equal(out.lastPortfolioCapitalGovernor?.maxGrossExposurePercent, 20)
+    assert.notEqual(out.lastStatus, 'EXISTING_BROKER_POSITION_CONFLICT')
+    assert.notEqual(out.lastStatus, 'GLOBAL_POSITION_CONCURRENCY_LIMIT')
+    assert.equal(submitted, 1)
+    assert.equal(out.submissions, 1)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })

@@ -61,10 +61,10 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
     return diagnostics()
   }
 
-  async function cycle() {
+  async function cycle({ lifecycleFile: lifecycleFileOverride = null } = {}) {
     cycles += 1
     lastError = null
-    const lifecycleFile = clean(await getLifecycleFile?.())
+    const lifecycleFile = clean(lifecycleFileOverride || await getLifecycleFile?.())
     lastLifecycleFile = lifecycleFile || null
     if (!lifecycleFile) return finish('ACTIVE_LIFECYCLE_PATH_REQUIRED')
     if (!fs.existsSync(lifecycleFile)) return finish('ACTIVE_LIFECYCLE_FILE_MISSING')
@@ -156,9 +156,9 @@ export function createPaperAutoExecutionExitRecoveryRunner(options = {}) {
 
   return Object.freeze({
     diagnostics,
-    runOnce() {
+    runOnce({ lifecycleFile = null } = {}) {
       if (inFlight) return inFlight
-      inFlight = cycle().catch(error => {
+      inFlight = cycle({ lifecycleFile }).catch(error => {
         lastError = error?.message ?? String(error)
         lastStatus = 'EXIT_RECOVERY_FAILED_CLOSED'
         return diagnostics()
