@@ -9,7 +9,6 @@ import { submitPaperScaleOrder } from './paper_auto_execution_scale_submission_b
 import { reconcilePaperScaleAction } from './paper_auto_execution_scale_reconciliation_service.mjs'
 import { derivePaperPositionMutationLockFile, acquirePaperPositionMutationLock, releasePaperPositionMutationLock } from './paper_auto_execution_position_mutation_lock.mjs'
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
-import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
 import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
 
 export const VERSION = 'paper_auto_execution_scale_runner_v1'
@@ -45,6 +44,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
   const getPremarketBaseline = options.getPremarketBaseline
   const submitPaperOrder = options.submitPaperOrder
   const getScaleActionFile = options.getScaleActionFile ?? derivePaperScaleActionFile
+  const capitalGrowthCoordinator = options.capitalGrowthCoordinator ?? null
   const degradedBrokerMode = options.degradedBrokerMode ?? null
   const now = options.now ?? Date.now
   const executionNotifier = options.executionNotifier ?? emitPaperTradeNotificationFailOpen
@@ -294,25 +294,41 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
         }
       }
       const lockedPosition = (lockedBefore?.positions ?? []).find(row => upper(row?.symbol) === symbol) ?? null
-      if (a === 'scale_in' && on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) {
+      if (a === 'scale_in') {
         const lockedCurrentQty = whole(lockedPosition?.qty ?? lockedPosition?.quantity)
         const lockedCurrentPrice = Number(lockedPosition?.currentPrice ?? lockedPosition?.current_price)
-        if (lockedCurrentQty === null || !Number.isFinite(lockedCurrentPrice) || lockedCurrentPrice <= 0) return finish('POST_LOCK_PORTFOLIO_POSITION_NOTIONAL_REQUIRED', lifecycle)
+        if (lockedCurrentQty === null || !Number.isFinite(lockedCurrentPrice) || lockedCurrentPrice <= 0) return finish('POST_LOCK_POSITION_NOTIONAL_REQUIRED', lifecycle)
         const additionalQty = target - lockedCurrentQty
-        if (!Number.isSafeInteger(additionalQty) || additionalQty <= 0) return finish('POST_LOCK_PORTFOLIO_SCALE_IN_ADDITIONAL_QUANTITY_REQUIRED', lifecycle)
-        lastPortfolioCapitalGovernor = evaluatePaperPortfolioCapitalGovernor({
-          accountSnapshot: lockedBefore,
-          action: 'scale_in',
-          symbol,
-          proposedAdditionalNotional: additionalQty * lockedCurrentPrice,
-          resultingSymbolNotional: target * lockedCurrentPrice,
-          maxGrossExposurePercent: env.PAPER_AUTO_PORTFOLIO_MAX_GROSS_EXPOSURE_PERCENT,
+        if (!Number.isSafeInteger(additionalQty) || additionalQty <= 0) return finish('POST_LOCK_SCALE_IN_ADDITIONAL_QUANTITY_REQUIRED', lifecycle)
+        const requiredBuyingPower = additionalQty * lockedCurrentPrice
+        const availableBuyingPower = Number(lockedBefore?.account?.buyingPower)
+        if (!Number.isFinite(availableBuyingPower) || availableBuyingPower < 0 || availableBuyingPower + Number.EPSILON < requiredBuyingPower) {
+          return finish('POST_LOCK_INSUFFICIENT_BUYING_POWER_FOR_SCALE_IN', lifecycle)
+        }
+        const resultingNotional = target * lockedCurrentPrice
+        const equity = Number(lockedBefore?.account?.equity)
+        if (!Number.isFinite(equity) || equity <= 0 || resultingNotional > equity * 0.10 + Number.EPSILON) {
+          lastPortfolioCapitalGovernor = Object.freeze({
+            allowed:false,
+            status:'POST_LOCK_SINGLE_POSITION_ALLOCATION_CEILING_EXCEEDED',
+            buyingPower:availableBuyingPower,
+            requiredBuyingPower,
+            resultingNotional,
+            equity:Number.isFinite(equity)?equity:null,
+            maxAllocationPercent:10,
+          })
+          return finish('POST_LOCK_SINGLE_POSITION_ALLOCATION_CEILING_EXCEEDED', lifecycle)
+        }
+        lastPortfolioCapitalGovernor = Object.freeze({
+          allowed:true,
+          status:'POST_LOCK_FRESH_BUYING_POWER_AND_SINGLE_POSITION_CEILING_ALLOWED',
+          buyingPower:availableBuyingPower,
+          requiredBuyingPower,
+          resultingNotional,
+          maxAllocationPercent:10,
         })
-        if (lastPortfolioCapitalGovernor?.allowed !== true) return finish(`POST_LOCK_${lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED'}`, lifecycle)
-      } else if (a === 'scale_in') {
-        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_CAPITAL_GOVERNOR_DISABLED_BY_ENV' })
       } else {
-        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_GOVERNOR_NOT_REQUIRED_FOR_REDUCING_ACTION' })
+        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'CAPITAL_GROWTH_CHECK_NOT_REQUIRED_FOR_REDUCING_ACTION' })
       }
       const lockedPreflight = preflightPaperScaleAction({
         lifecycle, brokerPosition: lockedPosition, openOrders: lockedBefore?.openOrders ?? [],
@@ -360,7 +376,20 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     }
   }
 
-  const runOnce = request => inFlight ?? (inFlight = Promise.resolve().then(() => cycle(request)).catch(error => {
+  const runCoordinatedCycle = async (request = {}) => {
+    if (clean(request?.action).toLowerCase() !== 'scale_in' || typeof capitalGrowthCoordinator?.run !== 'function') return cycle(request)
+    const resolvedFile = clean(request?.lifecycleFile || await getLifecycleFile?.())
+    if (!resolvedFile || !fs.existsSync(resolvedFile)) return cycle(request)
+    let current
+    try { current = new PaperAutoExecutionLifecycleStore({ filePath: resolvedFile }).load() } catch { return cycle(request) }
+    const outcome = await capitalGrowthCoordinator.run(
+      { currentLifecycleId: current?.lifecycleId ?? null },
+      () => cycle({ ...request, lifecycleFile: resolvedFile }),
+    )
+    return outcome?.allowed === false ? finish(outcome?.status ?? 'CAPITAL_GROWTH_CONFLICT_UNRESOLVED', current) : outcome
+  }
+
+  const runOnce = request => inFlight ?? (inFlight = Promise.resolve().then(() => runCoordinatedCycle(request)).catch(error => {
     lastError = error?.message ?? String(error)
     lastStatus = 'PAPER_SCALE_RUNNER_ERROR_FAIL_CLOSED'
     return diagnostics()

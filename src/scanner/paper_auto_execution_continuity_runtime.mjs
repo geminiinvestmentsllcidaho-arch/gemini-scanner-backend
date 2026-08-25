@@ -16,7 +16,7 @@ function snapshotFresh(s,n){const a=ageMs(s?.observedAt,n);return a!==null&&a<=C
 function eligible(c){return upper(c?.state??c?.resultState??c?.decision)==='ENTER'&&c?.buyRecommendation===true&&c?.blocked!==true&&(!Array.isArray(c?.blockers)||c.blockers.length===0)}
 function choose(s={}){const a=Array.isArray(s?.candidates)?s.candidates:[];return a.filter(eligible).sort((x,y)=>{const d=(Number(y.score??y.readonlyPotentialScore)||-Infinity)-(Number(x.score??x.readonlyPotentialScore)||-Infinity);return d!==0?d:upper(x?.symbol).localeCompare(upper(y?.symbol))})[0]??null}
 export function createPaperAutoExecutionContinuityRuntime(o={}){
- const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getLifecyclePortfolio,filterSnapshotForPortfolio,maxConcurrentLifecycles=env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES,getScanSnapshot,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now,appendEntryValidation=appendPaperAutoExecutionEntryValidationRecord,entryValidationEvidencePath=path.join(runsDir,'paper_auto_execution_entry_validation.jsonl')}=o
+ const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getLifecyclePortfolio,filterSnapshotForPortfolio,getScanSnapshot,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now,appendEntryValidation=appendPaperAutoExecutionEntryValidationRecord,entryValidationEvidencePath=path.join(runsDir,'paper_auto_execution_entry_validation.jsonl')}=o
  let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null,lastCycleStartedAt=null,lastCycleCompletedAt=null,lastSnapshotObservedAt=null,lastSnapshotFresh=null,lastSnapshotCandidateCount=null,lastEligibleCandidateCount=null,lastEligibleCandidateSymbol=null
  let entryValidationWrites=0,entryValidationWriteFailures=0,lastEntryValidationError=null,lastEntryValidationRecord=null
  const persistEntryValidation=(input)=>{try{const out=appendEntryValidation?.(input,{evidencePath:entryValidationEvidencePath,now:new Date(Number(now()))});if(out?.record){entryValidationWrites++;lastEntryValidationRecord=out.record;lastEntryValidationError=null}}catch(error){entryValidationWriteFailures++;lastEntryValidationError=clean(error?.message??error)}}
@@ -27,9 +27,8 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
   let portfolio=portfolioMode?await getLifecyclePortfolio():null
   let snapshot=null
   if(portfolioMode){
-   let rows=portfolio?.rows,cap=Number(maxConcurrentLifecycles)
+   let rows=portfolio?.rows
    if(!Array.isArray(rows)){lastStatus='LIFECYCLE_PORTFOLIO_REQUIRED';return diagnostics()}
-   if(!Number.isInteger(cap)||cap<1){lastStatus='LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED';return diagnostics()}
    const staleRows=on(env,'PAPER_AUTO_CONTINUITY_CANDIDATE_EXPIRATION_ENABLED')?rows.filter(row=>expirable(row?.lifecycle,now())):[]
    if(staleRows.length){
     if(typeof getScanSnapshot!=='function'){lastStatus='SCAN_SNAPSHOT_REQUIRED';lastLifecycleFile=staleRows[0]?.file??null;lastLifecycle=staleRows[0]?.lifecycle??null;return diagnostics()}
@@ -46,7 +45,6 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
     if(lastExpired){portfolio=await getLifecyclePortfolio();lastStatus='STALE_CANDIDATE_EXPIRED';lastLifecycleFile=lastExpiredFile;lastLifecycle=lastExpired;return diagnostics()}
    }
    rows=portfolio?.rows
-   if(rows.length>=cap){lastStatus='LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED';return diagnostics()}
   }
   const externallyActiveFile=clean(typeof getActiveLifecycleFile==='function'?await getActiveLifecycleFile():env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH)
   const activeFile=clean(pendingLifecycleFile)||externallyActiveFile;let active=null
@@ -73,10 +71,8 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
   let creationPortfolio=portfolio
   if(portfolioMode){
    creationPortfolio=await getLifecyclePortfolio()
-   const rows=creationPortfolio?.rows,cap=Number(maxConcurrentLifecycles)
+   const rows=creationPortfolio?.rows
    if(!Array.isArray(rows)){lastStatus='LIFECYCLE_PORTFOLIO_REQUIRED';return diagnostics()}
-   if(!Number.isInteger(cap)||cap<1){lastStatus='LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED';return diagnostics()}
-   if(rows.length>=cap){lastStatus='LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED';return diagnostics()}
    if(typeof filterSnapshotForPortfolio==='function'){
     snapshot=filterSnapshotForPortfolio(authoritativeSnapshot,creationPortfolio)
     candidate=choose(snapshot)

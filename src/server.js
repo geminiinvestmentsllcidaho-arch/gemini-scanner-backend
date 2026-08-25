@@ -80,6 +80,7 @@ import { collectPremarketCapitalBaseline, getPersistedPremarketCapitalBaseline }
 import { createPaperAutoExecutionScaleRunner, derivePaperScaleActionFile } from './scanner/paper_auto_execution_scale_runner.mjs';
 import { createPaperAutoExecutionDegradedBrokerMode } from './scanner/paper_auto_execution_degraded_broker_mode.mjs';
 import { PaperAutoExecutionScaleActionStore } from './scanner/paper_auto_execution_scale_action_store.mjs';
+import { createPaperCapitalGrowthCoordinator, detectPaperCapitalGrowthConflicts } from './scanner/paper_auto_execution_capital_growth_coordinator.mjs';
 import { fetchAlpacaPaperAccountReadonly } from './scanner/alpaca_paper_account_readonly_fetch.mjs';
 import { fetchCustomerOwnedPositionMonitorSource } from './scanner/customer_owned_position_monitor_source.mjs';
 import { fetchAlpacaUnderFiveUniverseReadonly } from './scanner/alpaca_under_five_universe_readonly.mjs';
@@ -2875,6 +2876,17 @@ const readPaperAutoExecutionServerLifecyclePortfolio = () => readPaperAutoExecut
 const paperAutoMultiLifecycleEnabled =
   String(process.env.PAPER_AUTO_MULTI_LIFECYCLE_ENABLED ?? '').trim() === '1';
 
+const paperAutoExecutionCapitalGrowthCoordinator = createPaperCapitalGrowthCoordinator({
+  inspectConflicts: ({ currentLifecycleId } = {}) => detectPaperCapitalGrowthConflicts({
+    portfolio: readPaperAutoExecutionServerLifecyclePortfolio(),
+    currentLifecycleId,
+    readScaleAction: row => {
+      const file = derivePaperScaleActionFile(row.file);
+      return fs.existsSync(file) ? new PaperAutoExecutionScaleActionStore({ filePath: file }).load() : null;
+    },
+  }),
+});
+
 const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const cache = await underFiveSharedCachePromise;
   if (!cache) return { candidates: [] };
@@ -2979,7 +2991,6 @@ const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRu
   ...(paperAutoMultiLifecycleEnabled ? {
     getLifecyclePortfolio: readPaperAutoExecutionServerLifecyclePortfolio,
     filterSnapshotForPortfolio: filterContinuitySnapshotForUnownedSymbols,
-    maxConcurrentLifecycles: process.env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES,
   } : {}),
   setActiveLifecycleFile: (file) => {
     const nextLifecycleFile = String(file ?? '').trim();
@@ -3007,12 +3018,12 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   ...(paperAutoMultiLifecycleEnabled ? {
     getLifecyclePortfolio: readPaperAutoExecutionServerLifecyclePortfolio,
-    maxConcurrentLifecycles: process.env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES,
   } : {}),
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
   getPremarketBaseline: getCurrentPaperPremarketBaseline,
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
+  capitalGrowthCoordinator: paperAutoExecutionCapitalGrowthCoordinator,
 });
 
 const PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs/paper_auto_execution_execution_assurance_incidents.jsonl';
@@ -3145,6 +3156,7 @@ const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
  fetchOrderByClientOrderId:({clientOrderId})=>fetchAlpacaPaperOrderByClientOrderIdReadonly({clientOrderId,credentialResolver:resolveInternalOwnerAlpacaReadonlyCredentials}),
  submitPaperOrder:paperAutoExecutionScaleSubmit,serverIntegrated:true,automaticStartAllowed:true,
  degradedBrokerMode:paperAutoExecutionDegradedBrokerMode,
+ capitalGrowthCoordinator:paperAutoExecutionCapitalGrowthCoordinator,
 });
 
 const runPaperAutoExecutionScaleCycle=async(source='runtime',lifecycleFileOverride=null)=>{try{

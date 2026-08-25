@@ -362,7 +362,6 @@ test('portfolio mode permits fresh different-symbol lifecycle while monitored sy
   getActiveLifecycleFile:()=>owned,
   getLifecyclePortfolio:()=>portfolio,
   filterSnapshotForPortfolio:(snapshot,p)=>({...snapshot,candidates:snapshot.candidates.filter(c=>!p.symbols.includes(c.symbol))}),
-  maxConcurrentLifecycles:2,
   setActiveLifecycleFile:(file)=>{published=file},
   getScanSnapshot:async()=>({observedAt:'2026-08-24T15:00:00Z',candidates:[
    {symbol:'OWN',state:'ENTER',buyRecommendation:true,score:100},
@@ -376,42 +375,6 @@ test('portfolio mode permits fresh different-symbol lifecycle while monitored sy
  assert.equal(new PaperAutoExecutionLifecycleStore({filePath:owned}).load().state,'MONITORING')
  assert.equal(published,path.join(d,'paper_auto_execution_new-life.json'))
 })
-
-test('portfolio mode fails closed when lifecycle concurrency cap is missing', async () => {
-  const d = tmp()
-  const nowMs = Date.parse('2026-08-24T15:00:10Z')
-  let scanCalls = 0
-  const r = createPaperAutoExecutionContinuityRuntime({
-    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
-    runsDir: d,
-    getLifecyclePortfolio: () => ({ rows: [], symbols: [] }),
-    filterSnapshotForPortfolio: snapshot => snapshot,
-    getScanSnapshot: async () => { scanCalls += 1; return { observedAt: '2026-08-24T15:00:00Z', candidates: [] } },
-    now: () => nowMs,
-  })
-  const out = await r.runOnce()
-  assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED')
-  assert.equal(scanCalls, 0)
-})
-
-test('portfolio mode stops before scan when lifecycle concurrency cap is reached', async () => {
-  const d = tmp()
-  const nowMs = Date.parse('2026-08-24T15:00:10Z')
-  let scanCalls = 0
-  const r = createPaperAutoExecutionContinuityRuntime({
-    env: { PAPER_AUTO_CONTINUITY_ENABLED: '1' },
-    runsDir: d,
-    getLifecyclePortfolio: () => ({ rows: [{ file: 'one' }, { file: 'two' }], symbols: ['ONE', 'TWO'] }),
-    filterSnapshotForPortfolio: snapshot => snapshot,
-    maxConcurrentLifecycles: 2,
-    getScanSnapshot: async () => { scanCalls += 1; return { observedAt: '2026-08-24T15:00:00Z', candidates: [] } },
-    now: () => nowMs,
-  })
-  const out = await r.runOnce()
-  assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED')
-  assert.equal(scanCalls, 0)
-})
-
 
 test('portfolio mode expires stale candidate-selected lifecycle after one fresh scan shows symbol no longer eligible', async () => {
   const d = tmp()
@@ -434,7 +397,6 @@ test('portfolio mode expires stale candidate-selected lifecycle after one fresh 
     },
     runsDir: d,
     now: () => nowMs,
-    maxConcurrentLifecycles: 3,
     getLifecyclePortfolio: portfolio,
     filterSnapshotForPortfolio: snapshot => snapshot,
     getScanSnapshot: async () => {
@@ -470,7 +432,6 @@ test('portfolio mode preserves stale candidate-selected lifecycle when fresh sca
     },
     runsDir: d,
     now: () => nowMs,
-    maxConcurrentLifecycles: 1,
     getLifecyclePortfolio,
     filterSnapshotForPortfolio: (snapshot, portfolio) => ({
       ...snapshot,
@@ -485,7 +446,7 @@ test('portfolio mode preserves stale candidate-selected lifecycle when fresh sca
     },
   })
   const out = await r.runOnce()
-  assert.equal(out.lastStatus, 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED')
+  assert.equal(out.lastStatus, 'NO_ELIGIBLE_CANDIDATE')
   assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: file }).load().state, 'CANDIDATE_SELECTED')
   assert.equal(scans, 1)
 })
@@ -506,7 +467,6 @@ test('portfolio mode fails closed without expiring stale candidate when expirati
     },
     runsDir: d,
     now: () => nowMs,
-    maxConcurrentLifecycles: 3,
     getLifecyclePortfolio,
     filterSnapshotForPortfolio: snapshot => snapshot,
     getScanSnapshot: async () => ({ observedAt: '2026-08-13T01:00:29Z', candidates: [] }),
@@ -517,26 +477,6 @@ test('portfolio mode fails closed without expiring stale candidate when expirati
 })
 
 
-test('portfolio mode rechecks hard cap immediately before lifecycle creation', async () => {
-  const d=tmp(), nowMs=Date.parse('2026-08-24T15:00:10Z')
-  let reads=0
-  const r=createPaperAutoExecutionContinuityRuntime({
-    env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,now:()=>nowMs,idFactory:()=> 'must-not-create',
-    maxConcurrentLifecycles:1,getActiveLifecycleFile:()=>null,
-    getLifecyclePortfolio:async()=>++reads===1
-      ? {rows:[],symbols:[]}
-      : {rows:[{file:'owned.json',lifecycleId:'owned',symbol:'OWN',state:'MONITORING'}],symbols:['OWN']},
-    filterSnapshotForPortfolio:(s,p)=>({...s,candidates:s.candidates.filter(c=>!p.symbols.includes(c.symbol))}),
-    getScanSnapshot:async()=>({observedAt:'2026-08-24T15:00:00Z',candidates:[
-      {symbol:'NEW',state:'ENTER',buyRecommendation:true,blocked:false,blockers:[],score:99},
-    ]}),
-  })
-  const out=await r.runOnce()
-  assert.equal(reads,2)
-  assert.equal(out.lastStatus,'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REACHED')
-  assert.equal(fs.existsSync(path.join(d,'paper_auto_execution_must-not-create.json')),false)
-})
-
 test('portfolio mode rechecks ownership before creation and reselects highest remaining eligible symbol', async () => {
   const d = tmp()
   const nowMs = Date.parse('2026-08-24T15:00:10Z')
@@ -546,7 +486,6 @@ test('portfolio mode rechecks ownership before creation and reselects highest re
     runsDir: d,
     now: () => nowMs,
     idFactory: () => 'reselected',
-    maxConcurrentLifecycles: 3,
     getActiveLifecycleFile: () => null,
     getLifecyclePortfolio: async () => ++reads === 1
       ? { rows: [], symbols: [] }
@@ -576,7 +515,6 @@ test('portfolio mode creates nothing when creation-time ownership consumes every
     runsDir: d,
     now: () => nowMs,
     idFactory: () => 'must-not-create',
-    maxConcurrentLifecycles: 3,
     getActiveLifecycleFile: () => null,
     getLifecyclePortfolio: async () => ++reads === 1
       ? { rows: [], symbols: [] }
@@ -604,7 +542,6 @@ test('portfolio mode creation-time recheck can reintroduce strongest candidate w
     runsDir: d,
     now: () => nowMs,
     idFactory: () => 'reintroduced',
-    maxConcurrentLifecycles: 3,
     getActiveLifecycleFile: () => null,
     getLifecyclePortfolio: async () => ++reads === 1
       ? { rows: [{ file: 'aaa.json', lifecycleId: 'aaa', symbol: 'AAA', state: 'MONITORING' }], symbols: ['AAA'] }

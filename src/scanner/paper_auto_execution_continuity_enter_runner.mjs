@@ -11,7 +11,6 @@ import { resolveInternalOwnerAlpacaReadonlyCredentials } from './internal_owner_
 import { calculateAutomaticPositionSize } from './automatic_position_sizing_policy.mjs'
 import { easternDateKey } from './alpaca_premarket_shared_scan_cache.mjs'
 import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arbitration.mjs'
-import { evaluatePaperPortfolioCapitalGovernor } from './paper_auto_execution_portfolio_capital_governor.mjs'
 import { buildPaperAutoExecutionStrategyEvidence } from './paper_auto_execution_strategy_evidence.mjs'
 import { appendPaperAutoExecutionEntryValidationRecord, buildEntryValidationCorrelationId } from './paper_auto_execution_entry_validation_store.mjs'
 import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
@@ -53,7 +52,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const getScanSnapshot = options.getScanSnapshot ?? null
   const getPremarketBaseline = options.getPremarketBaseline ?? null
   const getLifecyclePortfolio = options.getLifecyclePortfolio ?? null
-  const maxConcurrentLifecycles = options.maxConcurrentLifecycles ?? env.PAPER_AUTO_MAX_CONCURRENT_LIFECYCLES
+  const capitalGrowthCoordinator = options.capitalGrowthCoordinator ?? null
   const fetchAccount = options.fetchAccount ?? ((args) => fetchAlpacaPaperAccountReadonly(args))
   const fetchClock = options.fetchClock ?? ((args) => fetchAlpacaMarketClockReadonly(args))
   const fetchHistory = options.fetchHistoricalOrders ?? ((args) => fetchAlpacaPaperHistoricalOrdersReadonly(args))
@@ -173,7 +172,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
           accountFresh:status==='PAPER_ACCOUNT_SNAPSHOT_STALE'?false:null,
           accountHealthy:status==='PAPER_ACCOUNT_BLOCKED'?false:null,
           degradedBrokerAllowed:status.includes('DEGRADED_BROKER')?false:null,
-          lifecycleConflictFree:['EXISTING_BROKER_POSITION_CONFLICT','GLOBAL_POSITION_CONCURRENCY_LIMIT','CONFLICTING_OPEN_ORDER','GLOBAL_OPEN_ORDER_CONCURRENCY_LIMIT'].includes(status)?false:null,
+          lifecycleConflictFree:['EXISTING_BROKER_POSITION_CONFLICT','CONFLICTING_OPEN_ORDER'].includes(status)?false:null,
           reentryAllowed:lastReentryControl?.allowed===true?true:lastReentryControl?.allowed===false?false:null,
           portfolioGovernorAllowed:lastPortfolioCapitalGovernor?.allowed===true?true:lastPortfolioCapitalGovernor?.allowed===false?false:null,
           capitalProtectionAllowed:null,
@@ -258,21 +257,16 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       }
       if (typeof getLifecyclePortfolio === 'function') {
         const rows = (await getLifecyclePortfolio())?.rows
-        const cap = Number(maxConcurrentLifecycles)
         const owned = Array.isArray(rows) && rows.some(row =>
           clean(row?.lifecycleId ?? row?.lifecycle?.lifecycleId) === clean(lifecycle.lifecycleId)
           && upper(row?.symbol ?? row?.lifecycle?.selectedSymbol) === upper(lifecycle.selectedSymbol))
         let status = null
         if (!Array.isArray(rows)) status = 'LIFECYCLE_PORTFOLIO_REQUIRED'
-        else if (!Number.isInteger(cap) || cap < 1) status = 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_REQUIRED'
         else if (!owned) status = 'LIFECYCLE_PORTFOLIO_OWNERSHIP_REQUIRED'
-        else if (rows.length > cap) status = 'LIFECYCLE_PORTFOLIO_CONCURRENCY_CAP_EXCEEDED'
-        else if (!on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) status = 'LIFECYCLE_PORTFOLIO_CAPITAL_GOVERNOR_REQUIRED'
         lastLifecyclePortfolioGuard = Object.freeze({
           allowed: !status,
           status: status ?? 'LIFECYCLE_PORTFOLIO_GUARD_ALLOWED',
           activeLifecycleCount: Array.isArray(rows) ? rows.length : null,
-          maxConcurrentLifecycles: Number.isInteger(cap) && cap > 0 ? cap : null,
         })
         if (status) return fail(status, lifecycle)
       } else {
@@ -347,7 +341,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         candidateScore,
       })
       if (lastSizing?.ok !== true) return fail(`POSITION_SIZING_${lastSizing?.status ?? 'FAILED'}`, lifecycle)
-      const enterQuantity = lastSizing.quantity
+      let enterQuantity = lastSizing.quantity
       const symbol = upper(lifecycle.selectedSymbol)
       const openPositions = (account?.positions ?? []).filter(p => Number(p?.qty ?? p?.quantity) > 0)
       if (openPositions.some(p => upper(p?.symbol) === symbol)) {
@@ -358,19 +352,6 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       )
       if (conflictingOpenOrders.some(o => upper(o?.symbol) === symbol)) {
         return fail('CONFLICTING_OPEN_ORDER', lifecycle)
-      }
-      if (on(env, 'PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED')) {
-        lastPortfolioCapitalGovernor = evaluatePaperPortfolioCapitalGovernor({
-          accountSnapshot: account,
-          action: 'enter',
-          symbol,
-          proposedAdditionalNotional: lastSizing.requiredBuyingPower,
-          resultingSymbolNotional: lastSizing.requiredBuyingPower,
-          maxGrossExposurePercent: env.PAPER_AUTO_PORTFOLIO_MAX_GROSS_EXPOSURE_PERCENT,
-        })
-        if (lastPortfolioCapitalGovernor?.allowed !== true) return fail(lastPortfolioCapitalGovernor?.status ?? 'PORTFOLIO_CAPITAL_GOVERNOR_FAIL_CLOSED', lifecycle)
-      } else {
-        lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'PORTFOLIO_CAPITAL_GOVERNOR_DISABLED_BY_ENV' })
       }
       const preSubmitClock = await fetchClock({ env: effectiveEnv, fetchImpl, credentialResolver: null, nowMs: Number(now()) })
       if (preSubmitClock?.ok !== true || preSubmitClock?.status !== 'connected_readonly') {
@@ -383,6 +364,50 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (!Number.isFinite(preSubmitClockObservedAtMs) || !Number.isFinite(preSubmitClockAgeMs) || preSubmitClockAgeMs < 0 || preSubmitClockAgeMs > 30000) {
         return fail('PRE_SUBMIT_MARKET_CLOCK_STALE', lifecycle)
       }
+      const preSubmitAccount = await fetchAccount({ env: effectiveEnv, fetchImpl, credentialResolver: null })
+      if (preSubmitAccount?.ok !== true || preSubmitAccount?.status !== 'connected_readonly') {
+        if (preSubmitAccount?.status === 'readonly_fetch_failed') degradedBrokerMode?.recordFailure?.({ kind:'ACCOUNT_READ_FAILED', reason:clean(preSubmitAccount?.status) })
+        return fail('PRE_SUBMIT_FRESH_PAPER_ACCOUNT_REQUIRED', lifecycle)
+      }
+      const preSubmitAccountObservedAtMs = Date.parse(preSubmitAccount?.observedAt ?? '')
+      const preSubmitAccountAgeMs = Number(now()) - preSubmitAccountObservedAtMs
+      if (!Number.isFinite(preSubmitAccountObservedAtMs) || !Number.isFinite(preSubmitAccountAgeMs) || preSubmitAccountAgeMs < 0 || preSubmitAccountAgeMs > 30000) {
+        return fail('PRE_SUBMIT_PAPER_ACCOUNT_SNAPSHOT_STALE', lifecycle)
+      }
+      if (preSubmitAccount?.account?.tradingBlocked === true || preSubmitAccount?.account?.accountBlocked === true) {
+        degradedBrokerMode?.recordFailure?.({ kind:'BROKER_ACCOUNT_BLOCKED', reason:'pre_submit_paper_account_blocked' })
+        return fail('PRE_SUBMIT_PAPER_ACCOUNT_BLOCKED', lifecycle)
+      }
+      const preSubmitAccountIdentity = clean(preSubmitAccount?.account?.accountIdentity)
+      if (!baselineAccountIdentity || !preSubmitAccountIdentity || baselineAccountIdentity !== preSubmitAccountIdentity) {
+        return fail('PRE_SUBMIT_PREMARKET_CAPITAL_BASELINE_ACCOUNT_IDENTITY_MISMATCH', lifecycle)
+      }
+      const preSubmitOpenPositions = (preSubmitAccount?.positions ?? []).filter(p => Number(p?.qty ?? p?.quantity) > 0)
+      if (preSubmitOpenPositions.some(p => upper(p?.symbol) === symbol)) {
+        return fail('PRE_SUBMIT_EXISTING_BROKER_POSITION_CONFLICT', lifecycle)
+      }
+      const preSubmitConflictingOpenOrders = (preSubmitAccount?.openOrders ?? []).filter(o =>
+        ['buy', 'sell'].includes(clean(o?.side).toLowerCase())
+      )
+      if (preSubmitConflictingOpenOrders.some(o => upper(o?.symbol) === symbol)) {
+        return fail('PRE_SUBMIT_CONFLICTING_OPEN_ORDER', lifecycle)
+      }
+      lastSizing = calculateAutomaticPositionSize({
+        accountEquity: preSubmitAccount?.account?.equity,
+        buyingPower: preSubmitAccount?.account?.buyingPower,
+        candidatePrice,
+        candidateScore,
+      })
+      if (lastSizing?.ok !== true) return fail(`PRE_SUBMIT_POSITION_SIZING_${lastSizing?.status ?? 'FAILED'}`, lifecycle)
+      enterQuantity = lastSizing.quantity
+      lastPortfolioCapitalGovernor = Object.freeze({
+        allowed:true,
+        status:'PRE_SUBMIT_FRESH_BUYING_POWER_POLICY_ALLOWED',
+        buyingPower:lastSizing.buyingPower,
+        requiredBuyingPower:lastSizing.requiredBuyingPower,
+        allocationPercent:lastSizing.allocationPercent,
+        maxAllocationPercent:lastSizing.maxAllocationPercent??10,
+      })
       recordEntryValidation({
         eventType:'gate_snapshot',correlationId:correlationId(lifecycle),lifecycleId:lifecycle?.lifecycleId,
         lifecycleState:lifecycle?.state,scanId:lifecycle?.scannerEvidence?.originScanId,symbol,
@@ -510,7 +535,22 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     return fail('CONTINUITY_ENTER_RECONCILIATION_PENDING', lifecycle)
   }
 
-  const runOnce = ({ lifecycleFile = null } = {}) => inFlight ?? (inFlight = Promise.resolve().then(() => cycle({ lifecycleFile })).catch((error) => {
+  const runCoordinatedCycle = async ({ lifecycleFile = null } = {}) => {
+    const resolvedFile = clean(lifecycleFile || await getLifecycleFile?.())
+    if (!resolvedFile || !fs.existsSync(resolvedFile) || typeof capitalGrowthCoordinator?.run !== 'function') {
+      return cycle({ lifecycleFile })
+    }
+    let current
+    try { current = new PaperAutoExecutionLifecycleStore({ filePath: resolvedFile }).load() } catch { return cycle({ lifecycleFile: resolvedFile }) }
+    if (current?.state !== S.CANDIDATE_SELECTED) return cycle({ lifecycleFile: resolvedFile })
+    const outcome = await capitalGrowthCoordinator.run(
+      { currentLifecycleId: current.lifecycleId },
+      () => cycle({ lifecycleFile: resolvedFile }),
+    )
+    return outcome?.allowed === false ? fail(outcome?.status ?? 'CAPITAL_GROWTH_CONFLICT_UNRESOLVED', current) : outcome
+  }
+
+  const runOnce = ({ lifecycleFile = null } = {}) => inFlight ?? (inFlight = Promise.resolve().then(() => runCoordinatedCycle({ lifecycleFile })).catch((error) => {
     lastError = error?.message ?? String(error)
     lastStatus = 'CONTINUITY_ENTER_ERROR_FAIL_CLOSED'
     return diagnostics()

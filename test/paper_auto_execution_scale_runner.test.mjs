@@ -161,7 +161,7 @@ test('post-lock SCALE-IN baseline identity drift blocks stale growth before PREP
 })
 
 
-test('Module 7 portfolio capital governor blocks post-lock SCALE-IN growth above hard 10 percent before PREPARED',async()=>{
+test('post-lock per-asset policy blocks SCALE-IN growth above hard 10 percent before PREPARED',async()=>{
   const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-m7-cap-'))
   try{
     const f=path.join(d,'life.json')
@@ -175,7 +175,6 @@ test('Module 7 portfolio capital governor blocks post-lock SCALE-IN growth above
         PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',
         PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED:'1',
         PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1',
-        PAPER_AUTO_PORTFOLIO_CAPITAL_GOVERNOR_ENABLED:'1',
       },
       getLifecycleFile:()=>f,
       now:()=>N,
@@ -187,7 +186,7 @@ test('Module 7 portfolio capital governor blocks post-lock SCALE-IN growth above
       fetchOrderByClientOrderId:async()=>({ok:true,status:'order_not_found'}),
     })
     const out=await r.runOnce({action:'scale_in',targetQuantity:6})
-    assert.equal(out.lastStatus,'POST_LOCK_PORTFOLIO_SINGLE_POSITION_CEILING_EXCEEDED')
+    assert.equal(out.lastStatus,'POST_LOCK_SINGLE_POSITION_ALLOCATION_CEILING_EXCEEDED')
     assert.equal(out.lastPortfolioCapitalGovernor.allowed,false)
     assert.equal(submits,0)
     assert.equal(fs.existsSync(D(f)),false)
@@ -198,3 +197,44 @@ test('Module 7 portfolio capital governor blocks post-lock SCALE-IN growth above
 test('Module 8 SCALE records broker clock failure and blocks degraded SCALE-IN before reads',async()=>{const d=fs.mkdtempSync(path.join(os.tmpdir(),'m8-scale-'));try{const f=path.join(d,'l.json');life(f);let reads=0,fail=[];let mode={evaluateAction:()=>({allowed:false,status:'DEGRADED_BROKER_RISK_INCREASING_ACTION_BLOCKED'}),recordFailure:x=>fail.push(x),diagnostics:()=>({})};let r=R({env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED:'1'},getLifecycleFile:()=>f,now:()=>N,degradedBrokerMode:mode,fetchMarketClock:async()=>{reads++;return{}},fetchAccount:async()=>{reads++;return{}},fetchOwnedMonitor:async()=>{reads++;return{}}});let o=await r.runOnce({action:'scale_in',targetQuantity:6});assert.equal(o.lastStatus,'DEGRADED_BROKER_RISK_INCREASING_ACTION_BLOCKED');assert.equal(reads,0);mode={evaluateAction:()=>({allowed:true}),recordFailure:x=>fail.push(x),diagnostics:()=>({})};r=R({env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED:'1'},getLifecycleFile:()=>f,now:()=>N,degradedBrokerMode:mode,fetchMarketClock:async()=>({ok:false,status:'clock_fetch_failed'}),fetchAccount:async()=>({}),fetchOwnedMonitor:async()=>({})});o=await r.runOnce({action:'scale_out',targetQuantity:2});assert.equal(o.lastStatus,'PAPER_MARKET_CLOCK_REQUIRED');assert.equal(fail.at(-1)?.kind,'MARKET_CLOCK_READ_FAILED')}finally{fs.rmSync(d,{recursive:true,force:true})}})
 test('Module 8 SCALE records submission ambiguity and still reconciles',async()=>{const d=fs.mkdtempSync(path.join(os.tmpdir(),'m8-scale-amb-'));try{const f=path.join(d,'l.json');life(f);let n=0,fail=[];const r=R({env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED:'1',PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1'},getLifecycleFile:()=>f,now:()=>N,degradedBrokerMode:{evaluateAction:()=>({allowed:true}),recordFailure:x=>fail.push(x),diagnostics:()=>({})},fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true,timestamp:new Date(N-5000).toISOString()}}),fetchAccount:async()=>{n++;const q=n<=2?4:2;return{ok:true,status:'connected_readonly',observedAt:new Date(N-5000).toISOString(),account:{tradingBlocked:false,accountBlocked:false,equity:1e4,buyingPower:5e3},positions:[{symbol:'ABC',qty:q,currentPrice:11,avg_entry_price:'10.5'}],openOrders:[]}},fetchOwnedMonitor:async()=>({ok:true,candidates:[{symbol:'ABC',resultState:'WATCH',ownedExitReviewTriggered:false,ownedScaleOutReviewTriggered:true,ownedScaleOutResultingQuantity:2,sourceCoverage:'owned_position_symbol_fetch',sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:180}]}),submitPaperOrder:async()=>{throw Error('timeout')},fetchOrderByClientOrderId:async({clientOrderId})=>({ok:true,status:'order_found',order:{id:'b',status:'filled',client_order_id:clientOrderId,filled_qty:'2',filled_at:'2026-08-15T12:00:00Z'}})});const o=await r.runOnce({action:'scale_out',targetQuantity:2});assert.equal(fail.some(x=>x.kind==='SUBMISSION_EXCEPTION'),true);assert.equal(o.lastStatus,'PAPER_SCALE_ACTION_RECONCILED_MONITORING')}finally{fs.rmSync(d,{recursive:true,force:true})}})
 // Module 8 SCALE failure recording smoke
+
+test('shared capital-growth coordinator blocks SCALE-IN before broker reads or PREPARED state',async()=>{
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-cap-growth-block-'))
+ try{
+  const f=path.join(d,'life.json');life(f);let reads=0,submits=0,runs=0
+  const r=R({
+   env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED:'1',PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1'},
+   getLifecycleFile:()=>f,now:()=>N,
+   capitalGrowthCoordinator:{run:async({currentLifecycleId},task)=>{runs++;assert.ok(currentLifecycleId);assert.equal(typeof task,'function');return{allowed:false,status:'CAPITAL_GROWTH_CONFLICT_UNRESOLVED'}}},
+   fetchMarketClock:async()=>{reads++;return{}},
+   fetchAccount:async()=>{reads++;return{}},
+   fetchOwnedMonitor:async()=>{reads++;return{}},
+   submitPaperOrder:async()=>{submits++;return{}},
+  })
+  const o=await r.runOnce({action:'scale_in',targetQuantity:6})
+  assert.equal(o.lastStatus,'CAPITAL_GROWTH_CONFLICT_UNRESOLVED')
+  assert.equal(runs,1)
+  assert.equal(reads,0)
+  assert.equal(submits,0)
+  assert.equal(fs.existsSync(D(f)),false)
+  assert.equal(new L({filePath:f}).load().state,'MONITORING')
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
+
+test('shared capital-growth coordinator is bypassed for SCALE-OUT reducing action',async()=>{
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-cap-growth-bypass-'))
+ try{
+  const f=path.join(d,'life.json');life(f);let runs=0
+  const r=R({
+   env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED:'1'},
+   getLifecycleFile:()=>f,now:()=>N,
+   capitalGrowthCoordinator:{run:async()=>{runs++;return{allowed:false,status:'SHOULD_NOT_RUN'}}},
+   fetchMarketClock:async()=>({ok:false,status:'clock_fetch_failed'}),
+   fetchAccount:async()=>({}),
+   fetchOwnedMonitor:async()=>({}),
+  })
+  const o=await r.runOnce({action:'scale_out',targetQuantity:2})
+  assert.equal(runs,0)
+  assert.equal(o.lastStatus,'PAPER_MARKET_CLOCK_REQUIRED')
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
