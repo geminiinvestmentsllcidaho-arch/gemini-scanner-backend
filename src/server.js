@@ -3172,11 +3172,21 @@ const runPaperAutoExecutionScaleCycle=async(source='runtime',lifecycleFileOverri
  return paperAutoExecutionScaleRunner.diagnostics();
 }catch(e){console.error('[paper-auto-execution-scale] cycle failed closed',{source,error:e?.message??String(e)});return paperAutoExecutionScaleRunner.diagnostics()}};
 
+let paperAutoExecutionMonitoringLifecycleFiles = Object.freeze([])
+const refreshPaperAutoExecutionMonitoringLifecycleFiles = () => {
+  const portfolio = readPaperAutoExecutionServerLifecyclePortfolio()
+  paperAutoExecutionMonitoringLifecycleFiles = Object.freeze(
+    selectLifecycleRowsForState(portfolio, ['MONITORING']).map(row => row.file),
+  )
+  return paperAutoExecutionMonitoringLifecycleFiles
+}
+if (paperAutoMultiLifecycleEnabled) refreshPaperAutoExecutionMonitoringLifecycleFiles()
+
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   ...(paperAutoMultiLifecycleEnabled ? {
-    getConfiguredLifecycleFiles: () => readPaperAutoExecutionServerLifecyclePortfolio().rows.map(row => row.file),
+    getConfiguredLifecycleFiles: () => paperAutoExecutionMonitoringLifecycleFiles,
   } : {}),
   fetchOwnedMonitor: getPaperAutoExecutionOwnedMonitor,
   onTerminalLifecycle: () => runPaperAutoExecutionContinuityCycle('terminal_exit'),
@@ -3304,6 +3314,16 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       });
     }
   })().finally(() => {
+    if (paperAutoMultiLifecycleEnabled) {
+      try {
+        refreshPaperAutoExecutionMonitoringLifecycleFiles()
+      } catch (error) {
+        console.error('[paper-auto-exit-monitor] monitoring lifecycle cache refresh failed closed', {
+          source,
+          error: error?.message ?? String(error),
+        })
+      }
+    }
     paperAutoExecutionContinuityCycleInFlight = null;
   });
   return paperAutoExecutionContinuityCycleInFlight;
