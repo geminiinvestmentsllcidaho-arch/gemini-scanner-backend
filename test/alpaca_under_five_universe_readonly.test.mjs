@@ -412,6 +412,44 @@ test("adds explicit enter wait and do-not-enter decisions with explanations", as
   assert.match(bySymbol.BLOCK.briefExplanation, /Do not enter/);
 });
 
+test("preserves successful market clock when asset fetch is rate limited", async () => {
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    async fetchImpl(url) {
+      if (url.includes("/v2/clock")) {
+        return response(200, {
+          is_open: true,
+          timestamp: "2026-08-25T12:58:00-04:00",
+          next_open: "2026-08-26T09:30:00-04:00",
+          next_close: "2026-08-25T16:00:00-04:00",
+        });
+      }
+      if (url.includes("/v2/assets")) {
+        return response(429, { message: "rate limit exceeded" });
+      }
+      return response(200, {});
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "asset_fetch_failed");
+  assert.equal(result.fetchStatus.assets, 429);
+  assert.equal(result.marketClock.isOpen, true);
+  assert.equal(result.marketClock.nextClose, "2026-08-25T16:00:00-04:00");
+});
+
 test("adds read-only Alpaca market clock status", async () => {
   const result = await fetchAlpacaUnderFiveUniverseReadonly({
     env: {

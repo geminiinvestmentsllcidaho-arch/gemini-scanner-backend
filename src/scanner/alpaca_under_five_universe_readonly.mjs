@@ -284,6 +284,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
       snapshotCount: 0,
       candidateCount: 0,
       candidates: [],
+      marketClock,
     };
   }
 
