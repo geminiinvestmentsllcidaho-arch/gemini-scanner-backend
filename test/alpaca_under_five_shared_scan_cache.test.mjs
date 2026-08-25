@@ -291,6 +291,7 @@ test("focused refresh uses the exact previously discovered candidate symbol set 
 
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[1].symbols, ["BBB", "AAA"]);
+  assert.equal(calls[1].prevalidatedSymbols, true);
   assert.equal(cache.getDiagnostics().broadScanCount, 1);
   assert.equal(cache.getDiagnostics().focusedScanCount, 1);
 });

@@ -450,6 +450,53 @@ test("preserves successful market clock when asset fetch is rate limited", async
   assert.equal(result.marketClock.nextClose, "2026-08-25T16:00:00-04:00");
 });
 
+test("focused refresh can reuse prevalidated broad symbols without refetching assets", async () => {
+  const calls = [];
+  const result = await fetchAlpacaUnderFiveUniverseReadonly({
+    env: {
+      GEMINI_CREDENTIAL_MASTER_KEY: "m".repeat(64),
+      ALPACA_DATA_FEED: "iex",
+    },
+    credentialResolver() {
+      return {
+        readyForReadonlyBrokerRead: true,
+        env: {
+          ALPACA_KEY: "encrypted-key",
+          ALPACA_SECRET: "encrypted-secret",
+        },
+      };
+    },
+    symbols: ["AAA", "BBB"],
+    prevalidatedSymbols: true,
+    async fetchImpl(url) {
+      calls.push(String(url));
+      if (String(url).includes("/v2/clock")) {
+        return response(200, {
+          is_open: true,
+          timestamp: "2026-08-25T13:10:00-04:00",
+          next_open: "2026-08-26T09:30:00-04:00",
+          next_close: "2026-08-25T16:00:00-04:00",
+        });
+      }
+      if (String(url).includes("/v2/assets")) {
+        throw new Error("focused refresh must not refetch assets");
+      }
+      if (String(url).includes("/v2/stocks/snapshots")) {
+        return response(200, {
+          AAA: { latestTrade: { p: 4, t: "2026-08-25T17:10:00Z" }, dailyBar: { v: 500000 } },
+          BBB: { latestTrade: { p: 3, t: "2026-08-25T17:10:00Z" }, dailyBar: { v: 500000 } },
+        });
+      }
+      return response(200, {});
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.marketClock.isOpen, true);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.symbol), ["AAA", "BBB"]);
+  assert.equal(calls.some((url) => url.includes("/v2/assets")), false);
+});
+
 test("adds read-only Alpaca market clock status", async () => {
   const result = await fetchAlpacaUnderFiveUniverseReadonly({
     env: {

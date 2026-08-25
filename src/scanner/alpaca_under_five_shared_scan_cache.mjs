@@ -179,6 +179,7 @@ export function createAlpacaUnderFiveSharedScanCache({
         const source = await fetchScan({
           ...scanOptions,
           symbols,
+          prevalidatedSymbols: true,
         });
         return await applyScanResult(source, { broad: false });
       } catch (error) {

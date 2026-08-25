@@ -164,6 +164,7 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
   snapshotBatchSize = 200,
   maxAssets = 10000,
   symbols = null,
+  prevalidatedSymbols = false,
   nowMs = null,
   maxSourceAgeSec = 120,
 } = {}) {
@@ -267,50 +268,64 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
         nextClose: null,
       };
 
-  const assetsUrl = new URL("/v2/assets", PAPER_BASE_URL);
-  assetsUrl.searchParams.set("status", "active");
-  assetsUrl.searchParams.set("asset_class", "us_equity");
-
-  const assetsResult = await readJson(fetchImpl, assetsUrl.toString(), headers);
-  if (!assetsResult.ok || !Array.isArray(assetsResult.json)) {
-    return {
-      ok: false,
-      version: VERSION,
-      status: "asset_fetch_failed",
-      runtime,
-      filters,
-      fetchStatus: { assets: assetsResult.statusCode },
-      assetCount: 0,
-      snapshotCount: 0,
-      candidateCount: 0,
-      candidates: [],
-      marketClock,
-    };
-  }
-
   const requestedSymbols = new Set(
     (Array.isArray(symbols) ? symbols : [])
       .map((value) => clean(value).toUpperCase())
       .filter(Boolean),
   );
 
-  const assets = assetsResult.json
-    .map((asset) => ({
-      symbol: clean(asset.symbol).toUpperCase(),
-    name: clean(asset.name),
-      exchange: clean(asset.exchange),
-      status: clean(asset.status),
-      tradable: asset.tradable === true,
-      fractionable: asset.fractionable === true,
-    }))
-    .filter((asset) =>
-      asset.symbol &&
-      asset.status === "active" &&
-      asset.tradable === true &&
-      ["NYSE", "NASDAQ", "AMEX", "ARCA", "BATS"].includes(asset.exchange) &&
-      (requestedSymbols.size === 0 || requestedSymbols.has(asset.symbol))
-    )
-    .slice(0, Math.max(1, Number(maxAssets) || 10000));
+  let assets;
+  if (prevalidatedSymbols === true && requestedSymbols.size > 0) {
+    assets = [...requestedSymbols]
+      .map((symbol) => ({
+        symbol,
+        name: "",
+        exchange: "",
+        status: "active",
+        tradable: true,
+        fractionable: false,
+      }))
+      .slice(0, Math.max(1, Number(maxAssets) || 10000));
+  } else {
+    const assetsUrl = new URL("/v2/assets", PAPER_BASE_URL);
+    assetsUrl.searchParams.set("status", "active");
+    assetsUrl.searchParams.set("asset_class", "us_equity");
+
+    const assetsResult = await readJson(fetchImpl, assetsUrl.toString(), headers);
+    if (!assetsResult.ok || !Array.isArray(assetsResult.json)) {
+      return {
+        ok: false,
+        version: VERSION,
+        status: "asset_fetch_failed",
+        runtime,
+        filters,
+        fetchStatus: { assets: assetsResult.statusCode },
+        assetCount: 0,
+        snapshotCount: 0,
+        candidateCount: 0,
+        candidates: [],
+        marketClock,
+      };
+    }
+
+    assets = assetsResult.json
+      .map((asset) => ({
+        symbol: clean(asset.symbol).toUpperCase(),
+        name: clean(asset.name),
+        exchange: clean(asset.exchange),
+        status: clean(asset.status),
+        tradable: asset.tradable === true,
+        fractionable: asset.fractionable === true,
+      }))
+      .filter((asset) =>
+        asset.symbol &&
+        asset.status === "active" &&
+        asset.tradable === true &&
+        ["NYSE", "NASDAQ", "AMEX", "ARCA", "BATS"].includes(asset.exchange) &&
+        (requestedSymbols.size === 0 || requestedSymbols.has(asset.symbol))
+      )
+      .slice(0, Math.max(1, Number(maxAssets) || 10000));
+  }
   const snapshotMap = {};
   let snapshotCount = 0;
 
