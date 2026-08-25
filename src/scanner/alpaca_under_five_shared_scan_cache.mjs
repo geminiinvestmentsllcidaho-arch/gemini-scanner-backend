@@ -104,34 +104,76 @@ export function createAlpacaUnderFiveSharedScanCache({
     if (broad) {
       broadScanCount += 1;
       lastBroadScanAtMs = generatedAtMs;
-      broadCandidateSymbols = Array.isArray(source?.candidates)
-        ? [...new Set(source.candidates.map((candidate) => String(candidate?.symbol ?? "").trim().toUpperCase()).filter(Boolean))]
-        : [];
     } else {
       focusedScanCount += 1;
     }
-    lastError = null;
+
+    const failedBroadScan = broad && source?.ok === false;
+    const canPreservePreviousSnapshot = failedBroadScan && latest?.ok !== false;
+
+    if (failedBroadScan) {
+      lastError = String(source?.status ?? "broad_scan_failed");
+    } else {
+      lastError = null;
+    }
+
     idleReason = demandActive() ? null : "manual_refresh_without_active_demand";
-    latest = {
-      ...source,
-      idleNoDemand: !demandActive(),
-      sharedCache: {
-        version: VERSION,
-        generatedAt: new Date(generatedAtMs).toISOString(),
-        scanCount,
-        broadScanCount,
-        focusedScanCount,
-        lastBroadScanAt: Number.isFinite(lastBroadScanAtMs) ? new Date(lastBroadScanAtMs).toISOString() : null,
-        broadCandidateSymbols: [...broadCandidateSymbols],
-        scanTier: broad ? "broad" : "focused",
-        broadIntervalSec: MARKET_OPEN_BROAD_INTERVAL_SEC,
-        focusedIntervalSec: MARKET_OPEN_FOCUSED_INTERVAL_SEC,
-        sharedAcrossRequests: true,
-        readOnly: true,
-        demandAware: true,
+
+    if (canPreservePreviousSnapshot) {
+      latest = {
+        ...latest,
         idleNoDemand: !demandActive(),
-      },
-    };
+        sharedCache: {
+          ...(latest.sharedCache ?? {}),
+          version: VERSION,
+          generatedAt: new Date(generatedAtMs).toISOString(),
+          scanCount,
+          broadScanCount,
+          focusedScanCount,
+          lastBroadScanAt: Number.isFinite(lastBroadScanAtMs) ? new Date(lastBroadScanAtMs).toISOString() : null,
+          broadCandidateSymbols: [...broadCandidateSymbols],
+          scanTier: "broad_failed_preserved",
+          broadFailure: {
+            status: source?.status ?? "broad_scan_failed",
+            fetchStatus: source?.fetchStatus ?? null,
+            failedAt: new Date(generatedAtMs).toISOString(),
+          },
+          broadIntervalSec: MARKET_OPEN_BROAD_INTERVAL_SEC,
+          focusedIntervalSec: MARKET_OPEN_FOCUSED_INTERVAL_SEC,
+          sharedAcrossRequests: true,
+          readOnly: true,
+          demandAware: true,
+          idleNoDemand: !demandActive(),
+        },
+      };
+    } else {
+      if (broad) {
+        broadCandidateSymbols = Array.isArray(source?.candidates)
+          ? [...new Set(source.candidates.map((candidate) => String(candidate?.symbol ?? "").trim().toUpperCase()).filter(Boolean))]
+          : [];
+      }
+
+      latest = {
+        ...source,
+        idleNoDemand: !demandActive(),
+        sharedCache: {
+          version: VERSION,
+          generatedAt: new Date(generatedAtMs).toISOString(),
+          scanCount,
+          broadScanCount,
+          focusedScanCount,
+          lastBroadScanAt: Number.isFinite(lastBroadScanAtMs) ? new Date(lastBroadScanAtMs).toISOString() : null,
+          broadCandidateSymbols: [...broadCandidateSymbols],
+          scanTier: broad ? "broad" : "focused",
+          broadIntervalSec: MARKET_OPEN_BROAD_INTERVAL_SEC,
+          focusedIntervalSec: MARKET_OPEN_FOCUSED_INTERVAL_SEC,
+          sharedAcrossRequests: true,
+          readOnly: true,
+          demandAware: true,
+          idleNoDemand: !demandActive(),
+        },
+      };
+    }
 
     if (typeof onScanComplete === "function") {
       try {

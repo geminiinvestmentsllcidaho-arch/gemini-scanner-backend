@@ -263,6 +263,64 @@ test("market-open scheduler returns to broad discovery at the five-minute bounda
   assert.equal(cache.getDiagnostics().latest.sharedCache.scanTier, "broad");
 });
 
+test("failed broad discovery preserves the last successful candidate snapshot and focused symbol set", async () => {
+  const calls = [];
+  let broadCall = 0;
+  const cache = createAlpacaUnderFiveSharedScanCache({
+    now: () => 1_000,
+    async fetchScan(options = {}) {
+      calls.push(options);
+      if (Array.isArray(options.symbols)) {
+        return {
+          ok: true,
+          status: "connected_readonly",
+          marketClock: { isOpen: true },
+          candidates: options.symbols.map((symbol) => ({ symbol })),
+        };
+      }
+      broadCall += 1;
+      if (broadCall === 1) {
+        return {
+          ok: true,
+          status: "connected_readonly",
+          marketClock: { isOpen: true },
+          candidates: [{ symbol: "AAA" }, { symbol: "BBB" }],
+        };
+      }
+      return {
+        ok: false,
+        status: "asset_fetch_failed",
+        fetchStatus: { assets: 429 },
+        marketClock: { isOpen: true },
+        assetCount: 0,
+        snapshotCount: 0,
+        candidateCount: 0,
+        candidates: [],
+      };
+    },
+  });
+
+  await cache.refreshNow();
+  const successful = cache.getLatest();
+
+  await cache.refreshNow();
+  const preserved = cache.getLatest();
+  const diagnostics = cache.getDiagnostics();
+
+  assert.deepEqual(preserved.candidates.map((candidate) => candidate.symbol), ["AAA", "BBB"]);
+  assert.deepEqual(diagnostics.broadCandidateSymbols, ["AAA", "BBB"]);
+  assert.equal(diagnostics.lastError, "asset_fetch_failed");
+  assert.equal(diagnostics.broadScanCount, 2);
+  assert.equal(preserved.sharedCache.scanTier, "broad_failed_preserved");
+  assert.equal(preserved.sharedCache.broadFailure.status, "asset_fetch_failed");
+  assert.deepEqual(preserved.sharedCache.broadFailure.fetchStatus, { assets: 429 });
+  assert.equal(preserved.marketClock.isOpen, successful.marketClock.isOpen);
+
+  await cache.refreshFocusedNow();
+  assert.deepEqual(calls.at(-1).symbols, ["AAA", "BBB"]);
+  assert.equal(calls.at(-1).prevalidatedSymbols, true);
+});
+
 test("focused refresh uses the exact previously discovered candidate symbol set without changing candidate rules", async () => {
   const calls = [];
   const cache = createAlpacaUnderFiveSharedScanCache({
