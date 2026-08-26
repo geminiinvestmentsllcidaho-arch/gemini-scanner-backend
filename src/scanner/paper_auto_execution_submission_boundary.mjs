@@ -32,7 +32,7 @@ async function emitIncidentFailOpen(incidentEmitter, incident) {
   } catch {}
 }
 
-export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, submitPaperOrder, env = process.env, incidentEmitter = emitAdminPaperOperationalIncident } = {}) {
+export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, exitDecisionEvidence = null, submitPaperOrder, env = process.env, incidentEmitter = emitAdminPaperOperationalIncident } = {}) {
   if (!lifecycleStore || typeof lifecycleStore.load !== 'function' || typeof lifecycleStore.transition !== 'function') throw new Error('paper_auto_submission_store_required')
   const lifecycle = lifecycleStore.load()
   if (!lifecycle) throw new Error('paper_auto_submission_lifecycle_missing')
@@ -63,7 +63,18 @@ export async function submitPaperAutoOrder({ lifecycleStore, phase, quantity, su
   const side = normalizedPhase === 'enter' ? 'buy' : 'sell'
   const requestedQuantity = normalizedPhase === 'enter' ? Number(quantity ?? 1) : Number(quantity ?? lifecycle.filledQuantity)
   const identity = buildPaperAutoOrderIdentity({ lifecycleId: lifecycle.lifecycleId, phase: normalizedPhase, symbol: lifecycle.selectedSymbol, quantity: requestedQuantity, side })
-  if (normalizedPhase === 'exit' && lifecycle.state === S.MONITORING) lifecycleStore.transition(S.EXIT_TRIGGERED)
+  if (normalizedPhase === 'exit' && lifecycle.state === S.MONITORING) {
+    const validExitDecisionEvidence = exitDecisionEvidence && typeof exitDecisionEvidence === 'object' && !Array.isArray(exitDecisionEvidence)
+      ? exitDecisionEvidence
+      : null
+    const authoritativeExitReason = clean(validExitDecisionEvidence?.reasonCodes?.[0]) || null
+    lifecycleStore.transition(
+      S.EXIT_TRIGGERED,
+      validExitDecisionEvidence
+        ? { exitReason: authoritativeExitReason, exitDecisionEvidence: validExitDecisionEvidence }
+        : {},
+    )
+  }
   const submittingState = normalizedPhase === 'enter' ? S.ENTER_SUBMITTING : S.EXIT_SUBMITTING
   let next = lifecycleStore.transition(submittingState, normalizedPhase === 'enter' ? { enterClientOrderId: identity.clientOrderId } : { exitClientOrderId: identity.clientOrderId })
 

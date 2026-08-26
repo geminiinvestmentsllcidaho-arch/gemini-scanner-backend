@@ -222,6 +222,7 @@ export function createPaperTradeNotificationEmitter({
         quantity: event.quantity,
         brokerOrderId: event.brokerOrderId,
         lifecycleId: event.lifecycleId,
+        executionReason: event.executionReason,
         attemptedAt: iso(now()) ?? new Date().toISOString(),
         delivered: result?.delivered === true,
         provider: clean(result?.provider, 80) || null,

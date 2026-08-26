@@ -50,6 +50,42 @@ test('exception becomes enter unknown and replay is blocked by state', async () 
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
 
+test('authoritative exit decision evidence persists atomically from EXIT_TRIGGERED through submission state', async () => {
+  const { dir, store } = fixture('BTG')
+  try {
+    store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'cid-enter' })
+    store.transition(S.POSITION_CONFIRMED, { filledQuantity: 1, brokerPositionIdentity: 'BTG:1' })
+    store.transition(S.MONITORING)
+    const exitDecisionEvidence = {
+      version: 'paper_auto_execution_exit_decision_v1',
+      lifecycleId: 'life-submit-1',
+      symbol: 'BTG',
+      decision: 'EXIT',
+      exitRequired: true,
+      status: 'AUTHORITATIVE_PROTECTIVE_PAPER_EXIT',
+      reasonCodes: ['OWNED_POSITION_HARD_LOSS_REVIEW'],
+      protectiveExit: true,
+      protectiveType: 'hard_loss',
+      priority: 'critical',
+      severity: 'critical',
+    }
+    const result = await submitPaperAutoOrder({
+      lifecycleStore: store,
+      phase: 'exit',
+      quantity: 1,
+      exitDecisionEvidence,
+      env,
+      submitPaperOrder: async () => ({ orderSubmitAttempted: true, orderSubmitted: true, orderId: 'broker-exit-1' }),
+    })
+    assert.equal(result.lifecycle.state, S.EXIT_UNKNOWN)
+    assert.equal(result.lifecycle.exitReason, 'OWNED_POSITION_HARD_LOSS_REVIEW')
+    assert.deepEqual(result.lifecycle.exitDecisionEvidence, exitDecisionEvidence)
+    const persisted = store.load()
+    assert.equal(persisted.exitReason, 'OWNED_POSITION_HARD_LOSS_REVIEW')
+    assert.deepEqual(persisted.exitDecisionEvidence, exitDecisionEvidence)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('exact exit quantity is enforced', async () => {
   const { dir, store } = fixture('NVDA')
   try {

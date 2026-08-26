@@ -194,6 +194,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
           life?.state === 'MONITORING'
         const controlledMarketOpenExit = life?.scannerEvidence?.mechanicalAutoExitProof === true || oneTimeUsasMarketOpenExit
         let exitRequired = controlledMarketOpenExit
+        let exitDecisionEvidence = null
         if (controlledMarketOpenExit) {
           const clock = await fetchMarketClock({ env, fetchImpl, nowMs: Number(now()) })
           if (clock?.ok !== true || clock?.status !== 'connected_readonly') {
@@ -224,6 +225,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
             observedAt: new Date(now()).toISOString(),
           })
           lastExitDecision = exitDecision
+          exitDecisionEvidence = exitDecision
           exitRequired = exitDecision?.exitRequired === true && upper(exitDecision?.decision) === 'EXIT'
           if (!exitRequired) {
             results.push({ lifecycleId: life.lifecycleId, symbol, status: 'MONITORING_NO_EXIT', exitDecision })
@@ -278,6 +280,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
         const result = await exitRunner({
           args: { execute: 'true', lifecycleFile: row.file, lifecycleId: life.lifecycleId, symbol, quantity: String(quantity) },
           env, fetchImpl, nowMs: Number(now()),
+          exitDecisionEvidence,
           ...(typeof accountCredentialResolver === 'function' ? { accountCredentialResolver } : {})
         })
         lastRunnerCompletedAt = new Date(now()).toISOString()
@@ -316,7 +319,7 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
               filledAt: lastBrokerFilledAt ?? result?.lifecycle?.exitBrokerFilledAt,
               brokerOrderId: lastBrokerOrderId,
               lifecycleId: life.lifecycleId,
-              executionReason: lastExitDecision?.reasonCodes?.[0] ?? result.status,
+              executionReason: exitDecisionEvidence?.reasonCodes?.[0] ?? result.status,
             })
           } catch {}
           if (typeof onTerminalLifecycle === 'function') {

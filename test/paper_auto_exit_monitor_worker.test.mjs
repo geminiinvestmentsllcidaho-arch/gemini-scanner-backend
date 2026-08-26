@@ -38,6 +38,8 @@ test('fresh EXIT invokes exact runner once', async () => {
   const r=await w.runOnce({eventSymbol:'BTG'})
   assert.equal(calls.length,1)
   assert.deepEqual(calls[0].args,{execute:'true',lifecycleFile:'/tmp/lifecycle.json',lifecycleId:'life-1',symbol:'BTG',quantity:'1'})
+  assert.equal(calls[0].exitDecisionEvidence?.decision,'EXIT')
+  assert.deepEqual(calls[0].exitDecisionEvidence?.reasonCodes,['OWNED_POSITION_HARD_LOSS_REVIEW'])
   assert.equal(r.exitTriggers,1)
   assert.equal(r.exitAttempts,1)
   assert.equal(r.lastStatus,'EXIT_TRIGGERED')

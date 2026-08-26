@@ -256,6 +256,7 @@ export async function runPaperAutoExecutionExitOnly(options = {}) {
     lifecycleStore: store,
     phase: 'exit',
     quantity,
+    exitDecisionEvidence: options.exitDecisionEvidence ?? null,
     submitPaperOrder: adapter.submitPaperOrder,
     env: {
       ...env,

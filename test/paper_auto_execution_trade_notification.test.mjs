@@ -94,6 +94,7 @@ test('delivers once and durable ledger deduplicates across recreated emitter', a
     const input = {
       action: 'EXIT', symbol: 'XYZ', quantity: 4, brokerOrderId: 'order-x',
       lifecycleId: 'life-x', filledAt: '2026-08-20T14:59:59Z',
+      executionReason: 'OWNED_POSITION_HARD_LOSS_REVIEW',
     }
     const first = await createPaperTradeNotificationEmitter(opts).emit(input)
     const second = await createPaperTradeNotificationEmitter(opts).emit(input)
@@ -104,6 +105,9 @@ test('delivers once and durable ledger deduplicates across recreated emitter', a
     assert.equal(st.mode & 0o777, 0o600)
     const raw = fs.readFileSync(ledgerPath, 'utf8')
     assert.equal(raw.includes('secret-provider-id'), false)
+    const rows = raw.trim().split('\n').map(line => JSON.parse(line))
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].executionReason, 'OWNED_POSITION_HARD_LOSS_REVIEW')
   } finally {
     fs.rmSync(d, { recursive: true, force: true })
   }
