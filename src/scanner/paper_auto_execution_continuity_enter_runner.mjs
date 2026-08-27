@@ -14,6 +14,8 @@ import { arbitratePaperAutomaticAction } from './paper_auto_execution_action_arb
 import { buildPaperAutoExecutionStrategyEvidence } from './paper_auto_execution_strategy_evidence.mjs'
 import { appendPaperAutoExecutionEntryValidationRecord, buildEntryValidationCorrelationId } from './paper_auto_execution_entry_validation_store.mjs'
 import { emitPaperTradeNotificationFailOpen } from './paper_auto_execution_trade_notification.mjs'
+import path from 'node:path'
+import { evaluateSameSymbolHardLossCooldown } from './paper_auto_execution_same_symbol_hard_loss_cooldown.mjs'
 
 export const VERSION = 'paper_auto_execution_continuity_enter_runner_v1'
 const clean = v => String(v ?? '').trim()
@@ -64,6 +66,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const appendEntryValidation = options.appendEntryValidation ?? appendPaperAutoExecutionEntryValidationRecord
   const entryValidationEvidencePath = options.entryValidationEvidencePath ?? 'runs/paper_auto_execution_entry_validation.jsonl'
   const executionNotifier = options.executionNotifier ?? emitPaperTradeNotificationFailOpen
+  const evaluateHardLossCooldown = options.evaluateSameSymbolHardLossCooldown ?? (({ lifecycleFile, symbol, nowMs }) => evaluateSameSymbolHardLossCooldown({ runsDir: path.dirname(path.resolve(lifecycleFile)), symbol, nowMs }))
   let inFlight = null
   let cycles = 0
   let submissions = 0
@@ -78,6 +81,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   let lastReentryControl = null
   let lastPortfolioCapitalGovernor = null
   let lastLifecyclePortfolioGuard = null
+  let lastSameSymbolHardLossCooldown = null
   let lastCycleStartedAt = null
   let lastCycleCompletedAt = null
   let entryValidationWrites = 0
@@ -112,6 +116,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     lastReentryControl,
     lastPortfolioCapitalGovernor,
     lastLifecyclePortfolioGuard,
+    lastSameSymbolHardLossCooldown,
     lastCycleStartedAt,
     lastCycleCompletedAt,
     entryValidationWrites,
@@ -242,6 +247,14 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         },
       })
       lastLifecycle = lifecycle
+      lastSameSymbolHardLossCooldown = await evaluateHardLossCooldown({
+        lifecycleFile,
+        symbol: lifecycle.selectedSymbol,
+        nowMs: Number(now()),
+      })
+      if (lastSameSymbolHardLossCooldown?.allowed !== true) {
+        return fail(lastSameSymbolHardLossCooldown?.status || 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_EVIDENCE_INVALID', lifecycle)
+      }
       if (on(env, 'PAPER_AUTO_CONTINUITY_REENTRY_CONTROL_ENABLED')) {
         lastReentryControl = Object.freeze(evaluateReentryControl(snapshot))
         if (lastReentryControl.allowed !== true) return fail(lastReentryControl.status, lifecycle)

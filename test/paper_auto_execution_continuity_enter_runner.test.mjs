@@ -1208,3 +1208,168 @@ test('shared capital-growth coordinator blocks ENTER before credentials or broke
   assert.equal(creds,0);assert.equal(reads,0);assert.equal(o.submissions,0)
  }finally{fs.rmSync(d,{recursive:true,force:true})}
 })
+
+
+test('R20 same-symbol hard-loss cooldown active blocks before credentials and submission', async () => {
+  const d = tmp()
+  try {
+    const f = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: f }).create({ selectedSymbol: 'R20BLOCK' })
+    const n = Date.now()
+    let resolverCalls = 0
+    let adapterCalls = 0
+    let submitCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => f,
+      getScanSnapshot: async () => freshCandidateSnapshot('R20BLOCK', n),
+      now: () => n,
+      evaluateSameSymbolHardLossCooldown: async () => ({
+        allowed: false,
+        status: 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_ACTIVE',
+        symbol: 'R20BLOCK',
+        sourceLifecycleId: 'loss-life',
+        sourceExitReason: 'OWNED_POSITION_HARD_LOSS_REVIEW',
+        cooldownStartedAt: new Date(n - 60_000).toISOString(),
+        cooldownExpiresAt: new Date(n - 60_000 + 1_800_000).toISOString(),
+        remainingMs: 1_740_000,
+      }),
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      createAdapter: () => {
+        adapterCalls += 1
+        return { submitPaperOrder: async () => { submitCalls += 1 } }
+      },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_ACTIVE')
+    assert.equal(out.lastSameSymbolHardLossCooldown?.sourceLifecycleId, 'loss-life')
+    assert.equal(out.lastSameSymbolHardLossCooldown?.remainingMs, 1_740_000)
+    assert.equal(resolverCalls, 0)
+    assert.equal(adapterCalls, 0)
+    assert.equal(submitCalls, 0)
+    assert.equal(out.submissions, 0)
+    assert.equal(new PaperAutoExecutionLifecycleStore({ filePath: f }).load().state, 'CANDIDATE_SELECTED')
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test('R20 invalid qualifying hard-loss timestamp evidence fails closed before credentials and submission', async () => {
+  const d = tmp()
+  try {
+    const f = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: f }).create({ selectedSymbol: 'R20BAD' })
+    const n = Date.now()
+    let resolverCalls = 0
+    let adapterCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => f,
+      getScanSnapshot: async () => freshCandidateSnapshot('R20BAD', n),
+      now: () => n,
+      evaluateSameSymbolHardLossCooldown: async () => ({
+        allowed: false,
+        status: 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_EVIDENCE_INVALID',
+        symbol: 'R20BAD',
+        sourceLifecycleId: 'bad-life',
+        sourceExitReason: 'OWNED_POSITION_HARD_LOSS_REVIEW',
+        cooldownStartedAt: 'not-a-date',
+        cooldownExpiresAt: null,
+        remainingMs: null,
+      }),
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+      createAdapter: () => { adapterCalls += 1; return { submitPaperOrder: async () => {} } },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_EVIDENCE_INVALID')
+    assert.equal(out.lastSameSymbolHardLossCooldown?.sourceLifecycleId, 'bad-life')
+    assert.equal(resolverCalls, 0)
+    assert.equal(adapterCalls, 0)
+    assert.equal(out.submissions, 0)
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test('R20 expired same-symbol cooldown does not bypass existing re-entry governance', async () => {
+  const d = tmp()
+  try {
+    const f = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: f }).create({ selectedSymbol: 'R20REENTRY' })
+    const n = Date.now()
+    let resolverCalls = 0
+    const snapshot = freshCandidateSnapshot('R20REENTRY', n)
+    snapshot.reentryControl = {
+      connected: true, fresh: true, stale: false, sourceAgeSec: 1, maxAgeSec: 30,
+      cooldownState: 'cooldown_required',
+      resetPermission: 'allowed',
+      reentryPermission: 'allowed',
+      continuationPermission: 'allowed',
+    }
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: {
+        PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1',
+        PAPER_AUTO_CONTINUITY_REENTRY_CONTROL_ENABLED: '1',
+      },
+      getLifecycleFile: () => f,
+      getScanSnapshot: async () => snapshot,
+      now: () => n,
+      evaluateSameSymbolHardLossCooldown: async () => ({
+        allowed: true,
+        status: 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_CLEAR',
+        symbol: 'R20REENTRY',
+        sourceLifecycleId: null,
+        sourceExitReason: null,
+        cooldownStartedAt: null,
+        cooldownExpiresAt: null,
+        remainingMs: 0,
+      }),
+      accountCredentialResolver: async () => { resolverCalls += 1; return readyCredentials() },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastSameSymbolHardLossCooldown?.allowed, true)
+    assert.equal(out.lastStatus, 'REENTRY_COOLDOWN_NOT_CLEAR')
+    assert.equal(out.lastReentryControl?.allowed, false)
+    assert.equal(resolverCalls, 0)
+    assert.equal(out.submissions, 0)
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test('R20 no qualifying hard-loss history preserves existing allowed path', async () => {
+  const d = tmp()
+  try {
+    const f = path.join(d, 'life.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: f }).create({ selectedSymbol: 'R20CLEAR' })
+    const n = Date.now()
+    let resolverCalls = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => f,
+      getScanSnapshot: async () => freshCandidateSnapshot('R20CLEAR', n),
+      now: () => n,
+      evaluateSameSymbolHardLossCooldown: async () => ({
+        allowed: true,
+        status: 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_CLEAR',
+        symbol: 'R20CLEAR',
+        sourceLifecycleId: null,
+        sourceExitReason: null,
+        cooldownStartedAt: null,
+        cooldownExpiresAt: null,
+        remainingMs: 0,
+      }),
+      accountCredentialResolver: async () => {
+        resolverCalls += 1
+        return { readyForReadonlyBrokerRead: false, env: {} }
+      },
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastSameSymbolHardLossCooldown?.allowed, true)
+    assert.equal(out.lastStatus, 'PAPER_CREDENTIALS_NOT_READY')
+    assert.equal(resolverCalls, 1)
+    assert.equal(out.submissions, 0)
+  } finally {
+    fs.rmSync(d, { recursive: true, force: true })
+  }
+})
