@@ -28,10 +28,13 @@ export function buildCustomerReportEmail(input = {}) {
   }
 
   const label = periodLabel(period);
+  const pdfFilename = `GeminiScanner-${label.replaceAll(" ", "-")}-Report.pdf`;
   const lines = [
     `${label} GeminiScanner report`,
     "",
-    "PDF report attached.",
+    "PDF REPORT ATTACHED",
+    `Report file: ${pdfFilename}`,
+    "Open the attached PDF for the complete report.",
     "",
     summary || "Your read-only GeminiScanner customer report is ready.",
   ];
