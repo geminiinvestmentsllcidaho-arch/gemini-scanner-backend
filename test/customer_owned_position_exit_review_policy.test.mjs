@@ -30,7 +30,7 @@ test("surfaces a hard-loss owned position as EXIT review without execution", () 
   assert.equal(result.accountMutationAllowed, false);
 });
 
-test("requires fresh multi-factor confirmation for tighter deterioration review", () => {
+test("uses fresh owned-position return for early-loss review independent of previous-close day change", () => {
   const base = {
     symbol: "WEAK", price: 98.2, changePct: -0.8, sourceStale: false,
     readonlyPotentialScore: 55, readonlyPotentialFlags: ["negative_momentum"],
@@ -41,10 +41,45 @@ test("requires fresh multi-factor confirmation for tighter deterioration review"
   };
   const confirmed = applyOwnedPositionExitReviewPolicy(base, position);
   assert.equal(confirmed.resultState, "EXIT");
-  assert.equal(confirmed.ownedExitReviewReason, "OWNED_POSITION_CONFIRMED_DETERIORATION_REVIEW");
+  assert.equal(confirmed.ownedExitReviewReason, "OWNED_POSITION_EARLY_LOSS_REVIEW");
   const stale = applyOwnedPositionExitReviewPolicy({ ...base, sourceStale: true }, position);
   assert.equal(stale.resultState, "WAIT");
   assert.equal(stale.ownedExitReviewTriggered, false);
+
+  const extendedWinnerFromPriorClose = applyOwnedPositionExitReviewPolicy({
+    ...base,
+    symbol: "LATE",
+    changePct: 12,
+    readonlyPotentialScore: 95,
+    readonlyPotentialFlags: [],
+  }, {
+    symbol: "LATE", averageEntryPrice: 100, currentPrice: 98.4, unrealizedPlpc: -0.016,
+  });
+  assert.equal(extendedWinnerFromPriorClose.resultState, "EXIT");
+  assert.equal(extendedWinnerFromPriorClose.ownedExitReviewReason, "OWNED_POSITION_EARLY_LOSS_REVIEW");
+
+  const justAboveBoundary = applyOwnedPositionExitReviewPolicy({
+    ...base,
+    symbol: "BOUNDARY",
+    changePct: -5,
+    readonlyPotentialScore: 20,
+    readonlyPotentialFlags: ["negative_momentum"],
+  }, {
+    symbol: "BOUNDARY", averageEntryPrice: 100, currentPrice: 98.51, unrealizedPlpc: -0.0149,
+  });
+  assert.equal(justAboveBoundary.ownedExitReviewTriggered, false);
+
+  const exactBoundary = applyOwnedPositionExitReviewPolicy({
+    ...base,
+    symbol: "EXACT",
+    changePct: 8,
+    readonlyPotentialScore: 99,
+    readonlyPotentialFlags: [],
+  }, {
+    symbol: "EXACT", averageEntryPrice: 100, currentPrice: 98.5, unrealizedPlpc: -0.015,
+  });
+  assert.equal(exactBoundary.ownedExitReviewTriggered, true);
+  assert.equal(exactBoundary.ownedExitReviewReason, "OWNED_POSITION_EARLY_LOSS_REVIEW");
 });
 
 

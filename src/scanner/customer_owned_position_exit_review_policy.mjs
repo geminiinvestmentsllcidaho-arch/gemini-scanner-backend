@@ -66,14 +66,9 @@ export function applyOwnedPositionExitReviewPolicy(candidate = {}, position = {}
     } else if (
       returnPct !== null
       && returnPct <= -1.5
-      && changePct !== null
-      && changePct <= -0.5
-      && negativeMomentum
-      && score !== null
-      && score < 60
     ) {
       exitReview = true;
-      reason = "OWNED_POSITION_CONFIRMED_DETERIORATION_REVIEW";
+      reason = "OWNED_POSITION_EARLY_LOSS_REVIEW";
     } else if (singleShareProfitProtection) {
       exitReview = true;
       reason = "OWNED_POSITION_SINGLE_SHARE_PROFIT_PROTECTION_EXIT";

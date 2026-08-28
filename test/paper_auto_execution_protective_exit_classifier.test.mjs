@@ -23,8 +23,8 @@ test("single and multi-share profit protection are protective exits", () => {
   }
 });
 
-test("confirmed deterioration remains strategy exit rather than invented protective trigger", () => {
-  const result = classifyProtectivePaperExitReason("OWNED_POSITION_CONFIRMED_DETERIORATION_REVIEW");
+test("early owned-loss remains strategy exit rather than invented protective trigger", () => {
+  const result = classifyProtectivePaperExitReason("OWNED_POSITION_EARLY_LOSS_REVIEW");
   assert.equal(result.protectiveExit, false);
   assert.equal(result.protectiveType, null);
   assert.equal(result.priority, "normal");

@@ -327,7 +327,7 @@ test("profit-protection EXIT is classified as high-priority protective PAPER exi
   assert.equal(result.severity, "high");
 });
 
-test("confirmed deterioration EXIT remains normal strategy EXIT", () => {
+test("early owned-loss EXIT remains normal strategy EXIT", () => {
   const result = buildAuthoritativePaperExitDecision({
     lifecycle,
     brokerPosition,
@@ -336,7 +336,7 @@ test("confirmed deterioration EXIT remains normal strategy EXIT", () => {
       resultState: "EXIT",
       decision: "EXIT",
       ownedExitReviewTriggered: true,
-      ownedExitReviewReason: "OWNED_POSITION_CONFIRMED_DETERIORATION_REVIEW",
+      ownedExitReviewReason: "OWNED_POSITION_EARLY_LOSS_REVIEW",
       sourceStale: false,
     },
   });
