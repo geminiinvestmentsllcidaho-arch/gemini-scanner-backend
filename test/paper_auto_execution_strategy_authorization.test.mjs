@@ -6,6 +6,7 @@ import {
   MIN_RANKING_QUALITY,
   MIN_RANKING_SETUP_SCORE,
   MAX_ENTRY_PRICE,
+  MAX_ENTRY_MOMENTUM_PCT,
   getPaperAutoExecutionStrategyAuthorizationPolicy,
   authorizePaperAutoExecutionCandidate,
 } from "../src/scanner/paper_auto_execution_strategy_authorization.mjs";
@@ -23,6 +24,7 @@ function qualified(overrides = {}) {
     rankingConfidence: 0.8,
     rankingQuality: 0.9,
     price: 4,
+    momentumPct: 5,
     ...overrides,
   };
 }
@@ -32,6 +34,7 @@ test("exposes canonical read-only strategy authorization policy from the determi
   assert.equal(policy.version, "paper_auto_execution_strategy_authorization_v1");
   assert.equal(policy.requiredState, "ENTER");
   assert.equal(policy.maximumEntryPrice, MAX_ENTRY_PRICE);
+  assert.equal(policy.maximumEntryMomentumPct, MAX_ENTRY_MOMENTUM_PCT);
   assert.deepEqual(policy.minimums, {
     setupScore: MIN_RANKING_SETUP_SCORE,
     rankingConfidence: MIN_RANKING_CONFIDENCE,
@@ -154,5 +157,30 @@ test("fails closed when automatic entry price is missing or non-finite", () => {
     const out = authorizePaperAutoExecutionCandidate(qualified({ price }));
     assert.equal(out.authorized, false);
     assert.ok(out.blockers.includes("STRATEGY_ENTRY_PRICE_REQUIRED"));
+  }
+});
+
+test("fails closed above the anti-overextension momentum ceiling and permits the exact boundary", () => {
+  const above = authorizePaperAutoExecutionCandidate(qualified({
+    momentumPct: MAX_ENTRY_MOMENTUM_PCT + 0.01,
+  }));
+  assert.equal(above.authorized, false);
+  assert.ok(above.blockers.includes("STRATEGY_ENTRY_MOMENTUM_ABOVE_MAXIMUM"));
+
+  const boundary = authorizePaperAutoExecutionCandidate(qualified({
+    momentumPct: MAX_ENTRY_MOMENTUM_PCT,
+  }));
+  assert.equal(boundary.authorized, true);
+  assert.equal(boundary.momentumPct, MAX_ENTRY_MOMENTUM_PCT);
+});
+
+test("fails closed when automatic entry momentum is missing or non-finite", () => {
+  for (const momentumPct of [null, undefined, "not-a-number"]) {
+    const out = authorizePaperAutoExecutionCandidate(qualified({
+      momentumPct,
+      changePct: momentumPct,
+    }));
+    assert.equal(out.authorized, false);
+    assert.ok(out.blockers.includes("STRATEGY_ENTRY_MOMENTUM_REQUIRED"));
   }
 });

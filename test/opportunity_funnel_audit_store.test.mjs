@@ -38,6 +38,7 @@ test("builds deterministic read-only opportunity funnel scan records", () => {
         symbol: "aaa",
         price: 4.5,
         premarketGapPct: 6.2,
+        momentumPct: 5,
         readonlyPotentialScore: 82,
         decision: "ENTER",
         resultState: "ENTER",

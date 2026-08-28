@@ -4,12 +4,14 @@ export const MIN_RANKING_SETUP_SCORE = 70;
 export const MIN_RANKING_CONFIDENCE = 0.5;
 export const MIN_RANKING_QUALITY = 0.65;
 export const MAX_ENTRY_PRICE = 5;
+export const MAX_ENTRY_MOMENTUM_PCT = 15;
 
 export function getPaperAutoExecutionStrategyAuthorizationPolicy() {
   return Object.freeze({
     version: VERSION,
     requiredState: "ENTER",
     maximumEntryPrice: MAX_ENTRY_PRICE,
+    maximumEntryMomentumPct: MAX_ENTRY_MOMENTUM_PCT,
     minimums: Object.freeze({
       setupScore: MIN_RANKING_SETUP_SCORE,
       rankingConfidence: MIN_RANKING_CONFIDENCE,
@@ -51,12 +53,15 @@ export function authorizePaperAutoExecutionCandidate(candidate = {}) {
   const rankingConfidence = finite(candidate?.rankingConfidence);
   const rankingQuality = finite(candidate?.rankingQuality);
   const price = finite(candidate?.price);
+  const momentumPct = finite(candidate?.momentumPct ?? candidate?.changePct);
 
   const blockers = [];
 
   if (state !== "ENTER") blockers.push("STRATEGY_STATE_NOT_ENTER");
   if (price === null) blockers.push("STRATEGY_ENTRY_PRICE_REQUIRED");
   else if (price > MAX_ENTRY_PRICE) blockers.push("STRATEGY_ENTRY_PRICE_ABOVE_MAXIMUM");
+  if (momentumPct === null) blockers.push("STRATEGY_ENTRY_MOMENTUM_REQUIRED");
+  else if (momentumPct > MAX_ENTRY_MOMENTUM_PCT) blockers.push("STRATEGY_ENTRY_MOMENTUM_ABOVE_MAXIMUM");
   if (candidate?.sourceStale === true) blockers.push("STRATEGY_SOURCE_STALE");
 
   for (const reason of Array.isArray(candidate?.blockingFlags) ? candidate.blockingFlags : []) {
@@ -87,6 +92,7 @@ export function authorizePaperAutoExecutionCandidate(candidate = {}) {
     rankingSetupScore,
     rankingConfidence,
     rankingQuality,
+    momentumPct,
     minimums: Object.freeze({
       setupScore: MIN_RANKING_SETUP_SCORE,
       rankingConfidence: MIN_RANKING_CONFIDENCE,

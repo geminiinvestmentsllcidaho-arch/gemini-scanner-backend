@@ -19,6 +19,7 @@ test('strategy evidence is bounded audit-only and preserves canonical authorizat
       sourceStale: false,
       score: 91,
       price: 4.25,
+      momentumPct: 5,
       rankingConnected: true,
       rankingP3GateOk: true,
       rankingSetupScore: 91,
