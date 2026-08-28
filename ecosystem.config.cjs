@@ -8,7 +8,7 @@ module.exports = {
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
-        GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "true",
+        GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "false",
         GS_PAPER_EXECUTION_EMAIL_SEND_AUTHORIZED: "true",
         PAPER_AUTO_DEGRADED_BROKER_MODE_ENABLED: "1",
         PAPER_AUTO_EXIT_MONITOR_ENABLED: "1",
@@ -37,7 +37,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         GS_WATCHDOG_INTERVAL_MS: "60000",
-        GS_WATCHDOG_EMAIL_SEND_AUTHORIZED: "true",
+        GS_WATCHDOG_EMAIL_SEND_AUTHORIZED: "false",
       },
     },
     {
@@ -52,7 +52,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         GS_INFRA_WATCHDOG_INTERVAL_MS: "60000",
-        GS_INFRA_WATCHDOG_EMAIL_SEND_AUTHORIZED: "true",
+        GS_INFRA_WATCHDOG_EMAIL_SEND_AUTHORIZED: "false",
       },
     },
     {
@@ -78,7 +78,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         GS_EXECUTION_ASSURANCE_WATCH_INTERVAL_MS: "30000",
-        GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "true",
+        GS_ADMIN_PAPER_ALERT_EMAIL_SEND_AUTHORIZED: "false",
         GS_EXECUTION_ASSURANCE_SAFE_REPAIR_AUTHORIZED: "true",
       },
     },
@@ -94,7 +94,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         GS_CADENCE_VERIFIER_INTERVAL_MS: "15000",
-        GS_CADENCE_VERIFIER_EMAIL_SEND_AUTHORIZED: "true",
+        GS_CADENCE_VERIFIER_EMAIL_SEND_AUTHORIZED: "false",
       },
     },
   ],
