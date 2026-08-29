@@ -1,6 +1,38 @@
-export const VERSION = "admin_operational_notification_delivery_v1";
+import fs from "node:fs";
+import path from "node:path";
+
+export const VERSION = "admin_operational_notification_delivery_v2";
+export const DEFAULT_BUDGET_LEDGER_PATH = path.resolve("runs/admin_operational_email_budget.jsonl");
 
 const clean = (value, max = 800) => String(value ?? "").trim().slice(0, max);
+const positiveInteger = (value, fallback) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+};
+const utcDay = (value) => {
+  const d = new Date(value ?? Date.now());
+  return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : null;
+};
+const readBudgetAttemptsToday = (ledgerPath, now) => {
+  try {
+    if (!fs.existsSync(ledgerPath)) return 0;
+    const day = utcDay(now);
+    return fs.readFileSync(ledgerPath, "utf8")
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => { try { return JSON.parse(line); } catch { return null; } })
+      .filter(Boolean)
+      .filter((row) => row.attempted === true && utcDay(row.generatedAt) === day)
+      .length;
+  } catch {
+    return 0;
+  }
+};
+const appendBudgetAttempt = (ledgerPath, record) => {
+  fs.mkdirSync(path.dirname(ledgerPath), { recursive: true, mode: 0o700 });
+  fs.appendFileSync(ledgerPath, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 });
+  try { fs.chmodSync(ledgerPath, 0o600); } catch {}
+};
 
 export function buildAdminOperationalEmailMessage({
   source,
@@ -47,6 +79,8 @@ export function buildAdminOperationalEmailMessage({
 export function createAdminOperationalEmailDelivery({
   fetchImpl = globalThis.fetch,
   env = process.env,
+  budgetLedgerPath = DEFAULT_BUDGET_LEDGER_PATH,
+  now = () => new Date(),
 } = {}) {
   const configured =
     clean(env.CUSTOMER_EMAIL_PROVIDER).toLowerCase() === "resend" &&
@@ -64,29 +98,51 @@ export function createAdminOperationalEmailDelivery({
     const safeSubject = clean(subject, 240);
     const safeText = String(text ?? "").replace(/\r/g, "").slice(0, 8000);
     if (!safeSubject || !safeText) return Object.freeze({ delivered: false, reason: "email_message_invalid" });
+
+    const current = now();
+    const dailyCap = positiveInteger(env.GS_ADMIN_OPERATIONAL_EMAIL_DAILY_CAP, 20);
+    if (readBudgetAttemptsToday(budgetLedgerPath, current) >= dailyCap) {
+      return Object.freeze({
+        delivered: false,
+        reason: "admin_operational_daily_cap_reached",
+        provider: "resend",
+        statusCode: null,
+      });
+    }
+
     const response = await fetchImpl("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: sender, to: [recipient], subject: safeSubject, text: safeText }),
     });
     const body = await response.json().catch(() => ({}));
-    return Object.freeze({ delivered: response.ok && Boolean(clean(body?.id)), provider: "resend", deliveryId: clean(body?.id) || null, statusCode: response.status });
+    const delivered = response.ok && Boolean(clean(body?.id));
+    const reason = delivered
+      ? null
+      : clean(body?.name || body?.error?.name || body?.error || body?.message, 120) || `http_${response.status}`;
+    appendBudgetAttempt(budgetLedgerPath, {
+      generatedAt: current.toISOString(),
+      attempted: true,
+      delivered,
+      provider: "resend",
+      statusCode: response.status,
+      reason,
+    });
+    return Object.freeze({
+      delivered,
+      reason,
+      provider: "resend",
+      deliveryId: clean(body?.id) || null,
+      statusCode: response.status,
+    });
   };
 
   return Object.freeze({
     configured,
     sendMessage,
     async send(notification) {
-      const provider = clean(env.CUSTOMER_EMAIL_PROVIDER).toLowerCase();
-      const apiKey = clean(env.RESEND_API_KEY);
       const sender = clean(env.CUSTOMER_EMAIL_FROM);
       const recipient = clean(env.GS_WATCHDOG_ALERT_RECIPIENT);
-      if (provider !== "resend") {
-        return Object.freeze({ delivered: false, reason: "email_provider_not_configured" });
-      }
-      if (!apiKey || !sender || !recipient || typeof fetchImpl !== "function") {
-        return Object.freeze({ delivered: false, reason: "resend_not_configured" });
-      }
       const message = buildAdminOperationalEmailMessage({
         ...notification,
         sender,
@@ -99,6 +155,7 @@ export function createAdminOperationalEmailDelivery({
 
 export default {
   VERSION,
+  DEFAULT_BUDGET_LEDGER_PATH,
   buildAdminOperationalEmailMessage,
   createAdminOperationalEmailDelivery,
 };

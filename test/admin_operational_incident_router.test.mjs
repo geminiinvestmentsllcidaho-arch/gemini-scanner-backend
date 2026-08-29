@@ -254,3 +254,51 @@ test("failed recovery notification is eligible for bounded recovery retry", () =
   assert.equal(retry.transition, "recovery_delivery_retry");
   assert.equal(retry.shouldNotify, true);
 });
+
+test("daily provider quota failure opens UTC-day provider backoff", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-quota-"));
+  const ledgerPath = path.join(root, "incidents.jsonl");
+  try {
+    let sends = 0;
+    const delivery = {
+      send: async () => {
+        sends += 1;
+        return {
+          delivered: false,
+          provider: "resend",
+          statusCode: 429,
+          reason: "daily_quota_exceeded",
+        };
+      },
+    };
+
+    const first = await routeAdminOperationalIncident({
+      source: "paper_execution",
+      failureCode: "FAIL_A",
+    }, {
+      ledgerPath,
+      now: "2026-08-28T16:00:00.000Z",
+      allowNotificationSend: true,
+      delivery,
+    });
+
+    assert.equal(first.delivery.attempted, true);
+    assert.equal(first.incident.notificationRetryAfterAt, "2026-08-29T00:00:00.000Z");
+
+    const changed = await routeAdminOperationalIncident({
+      source: "paper_execution",
+      failureCode: "FAIL_B",
+    }, {
+      ledgerPath,
+      now: "2026-08-28T16:00:30.000Z",
+      allowNotificationSend: true,
+      delivery,
+    });
+
+    assert.equal(changed.incident.transition, "provider_backoff");
+    assert.equal(changed.incident.shouldNotify, false);
+    assert.equal(sends, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

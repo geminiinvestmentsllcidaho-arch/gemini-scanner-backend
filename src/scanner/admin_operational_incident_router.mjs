@@ -77,10 +77,17 @@ export function buildAdminOperationalIncidentTransition(incident, previous = nul
   const lastNotificationAttemptAt = Date.parse(previous?.lastNotificationAttemptAt ?? "");
   const cooldownElapsed = !Number.isFinite(lastAlertAt) || now.getTime() - lastAlertAt >= cooldownMs;
   const retryElapsed = !Number.isFinite(lastNotificationAttemptAt) || now.getTime() - lastNotificationAttemptAt >= retryCooldownMs;
+  const notificationRetryAfterMs = Date.parse(previous?.notificationRetryAfterAt ?? "");
+  const providerBackoffActive =
+    Number.isFinite(notificationRetryAfterMs) &&
+    now.getTime() < notificationRetryAfterMs;
 
   let transition = "none";
   let shouldNotify = false;
-  if (isOpen && !wasOpen) {
+  if (providerBackoffActive) {
+    transition = "provider_backoff";
+    shouldNotify = false;
+  } else if (isOpen && !wasOpen) {
     transition = "failure_opened";
     shouldNotify = true;
   } else if (!isOpen && wasOpen) {
@@ -107,6 +114,8 @@ export function buildAdminOperationalIncidentTransition(incident, previous = nul
     deduplicated: same && !shouldNotify,
     lastAlertAt: previous?.lastAlertAt ?? null,
     lastNotificationAttemptAt: previous?.lastNotificationAttemptAt ?? null,
+    notificationRetryAfterAt: previous?.notificationRetryAfterAt ?? null,
+    providerBackoffActive,
     cooldownMs,
     retryCooldownMs,
   });
@@ -188,12 +197,30 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
     });
   }
 
+  const deliveryReason = clean(delivery?.reason, 120).toLowerCase();
+  const providerDailyBackoff =
+    deliveryReason === "daily_quota_exceeded" ||
+    deliveryReason === "admin_operational_daily_cap_reached";
+
+  const nextUtcDay = (() => {
+    const d = new Date(options.now ?? incident.generatedAt ?? Date.now());
+    d.setUTCHours(24, 0, 0, 0);
+    return d.toISOString();
+  })();
+
+  const notificationRetryAfterAt = providerDailyBackoff
+    ? nextUtcDay
+    : delivery?.delivered === true
+      ? null
+      : transition.notificationRetryAfterAt ?? null;
+
   const finalIncident = Object.freeze({
     ...transition,
     lastNotificationAttemptAt: attemptAt ?? transition.lastNotificationAttemptAt ?? null,
     lastAlertAt: attemptAt && delivery.delivered === true
       ? attemptAt
       : transition.lastAlertAt ?? null,
+    notificationRetryAfterAt,
     delivery,
   });
   const persistence = appendAdminOperationalIncident(finalIncident, options);
