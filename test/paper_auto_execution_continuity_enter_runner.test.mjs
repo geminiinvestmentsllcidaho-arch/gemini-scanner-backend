@@ -1373,3 +1373,73 @@ test('R20 no qualifying hard-loss history preserves existing allowed path', asyn
     fs.rmSync(d, { recursive: true, force: true })
   }
 })
+
+test('wind-down blocks new ENTER before credential or broker work',async()=>{
+ const d=tmp()
+ try{
+  const f=path.join(d,'wind-enter.json')
+  new PaperAutoExecutionLifecycleStore({filePath:f}).create({selectedSymbol:'WND'})
+  const n=Date.now();let credentials=0,reads=0,submits=0
+  const r=createPaperAutoExecutionContinuityEnterRunner({env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>f,getPortfolioWindDownState:async()=>({resolved:true,active:true}),getScanSnapshot:async()=>freshCandidateSnapshot('WND',n),now:()=>n,accountCredentialResolver:async()=>{credentials++;return readyCredentials()},fetchClock:async()=>{reads++;return clockOpen({nowMs:n})},fetchAccount:async()=>{reads++;return{}},submitOrder:async()=>{submits++}})
+  const o=await r.runOnce()
+  assert.equal(o.lastStatus,'PORTFOLIO_WIND_DOWN_ENTER_BLOCKED')
+  assert.equal(credentials,0)
+  assert.equal(reads,0)
+  assert.equal(submits,0)
+  assert.equal(o.submissions,0)
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
+
+test('wind-down preserves persisted ENTER reconciliation and never resubmits',async()=>{
+ const d=tmp()
+ try{
+  const f=path.join(d,'wind-reconcile.json')
+  const s=new PaperAutoExecutionLifecycleStore({filePath:f,idFactory:()=> 'wind-reconcile'})
+  s.create({selectedSymbol:'WRC'})
+  s.transition('ENTER_SUBMITTING',{enterClientOrderId:'gs-wrc'})
+  s.transition('ENTER_OPEN',{enterBrokerOrderId:'wrc-order'})
+  let submits=0
+  const n=Date.now()
+  const r=createPaperAutoExecutionContinuityEnterRunner({env:{PAPER_AUTO_CONTINUITY_ENTER_ENABLED:'1'},getLifecycleFile:()=>f,getPortfolioWindDownState:async()=>({resolved:true,active:true}),now:()=>n,accountCredentialResolver:readyCredentials,fetchAccount:async()=>({ok:true,status:'connected_readonly',mode:'PAPER_ONLY',observedAt:new Date(n).toISOString(),runtime:{readOnly:true,allowedMethods:['GET']},account:{accountIdentity:PAPER_ACCOUNT_IDENTITY,tradingBlocked:false,accountBlocked:false,equity:1000,buyingPower:1000},positions:[{symbol:'WRC',qty:1,avg_entry_price:'5'}],openOrders:[]}),fetchHistoricalOrders:async()=>({historicalOrders:[{id:'wrc-order',client_order_id:'gs-wrc',symbol:'WRC',side:'buy',status:'filled',filled_qty:'1',filled_avg_price:'5'}]}),submitOrder:async()=>{submits++}})
+  const o=await r.runOnce()
+  assert.equal(submits,0)
+  assert.equal(o.reconciliations,1)
+  assert.equal(o.lastStatus,'CONTINUITY_ENTER_MONITORING_CONFIRMED')
+  assert.equal(o.lastLifecycle.state,'MONITORING')
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
+
+test('wind-down transition before ENTER submission blocks the race without submitting', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'life.json')
+    const store = new PaperAutoExecutionLifecycleStore({ filePath: file, idFactory: () => 'life-wind-race' })
+    store.create({ selectedSymbol: 'RACE' })
+    const now = Date.now()
+    let windChecks = 0
+    let submitted = 0
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      getPremarketBaseline: async () => currentBaseline(),
+      getScanSnapshot: async () => freshCandidateSnapshot('RACE', now),
+      getPortfolioWindDownState: async () => ({ resolved: true, active: ++windChecks >= 2 }),
+      now: () => now,
+      accountCredentialResolver: readyCredentials,
+      fetchClock: clockOpen,
+      fetchAccount: async () => ({
+        ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
+        account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
+        positions: [],
+        openOrders: [],
+      }),
+      createAdapter: () => ({ submitPaperOrder: async () => { submitted += 1; return { ok: true, orderSubmitted: true } } }),
+    })
+    const out = await runner.runOnce()
+    assert.equal(windChecks, 2)
+    assert.equal(out.lastStatus, 'PRE_SUBMIT_PORTFOLIO_WIND_DOWN_ENTER_BLOCKED')
+    assert.equal(submitted, 0)
+    assert.equal(out.submissions, 0)
+    assert.equal(store.load().state, 'CANDIDATE_SELECTED')
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})

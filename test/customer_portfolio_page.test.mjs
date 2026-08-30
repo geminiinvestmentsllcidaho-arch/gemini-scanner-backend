@@ -158,7 +158,7 @@ test("renders owned-asset entry and portfolio wind-down controls without executi
   assert.doesNotMatch(html, /<textarea\b/i);
   assert.match(html, /ACTIVE — NEW BUY AND ADD-ON REVIEWS BLOCKED/);
   assert.match(html, /review a partial sale of 2 out of 10/);
-  assert.match(html, /This wind-down preference changes review eligibility only/);
+  assert.match(html, /This wind-down preference blocks new-buy and add-on review eligibility and also blocks new automatic PAPER ENTER and SCALE-IN submissions/);
   assert.match(html, /preference update itself does not contact Alpaca or submit an order/);
 });
 

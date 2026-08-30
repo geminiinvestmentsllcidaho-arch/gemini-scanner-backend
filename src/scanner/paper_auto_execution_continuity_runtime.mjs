@@ -16,7 +16,7 @@ function snapshotFresh(s,n){const a=ageMs(s?.observedAt,n);return a!==null&&a<=C
 function eligible(c){return upper(c?.state??c?.resultState??c?.decision)==='ENTER'&&c?.buyRecommendation===true&&c?.blocked!==true&&(!Array.isArray(c?.blockers)||c.blockers.length===0)}
 function choose(s={}){const a=Array.isArray(s?.candidates)?s.candidates:[];return a.filter(eligible).sort((x,y)=>{const d=(Number(y.score??y.readonlyPotentialScore)||-Infinity)-(Number(x.score??x.readonlyPotentialScore)||-Infinity);return d!==0?d:upper(x?.symbol).localeCompare(upper(y?.symbol))})[0]??null}
 export function createPaperAutoExecutionContinuityRuntime(o={}){
- const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getLifecyclePortfolio,filterSnapshotForPortfolio,getScanSnapshot,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now,appendEntryValidation=appendPaperAutoExecutionEntryValidationRecord,entryValidationEvidencePath=path.join(runsDir,'paper_auto_execution_entry_validation.jsonl')}=o
+ const {env=process.env,getActiveLifecycleFile,setActiveLifecycleFile,getLifecyclePortfolio,filterSnapshotForPortfolio,getScanSnapshot,getPortfolioWindDownState,runsDir='runs',idFactory=()=>crypto.randomUUID(),storeFactory=f=>new PaperAutoExecutionLifecycleStore({filePath:f}),now=Date.now,appendEntryValidation=appendPaperAutoExecutionEntryValidationRecord,entryValidationEvidencePath=path.join(runsDir,'paper_auto_execution_entry_validation.jsonl')}=o
  let inFlight=null,cycles=0,lastStatus='NOT_RUN',lastLifecycleFile=null,lastLifecycle=null,pendingLifecycleFile=null,lastCycleStartedAt=null,lastCycleCompletedAt=null,lastSnapshotObservedAt=null,lastSnapshotFresh=null,lastSnapshotCandidateCount=null,lastEligibleCandidateCount=null,lastEligibleCandidateSymbol=null
  let entryValidationWrites=0,entryValidationWriteFailures=0,lastEntryValidationError=null,lastEntryValidationRecord=null
  const persistEntryValidation=(input)=>{try{const out=appendEntryValidation?.(input,{evidencePath:entryValidationEvidencePath,now:new Date(Number(now()))});if(out?.record){entryValidationWrites++;lastEntryValidationRecord=out.record;lastEntryValidationError=null}}catch(error){entryValidationWriteFailures++;lastEntryValidationError=clean(error?.message??error)}}
@@ -78,6 +78,10 @@ export function createPaperAutoExecutionContinuityRuntime(o={}){
     candidate=choose(snapshot)
     if(!candidate?.symbol){lastStatus='NO_ELIGIBLE_CANDIDATE';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
    }
+  }
+  if(typeof getPortfolioWindDownState==='function'){
+   const windDown=await getPortfolioWindDownState()
+   if(windDown?.resolved!==true||windDown?.active===true){lastStatus=windDown?.resolved===true?'PORTFOLIO_WIND_DOWN_ENTER_BLOCKED':'PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED';lastLifecycleFile=activeFile||null;lastLifecycle=active;return diagnostics()}
   }
   const id=idFactory(), file=path.join(runsDir,`paper_auto_execution_${id}.json`);if(fs.existsSync(file)){lastStatus='LIFECYCLE_FILE_COLLISION';return diagnostics()}
   const previousRow=portfolioMode?(creationPortfolio?.rows??[]).at(-1)??null:null

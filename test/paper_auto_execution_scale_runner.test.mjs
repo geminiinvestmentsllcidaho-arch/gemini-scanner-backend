@@ -238,3 +238,54 @@ test('shared capital-growth coordinator is bypassed for SCALE-OUT reducing actio
   assert.equal(o.lastStatus,'PAPER_MARKET_CLOCK_REQUIRED')
  }finally{fs.rmSync(d,{recursive:true,force:true})}
 })
+
+test('wind-down blocks SCALE-IN before broker reads',async()=>{
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-wind-in-'))
+ try{
+  const f=path.join(d,'life.json');life(f);let reads=0,submits=0
+  const r=R({env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED:'1',PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1'},getLifecycleFile:()=>f,getPortfolioWindDownState:async()=>({resolved:true,active:true}),fetchMarketClock:async()=>{reads++;return{}},fetchAccount:async()=>{reads++;return{}},fetchOwnedMonitor:async()=>{reads++;return{}},submitPaperOrder:async()=>{submits++}})
+  const o=await r.runOnce({action:'scale_in',targetQuantity:6})
+  assert.equal(o.lastStatus,'PORTFOLIO_WIND_DOWN_SCALE_IN_BLOCKED')
+  assert.equal(reads,0)
+  assert.equal(submits,0)
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
+
+test('wind-down does not block SCALE-OUT reducing path',async()=>{
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-wind-out-'))
+ try{
+  const f=path.join(d,'life.json');life(f);let windChecks=0
+  const r=R({env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_OUT_SUBMISSION_ENABLED:'1',PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'0'},getLifecycleFile:()=>f,getPortfolioWindDownState:async()=>{windChecks++;return{resolved:true,active:true}},now:()=>N,fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true,timestamp:new Date(N-5000).toISOString()}}),fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(N-5000).toISOString(),account:{tradingBlocked:false,accountBlocked:false,equity:10000,buyingPower:5000},positions:[{symbol:'ABC',qty:4,currentPrice:11}],openOrders:[]}),fetchOwnedMonitor:async()=>({ok:true,candidates:[{symbol:'ABC',resultState:'WATCH',ownedExitReviewTriggered:false,ownedScaleOutReviewTriggered:true,ownedScaleOutResultingQuantity:2,sourceCoverage:'owned_position_symbol_fetch',sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:180}]}),submitPaperOrder:async()=>({}),fetchOrderByClientOrderId:async()=>({ok:true,status:'order_not_found'})})
+  const o=await r.runOnce({action:'scale_out',targetQuantity:2})
+  assert.equal(o.lastStatus,'PAPER_SCALE_SUBMISSION_BOUNDARY_DISABLED_BY_ENV')
+  assert.equal(windChecks,0)
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})
+
+test('wind-down transition after SCALE-IN lock blocks the race before PREPARED or submission',async()=>{
+ const d=fs.mkdtempSync(path.join(os.tmpdir(),'scale-wind-race-'))
+ try{
+  const f=path.join(d,'life.json');life(f)
+  const id='alpaca-paper:0123456789abcdef01234567'
+  let windChecks=0,submits=0
+  const r=R({
+   env:{PAPER_AUTO_SCALE_RUNNER_ENABLED:'1',PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED:'1',PAPER_AUTO_SCALE_SUBMISSION_BOUNDARY_ENABLED:'1'},
+   getLifecycleFile:()=>f,now:()=>N,
+   getPortfolioWindDownState:async()=>({resolved:true,active:++windChecks>=2}),
+   fetchMarketClock:async()=>({ok:true,status:'connected_readonly',marketClock:{isOpen:true,timestamp:new Date(N-5000).toISOString()}}),
+   fetchAccount:async()=>({ok:true,status:'connected_readonly',observedAt:new Date(N-5000).toISOString(),account:{accountIdentity:id,tradingBlocked:false,accountBlocked:false,equity:10000,buyingPower:5000},positions:[{symbol:'ABC',qty:4,currentPrice:11}],openOrders:[]}),
+   fetchOwnedMonitor:async()=>({ok:true,candidates:[{symbol:'ABC',resultState:'WATCH',ownedExitReviewTriggered:false,ownedScaleInReviewTriggered:true,ownedScaleInTargetQuantity:6,sourceCoverage:'owned_position_symbol_fetch',sourceStale:false,sourceAgeSec:5,maxSourceAgeSec:180}]}),
+   getPremarketBaseline:async()=>({ok:true,paperOnly:true,readOnly:true,sessionDate:'2026-08-15',accountIdentity:id}),
+   submitPaperOrder:async()=>{submits++;return{}},
+   fetchOrderByClientOrderId:async()=>({ok:true,status:'order_not_found'}),
+  })
+  const o=await r.runOnce({action:'scale_in',targetQuantity:6})
+  assert.equal(windChecks,2)
+  assert.equal(o.lastStatus,'POST_LOCK_PORTFOLIO_WIND_DOWN_SCALE_IN_BLOCKED')
+  assert.equal(submits,0)
+  assert.equal(fs.existsSync(D(f)),false)
+  const z=new L({filePath:f}).load()
+  assert.equal(z.state,'MONITORING')
+  assert.equal(z.filledQuantity,4)
+ }finally{fs.rmSync(d,{recursive:true,force:true})}
+})

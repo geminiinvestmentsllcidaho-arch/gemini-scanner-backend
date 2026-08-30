@@ -42,6 +42,7 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
   const fetchOwnedMonitor = options.fetchOwnedMonitor
   const fetchMarketClock = options.fetchMarketClock
   const getPremarketBaseline = options.getPremarketBaseline
+  const getPortfolioWindDownState = options.getPortfolioWindDownState ?? null
   const submitPaperOrder = options.submitPaperOrder
   const getScaleActionFile = options.getScaleActionFile ?? derivePaperScaleActionFile
   const capitalGrowthCoordinator = options.capitalGrowthCoordinator ?? null
@@ -136,6 +137,11 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
     if (degradedBrokerMode?.evaluateAction) {
       const brokerModeDecision = degradedBrokerMode.evaluateAction({ action: a === 'scale_in' ? 'SCALE_IN' : 'SCALE_OUT' })
       if (brokerModeDecision?.allowed !== true) return finish(brokerModeDecision?.status ?? 'DEGRADED_BROKER_SCALE_ACTION_BLOCKED', lifecycle)
+    }
+    if (a === 'scale_in' && typeof getPortfolioWindDownState === 'function') {
+      const windDown = await getPortfolioWindDownState()
+      if (windDown?.resolved !== true) return finish('PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', lifecycle)
+      if (windDown?.active === true) return finish('PORTFOLIO_WIND_DOWN_SCALE_IN_BLOCKED', lifecycle)
     }
     const directionEnabled = a === 'scale_in'
       ? on(env, 'PAPER_AUTO_SCALE_IN_SUBMISSION_ENABLED')
@@ -329,6 +335,11 @@ export function createPaperAutoExecutionScaleRunner(options = {}) {
         })
       } else {
         lastPortfolioCapitalGovernor = Object.freeze({ allowed:true, status:'CAPITAL_GROWTH_CHECK_NOT_REQUIRED_FOR_REDUCING_ACTION' })
+      }
+      if (a === 'scale_in' && typeof getPortfolioWindDownState === 'function') {
+        const preSubmitWindDown = await getPortfolioWindDownState()
+        if (preSubmitWindDown?.resolved !== true) return finish('POST_LOCK_PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', lifecycle)
+        if (preSubmitWindDown?.active === true) return finish('POST_LOCK_PORTFOLIO_WIND_DOWN_SCALE_IN_BLOCKED', lifecycle)
       }
       const lockedPreflight = preflightPaperScaleAction({
         lifecycle, brokerPosition: lockedPosition, openOrders: lockedBefore?.openOrders ?? [],

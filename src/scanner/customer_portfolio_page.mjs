@@ -308,7 +308,7 @@ ${windRows ? `<ul>${windRows}</ul>` : '<p>No wind-down steps are active.</p>'}
 <input type="hidden" name="action" value="${windDown.exitAllRequested ? "resume" : "exit_all"}">
 <p class="wind-actions"><button class="${windDown.exitAllRequested ? "safe-button" : "danger-button"}" type="submit">${windDown.exitAllRequested ? "End wind-down and resume new-buy reviews" : "Start portfolio wind-down"}</button></p>
 </form>
-<p>This wind-down preference changes review eligibility only; the preference update itself does not contact Alpaca or submit an order. Any automatic PAPER execution remains subject to the independent fail-closed execution runtime. Live trading is disabled.</p>
+<p>This wind-down preference blocks new-buy and add-on review eligibility and also blocks new automatic PAPER ENTER and SCALE-IN submissions for the execution-owner account. Existing submitted ENTER reconciliation, qualified EXIT, SCALE-OUT, and exit-recovery behavior remain governed by the independent fail-closed execution runtime. The preference update itself does not contact Alpaca or submit an order. Live trading is disabled.</p>
 </section>
 
 <section class="card panel" data-automatic-paper-runtime>

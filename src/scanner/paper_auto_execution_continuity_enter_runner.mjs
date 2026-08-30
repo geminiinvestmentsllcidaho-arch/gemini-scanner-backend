@@ -54,6 +54,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
   const getScanSnapshot = options.getScanSnapshot ?? null
   const getPremarketBaseline = options.getPremarketBaseline ?? null
   const getLifecyclePortfolio = options.getLifecyclePortfolio ?? null
+  const getPortfolioWindDownState = options.getPortfolioWindDownState ?? null
   const capitalGrowthCoordinator = options.capitalGrowthCoordinator ?? null
   const fetchAccount = options.fetchAccount ?? ((args) => fetchAlpacaPaperAccountReadonly(args))
   const fetchClock = options.fetchClock ?? ((args) => fetchAlpacaMarketClockReadonly(args))
@@ -222,6 +223,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
 
     let revalidatedCandidate = null
     if (lifecycle.state === S.CANDIDATE_SELECTED) {
+      if (typeof getPortfolioWindDownState === 'function') {
+        const windDown = await getPortfolioWindDownState()
+        if (windDown?.resolved !== true) return fail('PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', lifecycle)
+        if (windDown?.active === true) return fail('PORTFOLIO_WIND_DOWN_ENTER_BLOCKED', lifecycle)
+      }
       if (typeof getScanSnapshot !== 'function') return fail('FRESH_CANDIDATE_REVALIDATION_REQUIRED', lifecycle)
       const snapshot = await getScanSnapshot()
       const observedAtMs = Date.parse(snapshot?.observedAt ?? '')
@@ -421,6 +427,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         allocationPercent:lastSizing.allocationPercent,
         maxAllocationPercent:lastSizing.maxAllocationPercent??10,
       })
+      if (typeof getPortfolioWindDownState === 'function') {
+        const preSubmitWindDown = await getPortfolioWindDownState()
+        if (preSubmitWindDown?.resolved !== true) return fail('PRE_SUBMIT_PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', lifecycle)
+        if (preSubmitWindDown?.active === true) return fail('PRE_SUBMIT_PORTFOLIO_WIND_DOWN_ENTER_BLOCKED', lifecycle)
+      }
       recordEntryValidation({
         eventType:'gate_snapshot',correlationId:correlationId(lifecycle),lifecycleId:lifecycle?.lifecycleId,
         lifecycleState:lifecycle?.state,scanId:lifecycle?.scannerEvidence?.originScanId,symbol,

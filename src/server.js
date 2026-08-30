@@ -42,6 +42,7 @@ import { injectGeminiScannerBrandHeader } from './scanner/brand_header.mjs';
 import { renderCustomerIcon } from './scanner/customer_icons.mjs';
 import { buildCustomerSignupPage, renderCustomerSignupPageHtml } from './scanner/customer_signup_page.mjs';
 import { createCustomerAccountRecord, appendCustomerAccountRecord, findCustomerAccountByEmail, findCustomerAccountById, markCustomerEmailVerified, beginCustomerEmailChange, completeCustomerEmailChange, buildCustomerDataExport, updateCustomerPassword, resetCustomerPassword, updateCustomerProfile, updateCustomerNotificationPreferences, updateCustomerDisplayPreferences, getCustomerZeroResultFilters, updateCustomerZeroResultFilters, getCustomerScannerSelections, updateCustomerScannerSelections, beginCustomerAuthenticatorSetup, confirmCustomerAuthenticatorSetup, disableCustomerAuthenticator, regenerateCustomerAuthenticatorRecoveryCodes, consumeCustomerAuthenticatorRecoveryCode, revokeCustomerSessions, recordCustomerLogin, deactivateCustomerAccount, permanentlyDeleteCustomerAccount, getCustomerWatchlist, updateCustomerWatchlist, getCustomerPerformanceEpoch } from './scanner/customer_account_store.mjs';
+import { readPaperAutoExecutionOwnerBinding } from './scanner/paper_auto_execution_owner_binding.mjs';
 import crypto from 'node:crypto';
 import { generateCustomerAuthenticatorSecret, verifyCustomerAuthenticatorCode } from './scanner/customer_authenticator.mjs';
 import { createCustomerEmailVerification, verifyCustomerEmailToken } from './scanner/customer_email_verification.mjs';
@@ -2986,6 +2987,23 @@ const runPaperAutoExecutionDegradedBrokerRecoveryProbe = async () => {
     probeId: `runtime-readonly:${accountObservedAt}:${clockObservedAt}`,
   });
 };
+const getPaperAutoExecutionPortfolioWindDownState = () => {
+  const ownerBinding = readPaperAutoExecutionOwnerBinding();
+  if (ownerBinding?.resolved !== true || !ownerBinding?.binding?.accountId) {
+    return Object.freeze({ resolved: false, active: true, status: ownerBinding?.status ?? 'PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', updatedAt: null });
+  }
+  const account = findCustomerAccountById(ownerBinding.binding.accountId);
+  if (!account || String(account?.status ?? '').trim().toLowerCase() !== 'active' || account?.emailVerified !== true) {
+    return Object.freeze({ resolved: false, active: true, status: 'PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', updatedAt: null });
+  }
+  return Object.freeze({
+    resolved: true,
+    active: account?.portfolioWindDownRequested === true,
+    status: account?.portfolioWindDownRequested === true ? 'PORTFOLIO_WIND_DOWN_ACTIVE' : 'PORTFOLIO_WIND_DOWN_INACTIVE',
+    updatedAt: account?.portfolioWindDownUpdatedAt ?? null,
+  });
+};
+
 const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRuntime({
   getActiveLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   ...(paperAutoMultiLifecycleEnabled ? {
@@ -3001,6 +3019,7 @@ const paperAutoExecutionContinuityRuntime = createPaperAutoExecutionContinuityRu
     activePaperAutoExecutionLifecycleFile = nextLifecycleFile;
   },
   getScanSnapshot: getPaperAutoExecutionContinuityScanSnapshot,
+  getPortfolioWindDownState: getPaperAutoExecutionPortfolioWindDownState,
 });
 const getCurrentPaperPremarketBaseline = async () => {
   const now = new Date();
@@ -3024,6 +3043,7 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
   capitalGrowthCoordinator: paperAutoExecutionCapitalGrowthCoordinator,
+  getPortfolioWindDownState: getPaperAutoExecutionPortfolioWindDownState,
 });
 
 const PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs/paper_auto_execution_execution_assurance_incidents.jsonl';
@@ -3157,6 +3177,7 @@ const paperAutoExecutionScaleRunner=createPaperAutoExecutionScaleRunner({
  submitPaperOrder:paperAutoExecutionScaleSubmit,serverIntegrated:true,automaticStartAllowed:true,
  degradedBrokerMode:paperAutoExecutionDegradedBrokerMode,
  capitalGrowthCoordinator:paperAutoExecutionCapitalGrowthCoordinator,
+ getPortfolioWindDownState:getPaperAutoExecutionPortfolioWindDownState,
 });
 
 const runPaperAutoExecutionScaleCycle=async(source='runtime',lifecycleFileOverride=null)=>{try{

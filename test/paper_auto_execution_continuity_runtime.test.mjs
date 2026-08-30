@@ -561,3 +561,25 @@ test('portfolio mode creation-time recheck can reintroduce strongest candidate w
   assert.equal(out.lastLifecycle.selectedSymbol, 'AAA')
   assert.equal(fs.existsSync(path.join(d, 'paper_auto_execution_reintroduced.json')), true)
 })
+
+test('wind-down blocks new lifecycle creation before pointer mutation',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,setCalls=0
+ const nowMs=Date.parse('2026-08-13T01:00:10Z')
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{setCalls++;active=f},getScanSnapshot:async()=>({observedAt:'2026-08-13T01:00:00Z',candidates:[{symbol:'NEW',state:'ENTER',buyRecommendation:true,score:99}]}),getPortfolioWindDownState:async()=>({resolved:true,active:true}),idFactory:()=> 'wind-blocked',now:()=>nowMs})
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'PORTFOLIO_WIND_DOWN_ENTER_BLOCKED')
+ assert.equal(setCalls,0)
+ assert.equal(active,old)
+ assert.equal(fs.existsSync(path.join(d,'paper_auto_execution_wind-blocked.json')),false)
+})
+
+test('unresolved execution owner blocks new lifecycle creation fail closed',async()=>{
+ const d=tmp(),old=path.join(d,'old.json');terminal(old);let active=old,setCalls=0
+ const nowMs=Date.parse('2026-08-13T01:00:10Z')
+ const r=createPaperAutoExecutionContinuityRuntime({env:{PAPER_AUTO_CONTINUITY_ENABLED:'1'},runsDir:d,getActiveLifecycleFile:()=>active,setActiveLifecycleFile:f=>{setCalls++;active=f},getScanSnapshot:async()=>({observedAt:'2026-08-13T01:00:00Z',candidates:[{symbol:'NEW',state:'ENTER',buyRecommendation:true,score:99}]}),getPortfolioWindDownState:async()=>({resolved:false,active:true}),idFactory:()=> 'owner-unresolved',now:()=>nowMs})
+ const out=await r.runOnce()
+ assert.equal(out.lastStatus,'PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED')
+ assert.equal(setCalls,0)
+ assert.equal(active,old)
+ assert.equal(fs.existsSync(path.join(d,'paper_auto_execution_owner-unresolved.json')),false)
+})
