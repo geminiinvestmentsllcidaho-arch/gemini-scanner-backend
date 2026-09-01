@@ -77,7 +77,8 @@
     "watchdog:ops-ai:once": "node scripts/run_ops_ai_scanner_watchdog.mjs",
     "test:watchdog:ops-ai": "node --test test/ops_ai_scanner_watchdog.test.mjs test/ops_ai_scanner_watchdog_runtime.test.mjs",
     "watchdog:execution-assurance:once": "node scripts/run_paper_auto_execution_execution_assurance_watchdog.mjs --once",
-    "test:watchdog:execution-assurance": "node --test test/paper_auto_execution_execution_assurance_watchdog_runtime.test.mjs"
+    "test:watchdog:execution-assurance": "node --test test/paper_auto_execution_execution_assurance_watchdog_runtime.test.mjs",
+    "report:ai-manual-adjustment:weekly": "node scripts/run_ai_manual_adjustment_weekly_report.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
