@@ -3351,11 +3351,26 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
 };
 
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
-  runReview: ({ now } = {}) => runCustomerReportBackgroundAiReview({
-    now,
-    fetchBrokerPerformanceEvidence: ({ now: reviewNow } = {}) => fetchCustomerBrokerPerformanceEvidence({ now: reviewNow }),
-    getPostMarketResult: () => postMarketRuntimeWorker.getStatus().lastResult,
-  }),
+  runReview: ({ now } = {}) => {
+    const ownerBinding = readPaperAutoExecutionOwnerBinding();
+    const ownerAccountId = ownerBinding?.resolved === true
+      ? ownerBinding?.binding?.accountId ?? null
+      : null;
+    const performanceEpoch = ownerAccountId
+      ? getCustomerPerformanceEpoch(ownerAccountId)
+      : Object.freeze({ ok: true, active: false, epoch: null });
+    const performanceEpochStartedAt = performanceEpoch?.ok === true
+      && performanceEpoch?.active === true
+      ? performanceEpoch?.epoch?.startedAt ?? null
+      : null;
+
+    return runCustomerReportBackgroundAiReview({
+      now,
+      performanceEpochStartedAt,
+      fetchBrokerPerformanceEvidence: ({ now: reviewNow } = {}) => fetchCustomerBrokerPerformanceEvidence({ now: reviewNow }),
+      getPostMarketResult: () => postMarketRuntimeWorker.getStatus().lastResult,
+    });
+  },
 });
 
 const postMarketRuntimeWorker = createPostMarketRuntimeWorker({

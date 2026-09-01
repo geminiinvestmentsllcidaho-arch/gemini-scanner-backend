@@ -487,6 +487,74 @@ test("runner includes bounded strategy observation evidence and persists source 
 });
 
 
+test("runner applies the supplied performance epoch to broker-backed AI review evidence", async () => {
+  let capturedInput = null;
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-09-01T04:10:00.000Z"),
+    performanceEpochStartedAt: "2026-08-31T18:20:31.044Z",
+    listScans: () => [{
+      scanId: "epoch-scan",
+      eventAt: "2026-09-01T04:09:00.000Z",
+      scanType: "under_five",
+      marketOpen: false,
+      candidates: [{ symbol: "TEST", resultState: "WAIT" }],
+    }],
+    listPremarketScans: () => [],
+    fetchBrokerPerformanceEvidence: async () => ({
+      fetchedPaperAccount: {
+        ok: true,
+        status: "connected_readonly",
+        observedAt: "2026-09-01T04:10:00.000Z",
+        account: {
+          equity: 1001,
+          lastEquity: 1000,
+          cash: 900,
+          portfolioValue: 1001,
+          positions: [],
+        },
+      },
+      fillLedgerHistorySource: "alpaca_paper_order_history",
+      fillLedgerHistoryCompleteness: { historyComplete: true },
+      brokerObservationTs: "2026-09-01T04:10:00.000Z",
+      fillLedgerHistory: [
+        {
+          symbol: "OLD",
+          side: "buy",
+          qty: 1,
+          price: 100,
+          filledAt: "2026-08-30T15:00:00.000Z",
+        },
+        {
+          symbol: "OLD",
+          side: "sell",
+          qty: 1,
+          price: 1,
+          filledAt: "2026-08-30T16:00:00.000Z",
+        },
+      ],
+    }),
+    buildPaperAccount: (value) => value.account,
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        reviewText: "Epoch-scoped evidence reviewed.",
+        provider: "test",
+        model: "test",
+      };
+    },
+    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "memory" }),
+    persistManualAdjustmentRecommendation: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "manual-memory" }),
+    getPostMarketResult: () => null,
+    listStrategyObservations: () => [],
+  });
+
+  assert.equal(result.status, "completed_readonly");
+  assert.ok(capturedInput);
+  assert.equal(capturedInput.performance.realizedPl, 0);
+  assert.equal(capturedInput.trades.totalTrades, 0);
+});
+
 test("runner uses broker-confirmed PAPER lifecycle evidence and does not consult legacy position snapshots", async () => {
   let capturedInput = null;
   let legacyPositionStoreCalled = false;

@@ -235,6 +235,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     period: "lifetime",
     now,
     weekStartsOn: 1,
+    performanceEpochStartedAt: options.performanceEpochStartedAt ?? null,
     paperAccount,
     paperLedgerHistory: [],
     fillLedgerHistory,

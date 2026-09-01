@@ -1081,4 +1081,8 @@ test("authenticated reports route applies persisted performance epoch to broker-
   assert.match(route, /const performanceEpochStartedAt = performanceEpoch\.active === true/);
   assert.match(route, /buildCustomerReportModel\(\{/);
   assert.match(route, /performanceEpochStartedAt,/);
+  assert.match(source, /const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker/);
+  assert.match(source, /const ownerBinding = readPaperAutoExecutionOwnerBinding\(\)/);
+  assert.match(source, /getCustomerPerformanceEpoch\(ownerAccountId\)/);
+  assert.match(source, /performanceEpochStartedAt,/);
 });
