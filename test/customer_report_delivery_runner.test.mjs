@@ -35,7 +35,7 @@ test("delivers one due read-only report and records the outcome", async () => {
     }),
     deliverEmail: async (message) => {
       assert.equal(message.period, "daily");
-      assert.match(message.summary, /Net paper P\/L: 12\.34/);
+      assert.match(message.summary, /Combined P\/L: \$12\.34/);
       return { ok: true, delivered: true, provider: "resend", deliveryId: "delivery-1" };
     },
   });

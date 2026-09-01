@@ -12,12 +12,30 @@ function summaryFromReport(report = {}) {
   const performance = report.performance ?? {};
   const trades = report.trades ?? {};
   const scanner = report.scanner ?? {};
+  const positions = Array.isArray(report.currentBrokerPositions)
+    ? report.currentBrokerPositions
+    : [];
+
+  const money = (value) => {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "Not available";
+    const absolute = Math.abs(number).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return number < 0 ? `-$${absolute}` : `$${absolute}`;
+  };
+
+  const dataStatus = report.stale === true || clean(report.status) === "stale_readonly"
+    ? "Data status: Delayed - the latest read-only snapshot may be older than expected."
+    : "Data status: Current.";
+
   return [
-    `Status: ${clean(report.status) || "unavailable"}.`,
-    `Paper records: ${Number(report.paperRecordCount) || 0}.`,
-    `Symbols with realized P/L: ${Number(trades.tradesWithRealizedPnl ?? trades.totalTrades) || 0}.`,
-    `Net paper P/L: ${performance.netProfitLoss ?? "not available"}.`,
-    `Scanner signals: ${Number(scanner.totalSignals) || 0}.`,
+    dataStatus,
+    `Portfolio value: ${money(performance.endingBalance ?? performance.endingEquity)}.`,
+    `Realized P/L: ${money(performance.realizedPl ?? performance.realizedPnl)}.`,
+    `Unrealized P/L: ${money(performance.unrealizedPl ?? performance.unrealizedPnl)}.`,
+    `Combined P/L: ${money(performance.totalPl ?? performance.totalPnl ?? performance.netProfitLoss)}.`,
+    `Open positions: ${positions.length}.`,
+    `Completed trades: ${Number(trades.completedRoundTrips ?? trades.totalTrades) || 0}.`,
+    `Scanner opportunities reviewed: ${Number(scanner.signalsGenerated ?? scanner.totalSignals) || 0}.`,
   ].join(" ");
 }
 
