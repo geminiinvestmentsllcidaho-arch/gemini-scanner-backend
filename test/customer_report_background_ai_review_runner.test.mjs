@@ -678,3 +678,76 @@ test("runner treats an unavailable fill ledger as unavailable lifecycle evidence
   assert.equal(capturedInput.trades.lifecycleSourceAvailable, false);
   assert.equal(capturedInput.trades.completedRoundTrips, null);
 });
+
+test("runner supplies bounded PAPER execution lifecycle evidence to AI provider", async () => {
+  let capturedInput = null;
+  let persistedRecord = null;
+  const lifecycleEvidence = Object.freeze({
+    version: "paper_auto_execution_ai_lifecycle_evidence_v1",
+    performanceEpochActive: true,
+    performanceEpochStartedAt: "2026-08-31T18:20:31.044Z",
+    lifecycleRecordCount: 2,
+    scaleActionRecordCount: 1,
+    lifecycleStateCounts: Object.freeze({ MONITORING: 1, ROUND_TRIP_COMPLETED: 1 }),
+    lifecycles: Object.freeze([
+      Object.freeze({ symbol: "AAA", state: "MONITORING" }),
+      Object.freeze({ symbol: "BBB", state: "ROUND_TRIP_COMPLETED" }),
+    ]),
+    scaleActions: Object.freeze([
+      Object.freeze({ symbol: "AAA", action: "scale_in", state: "FILLED_RECONCILED" }),
+    ]),
+    readOnly: true,
+    paperOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+    orderPlacementAllowed: false,
+    brokerContactAllowed: false,
+    accountMutationAllowed: false,
+  });
+
+  const result = await runCustomerReportBackgroundAiReview({
+    now: new Date("2026-09-01T05:30:00.000Z"),
+    performanceEpochStartedAt: "2026-08-31T18:20:31.044Z",
+    listScans: () => [{
+      scanId: "life-evidence-scan",
+      eventAt: "2026-09-01T05:29:00.000Z",
+      scanType: "under_five",
+      candidates: [{ symbol: "AAA", decision: "WAIT" }],
+    }],
+    listPremarketScans: () => [],
+    listStrategyObservations: () => [],
+    buildPaperExecutionLifecycleEvidence: (options) => {
+      assert.equal(options.performanceEpochStartedAt, "2026-08-31T18:20:31.044Z");
+      return lifecycleEvidence;
+    },
+    fetchPaperAccount: async () => ({ status: "not_connected_readonly", positions: [], summary: {} }),
+    buildPaperAccount: () => ({ account: {}, summary: {}, readOnly: true, paperOnly: true }),
+    requestAiReview: async ({ input }) => {
+      capturedInput = input;
+      return {
+        status: "completed_readonly",
+        provider: "test",
+        model: "test",
+        reviewText: "Lifecycle evidence reviewed manually.",
+      };
+    },
+    persistRecord: (record) => {
+      persistedRecord = record;
+      return { appended: true, duplicateSkipped: false, ledgerPath: "memory" };
+    },
+    persistManualAdjustmentRecommendation: () => ({ appended: false, duplicateSkipped: false, ledgerPath: null }),
+  });
+
+  assert.equal(capturedInput.paperExecutionLifecycleEvidence, lifecycleEvidence);
+  assert.equal(result.includedPaperExecutionLifecycleEvidence, true);
+  assert.equal(result.paperExecutionLifecycleRecordCount, 2);
+  assert.equal(result.paperExecutionScaleActionRecordCount, 1);
+  assert.equal(persistedRecord.paperExecutionLifecycleRecordCount, 2);
+  assert.equal(persistedRecord.paperExecutionScaleActionRecordCount, 1);
+  assert.equal(persistedRecord.includedPaperExecutionLifecycleEvidence, true);
+  assert.equal(result.automaticLearningAllowed, false);
+  assert.equal(result.scannerLogicMutationAllowed, false);
+  assert.equal(result.thresholdMutationAllowed, false);
+  assert.equal(result.orderPlacementAllowed, false);
+});

@@ -7,6 +7,7 @@ import {
 } from "./opportunity_funnel_audit_store.mjs";
 import { listStrategyObservationRecords } from "./strategy_observation_store.mjs";
 import { buildBoundedStrategyObservationAiEvidence } from "./strategy_observation_ai_evidence.mjs";
+import { buildPaperAutoExecutionAiLifecycleEvidence } from "./paper_auto_execution_ai_lifecycle_evidence.mjs";
 import { getPaperAutoExecutionStrategyAuthorizationPolicy } from "./paper_auto_execution_strategy_authorization.mjs";
 import { buildOpportunityOutcomeTrackingReport } from "./opportunity_outcome_tracking.mjs";
 import { buildPremarketOutcomeValidationFromHistoryReadonly } from "./premarket_outcome_validation_adapter_readonly.mjs";
@@ -184,6 +185,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
   const getPremarketOutcomeValidation = options.getPremarketOutcomeValidation ?? null;
   const buildPremarketRuntimeEvidence = options.buildPremarketRuntimeEvidence ?? buildPremarketOutcomeValidationRuntimeEvidence;
   const listStrategyObservations = options.listStrategyObservations ?? listStrategyObservationRecords;
+  const buildPaperExecutionLifecycleEvidence = options.buildPaperExecutionLifecycleEvidence ?? buildPaperAutoExecutionAiLifecycleEvidence;
 
   const recentScans = listScans({
     maxRecords: options.maxRecentScanRecords ?? options.maxScanRecords ?? 100,
@@ -256,6 +258,12 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       observationPath: options.strategyObservationPath,
     }),
   );
+  const paperExecutionLifecycleEvidence = buildPaperExecutionLifecycleEvidence({
+    runsDir: options.paperExecutionRunsDir ?? "runs",
+    performanceEpochStartedAt: options.performanceEpochStartedAt ?? null,
+    maxLifecycleRecords: Number(options.maxPaperExecutionLifecycleRecords ?? 50),
+    maxScaleRecords: Number(options.maxPaperExecutionScaleRecords ?? 50),
+  });
   const strategyAuthorizationPolicy = getPaperAutoExecutionStrategyAuthorizationPolicy();
   const review = await requestAiReview({
     input: Object.freeze({
@@ -263,6 +271,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       postMarketEvidence,
       premarketOutcomeEvidence,
       strategyObservationEvidence,
+      paperExecutionLifecycleEvidence,
       strategyAuthorizationPolicy,
     }),
     timeoutMs: Number(
@@ -298,6 +307,8 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       strategyObservationUniqueCount: strategyObservationEvidence.uniqueObservationCount,
       strategyObservationObservableCount: strategyObservationEvidence.observableCount,
       strategyObservationStaleSourceCount: strategyObservationEvidence.staleSourceCount,
+      paperExecutionLifecycleRecordCount: paperExecutionLifecycleEvidence.lifecycleRecordCount,
+      paperExecutionScaleActionRecordCount: paperExecutionLifecycleEvidence.scaleActionRecordCount,
       performanceEpochActive: Boolean(options.performanceEpochStartedAt),
       performanceEpochStartedAt: options.performanceEpochStartedAt ?? null,
     },
@@ -386,6 +397,11 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
     strategyObservationObservableCount: strategyObservationEvidence.observableCount,
     strategyObservationStaleSourceCount: strategyObservationEvidence.staleSourceCount,
     strategyObservationMeasuredReturnCount: strategyObservationEvidence.measuredReturnCount,
+    includedPaperExecutionLifecycleEvidence:
+      paperExecutionLifecycleEvidence.lifecycleRecordCount > 0
+      || paperExecutionLifecycleEvidence.scaleActionRecordCount > 0,
+    paperExecutionLifecycleRecordCount: paperExecutionLifecycleEvidence.lifecycleRecordCount,
+    paperExecutionScaleActionRecordCount: paperExecutionLifecycleEvidence.scaleActionRecordCount,
     persistenceSkippedForProviderStatus: write?.skippedUnsafeProviderStatus === true,
     manualAdjustmentRecordId: manualAdjustmentRecord.recordId,
     manualAdjustmentRecommendationCount: manualAdjustmentRecord.recommendationCount,

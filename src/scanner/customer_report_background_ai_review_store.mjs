@@ -41,6 +41,8 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     strategyObservationUniqueCount: Number(source.strategyObservationUniqueCount ?? 0),
     strategyObservationObservableCount: Number(source.strategyObservationObservableCount ?? 0),
     strategyObservationStaleSourceCount: Number(source.strategyObservationStaleSourceCount ?? 0),
+    paperExecutionLifecycleRecordCount: Number(source.paperExecutionLifecycleRecordCount ?? 0),
+    paperExecutionScaleActionRecordCount: Number(source.paperExecutionScaleActionRecordCount ?? 0),
     performanceEpochActive: source.performanceEpochActive === true,
     performanceEpochStartedAt: source.performanceEpochStartedAt ?? null,
     scannerEvents: Number(scanner.signalsGenerated ?? 0),
@@ -74,6 +76,11 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     strategyObservationUniqueCount: Number(source.strategyObservationUniqueCount ?? 0),
     strategyObservationObservableCount: Number(source.strategyObservationObservableCount ?? 0),
     strategyObservationStaleSourceCount: Number(source.strategyObservationStaleSourceCount ?? 0),
+    paperExecutionLifecycleRecordCount: Number(source.paperExecutionLifecycleRecordCount ?? 0),
+    paperExecutionScaleActionRecordCount: Number(source.paperExecutionScaleActionRecordCount ?? 0),
+    includedPaperExecutionLifecycleEvidence:
+      Number(source.paperExecutionLifecycleRecordCount ?? 0) > 0
+      || Number(source.paperExecutionScaleActionRecordCount ?? 0) > 0,
     includedStrategyObservationEvidence:
       Number(source.strategyObservationUniqueCount ?? 0) > 0,
     includedPostMarketEvidence: source.postMarketStatus === "completed_readonly"
