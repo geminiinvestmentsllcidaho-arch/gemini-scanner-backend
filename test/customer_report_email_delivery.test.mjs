@@ -18,9 +18,11 @@ test("builds a bounded read-only customer report email", () => {
   assert.equal(message.subject, "Year-to-Date GeminiScanner report");
   assert.match(message.text, /^Year-to-Date GeminiScanner report\n\nPDF REPORT ATTACHED\nYour complete report is attached as a PDF\./);
   assert.match(message.text, /Paper analytics snapshot\./);
-  assert.doesNotMatch(message.text, /https?:\/\//);
+  assert.match(message.text, /Open report: https:\/\/geminiscanner\.net\/customer\/reports\?period=ytd/);
   assert.doesNotMatch(message.text, /GeminiScanner-[^\n]+\.pdf/);
   assert.match(message.text, /Decision-assist and paper analytics only\./);
+  assert.match(message.html, /OPEN REPORT/);
+  assert.match(message.html, /href="https:\/\/geminiscanner\.net\/customer\/reports\?period=ytd"/);
   assert.equal(message.period, "ytd");
 });
 
@@ -73,8 +75,10 @@ test("delivers through resend with text-only report content", async () => {
   assert.deepEqual(body.to, ["customer@example.com"]);
   assert.equal(body.subject, "Weekly GeminiScanner report");
   assert.match(body.text, /^Weekly GeminiScanner report\n\nPDF REPORT ATTACHED\nYour complete report is attached as a PDF\./);
-  assert.doesNotMatch(body.text, /https?:\/\//);
+  assert.match(body.text, /Open report: https:\/\/geminiscanner\.net\/customer\/reports\?period=weekly/);
   assert.doesNotMatch(body.text, /GeminiScanner-[^\n]+\.pdf/);
+  assert.match(body.html, /OPEN REPORT/);
+  assert.match(body.html, /href="https:\/\/geminiscanner\.net\/customer\/reports\?period=weekly"/);
   assert.match(body.text, /No order placement, broker contact, or account mutation\./);
 });
 
@@ -84,8 +88,10 @@ test("attaches generated PDF to Resend delivery", async () => {
   assert.equal(result.delivered,true);
   const body=JSON.parse(request.options.body);
   assert.match(body.text,/^Daily GeminiScanner report\n\nPDF REPORT ATTACHED\nYour complete report is attached as a PDF\./);
-  assert.doesNotMatch(body.text,/https?:\/\//);
+  assert.match(body.text,/Open report: https:\/\/geminiscanner\.net\/customer\/reports\?period=daily/);
   assert.doesNotMatch(body.text,/GeminiScanner-[^\n]+\.pdf/);
+  assert.match(body.html,/OPEN REPORT/);
+  assert.match(body.html,/href="https:\/\/geminiscanner\.net\/customer\/reports\?period=daily"/);
   assert.equal(body.attachments[0].filename,"GeminiScanner-Daily-Report.pdf");
   assert.equal(Buffer.from(body.attachments[0].content,"base64").subarray(0,8).toString(),"%PDF-1.4");
 });

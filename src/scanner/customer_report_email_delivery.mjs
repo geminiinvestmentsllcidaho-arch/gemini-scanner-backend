@@ -17,11 +17,20 @@ function periodLabel(period) {
   })[clean(period).toLowerCase()] || "Customer";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 export function buildCustomerReportEmail(input = {}) {
   const email = clean(input.email).toLowerCase();
   const period = clean(input.period).toLowerCase();
   const generatedAt = clean(input.generatedAt);
   const summary = clean(input.summary);
+  const reportUrl = clean(input.reportUrl);
 
   if (!email || !period) {
     throw new Error("customer_report_email_input_required");
@@ -33,6 +42,7 @@ export function buildCustomerReportEmail(input = {}) {
     "",
     "PDF REPORT ATTACHED",
     "Your complete report is attached as a PDF.",
+    ...(reportUrl ? [`Open report: ${reportUrl}`] : []),
     "",
     summary || "Your read-only GeminiScanner customer report is ready.",
   ];
@@ -46,10 +56,27 @@ export function buildCustomerReportEmail(input = {}) {
     "Decision-assist and paper analytics only. No order placement, broker contact, or account mutation.",
   );
 
+  const html = [
+    '<div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">',
+    `<h2 style="margin:0 0 12px">${escapeHtml(label)} GeminiScanner report</h2>`,
+    '<div style="margin:0 0 18px;padding:14px 16px;border:1px solid #d7dde3;border-radius:12px;background:#f7f9fb">',
+    '<strong>PDF REPORT ATTACHED</strong><br>',
+    '<span>Your complete report is attached as a PDF.</span>',
+    reportUrl
+      ? `<div style="margin-top:12px"><a href="${escapeHtml(reportUrl)}" style="display:inline-block;padding:11px 16px;border-radius:9px;background:#111;color:#fff;text-decoration:none;font-weight:700">OPEN REPORT</a></div>`
+      : "",
+    '</div>',
+    `<p>${escapeHtml(summary || "Your read-only GeminiScanner customer report is ready.")}</p>`,
+    generatedAt ? `<p><strong>Generated:</strong> ${escapeHtml(generatedAt)}</p>` : "",
+    '<p style="color:#5f6b76">Decision-assist and paper analytics only. No order placement, broker contact, or account mutation.</p>',
+    '</div>',
+  ].join("");
+
   return Object.freeze({
     to: email,
     subject: `${label} GeminiScanner report`,
     text: lines.join("\n"),
+    html,
     period,
   });
 }
@@ -94,6 +121,7 @@ export async function deliverCustomerReportEmail(input = {}, options = {}) {
         to: [message.to],
         subject: message.subject,
         text: message.text,
+        html: message.html,
         ...(pdf ? { attachments: [{ filename: pdf.filename, content: pdf.buffer.toString("base64"), content_type: pdf.contentType }] } : {}),
       }),
     });
