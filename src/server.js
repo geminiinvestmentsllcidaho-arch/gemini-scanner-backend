@@ -3353,15 +3353,16 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
 const customerReportBackgroundAiReviewWorker = createCustomerReportBackgroundAiReviewWorker({
   runReview: ({ now } = {}) => {
     const ownerBinding = readPaperAutoExecutionOwnerBinding();
-    const ownerAccountId = ownerBinding?.resolved === true
-      ? ownerBinding?.binding?.accountId ?? null
-      : null;
-    const performanceEpoch = ownerAccountId
-      ? getCustomerPerformanceEpoch(ownerAccountId)
-      : Object.freeze({ ok: true, active: false, epoch: null });
-    const performanceEpochStartedAt = performanceEpoch?.ok === true
-      && performanceEpoch?.active === true
-      ? performanceEpoch?.epoch?.startedAt ?? null
+    if (ownerBinding?.resolved !== true || !ownerBinding?.binding?.accountId) {
+      throw new Error("background_ai_performance_epoch_owner_unavailable");
+    }
+    const ownerAccountId = ownerBinding.binding.accountId;
+    const performanceEpoch = getCustomerPerformanceEpoch(ownerAccountId);
+    if (performanceEpoch?.ok !== true) {
+      throw new Error(`background_ai_performance_epoch_unavailable:${performanceEpoch?.reason ?? "unknown"}`);
+    }
+    const performanceEpochStartedAt = performanceEpoch.active === true
+      ? performanceEpoch.epoch?.startedAt ?? null
       : null;
 
     return runCustomerReportBackgroundAiReview({

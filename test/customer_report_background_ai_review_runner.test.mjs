@@ -489,6 +489,7 @@ test("runner includes bounded strategy observation evidence and persists source 
 
 test("runner applies the supplied performance epoch to broker-backed AI review evidence", async () => {
   let capturedInput = null;
+  let persistedRecord = null;
   const result = await runCustomerReportBackgroundAiReview({
     now: new Date("2026-09-01T04:10:00.000Z"),
     performanceEpochStartedAt: "2026-08-31T18:20:31.044Z",
@@ -543,7 +544,10 @@ test("runner applies the supplied performance epoch to broker-backed AI review e
         model: "test",
       };
     },
-    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "memory" }),
+    persistRecord: (record) => {
+      persistedRecord = record;
+      return { appended: true, duplicateSkipped: false, ledgerPath: "memory" };
+    },
     persistManualAdjustmentRecommendation: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "manual-memory" }),
     getPostMarketResult: () => null,
     listStrategyObservations: () => [],
@@ -553,6 +557,9 @@ test("runner applies the supplied performance epoch to broker-backed AI review e
   assert.ok(capturedInput);
   assert.equal(capturedInput.performance.realizedPl, 0);
   assert.equal(capturedInput.trades.totalTrades, 0);
+  assert.ok(persistedRecord);
+  assert.equal(persistedRecord.performanceEpochActive, true);
+  assert.equal(persistedRecord.performanceEpochStartedAt, "2026-08-31T18:20:31.044Z");
 });
 
 test("runner uses broker-confirmed PAPER lifecycle evidence and does not consult legacy position snapshots", async () => {

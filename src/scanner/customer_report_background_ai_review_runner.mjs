@@ -298,6 +298,8 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       strategyObservationUniqueCount: strategyObservationEvidence.uniqueObservationCount,
       strategyObservationObservableCount: strategyObservationEvidence.observableCount,
       strategyObservationStaleSourceCount: strategyObservationEvidence.staleSourceCount,
+      performanceEpochActive: Boolean(options.performanceEpochStartedAt),
+      performanceEpochStartedAt: options.performanceEpochStartedAt ?? null,
     },
   }, { now });
   const write = review?.status === "completed_readonly"
