@@ -77,3 +77,29 @@ test("builds a no-action weekly PDF without implying approval or implementation"
   assert.match(text, /No actionable recommendations this week/);
   assert.match(text, /PROPOSAL ONLY - NO IMPLEMENTATION INCLUDED/);
 });
+
+test("paginates and includes every weekly recommendation", () => {
+  const recommendations = Array.from({ length: 75 }, (_, index) => ({
+    title: `Recommendation ${index + 1}`,
+    targetArea: "ranking",
+    suggestedDirection: "Backtest",
+    evidenceSummary: `Evidence ${index + 1}`,
+    historyPossiblyTruncated: false,
+  }));
+  const pdf = buildAiManualAdjustmentWeeklyReportPdf({
+    report: {
+      generatedAt: "2026-09-01T16:00:00.000Z",
+      periodStart: "2026-08-25T16:00:00.000Z",
+      periodEnd: "2026-09-01T16:00:00.000Z",
+      sourceRecordCount: 75,
+      truncatedHistoryRecordCount: 0,
+      recommendations,
+    },
+  });
+  const text = pdf.buffer.toString("latin1");
+  assert.equal(pdf.recommendationCount, 75);
+  assert.ok(pdf.pageCount > 1);
+  assert.match(text, /Recommendation 1/);
+  assert.match(text, /Recommendation 75/);
+  assert.match(text, /Page 1 of /);
+});

@@ -15,7 +15,7 @@ export function buildAiManualAdjustmentWeeklyReportPdf(input={}){
     `Broker-history truncation flags: ${Number(report.truncatedHistoryRecordCount)||0}`,
     rows.length?"Recommendations requiring manual review":"No actionable recommendations this week",
   ];
-  for(const [i,row] of rows.slice(0,30).entries()) lines.push(
+  const recommendationBlocks = rows.map((row, i) => [
     `${i+1}. ${show(row.title)}`,
     `Target: ${show(row.targetArea)}`,
     `Direction: ${show(row.suggestedDirection)}`,
@@ -24,21 +24,56 @@ export function buildAiManualAdjustmentWeeklyReportPdf(input={}){
     `Confidence: ${show(row.confidence)} Sample: ${show(row.sampleCount)} Risk: ${show(row.riskLevel)}`,
     `History possibly truncated: ${row.historyPossiblyTruncated===true?"YES":"NO"}`,
     "Backtest required: YES | Operator approval required: YES",
-  );
-  lines.push(
+    "",
+  ]);
+  const footer = [
     "PROPOSAL ONLY - NO IMPLEMENTATION INCLUDED",
     "Automatic learning/patching: DISABLED",
     "Scanner logic/threshold mutation: DISABLED",
     "Broker contact/order placement/account mutation: DISABLED",
-  );
-  const stream=["BT","/F1 8 Tf","36 760 Td","10 TL",...lines.flatMap((line,i)=>i?["T*",`(${esc(line)}) Tj`]:[`(${esc(line)}) Tj`]),"ET"].join("\n");
+  ];
+  const maxLines = 64;
+  const pagePrefix = lines.slice();
+  const pages = [];
+  let page = pagePrefix.slice();
+  if (!recommendationBlocks.length) {
+    page.push(...footer);
+    pages.push(page);
+  } else {
+    for (const block of recommendationBlocks) {
+      if (page.length + block.length + footer.length > maxLines && page.length > pagePrefix.length) {
+        pages.push(page);
+        page = [
+          "GeminiScanner Weekly AI Adjustment Recommendations",
+          `Generated: ${show(report.generatedAt)}`,
+          `Period: ${show(report.periodStart)} through ${show(report.periodEnd)}`,
+          `Recommendations: ${rows.length}`,
+          "",
+        ];
+      }
+      page.push(...block);
+    }
+    page.push(...footer);
+    pages.push(page);
+  }
+  const pageCount = pages.length;
+  const fontObjectId = 3 + (pageCount * 2);
+  const kids = pages.map((_, i) => `${3 + (i * 2)} 0 R`).join(" ");
   const objects=[
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
-    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Type /Pages /Kids [${kids}] /Count ${pageCount} >>`,
   ];
+  pages.forEach((pageLines, i) => {
+    const pageObjectId = 3 + (i * 2);
+    const contentObjectId = pageObjectId + 1;
+    const streamLines = [...pageLines, "", `Page ${i + 1} of ${pageCount}`];
+    const stream = ["BT","/F1 8 Tf","36 760 Td","10 TL",...streamLines.flatMap((line,j)=>j?["T*",`(${esc(line)}) Tj`]:[`(${esc(line)}) Tj`]),"ET"].join("\n");
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObjectId} 0 R >> >> /Contents ${contentObjectId} 0 R >>`,
+      `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
+    );
+  });
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
   let pdf="%PDF-1.4\n"; const offsets=[0];
   for(let i=0;i<objects.length;i+=1){offsets.push(Buffer.byteLength(pdf));pdf+=`${i+1} 0 obj\n${objects[i]}\nendobj\n`;}
   const xref=Buffer.byteLength(pdf);
@@ -47,7 +82,7 @@ export function buildAiManualAdjustmentWeeklyReportPdf(input={}){
   pdf+=`trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Object.freeze({
     version:VERSION,filename:"GeminiScanner-Weekly-AI-Adjustment-Recommendations.pdf",
-    contentType:"application/pdf",buffer:Buffer.from(pdf),recommendationCount:rows.length,
+    contentType:"application/pdf",buffer:Buffer.from(pdf),recommendationCount:rows.length,pageCount,
     proposalOnly:true,requiresBacktest:rows.length>0,requiresOperatorApproval:rows.length>0,
     readOnly:true,paperOnly:true,scannerLogicMutationAllowed:false,thresholdMutationAllowed:false,
     brokerContactAllowed:false,orderPlacementAllowed:false,accountMutationAllowed:false,

@@ -184,7 +184,7 @@ export function listAiManualAdjustmentRecommendationRecords(options = {}) {
   const ledgerPath = path.resolve(
     options.ledgerPath ?? DEFAULT_AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH,
   );
-  const maxRecords = Math.max(1, Math.min(500, integer(options.maxRecords, 50, 1, 500)));
+  const maxRecords = Math.max(1, Math.min(5000, integer(options.maxRecords, 50, 1, 5000)));
   const records = fs.existsSync(ledgerPath)
     ? fs.readFileSync(ledgerPath, "utf8")
       .split(/\r?\n/)
@@ -210,10 +210,52 @@ export function listAiManualAdjustmentRecommendationRecords(options = {}) {
   });
 }
 
+export function listAiManualAdjustmentRecommendationRecordsInRange(options = {}) {
+  const ledgerPath = path.resolve(
+    options.ledgerPath ?? DEFAULT_AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH,
+  );
+  const sinceMs = new Date(options.since ?? "").getTime();
+  const untilMs = new Date(options.until ?? "").getTime();
+  if (!Number.isFinite(sinceMs) || !Number.isFinite(untilMs) || sinceMs > untilMs) {
+    throw new Error("invalid_recommendation_history_range");
+  }
+  const records = fs.existsSync(ledgerPath)
+    ? fs.readFileSync(ledgerPath, "utf8")
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map(safeJson)
+      .filter(Boolean)
+      .filter((record) => {
+        const generatedAtMs = new Date(record?.generatedAt ?? "").getTime();
+        return Number.isFinite(generatedAtMs)
+          && generatedAtMs >= sinceMs
+          && generatedAtMs <= untilMs;
+      })
+      .reverse()
+      .map((record) => Object.freeze(record))
+    : [];
+
+  return Object.freeze({
+    version: VERSION,
+    ledgerPath,
+    recordCount: records.length,
+    records: Object.freeze(records),
+    rangeStart: new Date(sinceMs).toISOString(),
+    rangeEnd: new Date(untilMs).toISOString(),
+    readOnly: true,
+    paperOnly: true,
+    localJsonlOnly: true,
+    automaticLearningAllowed: false,
+    scannerLogicMutationAllowed: false,
+    thresholdMutationAllowed: false,
+  });
+}
+
 export default {
   VERSION,
   DEFAULT_AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH,
   buildAiManualAdjustmentRecommendationRecord,
   appendAiManualAdjustmentRecommendationRecord,
   listAiManualAdjustmentRecommendationRecords,
+  listAiManualAdjustmentRecommendationRecordsInRange,
 };

@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "node:fs";
 import {
   DEFAULT_AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH,
-  listAiManualAdjustmentRecommendationRecords,
+  listAiManualAdjustmentRecommendationRecordsInRange,
 } from "../src/scanner/ai_manual_adjustment_recommendation_store.mjs";
 import {
   buildAiManualAdjustmentWeeklyReport,
@@ -13,15 +13,19 @@ const now = new Date();
 const ledgerPath =
   process.env.AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH
   || DEFAULT_AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH;
-const history = listAiManualAdjustmentRecommendationRecords({
+const lookbackDays = 7;
+const periodEnd = now;
+const periodStart = new Date(periodEnd.getTime() - (lookbackDays * 86400000));
+const history = listAiManualAdjustmentRecommendationRecordsInRange({
   ledgerPath,
-  maxRecords: 500,
+  since: periodStart,
+  until: periodEnd,
 });
 const report = buildAiManualAdjustmentWeeklyReport({
   records: history.records,
 }, {
-  now,
-  lookbackDays: 7,
+  now: periodEnd,
+  lookbackDays,
 });
 
 const pdf = buildAiManualAdjustmentWeeklyReportPdf({ report });
