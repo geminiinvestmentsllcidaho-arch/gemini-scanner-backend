@@ -746,6 +746,8 @@ test("runner supplies bounded PAPER execution lifecycle evidence to AI provider"
   assert.equal(persistedRecord.paperExecutionLifecycleRecordCount, 2);
   assert.equal(persistedRecord.paperExecutionScaleActionRecordCount, 1);
   assert.equal(persistedRecord.includedPaperExecutionLifecycleEvidence, true);
+  assert.equal(persistedRecord.requiresBacktest, true);
+  assert.equal(persistedRecord.requiresOperatorApproval, true);
   assert.equal(result.automaticLearningAllowed, false);
   assert.equal(result.scannerLogicMutationAllowed, false);
   assert.equal(result.thresholdMutationAllowed, false);
