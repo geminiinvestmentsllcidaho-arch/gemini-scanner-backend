@@ -311,6 +311,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       paperExecutionScaleActionRecordCount: paperExecutionLifecycleEvidence.scaleActionRecordCount,
       performanceEpochActive: Boolean(options.performanceEpochStartedAt),
       performanceEpochStartedAt: options.performanceEpochStartedAt ?? null,
+      fillLedgerHistoryCompleteness: brokerEvidence?.fillLedgerHistoryCompleteness ?? null,
     },
   }, { now });
   const write = review?.status === "completed_readonly"
@@ -329,6 +330,7 @@ export async function runCustomerReportBackgroundAiReview(options = {}) {
       responseId: review?.responseId ?? null,
       providerStatus: review?.status ?? null,
     },
+    fillLedgerHistoryCompleteness: brokerEvidence?.fillLedgerHistoryCompleteness ?? null,
     sourceCalibration: {
       generatedAt: postMarketEvidence.generatedAt,
       calibrationReviewQueueCount: postMarketEvidence.proposalCount,

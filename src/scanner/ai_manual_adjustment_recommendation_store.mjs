@@ -80,6 +80,10 @@ export function buildAiManualAdjustmentRecommendationRecord(input = {}, options 
   const sourceCalibration = input.sourceCalibration && typeof input.sourceCalibration === "object"
     ? input.sourceCalibration
     : {};
+  const fillLedgerHistoryCompleteness =
+    input.fillLedgerHistoryCompleteness && typeof input.fillLedgerHistoryCompleteness === "object"
+      ? Object.freeze({ ...input.fillLedgerHistoryCompleteness })
+      : null;
   const rawRecommendations = Array.isArray(input.recommendations) ? input.recommendations : [];
   const maxRecommendations = Math.max(1, Math.min(50, integer(options.maxRecommendations, 20, 1, 50)));
   const recommendations = rawRecommendations
@@ -93,6 +97,7 @@ export function buildAiManualAdjustmentRecommendationRecord(input = {}, options 
     sourceResponseId: sourceReview.responseId ?? null,
     sourceCalibrationGeneratedAt: sourceCalibration.generatedAt ?? null,
     sourceCalibrationQueueCount: integer(sourceCalibration.calibrationReviewQueueCount, 0),
+    fillLedgerHistoryCompleteness,
     recommendations,
   });
 
@@ -106,6 +111,7 @@ export function buildAiManualAdjustmentRecommendationRecord(input = {}, options 
     sourceProviderStatus: clean(sourceReview.providerStatus, 64) || null,
     sourceCalibrationGeneratedAt: clean(sourceCalibration.generatedAt, 64) || null,
     sourceCalibrationQueueCount: integer(sourceCalibration.calibrationReviewQueueCount, 0),
+    fillLedgerHistoryCompleteness,
     recommendationCount: recommendations.length,
     recommendations: Object.freeze(recommendations),
     lifecycleStatus: recommendations.length

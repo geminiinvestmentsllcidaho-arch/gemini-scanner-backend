@@ -564,6 +564,8 @@ test("runner applies the supplied performance epoch to broker-backed AI review e
 
 test("runner uses broker-confirmed PAPER lifecycle evidence and does not consult legacy position snapshots", async () => {
   let capturedInput = null;
+  let persistedRecord = null;
+  let persistedManualRecord = null;
   let legacyPositionStoreCalled = false;
   const result = await runCustomerReportBackgroundAiReview({
     now: new Date("2026-07-20T15:00:00.000Z"),
@@ -628,8 +630,14 @@ test("runner uses broker-confirmed PAPER lifecycle evidence and does not consult
         orderPlacementAllowed: false,
       };
     },
-    persistRecord: () => ({ appended: true, duplicateSkipped: false, ledgerPath: "memory" }),
-    persistManualAdjustmentRecommendation: () => ({ appended: false, duplicateSkipped: false, ledgerPath: null }),
+    persistRecord: (record) => {
+      persistedRecord = record;
+      return { appended: true, duplicateSkipped: false, ledgerPath: "memory" };
+    },
+    persistManualAdjustmentRecommendation: (record) => {
+      persistedManualRecord = record;
+      return { appended: false, duplicateSkipped: false, ledgerPath: null };
+    },
   });
 
   assert.equal(result.status, "completed_readonly");
@@ -637,6 +645,21 @@ test("runner uses broker-confirmed PAPER lifecycle evidence and does not consult
   assert.equal(capturedInput.trades.lifecycleSourceAvailable, true);
   assert.equal(capturedInput.trades.completedRoundTrips, 1);
   assert.equal(capturedInput.performance.realizedPl, 2);
+  const expectedCompleteness = {
+    historyLimit: 500,
+    sourceRecordCount: 2,
+    historyLimitReached: false,
+    historyComplete: true,
+    historyPossiblyTruncated: false,
+  };
+  assert.deepEqual(persistedRecord.fillLedgerHistoryCompleteness, expectedCompleteness);
+  assert.deepEqual(persistedManualRecord.fillLedgerHistoryCompleteness, expectedCompleteness);
+  assert.equal(persistedManualRecord.requiresBacktest, true);
+  assert.equal(persistedManualRecord.requiresOperatorApproval, true);
+  assert.equal(persistedManualRecord.scannerLogicMutationAllowed, false);
+  assert.equal(persistedManualRecord.thresholdMutationAllowed, false);
+  assert.equal(persistedManualRecord.orderPlacementAllowed, false);
+  assert.equal(persistedManualRecord.accountMutationAllowed, false);
 });
 
 test("runner treats an unavailable fill ledger as unavailable lifecycle evidence", async () => {

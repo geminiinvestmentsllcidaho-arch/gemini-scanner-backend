@@ -45,6 +45,7 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     paperExecutionScaleActionRecordCount: Number(source.paperExecutionScaleActionRecordCount ?? 0),
     performanceEpochActive: source.performanceEpochActive === true,
     performanceEpochStartedAt: source.performanceEpochStartedAt ?? null,
+    fillLedgerHistoryCompleteness: source.fillLedgerHistoryCompleteness ?? null,
     scannerEvents: Number(scanner.signalsGenerated ?? 0),
     enter: Number(scanner.enter ?? 0),
     wait: Number(scanner.wait ?? 0),
@@ -61,6 +62,10 @@ export function buildCustomerReportBackgroundAiReviewRecord(input = {}, options 
     reportStatus: report.status ?? null,
     performanceEpochActive: source.performanceEpochActive === true,
     performanceEpochStartedAt: safeText(source.performanceEpochStartedAt, 64) || null,
+    fillLedgerHistoryCompleteness:
+      source.fillLedgerHistoryCompleteness && typeof source.fillLedgerHistoryCompleteness === "object"
+        ? Object.freeze({ ...source.fillLedgerHistoryCompleteness })
+        : null,
     latestScanId: source.latestScanId ?? null,
     latestScanAt: source.latestScanAt ?? null,
     scanRecordCount: Number(source.scanRecordCount ?? 0),
