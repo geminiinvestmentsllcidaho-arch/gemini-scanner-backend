@@ -34,6 +34,7 @@ test("weekly runner reads local ledger and writes private PDF with mutation lock
     cwd: process.cwd(),
     env: {
       ...process.env,
+      GS_AI_WEEKLY_REPORT_EMAIL_SEND_AUTHORIZED: "false",
       AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH: ledgerPath,
       AI_MANUAL_ADJUSTMENT_WEEKLY_REPORT_PDF_PATH: pdfPath
     },

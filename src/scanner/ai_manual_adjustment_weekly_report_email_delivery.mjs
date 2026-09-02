@@ -20,8 +20,12 @@ export async function deliverAiManualAdjustmentWeeklyReportEmail({report={},pdf}
  if(!apiKey||!sender||!recipient||typeof fetchImpl!=="function") return Object.freeze({delivered:false,attempted:false,reason:"resend_not_configured",provider:"resend"});
  if(!pdf?.buffer||!Buffer.isBuffer(pdf.buffer)||!clean(pdf.filename,320)) return Object.freeze({delivered:false,attempted:false,reason:"weekly_ai_report_pdf_required",provider:"resend"});
  const message=buildAiManualAdjustmentWeeklyReportEmail({report,recipient,sender});
- const response=await fetchImpl("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({from:message.from,to:[message.to],subject:message.subject,text:message.text,attachments:[{filename:clean(pdf.filename,320),content:pdf.buffer.toString("base64"),content_type:clean(pdf.contentType,120)||"application/pdf"}]})});
- const body=await response.json().catch(()=>({})),delivered=response.ok&&Boolean(clean(body?.id,240));
- return Object.freeze({delivered,attempted:true,provider:"resend",deliveryId:delivered?clean(body.id,240):null,statusCode:response.status,reason:delivered?null:"resend_delivery_failed"});
+ try {
+  const response=await fetchImpl("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({from:message.from,to:[message.to],subject:message.subject,text:message.text,attachments:[{filename:clean(pdf.filename,320),content:pdf.buffer.toString("base64"),content_type:clean(pdf.contentType,120)||"application/pdf"}]})});
+  const body=await response.json().catch(()=>({})),delivered=response.ok&&Boolean(clean(body?.id,240));
+  return Object.freeze({delivered,attempted:true,provider:"resend",statusCode:response.status,reason:delivered?null:"resend_delivery_failed"});
+ } catch {
+  return Object.freeze({delivered:false,attempted:true,provider:"resend",statusCode:null,reason:"resend_delivery_error"});
+ }
 }
 export default{VERSION,buildAiManualAdjustmentWeeklyReportEmail,deliverAiManualAdjustmentWeeklyReportEmail};
