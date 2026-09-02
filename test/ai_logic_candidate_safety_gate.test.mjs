@@ -43,3 +43,32 @@ test("combined gate fails closed for immutable mutation intent", () => {
   assert.equal(r.immutablePolicyMutationAllowed, false);
   assert.equal(r.sizingMutationAllowed, false);
 });
+
+test("combined gate does not invoke evaluators when offline experiment contract rejects", () => {
+  let baselineCalls = 0;
+  let candidateCalls = 0;
+
+  const result = evaluateAiLogicCandidateSafetyGate({
+    candidateId: "candidate-experiment-reject",
+    topic: "classification_coverage",
+    explicitFixtureOrInMemoryOnly: false,
+    changedPaths: ["src/scanner/ai_logic_candidates/candidate-experiment-reject.mjs"],
+    mutationIntents: ["classification_coverage"],
+    sourceText: 'export const classify = (x) => x;',
+    samples: [{ sampleId: "s1", input: { x: 1 }, expected: 1 }],
+    baselineEvaluator: () => {
+      baselineCalls += 1;
+      return 1;
+    },
+    candidateEvaluator: () => {
+      candidateCalls += 1;
+      return 1;
+    },
+  });
+
+  assert.equal(result.eligible, false);
+  assert.equal(result.gates.offlineReplay, "AI_LOGIC_OFFLINE_CANDIDATE_REPLAY_SKIPPED_PRECHECK");
+  assert.equal(baselineCalls, 0);
+  assert.equal(candidateCalls, 0);
+  assert.ok(result.reasons.some((reason) => reason.startsWith("EXPERIMENT:")));
+});

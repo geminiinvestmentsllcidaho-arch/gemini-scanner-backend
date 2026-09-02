@@ -52,16 +52,34 @@ export function evaluateAiLogicCandidateSafetyGate(input = {}, options = {}) {
     sourceText: input.sourceText,
   });
 
-  const replay = runAiLogicOfflineCandidateReplay({
-    candidateId,
-    topic,
-    changedPaths: input.changedPaths,
-    mutationIntents: input.mutationIntents,
-    sourceText: input.sourceText,
-    samples: input.samples,
-    baselineEvaluator: input.baselineEvaluator,
-    candidateEvaluator: input.candidateEvaluator,
-  });
+  const preReplayEligible =
+    manifest.ok === true &&
+    experiment.eligible === true &&
+    diff.eligible === true &&
+    semantic.eligible === true;
+
+  const replay = preReplayEligible
+    ? runAiLogicOfflineCandidateReplay({
+        candidateId,
+        topic,
+        changedPaths: input.changedPaths,
+        mutationIntents: input.mutationIntents,
+        sourceText: input.sourceText,
+        samples: input.samples,
+        baselineEvaluator: input.baselineEvaluator,
+        candidateEvaluator: input.candidateEvaluator,
+      })
+    : Object.freeze({
+        eligible: false,
+        status: "AI_LOGIC_OFFLINE_CANDIDATE_REPLAY_SKIPPED_PRECHECK",
+        reasons: Object.freeze([]),
+        sampleCount: 0,
+        baselineMetrics: null,
+        candidateMetrics: null,
+        replayId: null,
+        baselineHash: null,
+        candidateHash: null,
+      });
 
   const reasons = [];
   if (manifest.ok !== true) reasons.push(`IMMUTABLE:${manifest.status ?? "REJECT"}`);
