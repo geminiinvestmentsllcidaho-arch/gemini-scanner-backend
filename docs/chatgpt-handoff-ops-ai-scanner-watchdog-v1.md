@@ -13,7 +13,6 @@ Build and test an always-on, read-only, fail-closed watchdog for GeminiScanner. 
 ## Runtime invariants
 - `gemini-scanner`: online
 - `gemini-paper-manual-watcher`: online
-- `gemini-dry-scanner`: stopped and must remain stopped
 - Paper/live execution paths remain separate.
 - Exact-position paper-only EXIT logic remains frozen.
 - No order submission/cancellation, broker contact, account mutation, ENTER/live enablement, threshold mutation, blocker override, or trading-state change.

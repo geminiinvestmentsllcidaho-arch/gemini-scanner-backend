@@ -60,10 +60,6 @@ const requiredScripts = [
 ];
 
 const pathToRegexp = lock?.packages?.["node_modules/path-to-regexp"]?.version || null;
-const dryScannerText = fs.existsSync("scripts/dry_scanner.mjs")
-  ? fs.readFileSync("scripts/dry_scanner.mjs", "utf8")
-  : "";
-
 const secretLeakPatterns = [
   { code: "LOG_PROCESS_ENV", re: /console\.(log|error|warn)\s*\(\s*process\.env\b/is },
   { code: "STRINGIFY_PROCESS_ENV", re: /JSON\.stringify\s*\(\s*process\.env\b/is },
@@ -88,8 +84,6 @@ const checks = {
   "production audit clean": audit.ok && Number(auditJson?.metadata?.vulnerabilities?.total || 0) === 0,
   "path-to-regexp patched": pathToRegexp === "0.1.13",
   "required safety scripts present": requiredScripts.every((name) => typeof scripts[name] === "string" && scripts[name].length > 0),
-  "dry scanner read-only by default": dryScannerText.includes("/scanner/rankings") && dryScannerText.includes("DRY_SCANNER_WRITE_RUNLOG === '1'"),
-  "dry scanner one-shot by default": dryScannerText.includes("DRY_SCANNER_ONCE !== '0'"),
   "no direct process.env secret logging": secretLeakHits.length === 0,
   "trading safety validator passes": validatorRuns.tradingSafety.ok,
   "connect safety validator passes": validatorRuns.connectSafety.ok,
@@ -109,10 +103,6 @@ console.log(JSON.stringify({
   },
   dependencies: {
     pathToRegexp,
-  },
-  dryScanner: {
-    readOnlyDefault: checks["dry scanner read-only by default"],
-    oneShotDefault: checks["dry scanner one-shot by default"],
   },
   scripts: Object.fromEntries(requiredScripts.map((name) => [name, scripts[name] || null])),
   secretLeakHits,

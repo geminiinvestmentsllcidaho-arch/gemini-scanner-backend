@@ -53,7 +53,7 @@ export function buildAdminCompanionStatus({
     incidents.infrastructure.open ||
     incidents.opsAi.open ||
     incidents.operational.open ||
-    processes.some((row) => row.status !== "online" && row.name !== "gemini-dry-scanner");
+    processes.some((row) => row.status !== "online");
 
   return Object.freeze({
     version: VERSION,

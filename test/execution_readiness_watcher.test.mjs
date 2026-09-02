@@ -16,7 +16,6 @@ const good=()=>({
   },
   clock:{ok:true,status:"connected_readonly",marketClock:{isOpen:false}},
   pm2:[
-    {name:"gemini-dry-scanner",status:"stopped"},
     {name:"gemini-scanner",status:"online"},
   ],
   adapter:{enabled:false},

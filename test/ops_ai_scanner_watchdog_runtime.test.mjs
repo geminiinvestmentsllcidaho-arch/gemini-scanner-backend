@@ -18,7 +18,6 @@ function healthyInput() {
     readiness: { ready: true, degraded: false, issues: [] },
     pm2: [
       { name: "gemini-scanner", status: "online" },
-      { name: "gemini-dry-scanner", status: "stopped" },
     ],
     premarket: {
       running: true,

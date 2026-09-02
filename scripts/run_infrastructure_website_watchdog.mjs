@@ -37,7 +37,7 @@ async function cycle(){
   execFileAsync("df",["-Pk","/"],{timeout:10000})
  ]);
  const pm2=parse(pm2Raw.stdout)||[];
- const expected=new Map([["gemini-scanner","online"],["gemini-ops-ai-watchdog","online"],["gemini-dry-scanner","stopped"]]);
+ const expected=new Map([["gemini-scanner","online"],["gemini-ops-ai-watchdog","online"]]);
  const mismatches=[];for(const [name,status] of expected){const actual=pm2.find(r=>r.name===name)?.pm2_env?.status||"missing";if(actual!==status)mismatches.push({name,expected:status,actual})}
  const fields=dfRaw.stdout.trim().split(/\r?\n/).at(-1).trim().split(/\s+/);const diskUsedPct=Number(String(fields[4]||"0").replace("%",""));
  const memoryUsedPct=((os.totalmem()-os.freemem())/os.totalmem())*100;const loadPerCpu=os.loadavg()[0]/Math.max(1,os.cpus().length);

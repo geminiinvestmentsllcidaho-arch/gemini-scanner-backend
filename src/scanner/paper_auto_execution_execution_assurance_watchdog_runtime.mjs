@@ -63,7 +63,6 @@ export function evaluateIndependentAssuranceWatchdog(input={},options={}){
   if(readiness.infrastructureReady!==true)failureCodes.push("EXECUTION_INFRASTRUCTURE_NOT_READY");
   if(readiness.checks?.paperHost!==true)failureCodes.push("PAPER_HOST_INVARIANT_FAILED");
   if(readiness.checks?.liveDisabled!==true)failureCodes.push("LIVE_TRADING_DISABLE_INVARIANT_FAILED");
-  if(readiness.checks?.dryStopped!==true)failureCodes.push("DRY_SCANNER_INVARIANT_FAILED");
  }
  if(!repo)failureCodes.push("REPO_INTEGRITY_UNAVAILABLE");
  else{

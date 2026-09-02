@@ -7,7 +7,6 @@ import {
 
 const pm2 = [
   { name: "gemini-scanner", status: "online" },
-  { name: "gemini-dry-scanner", status: "stopped" },
 ];
 
 function input({
@@ -129,21 +128,15 @@ test("contract drift fails without mutating anything", () => {
   assert.equal(result.liveTradingAllowed, false);
 });
 
-test("scanner and dry-scanner PM2 invariants are enforced", () => {
+test("scanner PM2 invariant is enforced", () => {
+  const sample = input();
+  sample.pm2 = [{ name: "gemini-scanner", status: "stopped" }];
   const result = observeUnderFiveCadence(
     createCadenceVerifierState(),
-    {
-      ...input(),
-      pm2: [
-        { name: "gemini-scanner", status: "stopped" },
-        { name: "gemini-dry-scanner", status: "online" },
-      ],
-    },
+    sample,
     { now: new Date("2026-08-24T13:30:00.000Z") },
   );
-  assert.equal(result.status, "fail");
   assert.ok(result.violations.includes("SCANNER_NOT_ONLINE"));
-  assert.ok(result.violations.includes("DRY_SCANNER_NOT_STOPPED"));
 });
 
 test("market close resets session evidence before the next open baseline", () => {

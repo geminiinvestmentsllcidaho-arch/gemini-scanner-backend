@@ -11,7 +11,6 @@ test("builds a secret-free read-only Admin companion payload", () => {
       latency: { health: { ms: 12 }, readiness: { ms: 18 } },
       processes: [
         { name: "gemini-scanner", status: "online", cpu: 1, mem: 1000 },
-        { name: "gemini-dry-scanner", status: "stopped", cpu: 0, mem: 0 },
       ],
       errors: [{ source: "gemini-scanner", line: "example application error" }],
     },

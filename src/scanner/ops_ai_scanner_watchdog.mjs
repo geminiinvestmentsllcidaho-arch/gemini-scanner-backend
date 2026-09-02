@@ -10,7 +10,7 @@ const key=r=>crypto.createHash("sha256").update(JSON.stringify([...(r?.failureCo
 export function evaluateOpsAiScannerWatchdog(input={},options={}){
  const now=options.now instanceof Date?options.now:new Date(options.now??Date.now()); if(!Number.isFinite(now.getTime()))throw new TypeError("invalid_now");
  const h=input.health??{},r=input.readiness??{},pm=Array.isArray(input.pm2)?input.pm2:[],pre=input.premarket??{},post=input.postMarket??{},ai=input.backgroundAi??{},records=Array.isArray(input.aiReviewRecords)?input.aiReviewRecords:[],latest=records[0]??null,s=input.session??{};
- const proc=new Map(pm.map(x=>[String(x?.name??""),String(x?.status??"")])); const expected={"gemini-scanner":"online","gemini-dry-scanner":"stopped"}; const mismatches=Object.entries(expected).filter(([n,v])=>proc.get(n)!==v).map(([name,expected])=>({name,expected,actual:proc.get(name)??"missing"}));
+ const proc=new Map(pm.map(x=>[String(x?.name??""),String(x?.status??"")])); const expected={"gemini-scanner":"online"}; const mismatches=Object.entries(expected).filter(([n,v])=>proc.get(n)!==v).map(([name,expected])=>({name,expected,actual:proc.get(name)??"missing"}));
  const violations=[]; for(const src of [h,r,pre,post,ai,latest].filter(Boolean))for(const f of LOCKS)if(src?.[f]===true)violations.push(f);
  const preApp=s.premarketApplicable===true||pre?.session?.active===true, postApp=s.postMarketEvidenceExpected===true, aiApp=s.backgroundAiExpected!==false;
  const preMax=Number(options.maxPremarketAgeMs??600000),postMax=Number(options.maxPostMarketAgeMs??1800000),aiMax=Number(options.maxAiAgeMs??Math.max(Number(ai.intervalMs??900000)*2,1800000));

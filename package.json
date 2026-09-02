@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test",
-    "dry:scanner": "node scripts/dry_scanner.mjs",
     "validate:weekend": "node scripts/weekend_scanner_validation.mjs",
     "validate:open": "node scripts/open_market_validation.mjs",
     "validate:open:closed": "node scripts/open_market_validation.mjs --closed-ok",

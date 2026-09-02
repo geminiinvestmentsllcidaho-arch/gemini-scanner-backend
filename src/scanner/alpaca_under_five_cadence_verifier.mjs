@@ -88,7 +88,6 @@ export function observeUnderFiveCadence(previousState = createCadenceVerifierSta
 
   const processMap = new Map(pm2.map((row) => [String(row?.name ?? ""), String(row?.status ?? "")]));
   if (processMap.get("gemini-scanner") !== "online") violations.push("SCANNER_NOT_ONLINE");
-  if (processMap.get("gemini-dry-scanner") !== "stopped") violations.push("DRY_SCANNER_NOT_STOPPED");
 
   const broadCount = finite(diagnostics?.broadScanCount) ? Number(diagnostics.broadScanCount) : 0;
   const focusedCount = finite(diagnostics?.focusedScanCount) ? Number(diagnostics.focusedScanCount) : 0;

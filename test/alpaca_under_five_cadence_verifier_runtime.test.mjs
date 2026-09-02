@@ -18,7 +18,6 @@ const healthyInput = {
   },
   pm2: [
     { name: "gemini-scanner", status: "online" },
-    { name: "gemini-dry-scanner", status: "stopped" },
   ],
   diagnostics: {
     version: "alpaca_under_five_shared_scan_cache_v3",

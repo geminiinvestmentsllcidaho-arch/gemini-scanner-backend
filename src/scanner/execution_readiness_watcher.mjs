@@ -23,7 +23,6 @@ export function evaluateExecutionReadiness(input={},now=Date.now()){
     clockConnected:clock.ok===true&&clock.status==="connected_readonly",
     marketOpen:clock.marketClock?.isOpen===true,
     liveDisabled:!on(env,"LIVE_TRADING_ENABLED"),
-    dryStopped:!pm2.has("gemini-dry-scanner")||pm2.get("gemini-dry-scanner")==="stopped",
     lifecycleState:lifecycle?.state??"IDLE",
   };
 
@@ -43,7 +42,6 @@ export function evaluateExecutionReadiness(input={},now=Date.now()){
     "accountHealthy",
     "clockConnected",
     "liveDisabled",
-    "dryStopped",
   ]){
     if(!checks[key])blockers.push(key);
   }

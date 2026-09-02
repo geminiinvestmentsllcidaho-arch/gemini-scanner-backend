@@ -14,7 +14,7 @@ const good={
   health:{ok:true,statusCode:200,body:{status:"ok",stream:{marketOpen:false}}},
   continuity:{ok:true,statusCode:200,body:{enabled:true,lastStatus:"NO_ELIGIBLE_CANDIDATE",lastCycleStartedAt:"2026-08-20T14:29:59.000Z",lastCycleCompletedAt:"2026-08-20T14:29:59.100Z",lastSnapshotObservedAt:"2026-08-20T14:29:00.000Z",lastSnapshotFresh:false,lastSnapshotCandidateCount:0,lastEligibleCandidateCount:0,lastLifecycle:{state:"ROUND_TRIP_COMPLETED"}}},
   enter:{ok:true,statusCode:200,body:{enabled:true,lastStatus:"CONTINUITY_ENTER_NOT_REQUIRED",lastCycleStartedAt:"2026-08-20T14:29:59.100Z",lastCycleCompletedAt:"2026-08-20T14:29:59.100Z",lastLifecycle:{state:"ROUND_TRIP_COMPLETED"}}},
-  readiness:{generatedAt:"2026-08-20T14:29:30.000Z",infrastructureReady:true,checks:{paperHost:true,liveDisabled:true,dryStopped:true}},
+  readiness:{generatedAt:"2026-08-20T14:29:30.000Z",infrastructureReady:true,checks:{paperHost:true,liveDisabled:true}},
   repo:{head:"abc",upstream:"abc",clean:true},
 };
 
@@ -105,8 +105,8 @@ test("failed incident notification is persisted and retried without remediation"
 });
 
 test("integrity failures are detected without mutation",()=>{
- const r=evaluateIndependentAssuranceWatchdog({...good,readiness:{generatedAt:"2026-08-20T14:29:30.000Z",infrastructureReady:false,checks:{paperHost:false,liveDisabled:false,dryStopped:false}},repo:{head:"a",upstream:"b",clean:false}},{now});
- for(const c of ["EXECUTION_INFRASTRUCTURE_NOT_READY","PAPER_HOST_INVARIANT_FAILED","LIVE_TRADING_DISABLE_INVARIANT_FAILED","DRY_SCANNER_INVARIANT_FAILED","DEPLOYED_HEAD_UPSTREAM_MISMATCH","PRODUCTION_REPO_DIRTY"])assert.ok(r.failureCodes.includes(c));
+ const r=evaluateIndependentAssuranceWatchdog({...good,readiness:{generatedAt:"2026-08-20T14:29:30.000Z",infrastructureReady:false,checks:{paperHost:false,liveDisabled:false}},repo:{head:"a",upstream:"b",clean:false}},{now});
+ for(const c of ["EXECUTION_INFRASTRUCTURE_NOT_READY","PAPER_HOST_INVARIANT_FAILED","LIVE_TRADING_DISABLE_INVARIANT_FAILED","DEPLOYED_HEAD_UPSTREAM_MISMATCH","PRODUCTION_REPO_DIRTY"])assert.ok(r.failureCodes.includes(c));
  assert.equal(r.healthy,false);assert.equal(r.safety.thresholdMutationAllowed,false);assert.equal(r.safety.orderPlacementAllowed,false);assert.equal(r.safety.liveTradingAllowed,false);
 });
 test("stale readiness fails closed",()=>{
