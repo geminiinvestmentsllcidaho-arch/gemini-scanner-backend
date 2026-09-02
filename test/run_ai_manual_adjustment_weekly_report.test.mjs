@@ -50,6 +50,9 @@ test("weekly runner reads local ledger and writes private PDF with mutation lock
   assert.equal(result.requiresOperatorApproval, true);
   assert.equal(result.pdfPath, path.resolve(pdfPath));
   assert.equal(result.pdfContentType, "application/pdf");
+  assert.equal(result.emailDelivery.delivered, false);
+  assert.equal(result.emailDelivery.attempted, false);
+  assert.equal(result.emailDelivery.reason, "weekly_ai_report_email_send_not_authorized");
   assert.equal(result.scannerLogicMutationAllowed, false);
   assert.equal(result.thresholdMutationAllowed, false);
   assert.equal(result.orderPlacementAllowed, false);

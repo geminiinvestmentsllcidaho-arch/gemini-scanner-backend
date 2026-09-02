@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "node:path";
 import fs from "node:fs";
 import {
@@ -9,6 +10,7 @@ import {
   buildAiManualAdjustmentWeeklyReport,
 } from "../src/scanner/ai_manual_adjustment_weekly_report.mjs";
 import { buildAiManualAdjustmentWeeklyReportPdf } from "../src/scanner/ai_manual_adjustment_weekly_report_pdf.mjs";
+import { deliverAiManualAdjustmentWeeklyReportEmail } from "../src/scanner/ai_manual_adjustment_weekly_report_email_delivery.mjs";
 
 process.umask(0o077);
 
@@ -40,6 +42,8 @@ fs.mkdirSync(path.dirname(pdfPath), { recursive: true, mode: 0o700 });
 fs.writeFileSync(pdfPath, pdf.buffer, { mode: 0o600 });
 try { fs.chmodSync(pdfPath, 0o600); } catch {}
 
+const emailDelivery = await deliverAiManualAdjustmentWeeklyReportEmail({ report, pdf });
+
 console.log(JSON.stringify({
   ...report,
   sourceLedgerRecordCount: history.recordCount,
@@ -47,6 +51,7 @@ console.log(JSON.stringify({
   pdfPath,
   pdfFilename: pdf.filename,
   pdfContentType: pdf.contentType,
+  emailDelivery,
   readOnly: true,
   paperOnly: true,
   localJsonlOnly: true,
