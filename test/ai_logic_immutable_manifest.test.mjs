@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import crypto from "node:crypto";
+import {IMMUTABLE_POLICY_MANIFEST,verifyImmutablePolicyManifest} from "../src/scanner/ai_logic_immutable_manifest.mjs";
+test("verifies current immutable production policy manifest",()=>{const r=verifyImmutablePolicyManifest();assert.equal(r.ok,true);assert.equal(r.status,"IMMUTABLE_MANIFEST_VERIFIED");assert.equal(r.candidateMayModifyImmutableFiles,false);assert.equal(r.thresholdMutationAllowed,false);assert.equal(r.orderPlacementAllowed,false);assert.equal(r.liveTradingAllowed,false);assert.equal(r.results.length,IMMUTABLE_POLICY_MANIFEST.length)});
+test("fails closed on hash mismatch",()=>{const d=fs.mkdtempSync(path.join(os.tmpdir(),"ai-immutable-"));const f=path.join(d,"policy.mjs");fs.writeFileSync(f,"export const X=1;\n");const a=crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex");const r=verifyImmutablePolicyManifest({manifest:[{path:f,sha256:a.replace(/^./,a[0]==="a"?"b":"a")} ]});assert.equal(r.ok,false);assert.equal(r.disposition,"REJECT");assert.equal(r.results[0].status,"IMMUTABLE_FILE_MISMATCH")});
+test("fails closed when immutable file missing",()=>{const r=verifyImmutablePolicyManifest({manifest:[{path:"/definitely/missing/gemini-policy.mjs",sha256:"0".repeat(64)}]});assert.equal(r.ok,false);assert.equal(r.results[0].status,"IMMUTABLE_FILE_MISSING")});
