@@ -4067,6 +4067,34 @@ app.post('/customer/portfolio/wind-down', requireCustomerSession, requireCustome
 });
 
 
+app.get('/customer/report-pdf', async (req, res) => {
+  try {
+    const tokenMod = await import('./scanner/customer_report_download_token.mjs');
+    const pdfMod = await import('./scanner/customer_report_pdf.mjs');
+    const reportModelMod = await import('./scanner/customer_report_model.mjs');
+    const accountBridge = await import('./scanner/customer_zero_paper_account_bridge.mjs');
+    const timeMod = await import('./scanner/customer_time.mjs');
+    const verified = tokenMod.verifyCustomerReportDownloadToken(req.query.token, { secret: process.env.CUSTOMER_SESSION_SECRET });
+    if (verified.ok !== true) return res.status(403).type('text').send('This report link is invalid or has expired.');
+    const account = findCustomerAccountById(verified.accountId);
+    if (!account || account.status !== 'active' || account.emailVerified !== true) return res.status(403).type('text').send('This report is unavailable.');
+    const now = new Date();
+    const performanceEpoch = getCustomerPerformanceEpoch(account.id);
+    const brokerEvidence = await fetchCustomerBrokerPerformanceEvidence({ now });
+    const paperAccount = accountBridge.buildCustomerZeroPaperAccountBridge(brokerEvidence.fetchedPaperAccount);
+    const liveScanRecords = listOpportunityFunnelAuditRecords({ maxRecords: 120 });
+    const scannerEvents = liveScanRecords.flatMap((scan) => (Array.isArray(scan?.candidates) ? scan.candidates : []).map((candidate) => ({...candidate,createdAt:scan?.eventAt??null,sourceTs:scan?.eventAt??null})));
+    const report = reportModelMod.buildCustomerReportModel({period:verified.period,now,timeZone:timeMod.customerTimezone(account),weekStartsOn:1,performanceEpochStartedAt:performanceEpoch?.active===true?performanceEpoch.epoch?.startedAt??null:null,paperAccount,fillLedgerHistory:brokerEvidence.fillLedgerHistory,fillLedgerHistorySource:brokerEvidence.fillLedgerHistorySource,fillLedgerHistoryCompleteness:brokerEvidence.fillLedgerHistoryCompleteness,brokerObservationTs:brokerEvidence.brokerObservationTs,scannerEvents});
+    const pdf = pdfMod.buildCustomerReportPdf({ period: verified.period, report, generatedAt: now.toISOString() });
+    res.set('Cache-Control','private, no-store, max-age=0');
+    res.set('Content-Disposition', `inline; filename="${pdf.filename}"`);
+    return res.type(pdf.contentType).send(pdf.buffer);
+  } catch (error) {
+    console.error('[customer-report-pdf]', error);
+    return res.status(500).type('text').send('Report PDF could not be generated.');
+  }
+});
+
 app.get('/customer/reports', requireCustomerSession, async (req, res) => {
   try {
     const reportModelMod = await import('./scanner/customer_report_model.mjs');

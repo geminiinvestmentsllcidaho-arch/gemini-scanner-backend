@@ -1,6 +1,7 @@
 import { customerReportDeliveryDuePeriods, customerReportDeliveryBucket } from "./customer_report_delivery_schedule.mjs";
 import { findCustomerReportDeliveryRecord, appendCustomerReportDeliveryRecord } from "./customer_report_delivery_ledger.mjs";
 import { deliverCustomerReportEmail } from "./customer_report_email_delivery.mjs";
+import { createCustomerReportDownloadToken } from "./customer_report_download_token.mjs";
 
 export const VERSION = "customer_report_delivery_runner_v1";
 
@@ -92,7 +93,8 @@ export async function runCustomerReportDeliveryForAccount(account = {}, options 
     }
 
     const report = await buildReport({ account, period, now, timeZone });
-    const reportUrl = `${baseUrl.replace(/\/+$/, "")}/customer/reports?period=${encodeURIComponent(period)}`;
+    const reportToken = createCustomerReportDownloadToken({ accountId, period }, { secret: clean(options.reportDownloadSecret), nowMs: now.getTime(), ttlSec: options.reportDownloadTtlSec });
+    const reportUrl = `${baseUrl.replace(/\/+$/, "")}/customer/report-pdf?token=${encodeURIComponent(reportToken)}`;
     const delivery = await deliverEmail({
       email,
       period,

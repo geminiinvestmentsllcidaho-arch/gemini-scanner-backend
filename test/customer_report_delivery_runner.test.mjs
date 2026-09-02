@@ -25,6 +25,7 @@ test("delivers one due read-only report and records the outcome", async () => {
   const result = await runCustomerReportDeliveryForAccount(account, {
     now: new Date("2026-07-16T00:05:00.000Z"),
     ledgerPath: ledger,
+    reportDownloadSecret: "test-report-download-secret-32-bytes-minimum",
     buildReport: async ({ period }) => ({
       period,
       status: "current_readonly",
@@ -53,6 +54,7 @@ test("skips a previously ledgered delivery bucket", async () => {
   const options = {
     now: new Date("2026-07-16T00:05:00.000Z"),
     ledgerPath: ledger,
+    reportDownloadSecret: "test-report-download-secret-32-bytes-minimum",
     buildReport: async () => ({ status: "current_readonly" }),
     deliverEmail: async () => {
       deliveries += 1;
@@ -94,6 +96,7 @@ test("failed email delivery is not ledgered and remains retryable", async () => 
     now,
     ledgerPath,
     baseUrl: "https://geminiscanner.net",
+    reportDownloadSecret: "test-report-download-secret-32-bytes-minimum",
     buildReport: async () => ({ metrics: {} }),
     deliverEmail: async () => ({
       delivered: false,

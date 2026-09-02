@@ -24,6 +24,7 @@ for (const account of accounts) {
   results.push(await runCustomerReportDeliveryForAccount(account, {
     now,
     baseUrl: process.env.PUBLIC_BASE_URL || "https://geminiscanner.net",
+    reportDownloadSecret: process.env.CUSTOMER_SESSION_SECRET,
     buildReport: async ({ period, timeZone }) => buildCustomerReportModel({
       period,
       now,
