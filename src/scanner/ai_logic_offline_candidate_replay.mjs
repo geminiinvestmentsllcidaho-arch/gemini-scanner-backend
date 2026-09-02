@@ -4,7 +4,7 @@ import { verifyImmutablePolicyManifest } from "./ai_logic_immutable_manifest.mjs
 import { evaluateAiLogicCandidateDiff } from "./ai_logic_candidate_diff_allowlist.mjs";
 import { evaluateAiLogicCandidateSemanticGuard } from "./ai_logic_candidate_semantic_guard.mjs";
 
-export const VERSION = "ai_logic_offline_candidate_replay_v1";
+export const VERSION = "ai_logic_offline_candidate_replay_v2";
 
 export const ALLOWED_REPLAY_TOPICS = Object.freeze([
   "evidence_interpretation",
@@ -41,6 +41,38 @@ function normalizeSamples(samples) {
       expected: stableClone(sample?.expected ?? null),
     }),
   );
+}
+
+function evaluateDeterministically(evaluator, input, role) {
+  const firstInput = stableClone(input);
+  const firstBefore = stableStringify(firstInput);
+  let firstOutput;
+  try {
+    firstOutput = stableClone(evaluator(firstInput));
+  } catch {
+    return { ok: false, reason: `${role}_EVALUATOR_ERROR` };
+  }
+  if (stableStringify(firstInput) !== firstBefore) {
+    return { ok: false, reason: `${role}_INPUT_MUTATION` };
+  }
+
+  const secondInput = stableClone(input);
+  const secondBefore = stableStringify(secondInput);
+  let secondOutput;
+  try {
+    secondOutput = stableClone(evaluator(secondInput));
+  } catch {
+    return { ok: false, reason: `${role}_EVALUATOR_ERROR` };
+  }
+  if (stableStringify(secondInput) !== secondBefore) {
+    return { ok: false, reason: `${role}_INPUT_MUTATION` };
+  }
+
+  if (stableStringify(firstOutput) !== stableStringify(secondOutput)) {
+    return { ok: false, reason: `${role}_NONDETERMINISTIC` };
+  }
+
+  return { ok: true, output: firstOutput };
 }
 
 function buildBlockedResult({ candidateId, topic, manifest, samples, reasons }) {
@@ -111,10 +143,41 @@ export function runAiLogicOfflineCandidateReplay(input = {}) {
     return buildBlockedResult({ candidateId, topic, manifest, samples, reasons });
   }
 
-  const comparisons = samples.map((sample) => {
-    const baseline = stableClone(baselineEvaluator(stableClone(sample.input)));
-    const candidate = stableClone(candidateEvaluator(stableClone(sample.input)));
-    return Object.freeze({
+  const comparisons = [];
+  for (const sample of samples) {
+    const baselineEvaluation = evaluateDeterministically(
+      baselineEvaluator,
+      sample.input,
+      "BASELINE",
+    );
+    if (!baselineEvaluation.ok) {
+      return buildBlockedResult({
+        candidateId,
+        topic,
+        manifest,
+        samples,
+        reasons: [baselineEvaluation.reason],
+      });
+    }
+
+    const candidateEvaluation = evaluateDeterministically(
+      candidateEvaluator,
+      sample.input,
+      "CANDIDATE",
+    );
+    if (!candidateEvaluation.ok) {
+      return buildBlockedResult({
+        candidateId,
+        topic,
+        manifest,
+        samples,
+        reasons: [candidateEvaluation.reason],
+      });
+    }
+
+    const baseline = baselineEvaluation.output;
+    const candidate = candidateEvaluation.output;
+    comparisons.push(Object.freeze({
       sampleId: sample.sampleId,
       expected: sample.expected,
       baseline,
@@ -124,8 +187,8 @@ export function runAiLogicOfflineCandidateReplay(input = {}) {
       candidateMatchesExpected:
         stableStringify(candidate) === stableStringify(sample.expected),
       changed: stableStringify(baseline) !== stableStringify(candidate),
-    });
-  });
+    }));
+  }
 
   const baselineCorrect = comparisons.filter((row) => row.baselineMatchesExpected).length;
   const candidateCorrect = comparisons.filter((row) => row.candidateMatchesExpected).length;

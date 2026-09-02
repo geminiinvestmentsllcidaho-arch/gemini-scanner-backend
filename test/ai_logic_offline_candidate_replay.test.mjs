@@ -110,3 +110,84 @@ test("normalizes object key ordering for deterministic hashes", () => {
   assert.equal(result.candidateMetrics.changedCount, 0);
   assert.equal(result.baselineHash, result.candidateHash);
 });
+
+
+test("fails closed when baseline evaluator throws", () => {
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    baselineEvaluator: () => { throw new Error("boom"); },
+    candidateEvaluator: () => "CONFIRMED",
+  });
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.includes("BASELINE_EVALUATOR_ERROR"));
+});
+
+test("fails closed when candidate evaluator throws", () => {
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    baselineEvaluator: () => "CONFIRMED",
+    candidateEvaluator: () => { throw new Error("boom"); },
+  });
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.includes("CANDIDATE_EVALUATOR_ERROR"));
+});
+
+test("fails closed on baseline evaluator nondeterminism", () => {
+  let n = 0;
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    baselineEvaluator: () => (++n % 2 ? "A" : "B"),
+    candidateEvaluator: () => "A",
+  });
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.includes("BASELINE_NONDETERMINISTIC"));
+});
+
+test("fails closed on candidate evaluator nondeterminism", () => {
+  let n = 0;
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    baselineEvaluator: () => "A",
+    candidateEvaluator: () => (++n % 2 ? "A" : "B"),
+  });
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.includes("CANDIDATE_NONDETERMINISTIC"));
+});
+
+test("fails closed when baseline evaluator mutates its input", () => {
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    baselineEvaluator: (value) => {
+      value.mutated = true;
+      return "A";
+    },
+    candidateEvaluator: () => "A",
+  });
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.includes("BASELINE_INPUT_MUTATION"));
+});
+
+test("fails closed when candidate evaluator mutates its input", () => {
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    baselineEvaluator: () => "A",
+    candidateEvaluator: (value) => {
+      value.mutated = true;
+      return "A";
+    },
+  });
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.includes("CANDIDATE_INPUT_MUTATION"));
+});
+
+test("does not invoke evaluators when pre-evaluator gates reject", () => {
+  let calls = 0;
+  const result = runAiLogicOfflineCandidateReplay({
+    ...common,
+    changedPaths: ["src/server.js"],
+    baselineEvaluator: () => { calls += 1; return "A"; },
+    candidateEvaluator: () => { calls += 1; return "A"; },
+  });
+  assert.equal(result.eligible, false);
+  assert.equal(calls, 0);
+});
