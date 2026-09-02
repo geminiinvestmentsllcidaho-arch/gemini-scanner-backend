@@ -6,6 +6,8 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createAdminOperationalEmailDelivery } from "../src/scanner/admin_operational_notification_delivery.mjs";
+
+process.umask(0o077);
 const execFileAsync=promisify(execFile);
 const ledger=path.resolve("runs/infrastructure_website_watchdog_incidents.jsonl");
 const interval=Math.max(60000,Number(process.env.GS_INFRA_WATCHDOG_INTERVAL_MS||60000));

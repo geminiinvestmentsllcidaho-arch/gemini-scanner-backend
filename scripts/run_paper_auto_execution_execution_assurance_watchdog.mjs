@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { runIndependentAssuranceWatchdogOnce } from "../src/scanner/paper_auto_execution_execution_assurance_watchdog_runtime.mjs";
 
+process.umask(0o077);
+
 const raw = Number(process.env.GS_EXECUTION_ASSURANCE_WATCH_INTERVAL_MS ?? 30000);
 const intervalMs = Number.isFinite(raw) ? Math.max(15000, Math.trunc(raw)) : 30000;
 const allowNotificationSend =

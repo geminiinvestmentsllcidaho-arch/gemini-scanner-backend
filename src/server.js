@@ -1,10 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import {
+
   renderBackgroundLogoLayer,
   renderGlobalFooter,
   renderGlobalHeader,
   renderGlobalThemeCss,
 } from './scanner/global_theme.mjs';
+
+process.umask(0o077);
 
 function escapeThemedStatusHtml(value) {
   return String(value ?? "")

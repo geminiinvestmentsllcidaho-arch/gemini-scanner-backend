@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import "dotenv/config";
 
+process.umask(0o077);
+
 import {
   runUnderFiveCadenceVerifierOnce,
 } from "../src/scanner/alpaca_under_five_cadence_verifier_runtime.mjs";

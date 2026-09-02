@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import {
+
   DEFAULT_AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH,
   listAiManualAdjustmentRecommendationRecordsInRange,
 } from "../src/scanner/ai_manual_adjustment_recommendation_store.mjs";
@@ -8,6 +9,8 @@ import {
   buildAiManualAdjustmentWeeklyReport,
 } from "../src/scanner/ai_manual_adjustment_weekly_report.mjs";
 import { buildAiManualAdjustmentWeeklyReportPdf } from "../src/scanner/ai_manual_adjustment_weekly_report_pdf.mjs";
+
+process.umask(0o077);
 
 const now = new Date();
 const ledgerPath =
