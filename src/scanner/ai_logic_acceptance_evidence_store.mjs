@@ -39,6 +39,7 @@ export function buildAiLogicAcceptanceEvidenceRecord(binding = {}, options = {})
     ...identity,
     immutableManifestStatus: manifest.status,
     localJsonlOnly: true,
+    persistenceAllowed: false,
     promotionAllowed: false,
     rollbackExecutionAllowed: false,
     productionRuntimeWiringAllowed: false,
