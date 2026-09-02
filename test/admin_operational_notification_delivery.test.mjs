@@ -32,8 +32,11 @@ test("builds sanitized shared Admin failure and recovery messages", () => {
 });
 
 test("shared delivery uses Resend without exposing configuration values in result", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gs-admin-delivery-"));
+  const budgetLedgerPath = path.join(root, "budget.jsonl");
   let request = null;
   const delivery = createAdminOperationalEmailDelivery({
+    budgetLedgerPath,
     env: {
       CUSTOMER_EMAIL_PROVIDER: "resend",
       RESEND_API_KEY: "secret-test-key",
