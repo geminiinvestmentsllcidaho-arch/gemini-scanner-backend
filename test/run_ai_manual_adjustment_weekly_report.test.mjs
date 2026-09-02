@@ -137,6 +137,8 @@ test("scheduled mode skips a previously delivered weekly bucket without attempti
 
 test("scheduled mode opens only the Denver Friday 18:00-18:14 delivery window", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs-weekly-ai-schedule-window-"));
+  const recommendationPath = path.join(dir, "recommendations.jsonl");
+  fs.writeFileSync(recommendationPath, "", { mode: 0o600 });
   const cases = [
     ["2026-09-05T00:00:00.000Z", true],
     ["2026-09-05T00:14:59.000Z", true],
@@ -147,13 +149,17 @@ test("scheduled mode opens only the Denver Friday 18:00-18:14 delivery window", 
   ];
 
   for (const [scheduledNow, expectedOpen] of cases) {
-    const deliveryLedgerPath = path.join(dir, `${scheduledNow.replace(/[^0-9]/g, "")}.jsonl`);
+    const suffix = scheduledNow.replace(/[^0-9]/g, "");
+    const deliveryLedgerPath = path.join(dir, `${suffix}.jsonl`);
+    const pdfPath = path.join(dir, `${suffix}.pdf`);
     const run = spawnSync(process.execPath, ["scripts/run_ai_manual_adjustment_weekly_report.mjs"], {
       cwd: process.cwd(),
       env: {
         ...process.env,
         AI_MANUAL_ADJUSTMENT_WEEKLY_REPORT_NOW: scheduledNow,
         AI_MANUAL_ADJUSTMENT_WEEKLY_REPORT_SCHEDULED_MODE: "true",
+        AI_MANUAL_ADJUSTMENT_RECOMMENDATION_PATH: recommendationPath,
+        AI_MANUAL_ADJUSTMENT_WEEKLY_REPORT_PDF_PATH: pdfPath,
         AI_MANUAL_ADJUSTMENT_WEEKLY_REPORT_DELIVERY_LEDGER_PATH: deliveryLedgerPath,
         GS_AI_WEEKLY_REPORT_EMAIL_SEND_AUTHORIZED: "false",
       },
@@ -167,10 +173,14 @@ test("scheduled mode opens only the Denver Friday 18:00-18:14 delivery window", 
       assert.equal(result.deliveryWindowOpen, true);
       assert.equal(result.emailDelivery.attempted, false);
       assert.equal(result.emailDelivery.reason, "weekly_ai_report_email_send_not_authorized");
+      assert.equal(result.pdfPath, path.resolve(pdfPath));
+      assert.equal(fs.existsSync(pdfPath), true);
+      assert.equal(fs.statSync(pdfPath).mode & 0o777, 0o600);
     } else {
       assert.equal(result.skipped, true);
       assert.equal(result.reason, "weekly_ai_report_outside_delivery_window");
       assert.equal(result.emailDelivery.attempted, false);
+      assert.equal(fs.existsSync(pdfPath), false);
     }
     assert.equal(fs.existsSync(deliveryLedgerPath), false);
   }
