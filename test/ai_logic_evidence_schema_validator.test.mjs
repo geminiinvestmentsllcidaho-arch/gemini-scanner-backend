@@ -20,11 +20,11 @@ function fixture(action="PROMOTION"){
     replayId:identity.replayId,sourceCommitBefore:before,sourceCommitAfter:after,
     ...(identity.acceptanceRecordId?{acceptanceRecordId:identity.acceptanceRecordId}:{}),
     ...(action==="ROLLBACK"?{rollbackTargetIdentified:true,rollbackDecisionEvidenceOnly:true}:{}),
-    ...(action==="ROLLBACK"?{rollbackTargetIdentified:true,rollbackDecisionEvidenceOnly:true}:{}),
     localJsonlOnly:true,persistenceAllowed:false,promotionAllowed:false,immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks()
   };
   const knownGood={version:"ai_logic_known_good_record_v1",valid:true,status:"KNOWN_GOOD_RECORD_VALID",
-    recordId:"kg-1",sourceCommit:before,persistenceAllowed:false,strategySwitchingAllowed:false,...locks()};
+    recordId:"kg-1",sourceCommit:before,rollbackTargetIdentified:true,rollbackExecutable:false,promotionEligible:false,
+    persistenceAllowed:false,strategySwitchingAllowed:false,...locks()};
   const operatorApproval={version:"ai_logic_operator_approval_record_v1",valid:true,explicitlyApproved:true,oneShot:true,
     recordId:"approval-1",...identity,paperOnly:true,localJsonlOnly:true,...locks()};
   const currentSourceCommit=action==="PROMOTION"?before:after;
@@ -65,7 +65,12 @@ test("fails closed on version lock mode and binding drift",()=>{
     f=>f.executionPreview.decisionRecordId="other",
     f=>f.consumptionStoreRecord.currentSourceCommit=f.consumptionStoreRecord.targetSourceCommit,
     f=>f.decisionEvidence.candidateId="other",
-    f=>f.knownGood.sourceCommit="d".repeat(40)
+    f=>delete f.decisionEvidence.acceptanceRecordId,
+    f=>f.knownGood.sourceCommit="d".repeat(40),
+    f=>f.knownGood.rollbackTargetIdentified=false,
+    f=>f.knownGood.rollbackExecutable=true,
+    f=>f.knownGood.promotionEligible=true,
+    f=>delete f.operatorApproval.recordId
   ];
   for(const mutate of cases){
     const f=fixture(); mutate(f);
