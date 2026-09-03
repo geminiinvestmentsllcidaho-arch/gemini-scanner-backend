@@ -31,6 +31,8 @@ test("builds promotion and rollback readonly plans with zero effects", ()=>{
   assert.equal(r.preconditions.authorityGateEligible,true);
   assert.equal(r.preconditions.immutableManifestVerified,true);
   assert.equal(r.preconditions.operatorApprovalValid,true);
+  assert.equal(r.preconditions.operatorApprovalBindingValid,true);
+  assert.equal(r.preconditions.operatorApprovalUnexpired,true);
   assert.equal(r.preconditions.consumptionExactlyOnce,true);
   assert.equal(r.postconditions.executionSideEffects,"NONE");
   assert.equal(r.postconditions.gitEffects,"NONE");
@@ -39,8 +41,8 @@ test("builds promotion and rollback readonly plans with zero effects", ()=>{
 });
 test("fails closed on authority drift expiry manifest and consumption mismatch", ()=>{
  let f=fx(); assert.equal(b({...f,authorityGate:{...f.authorityGate,gitMutationAllowed:true}}).eligible,false);
- f=fx(); assert.equal(b({...f,now:"2031-01-01T00:00:00.000Z"}).eligible,false);
+ f=fx(); {const r=b({...f,now:"2031-01-01T00:00:00.000Z"}); assert.equal(r.eligible,false); assert.equal(r.preconditions.operatorApprovalValid,true); assert.equal(r.preconditions.operatorApprovalUnexpired,false); assert.ok(r.reasons.includes("APPROVAL_EXPIRED"));}
  f=fx(); assert.equal(b({eligible:false,...f,immutableManifest:{ok:false,status:"BAD"}}).eligible,false);
  f=fx(); assert.equal(b({...f,consumptionStoreRecord:{...f.consumptionStoreRecord,targetSourceCommit:"drift"}}).eligible,false);
- f=fx(); assert.equal(b({...f,operatorApproval:{...f.operatorApproval,nonce:"drift"}}).eligible,false);
+ f=fx(); {const r=b({...f,operatorApproval:{...f.operatorApproval,nonce:"drift"}}); assert.equal(r.eligible,false); assert.equal(r.preconditions.operatorApprovalValid,true); assert.equal(r.preconditions.operatorApprovalBindingValid,false); assert.ok(r.reasons.includes("APPROVAL_BINDING_MISMATCH"));}
 });
