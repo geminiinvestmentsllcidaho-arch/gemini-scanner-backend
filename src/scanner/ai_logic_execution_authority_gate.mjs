@@ -15,7 +15,7 @@ export function buildAiLogicExecutionAuthorityGate({executionPreview:x,consumpti
  if(!["PROMOTION","ROLLBACK"].includes(action)||!p(approvalRecordId)||!p(nonce)||!p(decisionRecordId))r.push("APPROVAL_IDENTITY_INCOMPLETE");
  for(const [name,v] of [["approvalRecordId",approvalRecordId],["nonce",nonce],["action",action],["decisionRecordId",decisionRecordId],["currentSourceCommit",currentSourceCommit],["targetSourceCommit",targetSourceCommit]]) if(x?.[name]!==v||c?.[name]!==v) r.push("IDENTITY_BINDING_MISMATCH_"+name);
  if(d?.recordId!==decisionRecordId)r.push("DECISION_EVIDENCE_IDENTITY_MISMATCH");
- const ai=a?.identity??{};
+ const ai=a?.identity??a??{};
  for(const f of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"]) if(!p(ai?.[f])||d?.[f]!==ai[f]) r.push("DECISION_EVIDENCE_FULL_IDENTITY_MISMATCH_"+f);
  if(ai.acceptanceRecordId!=null&&d?.acceptanceRecordId!==ai.acceptanceRecordId)r.push("DECISION_EVIDENCE_FULL_IDENTITY_MISMATCH_acceptanceRecordId");
  if(k?.valid!==true||k?.status!=="KNOWN_GOOD_RECORD_VALID"||k?.recordId!==ai.knownGoodRecordId||k?.sourceCommit!==ai.sourceCommitBefore)r.push("KNOWN_GOOD_FULL_IDENTITY_MISMATCH");
