@@ -26,6 +26,7 @@ test("builds promotion and rollback readonly plans with zero effects", ()=>{
   assert.equal(r.gitMutationAllowed,false);
   assert.equal(r.exactSourceTransition.from,r.currentSourceCommit);
   assert.equal(r.exactSourceTransition.to,r.targetSourceCommit);
+  assert.equal(r.rollbackTarget,action==="PROMOTION"?r.currentSourceCommit:r.targetSourceCommit);
   assert.deepEqual(r.auditIdentity,{approvalRecordId:r.approvalRecordId,nonce:r.nonce,action:r.action,decisionRecordId:r.decisionRecordId,currentSourceCommit:r.currentSourceCommit,targetSourceCommit:r.targetSourceCommit});
   assert.equal(r.preconditions.authorityGateEligible,true);
   assert.equal(r.preconditions.immutableManifestVerified,true);
@@ -41,4 +42,5 @@ test("fails closed on authority drift expiry manifest and consumption mismatch",
  f=fx(); assert.equal(b({...f,now:"2031-01-01T00:00:00.000Z"}).eligible,false);
  f=fx(); assert.equal(b({eligible:false,...f,immutableManifest:{ok:false,status:"BAD"}}).eligible,false);
  f=fx(); assert.equal(b({...f,consumptionStoreRecord:{...f.consumptionStoreRecord,targetSourceCommit:"drift"}}).eligible,false);
+ f=fx(); assert.equal(b({...f,operatorApproval:{...f.operatorApproval,nonce:"drift"}}).eligible,false);
 });
