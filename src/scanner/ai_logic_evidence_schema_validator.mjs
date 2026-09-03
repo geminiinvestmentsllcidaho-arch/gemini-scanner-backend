@@ -1,0 +1,32 @@
+export const VERSION="ai_logic_evidence_schema_validator_v1";
+export const LOCKS="productionRuntimeWiringAllowed,promotionExecutionAllowed,rollbackExecutionAllowed,brokerContactAllowed,orderPlacementAllowed,liveTradingAllowed,accountMutationAllowed,immutablePolicyMutationAllowed,thresholdMutationAllowed,sizingMutationAllowed,allocationMutationAllowed,gitMutationAllowed".split(",");
+const present=v=>typeof v==="string"&&v.trim().length>0;
+const requireFields=(o,fields,reasons,label)=>{for(const k of fields)if(!present(o?.[k]))reasons.push(`${label}_${k}_REQUIRED`);};
+const KGLOCKS="persistenceAllowed,productionRuntimeWiringAllowed,strategySwitchingAllowed,brokerContactAllowed,orderPlacementAllowed,liveTradingAllowed,accountMutationAllowed".split(",");const DLOCKS="productionRuntimeWiringAllowed,persistenceAllowed,promotionAllowed,promotionExecutionAllowed,rollbackExecutionAllowed,brokerContactAllowed,orderPlacementAllowed,liveTradingAllowed,accountMutationAllowed,immutablePolicyMutationAllowed,thresholdMutationAllowed,sizingMutationAllowed,allocationMutationAllowed".split(",");const requireLocks=(o,reasons,label,locks=LOCKS)=>{for(const k of locks)if(o?.[k]!==false)reasons.push(`${label}_${k}_MUST_BE_FALSE`);};
+export function validateAiLogicEvidenceSchemas({decisionEvidence:d,knownGood:k,executionPreview:x,operatorApproval:a,consumptionStoreRecord:c,action}={}){
+ const reasons=[];
+ if(!["PROMOTION","ROLLBACK"].includes(action))reasons.push("ACTION_INVALID");
+ const dv=action==="PROMOTION"?"ai_logic_promotion_decision_evidence_store_v1":"ai_logic_rollback_decision_evidence_store_v1";
+ if(d?.version!==dv)reasons.push("DECISION_VERSION_INVALID");
+ requireLocks(d,reasons,"DECISION",DLOCKS);
+ if(d?.localJsonlOnly!==true||d?.immutableManifestStatus!=="IMMUTABLE_MANIFEST_VERIFIED")reasons.push("DECISION_MODE_INVALID"); if(action==="ROLLBACK"&&(d?.rollbackTargetIdentified!==true||d?.rollbackDecisionEvidenceOnly!==true))reasons.push("ROLLBACK_EVIDENCE_INVALID");
+ requireFields(d,["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"],reasons,"DECISION");
+ if(k?.version!=="ai_logic_known_good_record_v1"||k?.valid!==true||k?.status!=="KNOWN_GOOD_RECORD_VALID")reasons.push("KNOWN_GOOD_INVALID");requireLocks(k,reasons,"KNOWN_GOOD",KGLOCKS);
+ if(x?.version!=="ai_logic_execution_preview_contract_v1"||x?.eligible!==true||x?.previewOnly!==true||x?.paperOnly!==true||x?.gitEffects!=="NONE")reasons.push("PREVIEW_INVALID");requireLocks(x,reasons,"PREVIEW");requireFields(x,["approvalRecordId","nonce","action","decisionRecordId","currentSourceCommit","targetSourceCommit"],reasons,"PREVIEW");
+ if(a?.version!=="ai_logic_operator_approval_record_v1"||a?.valid!==true||a?.explicitlyApproved!==true||a?.oneShot!==true||a?.paperOnly!==true||a?.localJsonlOnly!==true)reasons.push("APPROVAL_INVALID");requireLocks(a,reasons,"APPROVAL");
+ if(c?.version!=="ai_logic_operator_approval_consumption_store_v1"||c?.exactlyOnce!==true||c?.paperOnly!==true||c?.localJsonlOnly!==true)reasons.push("CONSUMPTION_INVALID");requireLocks(c,reasons,"CONSUMPTION");
+ const ai=a??{};
+ for(const q of ["decisionRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","nonce"])if(!present(ai[q]))reasons.push("APPROVAL_IDENTITY_INCOMPLETE");
+ if(action==="PROMOTION"&&!present(ai.acceptanceRecordId))reasons.push("APPROVAL_ACCEPTANCE_REQUIRED");
+ for(const q of ["approvalRecordId","nonce","action","decisionRecordId","currentSourceCommit","targetSourceCommit"])if(x?.[q]!==c?.[q])reasons.push("PREVIEW_CONSUMPTION_BINDING_MISMATCH");
+ if(x?.action!==action||c?.action!==action)reasons.push("ACTION_BINDING_MISMATCH");
+ if(x?.approvalRecordId!==a?.recordId||c?.approvalRecordId!==a?.recordId)reasons.push("APPROVAL_BINDING_MISMATCH");
+ if(x?.nonce!==ai.nonce||c?.nonce!==ai.nonce)reasons.push("NONCE_BINDING_MISMATCH");
+ if(x?.decisionRecordId!==ai.decisionRecordId||c?.decisionRecordId!==ai.decisionRecordId)reasons.push("DECISION_APPROVAL_BINDING_MISMATCH");
+ const e=action==="PROMOTION"?[ai.sourceCommitBefore,ai.sourceCommitAfter]:[ai.sourceCommitAfter,ai.sourceCommitBefore];if(x?.currentSourceCommit!==e[0]||x?.targetSourceCommit!==e[1]||c?.currentSourceCommit!==e[0]||c?.targetSourceCommit!==e[1]||e[0]===e[1])reasons.push("SOURCE_TRANSITION_MISMATCH");
+ if(d?.recordId!==x?.decisionRecordId)reasons.push("DECISION_BINDING_MISMATCH");
+ for(const q of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"])if(d?.[q]!==ai[q])reasons.push("DECISION_APPROVAL_BINDING_MISMATCH");
+ if(ai.acceptanceRecordId!=null&&d?.acceptanceRecordId!==ai.acceptanceRecordId)reasons.push("ACCEPTANCE_BINDING_MISMATCH");
+ if(k?.recordId!==ai.knownGoodRecordId||k?.sourceCommit!==ai.sourceCommitBefore)reasons.push("KNOWN_GOOD_BINDING_MISMATCH");
+ const eligible=!reasons.length;return Object.freeze({version:VERSION,eligible,status:eligible?"AI_LOGIC_EVIDENCE_SCHEMA_VALID":"AI_LOGIC_EVIDENCE_SCHEMA_HOLD",reasons:Object.freeze(reasons),readOnly:true,evidenceOnly:true,paperOnly:true,executionSideEffects:"NONE",runtimeIntegration:"NONE",gitEffects:"NONE"});
+}
