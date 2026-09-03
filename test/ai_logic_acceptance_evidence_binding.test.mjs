@@ -38,7 +38,7 @@ const base = {
   safetyGate: {
     candidateId: "candidate-001",
     eligible: true,
-    status: "AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE",
+    status: "AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY",
     disposition: "OFFLINE_EVIDENCE_ONLY",
     replay,
   },
@@ -102,4 +102,51 @@ test("fails closed when replay or acceptance is not eligible evidence", () => {
   });
   assert.equal(r.eligible, false);
   assert.ok(r.reasons.includes("ACCEPTANCE_NOT_ELIGIBLE"));
+});
+
+
+test("binds orchestrator candidate source hash and replay identity when supplied", () => {
+  const orchestrator = {
+    eligible: true,
+    status: "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
+    disposition: "OFFLINE_EVIDENCE_ONLY",
+    candidateId: "candidate-001",
+    sourceHash: "sourcehash001",
+    safety: { replay },
+  };
+  const r = evaluateAiLogicAcceptanceEvidenceBinding({
+    ...base,
+    orchestrator,
+    candidateSourceHash: "sourcehash001",
+  });
+  assert.equal(r.eligible, true);
+  assert.equal(r.binding.candidateSourceHash, "sourcehash001");
+});
+
+test("fails closed on orchestrator source hash or replay identity drift", () => {
+  const orchestrator = {
+    eligible: true,
+    status: "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
+    disposition: "OFFLINE_EVIDENCE_ONLY",
+    candidateId: "candidate-001",
+    sourceHash: "sourcehash001",
+    safety: { replay: { ...replay, replayId: "other-replay" } },
+  };
+  const r = evaluateAiLogicAcceptanceEvidenceBinding({
+    ...base,
+    orchestrator,
+    candidateSourceHash: "other-sourcehash",
+  });
+  assert.equal(r.eligible, false);
+  assert.ok(r.reasons.includes("CANDIDATE_SOURCE_HASH_BINDING_MISMATCH"));
+  assert.ok(r.reasons.includes("ORCHESTRATOR_REPLAY_ID_BINDING_MISMATCH"));
+});
+
+test("fails closed when source hash binding is requested without orchestrator evidence", () => {
+  const r = evaluateAiLogicAcceptanceEvidenceBinding({
+    ...base,
+    candidateSourceHash: "sourcehash001",
+  });
+  assert.equal(r.eligible, false);
+  assert.ok(r.reasons.includes("ORCHESTRATOR_REQUIRED_FOR_SOURCE_HASH_BINDING"));
 });

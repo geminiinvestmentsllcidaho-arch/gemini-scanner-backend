@@ -37,32 +37,15 @@ export async function runAiLogicOfflineCandidateOrchestrator(input={},options={}
   });
   if(binding.eligible!==true) return reject("EVALUATOR_BINDING",binding.reasons,{write,binding});
 
-  const safety=evaluateAiLogicCandidateSafetyGate({
-    candidateId:input.candidateId,
-    topic:input.topic,
-    explicitFixtureOrInMemoryOnly:input.explicitFixtureOrInMemoryOnly===true,
-    requestsExistingSourceMutation:false,
-    requestsProductionWiring:false,
-    requestsLedgerWrite:false,
-    changedPaths:write.changedPaths,
-    mutationIntents:input.mutationIntents,
-    sourceText,
-    samples:input.samples,
-    baselineEvaluator:input.baselineEvaluator,
-    candidateEvaluator:binding.evaluator,
-  },{manifestResult:options.manifestResult});
-
-  if(safety.eligible!==true) return reject("OFFLINE_SAFETY_GATE",safety.reasons,{write,binding:Object.freeze({
-    status:binding.status,candidatePath:binding.candidatePath,sourceHash:binding.sourceHash
-  }),safety});
-
-  return Object.freeze({
-    version:VERSION,eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
-    disposition:"OFFLINE_EVIDENCE_ONLY",stage:"COMPLETE",reasons:Object.freeze([]),
-    candidateId:safety.candidateId,candidatePath,sourceHash:binding.sourceHash,
-    write:Object.freeze({status:write.status,filesWritten:write.filesWritten}),
-    binding:Object.freeze({status:binding.status,candidatePath:binding.candidatePath,sourceHash:binding.sourceHash}),
-    safety,...LOCKS
+  return reject("CANDIDATE_EXECUTION_DISABLED",["CANDIDATE_SOURCE_EXECUTION_REQUIRES_ISOLATED_RUNNER"],{
+    write,
+    binding:Object.freeze({
+      status:binding.status,
+      candidatePath:binding.candidatePath,
+      sourceHash:binding.sourceHash,
+      sourceExecutionAllowed:binding.sourceExecutionAllowed,
+      dynamicImportAllowed:binding.dynamicImportAllowed
+    })
   });
 }
 export default Object.freeze({VERSION,runAiLogicOfflineCandidateOrchestrator});

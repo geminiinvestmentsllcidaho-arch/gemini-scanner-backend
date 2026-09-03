@@ -41,7 +41,7 @@ export function evaluateAiLogicAcceptanceEvidenceBinding(input = {}) {
   if (knownGood.promotionEligible !== false) reasons.push("KNOWN_GOOD_PROMOTION_ELIGIBLE_MUST_BE_FALSE");
 
   if (safetyGate.eligible !== true) reasons.push("SAFETY_GATE_NOT_ELIGIBLE");
-  if (safetyGate.status !== "AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE") reasons.push("SAFETY_GATE_STATUS_INVALID");
+  if (safetyGate.status !== "AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY") reasons.push("SAFETY_GATE_STATUS_INVALID");
   if (safetyGate.disposition !== "OFFLINE_EVIDENCE_ONLY") reasons.push("SAFETY_GATE_DISPOSITION_INVALID");
 
   if (replay.status !== "AI_LOGIC_OFFLINE_CANDIDATE_REPLAY_COMPLETE") reasons.push("REPLAY_NOT_COMPLETE");
@@ -70,6 +70,19 @@ export function evaluateAiLogicAcceptanceEvidenceBinding(input = {}) {
   if (acceptance.comparison?.accuracyDelta !== replay.candidateMetrics?.accuracyDelta) reasons.push("ACCEPTANCE_ACCURACY_DELTA_BINDING_MISMATCH");
   if (acceptance.comparison?.changedCount !== replay.candidateMetrics?.changedCount) reasons.push("ACCEPTANCE_CHANGED_COUNT_BINDING_MISMATCH");
 
+  const orchestrator = input.orchestrator ?? {};
+  if (orchestrator && Object.keys(orchestrator).length > 0) {
+    if (orchestrator.eligible !== true) reasons.push("ORCHESTRATOR_NOT_ELIGIBLE");
+    if (orchestrator.status !== "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE") reasons.push("ORCHESTRATOR_STATUS_INVALID");
+    if (orchestrator.disposition !== "OFFLINE_EVIDENCE_ONLY") reasons.push("ORCHESTRATOR_DISPOSITION_INVALID");
+    if (!present(orchestrator.candidateId) || orchestrator.candidateId !== replay.candidateId) reasons.push("ORCHESTRATOR_CANDIDATE_ID_BINDING_MISMATCH");
+    if (!present(orchestrator.sourceHash)) reasons.push("ORCHESTRATOR_SOURCE_HASH_REQUIRED");
+    if (present(input.candidateSourceHash) && orchestrator.sourceHash !== input.candidateSourceHash) reasons.push("CANDIDATE_SOURCE_HASH_BINDING_MISMATCH");
+    if (orchestrator.safety?.replay?.replayId !== replay.replayId) reasons.push("ORCHESTRATOR_REPLAY_ID_BINDING_MISMATCH");
+  } else if (present(input.candidateSourceHash)) {
+    reasons.push("ORCHESTRATOR_REQUIRED_FOR_SOURCE_HASH_BINDING");
+  }
+
   const eligible = reasons.length === 0;
   return Object.freeze({
     version: VERSION,
@@ -83,6 +96,9 @@ export function evaluateAiLogicAcceptanceEvidenceBinding(input = {}) {
       replayId: present(replay.replayId) ? replay.replayId : null,
       sourceCommitBefore: present(experiment.sourceCommitBefore) ? experiment.sourceCommitBefore : null,
       sourceCommitAfter: present(experiment.sourceCommitAfter) ? experiment.sourceCommitAfter : null,
+      candidateSourceHash: present(input.candidateSourceHash)
+        ? input.candidateSourceHash
+        : (present(orchestrator.sourceHash) ? orchestrator.sourceHash : null),
     }),
     ...LOCKS,
   });

@@ -16,8 +16,11 @@ test("binds exactly one isolated evaluator with source hash and all authority cl
   fs.writeFileSync(path.join(root,rel),src,{mode:0o600});
   const r=await bind({candidatePath:rel,expectedSourceHash:h(src)},{rootDir:root,manifestResult:manifest});
   assert.equal(r.eligible,true);
-  assert.equal(r.status,"AI_LOGIC_CANDIDATE_EVALUATOR_BOUND");
-  assert.equal(r.evaluator({ok:true}),"OK");
+  assert.equal(r.status,"AI_LOGIC_CANDIDATE_ARTIFACT_BOUND");
+  assert.equal(r.disposition,"OFFLINE_ARTIFACT_IDENTITY_ONLY");
+  assert.equal(r.evaluator,null);
+  assert.equal(r.sourceExecutionAllowed,false);
+  assert.equal(r.dynamicImportAllowed,false);
   assert.equal(r.sourceHash,h(src));
   for(const k of ["productionRuntimeWiringAllowed","promotionExecutionAllowed","rollbackExecutionAllowed",
     "brokerContactAllowed","orderPlacementAllowed","liveTradingAllowed","accountMutationAllowed",
@@ -42,4 +45,22 @@ test("fails closed on outside path dependency import hash drift or extra export"
     assert.ok(r.reasons.includes(reason),`${reason}: ${r.reasons}`);
     assert.equal(r.evaluator,null);
   }
+});
+
+test("does not execute candidate top-level source", async () => {
+  globalThis.__A58_SIDE_EFFECT__ = undefined;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ai-bind-noexec-"));
+  const dir = path.join(root, "src/scanner/ai_logic_candidates");
+  fs.mkdirSync(dir, { recursive: true });
+  const source = 'globalThis.__A58_SIDE_EFFECT__ = true; export function evaluateCandidate(sample){ return sample.expected; }';
+  const file = path.join(dir, "side-effect.mjs");
+  fs.writeFileSync(file, source);
+  const r = await bind({
+    candidatePath: "src/scanner/ai_logic_candidates/side-effect.mjs",
+    expectedSourceHash: crypto.createHash("sha256").update(source).digest("hex"),
+  }, { rootDir: root, manifestResult: { ok:true, status:"IMMUTABLE_MANIFEST_VERIFIED" } });
+  assert.equal(r.eligible, true);
+  assert.equal(globalThis.__A58_SIDE_EFFECT__, undefined);
+  assert.equal(r.evaluator, null);
+  assert.equal(r.sourceExecutionAllowed, false);
 });

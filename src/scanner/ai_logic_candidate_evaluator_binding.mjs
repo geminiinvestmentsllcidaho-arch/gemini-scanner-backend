@@ -1,10 +1,9 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { verifyImmutablePolicyManifest } from "./ai_logic_immutable_manifest.mjs";
 
-export const VERSION = "ai_logic_candidate_evaluator_binding_v1";
+export const VERSION = "ai_logic_candidate_artifact_binding_v1";
 const PREFIX = "src/scanner/ai_logic_candidates/";
 const LOCKS = Object.freeze({
   productionRuntimeWiringAllowed:false, promotionExecutionAllowed:false,
@@ -17,8 +16,8 @@ const LOCKS = Object.freeze({
 const clean = (v) => String(v ?? "").trim().replaceAll("\\","/").replace(/^\.\//,"").replace(/\/+/g,"/");
 const hash = (s) => crypto.createHash("sha256").update(s).digest("hex");
 function reject(reasons, candidatePath=null) {
-  return Object.freeze({version:VERSION,eligible:false,status:"AI_LOGIC_CANDIDATE_EVALUATOR_BINDING_REJECT",
-    disposition:"NO_EVALUATOR_BOUND",reasons:Object.freeze([...new Set(reasons)].sort()),
+  return Object.freeze({version:VERSION,eligible:false,status:"AI_LOGIC_CANDIDATE_ARTIFACT_BINDING_REJECT",
+    disposition:"NO_ARTIFACT_BOUND",reasons:Object.freeze([...new Set(reasons)].sort()),
     candidatePath,evaluator:null,sourceHash:null,...LOCKS});
 }
 export async function bindAiLogicCandidateEvaluator(input={}, options={}) {
@@ -41,19 +40,15 @@ export async function bindAiLogicCandidateEvaluator(input={}, options={}) {
   const sourceHash = hash(source);
   if (expectedSourceHash && expectedSourceHash !== sourceHash) return reject(["SOURCE_HASH_MISMATCH"],candidatePath);
   if (/(^|\n)\s*import\s|import\s*\(|\brequire\s*\(/m.test(source)) return reject(["DEPENDENCY_IMPORT_FORBIDDEN"],candidatePath);
-  let mod;
-  try {
-    mod = await import(`${pathToFileURL(target).href}?aih=${sourceHash}`);
-  } catch {
-    return reject(["CANDIDATE_IMPORT_FAILED"],candidatePath);
-  }
-  const exports = Object.keys(mod).sort();
-  if (exports.length !== 1 || exports[0] !== "evaluateCandidate" || typeof mod.evaluateCandidate !== "function") {
-    return reject(["SINGLE_EVALUATOR_EXPORT_REQUIRED"],candidatePath);
-  }
-  return Object.freeze({version:VERSION,eligible:true,status:"AI_LOGIC_CANDIDATE_EVALUATOR_BOUND",
-    disposition:"OFFLINE_EVALUATOR_ONLY",reasons:Object.freeze([]),candidatePath,
-    evaluator:mod.evaluateCandidate,sourceHash,dependencyAuthority:"NONE",
+  const exportNames=[...source.matchAll(/\bexport\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/g)].map((m)=>m[1]);
+  if (exportNames.length !== 1 || exportNames[0] !== "evaluateCandidate") return reject(["SINGLE_EVALUATOR_EXPORT_REQUIRED"],candidatePath);
+  const evaluator = null;
+  const sourceExecutionAllowed = false;
+  const dynamicImportAllowed = false;
+
+  return Object.freeze({version:VERSION,eligible:true,status:"AI_LOGIC_CANDIDATE_ARTIFACT_BOUND",
+    disposition:"OFFLINE_ARTIFACT_IDENTITY_ONLY",reasons:Object.freeze([]),candidatePath,
+    evaluator,sourceHash,candidateArtifactId:sourceHash,dependencyAuthority:"NONE",sourceExecutionAllowed,dynamicImportAllowed,
     importScope:"CANDIDATE_SANDBOX_ONLY",...LOCKS});
 }
 export default Object.freeze({VERSION,bindAiLogicCandidateEvaluator});
