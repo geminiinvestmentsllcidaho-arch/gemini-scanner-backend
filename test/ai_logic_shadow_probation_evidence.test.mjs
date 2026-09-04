@@ -27,6 +27,7 @@ function validInput() {
       replayId: "replay-001",
       sourceCommitBefore: "a".repeat(40),
       sourceCommitAfter: "b".repeat(40),
+      candidateSourceHash: "c".repeat(64),
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
     },
@@ -93,4 +94,12 @@ test("fails closed for incomplete acceptance identity and invalid immutable stat
   assert.equal(r.complete, false);
   assert.ok(r.reasons.includes("REPLAY_ID_REQUIRED"));
   assert.ok(r.reasons.includes("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID"));
+});
+
+test("candidate source hash provenance is required and preserved", () => {
+  const a = validInput();
+  a.acceptanceEvidence.candidateSourceHash = "";
+  assert.equal(buildAiLogicShadowProbationEvidence(a).complete, false);
+  const b = buildAiLogicShadowProbationEvidence(validInput());
+  assert.equal(b.candidateSourceHash, "c".repeat(64));
 });

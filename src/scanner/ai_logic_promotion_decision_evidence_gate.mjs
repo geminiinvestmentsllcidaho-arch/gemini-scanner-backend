@@ -28,7 +28,7 @@ export function evaluateAiLogicPromotionDecisionEvidence(input = {}) {
 
   if (manifest.ok !== true || manifest.status !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("IMMUTABLE_MANIFEST_NOT_VERIFIED");
   if (acceptance.version !== "ai_logic_acceptance_evidence_store_v1") reasons.push("ACCEPTANCE_EVIDENCE_VERSION_INVALID");
-  for (const key of ["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"]) {
+  for (const key of ["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
     if (!present(acceptance[key])) reasons.push(`ACCEPTANCE_${key.toUpperCase()}_REQUIRED`);
   }
   if (acceptance.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID");
@@ -49,6 +49,7 @@ export function evaluateAiLogicPromotionDecisionEvidence(input = {}) {
   if (b.replayId !== acceptance.replayId) reasons.push("ASSESSMENT_REPLAY_BINDING_MISMATCH");
   if (b.sourceCommitBefore !== acceptance.sourceCommitBefore) reasons.push("ASSESSMENT_SOURCE_COMMIT_BEFORE_MISMATCH");
   if (b.sourceCommitAfter !== acceptance.sourceCommitAfter) reasons.push("ASSESSMENT_SOURCE_COMMIT_AFTER_MISMATCH");
+  if (b.candidateSourceHash !== acceptance.candidateSourceHash) reasons.push("ASSESSMENT_CANDIDATE_SOURCE_HASH_MISMATCH");
   if (assessment.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("ASSESSMENT_IMMUTABLE_MANIFEST_INVALID");
 
   for (const key of Object.keys(LOCKS)) {
@@ -71,6 +72,7 @@ export function evaluateAiLogicPromotionDecisionEvidence(input = {}) {
       replayId: present(acceptance.replayId) ? acceptance.replayId : null,
       sourceCommitBefore: present(acceptance.sourceCommitBefore) ? acceptance.sourceCommitBefore : null,
       sourceCommitAfter: present(acceptance.sourceCommitAfter) ? acceptance.sourceCommitAfter : null,
+      candidateSourceHash: present(acceptance.candidateSourceHash) ? acceptance.candidateSourceHash : null,
     }),
     immutableManifestStatus: manifest.status,
     promotionExecutionAllowed: false,

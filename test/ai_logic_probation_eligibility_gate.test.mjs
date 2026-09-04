@@ -27,6 +27,7 @@ function validInput() {
       replayId: "replay-001",
       sourceCommitBefore: "a".repeat(40),
       sourceCommitAfter: "b".repeat(40),
+      candidateSourceHash: "c".repeat(64),
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
     },
@@ -49,6 +50,7 @@ function validInput() {
       status: "SHADOW_PROBATION_EVIDENCE_COMPLETE",
       sampleCount: 10,
       candidateId: "candidate-001",
+      candidateSourceHash: "c".repeat(64),
       knownGoodRecordId: "known-good-001",
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
@@ -98,4 +100,15 @@ test("fails closed for incomplete probation evidence", () => {
   assert.equal(r.eligible, false);
   assert.ok(r.reasons.includes("PROBATION_EVIDENCE_NOT_COMPLETE"));
   assert.ok(r.reasons.includes("PROBATION_SAMPLE_COUNT_REQUIRED"));
+});
+
+test("candidate source hash provenance is required and exact", () => {
+  const a = validInput();
+  a.acceptanceEvidence.candidateSourceHash = "";
+  assert.equal(evaluateAiLogicProbationEligibility(a).eligible, false);
+  const b = validInput();
+  b.probationEvidence.candidateSourceHash = "d".repeat(64);
+  assert.equal(evaluateAiLogicProbationEligibility(b).eligible, false);
+  const c = evaluateAiLogicProbationEligibility(validInput());
+  assert.equal(c.binding.candidateSourceHash, "c".repeat(64));
 });

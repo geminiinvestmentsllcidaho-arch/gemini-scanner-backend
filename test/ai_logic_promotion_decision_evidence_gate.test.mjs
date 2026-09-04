@@ -5,9 +5,9 @@ import { evaluateAiLogicPromotionDecisionEvidence } from "../src/scanner/ai_logi
 const locks={productionRuntimeWiringAllowed:false,persistenceAllowed:false,promotionAllowed:false,rollbackExecutionAllowed:false,brokerContactAllowed:false,orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,allocationMutationAllowed:false};
 
 function fixture(){
-  const acceptanceEvidence={version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",localJsonlOnly:true,...locks};
+  const acceptanceEvidence={version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64),immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",localJsonlOnly:true,...locks};
   const knownGood={valid:true,status:"KNOWN_GOOD_RECORD_VALID",recordId:"k1",sourceCommit:"before",immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",rollbackTargetIdentified:true,rollbackExecutable:false,promotionEligible:false,strategySwitchingAllowed:false,...locks};
-  const shadowAssessment={version:"ai_logic_shadow_probation_consumer_v1",accepted:true,status:"AI_LOGIC_SHADOW_PROBATION_ASSESSMENT_EVIDENCE",disposition:"ISOLATED_PROBATION_ASSESSMENT_EVIDENCE_ONLY",binding:{acceptanceRecordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after"},immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks};
+  const shadowAssessment={version:"ai_logic_shadow_probation_consumer_v1",accepted:true,status:"AI_LOGIC_SHADOW_PROBATION_ASSESSMENT_EVIDENCE",disposition:"ISOLATED_PROBATION_ASSESSMENT_EVIDENCE_ONLY",binding:{acceptanceRecordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64)},immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks};
   return {acceptanceEvidence,knownGood,shadowAssessment};
 }
 
@@ -38,4 +38,15 @@ test("fails closed without known-good rollback target or when a mutation lock is
   assert.equal(r.eligible,false);
   assert.ok(r.reasons.includes("KNOWN_GOOD_ROLLBACK_TARGET_REQUIRED"));
   assert.ok(r.reasons.includes("MUTATION_LOCK_NOT_CLOSED_PROMOTIONALLOWED"));
+});
+
+test("candidate source hash provenance is required and exact",()=>{
+  const a=fixture();
+  a.acceptanceEvidence={...a.acceptanceEvidence,candidateSourceHash:""};
+  assert.equal(evaluateAiLogicPromotionDecisionEvidence(a).eligible,false);
+  const b=fixture();
+  b.shadowAssessment={...b.shadowAssessment,binding:{...b.shadowAssessment.binding,candidateSourceHash:"d".repeat(64)}};
+  assert.equal(evaluateAiLogicPromotionDecisionEvidence(b).eligible,false);
+  const c=evaluateAiLogicPromotionDecisionEvidence(fixture());
+  assert.equal(c.binding.candidateSourceHash,"c".repeat(64));
 });

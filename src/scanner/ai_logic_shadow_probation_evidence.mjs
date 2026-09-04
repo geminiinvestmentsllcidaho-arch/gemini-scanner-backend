@@ -38,6 +38,7 @@ export function buildAiLogicShadowProbationEvidence(input = {}) {
   if (!present(acceptance.replayId)) reasons.push("REPLAY_ID_REQUIRED");
   if (!present(acceptance.sourceCommitBefore)) reasons.push("SOURCE_COMMIT_BEFORE_REQUIRED");
   if (!present(acceptance.sourceCommitAfter)) reasons.push("SOURCE_COMMIT_AFTER_REQUIRED");
+  if (!present(acceptance.candidateSourceHash)) reasons.push("CANDIDATE_SOURCE_HASH_REQUIRED");
   if (acceptance.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") {
     reasons.push("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID");
   }
@@ -76,6 +77,7 @@ export function buildAiLogicShadowProbationEvidence(input = {}) {
     replayId: present(acceptance.replayId) ? acceptance.replayId : null,
     sourceCommitBefore: present(acceptance.sourceCommitBefore) ? acceptance.sourceCommitBefore : null,
     sourceCommitAfter: present(acceptance.sourceCommitAfter) ? acceptance.sourceCommitAfter : null,
+    candidateSourceHash: present(acceptance.candidateSourceHash) ? acceptance.candidateSourceHash : null,
     immutableManifestStatus: manifest.status,
     observations: Object.freeze(observations.map((row, index) => Object.freeze({
       sampleId: present(row?.sampleId) ? row.sampleId.trim() : `probation-${index + 1}`,

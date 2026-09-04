@@ -11,7 +11,7 @@ const locks = {
 
 function fixture() {
   const acceptanceEvidence = {
-    version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",
+    version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",candidateSourceHash:"c".repeat(64),
     knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
     immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",localJsonlOnly:true,...locks,
   };
@@ -20,7 +20,7 @@ function fixture() {
     immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks,
   };
   const shadowProbationEvidence = {
-    status:"SHADOW_PROBATION_EVIDENCE_COMPLETE",sampleCount:3,candidateId:"c1",
+    status:"SHADOW_PROBATION_EVIDENCE_COMPLETE",sampleCount:3,candidateId:"c1",candidateSourceHash:"c".repeat(64),
     knownGoodRecordId:"k1",acceptanceRecordId:"a1",replayId:"r1",
     sourceCommitBefore:"before",sourceCommitAfter:"after",
     immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks,
@@ -55,4 +55,15 @@ test("fails closed when acceptance provenance or a mutation lock is open", () =>
   assert.equal(r.disposition, "REJECT_OR_HOLD");
   assert.ok(r.reasons.includes("ACCEPTANCE_LOCAL_JSONL_ONLY_REQUIRED"));
   assert.ok(r.reasons.includes("MUTATION_LOCK_NOT_CLOSED_PROMOTIONALLOWED"));
+});
+
+test("candidate source hash provenance is required and exact",()=>{
+  const a=fixture();
+  a.acceptanceEvidence={...a.acceptanceEvidence,candidateSourceHash:""};
+  assert.equal(evaluateAiLogicShadowProbationEvidence(a).accepted,false);
+  const b=fixture();
+  b.shadowProbationEvidence={...b.shadowProbationEvidence,candidateSourceHash:"d".repeat(64)};
+  assert.equal(evaluateAiLogicShadowProbationEvidence(b).accepted,false);
+  const c=evaluateAiLogicShadowProbationEvidence(fixture());
+  assert.equal(c.binding.candidateSourceHash,"c".repeat(64));
 });

@@ -38,6 +38,7 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
   if (!present(evidence.replayId)) reasons.push("REPLAY_ID_REQUIRED");
   if (!present(evidence.sourceCommitBefore)) reasons.push("SOURCE_COMMIT_BEFORE_REQUIRED");
   if (!present(evidence.sourceCommitAfter)) reasons.push("SOURCE_COMMIT_AFTER_REQUIRED");
+  if (!present(evidence.candidateSourceHash)) reasons.push("CANDIDATE_SOURCE_HASH_REQUIRED");
   if (evidence.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") {
     reasons.push("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID");
   }
@@ -63,6 +64,9 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
   }
   if (probation.candidateId !== evidence.candidateId) {
     reasons.push("PROBATION_CANDIDATE_BINDING_MISMATCH");
+  }
+  if (probation.candidateSourceHash !== evidence.candidateSourceHash) {
+    reasons.push("PROBATION_CANDIDATE_SOURCE_HASH_MISMATCH");
   }
   if (probation.knownGoodRecordId !== evidence.knownGoodRecordId) {
     reasons.push("PROBATION_KNOWN_GOOD_BINDING_MISMATCH");
@@ -107,6 +111,7 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
       replayId: present(evidence.replayId) ? evidence.replayId : null,
       sourceCommitBefore: present(evidence.sourceCommitBefore) ? evidence.sourceCommitBefore : null,
       sourceCommitAfter: present(evidence.sourceCommitAfter) ? evidence.sourceCommitAfter : null,
+      candidateSourceHash: present(evidence.candidateSourceHash) ? evidence.candidateSourceHash : null,
     }),
     probationEvidence: Object.freeze({
       status: present(probation.status) ? probation.status : null,
