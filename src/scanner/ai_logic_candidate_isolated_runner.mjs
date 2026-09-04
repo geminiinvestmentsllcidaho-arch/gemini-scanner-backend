@@ -9,6 +9,25 @@ const LOCKS=Object.freeze({
   allocationMutationAllowed:false,gitMutationAllowed:false,
 });
 const hash=(s)=>crypto.createHash("sha256").update(String(s??"")).digest("hex");
+function assertJsonCompatible(value,seen=new WeakSet()) {
+  if(value===null || typeof value==="string" || typeof value==="boolean") return;
+  if(typeof value==="number") { if(Number.isFinite(value)) return; throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE"); }
+  if(typeof value!=="object") throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+  if(seen.has(value)) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+  seen.add(value);
+  if(Array.isArray(value)) {
+    for(const item of value) assertJsonCompatible(item,seen);
+  } else {
+    const proto=Object.getPrototypeOf(value);
+    if(proto!==Object.prototype && proto!==null) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+    if(Object.getOwnPropertySymbols(value).length) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+    for(const d of Object.values(Object.getOwnPropertyDescriptors(value))) {
+      if(!("value" in d)) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+      assertJsonCompatible(d.value,seen);
+    }
+  }
+  seen.delete(value);
+}
 const WORKER=String.raw`
 import vm from "node:vm";
 let raw="";
@@ -26,6 +45,26 @@ const fn=mod.namespace.evaluateCandidate;
 if(typeof fn!=="function") throw new Error("EVALUATOR_EXPORT_REQUIRED");
 const out=fn(req.input);
 if(out&&typeof out.then==="function") throw new Error("ASYNC_EVALUATOR_FORBIDDEN");
+const seen=new WeakSet();
+function valid(v){
+  if(v===null||typeof v==="string"||typeof v==="boolean") return true;
+  if(typeof v==="number") return Number.isFinite(v);
+  if(typeof v!=="object"||seen.has(v)) return false;
+  seen.add(v);
+  let ok=true;
+  if(Array.isArray(v)) {
+    for(const x of v) if(!valid(x)){ok=false;break;}
+  } else {
+    const proto=Object.getPrototypeOf(v);
+    if(!(proto===null||Object.getPrototypeOf(proto)===null)||Object.getOwnPropertySymbols(v).length) ok=false;
+    else for(const d of Object.values(Object.getOwnPropertyDescriptors(v))) {
+      if(!("value" in d)||!valid(d.value)){ok=false;break;}
+    }
+  }
+  seen.delete(v);
+  return ok;
+}
+if(!valid(out)) throw new Error("CANDIDATE_OUTPUT_INVALID");
 process.stdout.write(JSON.stringify({ok:true,output:out}));
 `;
 
@@ -42,8 +81,11 @@ export function createAiLogicIsolatedEvaluator(input={},options={}) {
   const sourceHash=hash(source);
   if(!source.trim()) return fail("CANDIDATE_SOURCE_REQUIRED");
   if(expected&&expected!==sourceHash) return fail("SOURCE_HASH_MISMATCH",{sourceHash});
-  const timeoutMs=Math.max(50,Math.min(2000,Number(options.timeoutMs??500)));
+  const requestedTimeout=options.timeoutMs??500;
+  if(typeof requestedTimeout!=="number" || !Number.isFinite(requestedTimeout)) return fail("TIMEOUT_INVALID");
+  const timeoutMs=Math.max(50,Math.min(2000,Math.trunc(requestedTimeout)));
   const evaluator=(sample)=>{
+    assertJsonCompatible(sample);
     let payload;
     try { payload=JSON.stringify({source,input:sample,timeoutMs}); }
     catch { throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE"); }
@@ -63,6 +105,7 @@ export function createAiLogicIsolatedEvaluator(input={},options={}) {
     try { parsed=JSON.parse(String(r.stdout??"")); }
     catch { throw new Error("CANDIDATE_OUTPUT_INVALID"); }
     if(parsed?.ok!==true) throw new Error("CANDIDATE_EVALUATION_ERROR");
+    if(!Object.prototype.hasOwnProperty.call(parsed,"output")) throw new Error("CANDIDATE_OUTPUT_INVALID");
     return parsed.output;
   };
   Object.defineProperties(evaluator,{
