@@ -17,11 +17,20 @@ const base=()=>({
 test("writes binds and replays isolated candidate with authority closed",async()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),"a57g-"));
   const r=await run(base(),{rootDir:root,manifestResult:manifest});
-  assert.equal(r.eligible,false);
-  assert.equal(r.stage,"CANDIDATE_EXECUTION_DISABLED");
-  assert.ok(r.reasons.includes("CANDIDATE_SOURCE_EXECUTION_REQUIRES_ISOLATED_RUNNER"));
+  assert.equal(r.eligible,true);
+  assert.equal(r.status,"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE");
+  assert.equal(r.disposition,"OFFLINE_EVIDENCE_ONLY");
+  assert.equal(r.stage,"COMPLETE");
   assert.equal(r.binding.sourceExecutionAllowed,false);
   assert.equal(r.binding.dynamicImportAllowed,false);
+  assert.equal(r.runner.status,"AI_LOGIC_CANDIDATE_ISOLATED_RUNNER_READY");
+  assert.equal(r.runner.isolation,"CHILD_PROCESS_VM_MODULE");
+  assert.equal(r.runner.importsAllowed,false);
+  assert.equal(r.runner.dynamicImportAllowed,false);
+  assert.equal(r.runner.timeoutEnforced,true);
+  assert.equal(r.safety.eligible,true);
+  assert.equal(r.safety.gates.offlineReplay,"AI_LOGIC_OFFLINE_CANDIDATE_REPLAY_COMPLETE");
+  assert.equal(r.safety.replay.candidateMetrics.accuracy,1);
   for(const k of ["productionRuntimeWiringAllowed","promotionExecutionAllowed","rollbackExecutionAllowed",
     "brokerContactAllowed","orderPlacementAllowed","liveTradingAllowed","accountMutationAllowed",
     "immutablePolicyMutationAllowed","thresholdMutationAllowed","sizingMutationAllowed",
