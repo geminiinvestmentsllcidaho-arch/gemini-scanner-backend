@@ -33,7 +33,12 @@ function fixture() {
       allocationMutationAllowed: false,
       gitMutationAllowed: false,
     },
-    acceptanceEvidence: { ...binding },
+    acceptanceEvidence: {
+      eligible: true,
+      status: "AI_LOGIC_PRE_SHADOW_ACCEPTANCE_EVIDENCE_BINDING_VALID",
+      disposition: "OFFLINE_PRE_SHADOW_ACCEPTANCE_BINDING_EVIDENCE_ONLY",
+      binding: { ...binding },
+    },
   };
 }
 
@@ -47,10 +52,10 @@ test("permits shadow entry evidence only with exact pre-shadow provenance bindin
 
 test("fails closed on candidate source hash or replay drift", () => {
   const a = fixture();
-  a.acceptanceEvidence.candidateSourceHash = "d".repeat(64);
+  a.acceptanceEvidence.binding.candidateSourceHash = "d".repeat(64);
   assert.equal(gate(a).eligible, false);
   const b = fixture();
-  b.acceptanceEvidence.replayId = "other";
+  b.acceptanceEvidence.binding.replayId = "other";
   assert.equal(gate(b).eligible, false);
 });
 

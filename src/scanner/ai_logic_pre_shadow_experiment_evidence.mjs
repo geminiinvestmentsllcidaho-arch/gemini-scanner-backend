@@ -11,7 +11,7 @@ export function buildAiLogicPreShadowExperimentEvidence(input={}){
  if(!present(knownGood.recordId)||!present(knownGood.sourceCommit))reasons.push("KNOWN_GOOD_IDENTITY_REQUIRED");
  if(orchestrator.eligible!==true||orchestrator.status!=="AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE"||orchestrator.disposition!=="OFFLINE_EVIDENCE_ONLY")reasons.push("ORCHESTRATOR_INVALID");
  if(orchestrator.safety?.replay?.status!=="AI_LOGIC_OFFLINE_CANDIDATE_REPLAY_COMPLETE"||orchestrator.safety?.replay?.immutableManifestStatus!=="IMMUTABLE_MANIFEST_VERIFIED")reasons.push("REPLAY_INVALID");
- if(acceptanceBinding.eligible!==true||acceptanceBinding.status!=="AI_LOGIC_ACCEPTANCE_EVIDENCE_BINDING_VALID"||acceptanceBinding.disposition!=="OFFLINE_ACCEPTANCE_BINDING_EVIDENCE_ONLY")reasons.push("ACCEPTANCE_BINDING_INVALID");
+ if(acceptanceBinding.eligible!==true||acceptanceBinding.status!=="AI_LOGIC_PRE_SHADOW_ACCEPTANCE_EVIDENCE_BINDING_VALID"||acceptanceBinding.disposition!=="OFFLINE_PRE_SHADOW_ACCEPTANCE_BINDING_EVIDENCE_ONLY")reasons.push("ACCEPTANCE_BINDING_INVALID");
  if(!present(b.candidateId)||!present(b.candidateSourceHash)||!present(b.replayId)||!present(b.sourceCommitBefore)||!present(b.sourceCommitAfter))reasons.push("ACCEPTANCE_IDENTITY_INCOMPLETE");
  if(b.knownGoodRecordId!==knownGood.recordId||b.sourceCommitBefore!==knownGood.sourceCommit)reasons.push("KNOWN_GOOD_BINDING_MISMATCH");
  if(b.candidateId!==orchestrator.candidateId||b.candidateSourceHash!==orchestrator.sourceHash||b.replayId!==orchestrator.safety?.replay?.replayId)reasons.push("ORCHESTRATOR_BINDING_MISMATCH");

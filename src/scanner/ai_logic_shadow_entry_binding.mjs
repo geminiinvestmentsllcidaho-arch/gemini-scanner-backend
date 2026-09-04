@@ -19,8 +19,15 @@ const present = (v) => typeof v === "string" && v.trim().length > 0;
 
 export function evaluateAiLogicShadowEntryBinding(input = {}) {
   const pre = input.preShadowEvidence ?? {};
-  const acceptance = input.acceptanceEvidence ?? {};
+  const acceptanceEvidence = input.acceptanceEvidence ?? {};
+  const acceptance = acceptanceEvidence.binding ?? acceptanceEvidence;
   const reasons = [];
+
+  if (acceptanceEvidence.binding) {
+    if (acceptanceEvidence.eligible !== true) reasons.push("PRE_SHADOW_ACCEPTANCE_BINDING_INVALID");
+    if (acceptanceEvidence.status !== "AI_LOGIC_PRE_SHADOW_ACCEPTANCE_EVIDENCE_BINDING_VALID") reasons.push("PRE_SHADOW_ACCEPTANCE_BINDING_STATUS_INVALID");
+    if (acceptanceEvidence.disposition !== "OFFLINE_PRE_SHADOW_ACCEPTANCE_BINDING_EVIDENCE_ONLY") reasons.push("PRE_SHADOW_ACCEPTANCE_BINDING_DISPOSITION_INVALID");
+  }
 
   if (pre.valid !== true) reasons.push("PRE_SHADOW_EVIDENCE_INVALID");
   if (pre.stage !== "OFFLINE_PRE_SHADOW") reasons.push("PRE_SHADOW_STAGE_INVALID");
