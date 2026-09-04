@@ -127,6 +127,7 @@ export function evaluateAiLogicCandidateSafetyGate(input = {}, options = {}) {
       replayId: replay.replayId ?? null,
       baselineHash: replay.baselineHash ?? null,
       candidateHash: replay.candidateHash ?? null,
+      immutableManifestStatus: replay.immutableManifestStatus ?? manifest.status ?? null,
     }),
     ...LOCKS,
   });
