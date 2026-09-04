@@ -28,6 +28,7 @@ export function buildAiLogicAcceptanceEvidenceRecord(binding = {}, options = {})
     replayId: clean(b.replayId),
     sourceCommitBefore: clean(b.sourceCommitBefore, 64),
     sourceCommitAfter: clean(b.sourceCommitAfter, 64),
+    candidateSourceHash: clean(b.candidateSourceHash, 64),
   };
   if (Object.values(identity).some((v) => !v)) throw new Error("acceptance_binding_identity_missing");
   const now = new Date(options.now ?? Date.now());

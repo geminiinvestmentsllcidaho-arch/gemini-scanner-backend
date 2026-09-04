@@ -19,6 +19,7 @@ const valid = {
     replayId: "replay-001",
     sourceCommitBefore: "a".repeat(40),
     sourceCommitAfter: "b".repeat(40),
+    candidateSourceHash: "c".repeat(64),
   },
 };
 
@@ -26,6 +27,12 @@ test("builds deterministic offline acceptance evidence with every mutation lock 
   const a = buildAiLogicAcceptanceEvidenceRecord(valid, { now: "2026-09-02T18:00:00.000Z" });
   const b = buildAiLogicAcceptanceEvidenceRecord(valid, { now: "2026-09-02T19:00:00.000Z" });
   assert.equal(a.recordId, b.recordId);
+  assert.equal(a.candidateSourceHash, "c".repeat(64));
+  const drifted = buildAiLogicAcceptanceEvidenceRecord({
+    ...valid,
+    binding: { ...valid.binding, candidateSourceHash: "d".repeat(64) },
+  }, { now: "2026-09-02T18:00:00.000Z" });
+  assert.notEqual(a.recordId, drifted.recordId);
   assert.equal(a.immutableManifestStatus, "IMMUTABLE_MANIFEST_VERIFIED");
   for (const key of [
     "promotionAllowed","rollbackExecutionAllowed","productionRuntimeWiringAllowed",
@@ -58,6 +65,13 @@ test("fails closed for ineligible binding, missing identity, and malformed ledge
     () => buildAiLogicAcceptanceEvidenceRecord({
       ...valid,
       binding: { ...valid.binding, replayId: "" },
+    }),
+    /identity_missing/,
+  );
+  assert.throws(
+    () => buildAiLogicAcceptanceEvidenceRecord({
+      ...valid,
+      binding: { ...valid.binding, candidateSourceHash: "" },
     }),
     /identity_missing/,
   );
