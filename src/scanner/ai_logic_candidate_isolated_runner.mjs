@@ -16,13 +16,24 @@ function assertJsonCompatible(value,seen=new WeakSet()) {
   if(seen.has(value)) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
   seen.add(value);
   if(Array.isArray(value)) {
-    for(const item of value) assertJsonCompatible(item,seen);
+    if(Object.getOwnPropertySymbols(value).length) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+    const descs=Object.getOwnPropertyDescriptors(value);
+    for(let i=0;i<value.length;i++) {
+      const d=descs[String(i)];
+      if(!d || d.enumerable!==true || !("value" in d)) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+      assertJsonCompatible(d.value,seen);
+    }
+    for(const key of Object.keys(descs)) {
+      if(key==="length") continue;
+      const n=Number(key);
+      if(!Number.isInteger(n) || n<0 || n>=value.length || String(n)!==key) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+    }
   } else {
     const proto=Object.getPrototypeOf(value);
     if(proto!==Object.prototype && proto!==null) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
     if(Object.getOwnPropertySymbols(value).length) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
     for(const d of Object.values(Object.getOwnPropertyDescriptors(value))) {
-      if(!("value" in d)) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
+      if(d.enumerable!==true || !("value" in d)) throw new Error("CANDIDATE_INPUT_NOT_SERIALIZABLE");
       assertJsonCompatible(d.value,seen);
     }
   }
@@ -53,12 +64,25 @@ function valid(v){
   seen.add(v);
   let ok=true;
   if(Array.isArray(v)) {
-    for(const x of v) if(!valid(x)){ok=false;break;}
+    if(Object.getOwnPropertySymbols(v).length) ok=false;
+    else {
+      const descs=Object.getOwnPropertyDescriptors(v);
+      for(let i=0;ok&&i<v.length;i++) {
+        const d=descs[String(i)];
+        if(!d||d.enumerable!==true||!("value" in d)||!valid(d.value)) ok=false;
+      }
+      for(const key of Object.keys(descs)) {
+        if(!ok) break;
+        if(key==="length") continue;
+        const n=Number(key);
+        if(!Number.isInteger(n)||n<0||n>=v.length||String(n)!==key) ok=false;
+      }
+    }
   } else {
     const proto=Object.getPrototypeOf(v);
-    if(!(proto===null||Object.getPrototypeOf(proto)===null)||Object.getOwnPropertySymbols(v).length) ok=false;
+    if(!(proto===null||Object.getPrototypeOf(proto)===null) || Object.getOwnPropertySymbols(v).length) ok=false;
     else for(const d of Object.values(Object.getOwnPropertyDescriptors(v))) {
-      if(!("value" in d)||!valid(d.value)){ok=false;break;}
+      if(d.enumerable!==true||!("value" in d)||!valid(d.value)){ok=false;break;}
     }
   }
   seen.delete(v);
