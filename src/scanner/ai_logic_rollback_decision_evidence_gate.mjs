@@ -82,6 +82,7 @@ export function buildAiLogicRollbackDecisionEvidence({
     "replayId",
     "sourceCommitBefore",
     "sourceCommitAfter",
+    "candidateSourceHash",
   ]) {
     if (!present(p[key])) reasons.push(`PROMOTION_DECISION_${key.toUpperCase()}_REQUIRED`);
   }
@@ -104,6 +105,9 @@ export function buildAiLogicRollbackDecisionEvidence({
   if (promotionDecision?.sourceCommitAfter !== p.sourceCommitAfter) {
     reasons.push("PROMOTION_DECISION_SOURCE_COMMIT_AFTER_MISMATCH");
   }
+  if (promotionDecision?.candidateSourceHash !== p.candidateSourceHash) {
+    reasons.push("PROMOTION_DECISION_CANDIDATE_SOURCE_HASH_MISMATCH");
+  }
 
   if (acceptanceEvidence?.recordId !== p.acceptanceRecordId) {
     reasons.push("ACCEPTANCE_RECORD_BINDING_MISMATCH");
@@ -122,6 +126,9 @@ export function buildAiLogicRollbackDecisionEvidence({
   }
   if (acceptanceEvidence?.sourceCommitAfter !== p.sourceCommitAfter) {
     reasons.push("ACCEPTANCE_SOURCE_COMMIT_AFTER_MISMATCH");
+  }
+  if (acceptanceEvidence?.candidateSourceHash !== p.candidateSourceHash) {
+    reasons.push("ACCEPTANCE_CANDIDATE_SOURCE_HASH_MISMATCH");
   }
 
   if (knownGood?.recordId !== p.knownGoodRecordId) {
@@ -168,6 +175,9 @@ export function buildAiLogicRollbackDecisionEvidence({
         : null,
       sourceCommitAfter: present(acceptanceEvidence?.sourceCommitAfter)
         ? acceptanceEvidence.sourceCommitAfter
+        : null,
+      candidateSourceHash: present(acceptanceEvidence?.candidateSourceHash)
+        ? acceptanceEvidence.candidateSourceHash
         : null,
     }),
     rollbackTargetIdentified: eligible,

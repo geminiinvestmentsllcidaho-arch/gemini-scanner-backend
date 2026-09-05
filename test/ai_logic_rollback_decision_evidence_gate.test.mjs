@@ -26,6 +26,7 @@ function fixture() {
     replayId: "r1",
     sourceCommitBefore: "before",
     sourceCommitAfter: "after",
+    candidateSourceHash: "c".repeat(64),
   };
 
   return {
@@ -46,6 +47,7 @@ function fixture() {
       replayId: "r1",
       sourceCommitBefore: "before",
       sourceCommitAfter: "after",
+      candidateSourceHash: "c".repeat(64),
       localJsonlOnly: true,
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
@@ -86,6 +88,7 @@ test("permits rollback decision evidence only with complete immutable bindings a
     replayId: "r1",
     sourceCommitBefore: "before",
     sourceCommitAfter: "after",
+    candidateSourceHash: "c".repeat(64),
   });
 });
 
@@ -144,4 +147,10 @@ test("does not authorize persistence, promotion, runtime wiring, broker contact,
   ]) {
     assert.equal(result[key], false, key);
   }
+});
+
+test("candidate source hash provenance is required and exact", () => {
+  const a=fixture(); delete a.promotionDecision.binding.candidateSourceHash; assert.equal(build(a).eligible,false);
+  const b=fixture(); b.acceptanceEvidence.candidateSourceHash="d".repeat(64); assert.equal(build(b).eligible,false);
+  assert.equal(build(fixture()).binding.candidateSourceHash,"c".repeat(64));
 });

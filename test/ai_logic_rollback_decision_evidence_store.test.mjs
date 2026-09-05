@@ -27,6 +27,7 @@ const valid = () => ({
   binding:{
     promotionDecisionRecordId:"p1",acceptanceRecordId:"a1",candidateId:"c1",
     knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
+    candidateSourceHash:"c".repeat(64),
   },
   ...locks,
 });
@@ -64,3 +65,6 @@ test("fails closed on invalid contract, open lock, missing identity, and malform
   assert.throws(() => list({ledgerPath}),/MALFORMED/);
   assert.throws(() => append(valid(),{ledgerPath}),/MALFORMED/);
 });
+
+test("fails closed when candidate source hash binding is missing",()=>{const x=valid();delete x.binding.candidateSourceHash;assert.throws(()=>build(x),/NOT_PERSISTABLE/)});
+test("persists exact candidate source hash binding",()=>{assert.equal(build(valid()).candidateSourceHash,"c".repeat(64))});
