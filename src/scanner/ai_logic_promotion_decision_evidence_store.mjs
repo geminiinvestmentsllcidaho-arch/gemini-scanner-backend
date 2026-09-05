@@ -10,7 +10,7 @@ const present = (v) => typeof v === "string" && v.trim().length > 0;
 
 export function buildAiLogicPromotionDecisionEvidenceRecord(decision = {}, options = {}) {
   const binding = decision.binding ?? {};
-  const required = ["acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"];
+  const required = ["acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"];
   if (decision.version !== "ai_logic_promotion_decision_evidence_gate_v1" ||
       decision.eligible !== true ||
       decision.status !== "AI_LOGIC_PROMOTION_DECISION_EVIDENCE_READY" ||
