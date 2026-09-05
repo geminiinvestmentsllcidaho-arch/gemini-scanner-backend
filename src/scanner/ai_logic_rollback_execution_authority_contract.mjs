@@ -23,7 +23,7 @@ export function buildAiLogicRollbackExecutionAuthorityContract({
   if (rollbackEvidence?.rollbackTargetIdentified !== true || rollbackEvidence?.rollbackDecisionEvidenceOnly !== true) reasons.push("ROLLBACK_EVIDENCE_TARGET_INVALID");
   for (const k of REQUIRED_FALSE) if (rollbackEvidence?.[k] !== false) reasons.push(`ROLLBACK_EVIDENCE_${k.toUpperCase()}_LOCK_INVALID`);
 
-  const fields = ["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"];
+  const fields = ["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"];
   for (const k of fields) if (!present(rollbackEvidence?.[k])) reasons.push(`ROLLBACK_EVIDENCE_${k.toUpperCase()}_REQUIRED`);
 
   if (operatorApproval?.explicitlyApproved !== true) reasons.push("OPERATOR_APPROVAL_REQUIRED");
@@ -39,6 +39,7 @@ export function buildAiLogicRollbackExecutionAuthorityContract({
     ["replayId","replayId"],
     ["sourceCommitBefore","sourceCommitBefore"],
     ["sourceCommitAfter","sourceCommitAfter"],
+    ["candidateSourceHash","candidateSourceHash"],
   ];
   for (const [a,e] of bindings) {
     if (!present(operatorApproval?.[a])) reasons.push(`OPERATOR_APPROVAL_${a.toUpperCase()}_REQUIRED`);
@@ -62,6 +63,7 @@ export function buildAiLogicRollbackExecutionAuthorityContract({
     candidateId: rollbackEvidence?.candidateId ?? null,
     knownGoodRecordId: rollbackEvidence?.knownGoodRecordId ?? null,
     replayId: rollbackEvidence?.replayId ?? null,
+    candidateSourceHash: rollbackEvidence?.candidateSourceHash ?? null,
     currentSourceCommit: present(currentSourceCommit) ? currentSourceCommit : null,
     targetSourceCommit: rollbackEvidence?.sourceCommitBefore ?? null,
     sourceCommitAfter: rollbackEvidence?.sourceCommitAfter ?? null,

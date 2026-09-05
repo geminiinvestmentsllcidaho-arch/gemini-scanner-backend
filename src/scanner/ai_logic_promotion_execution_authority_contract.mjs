@@ -22,7 +22,7 @@ export function buildAiLogicPromotionExecutionAuthorityContract({
   if (promotionEvidence?.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("PROMOTION_EVIDENCE_IMMUTABLE_MANIFEST_INVALID");
   for (const k of REQUIRED_FALSE) if (promotionEvidence?.[k] !== false) reasons.push(`PROMOTION_EVIDENCE_${k.toUpperCase()}_LOCK_INVALID`);
 
-  const fields = ["recordId","acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter"];
+  const fields = ["recordId","acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"];
   for (const k of fields) if (!present(promotionEvidence?.[k])) reasons.push(`PROMOTION_EVIDENCE_${k.toUpperCase()}_REQUIRED`);
 
   if (operatorApproval?.explicitlyApproved !== true) reasons.push("OPERATOR_APPROVAL_REQUIRED");
@@ -39,6 +39,7 @@ export function buildAiLogicPromotionExecutionAuthorityContract({
     ["replayId","replayId"],
     ["sourceCommitBefore","sourceCommitBefore"],
     ["sourceCommitAfter","sourceCommitAfter"],
+    ["candidateSourceHash","candidateSourceHash"],
   ];
   for (const [a,e] of bindings) {
     if (!present(operatorApproval?.[a])) reasons.push(`OPERATOR_APPROVAL_${a.toUpperCase()}_REQUIRED`);
@@ -63,6 +64,7 @@ export function buildAiLogicPromotionExecutionAuthorityContract({
     candidateId: promotionEvidence?.candidateId ?? null,
     knownGoodRecordId: promotionEvidence?.knownGoodRecordId ?? null,
     replayId: promotionEvidence?.replayId ?? null,
+    candidateSourceHash: promotionEvidence?.candidateSourceHash ?? null,
     currentSourceCommit: present(currentSourceCommit) ? currentSourceCommit : null,
     baselineSourceCommit: promotionEvidence?.sourceCommitBefore ?? null,
     targetSourceCommit: promotionEvidence?.sourceCommitAfter ?? null,
