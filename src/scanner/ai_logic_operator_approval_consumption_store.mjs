@@ -24,10 +24,10 @@ function release(lock){
 }
 export function appendAiLogicOperatorApprovalConsumptionRecord(record,filePath=DEFAULT_PATH){
   if(record?.version!=="ai_logic_operator_approval_consumption_record_v1"||record?.eligible!==true) throw new Error("operator_approval_consumption_record_invalid");
-  for(const k of ["approvalRecordId","nonce","action","decisionRecordId","currentSourceCommit","targetSourceCommit"]) if(!present(record[k])) throw new Error(`operator_approval_consumption_${k}_required`);
+  for(const k of ["approvalRecordId","nonce","action","decisionRecordId","candidateSourceHash","currentSourceCommit","targetSourceCommit"]) if(!present(record[k])) throw new Error(`operator_approval_consumption_${k}_required`);
   if(!["PROMOTION","ROLLBACK"].includes(record.action)) throw new Error("operator_approval_consumption_action_invalid");
   if(record.productionRuntimeWiringAllowed!==false||record.promotionExecutionAllowed!==false||record.rollbackExecutionAllowed!==false||record.brokerContactAllowed!==false||record.orderPlacementAllowed!==false||record.liveTradingAllowed!==false||record.accountMutationAllowed!==false||record.immutablePolicyMutationAllowed!==false||record.thresholdMutationAllowed!==false||record.sizingMutationAllowed!==false||record.allocationMutationAllowed!==false||record.gitMutationAllowed!==false) throw new Error("operator_approval_consumption_authority_open");
-  const identity={approvalRecordId:record.approvalRecordId,nonce:record.nonce,action:record.action,decisionRecordId:record.decisionRecordId,currentSourceCommit:record.currentSourceCommit,targetSourceCommit:record.targetSourceCommit};
+  const identity={approvalRecordId:record.approvalRecordId,nonce:record.nonce,action:record.action,decisionRecordId:record.decisionRecordId,candidateSourceHash:record.candidateSourceHash,currentSourceCommit:record.currentSourceCommit,targetSourceCommit:record.targetSourceCommit};
   const stored=Object.freeze({version:VERSION,recordId:hash(identity),...identity,consumedAt:new Date().toISOString(),paperOnly:true,localJsonlOnly:true,exactlyOnce:true,productionRuntimeWiringAllowed:false,promotionExecutionAllowed:false,rollbackExecutionAllowed:false,brokerContactAllowed:false,orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,allocationMutationAllowed:false,gitMutationAllowed:false});
   const l=acquire(filePath);
   try{

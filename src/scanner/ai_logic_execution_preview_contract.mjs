@@ -4,11 +4,12 @@ const LOCKS=["productionRuntimeWiringAllowed","promotionExecutionAllowed","rollb
 export function buildAiLogicExecutionPreviewContract({consumptionRecord,immutableManifest,decisionIdentity,knownGood,candidateTarget}={}){
   const reasons=[];
   if(consumptionRecord?.version!=="ai_logic_operator_approval_consumption_record_v1"||consumptionRecord?.eligible!==true) reasons.push("CONSUMPTION_RECORD_INVALID");
-  for(const k of ["approvalRecordId","nonce","action","decisionRecordId","currentSourceCommit","targetSourceCommit"]) if(!present(consumptionRecord?.[k])) reasons.push("CONSUMPTION_IDENTITY_INCOMPLETE");
+  for(const k of ["approvalRecordId","nonce","action","decisionRecordId","candidateSourceHash","currentSourceCommit","targetSourceCommit"]) if(!present(consumptionRecord?.[k])) reasons.push("CONSUMPTION_IDENTITY_INCOMPLETE");
   for(const k of LOCKS) if(consumptionRecord?.[k]!==false) reasons.push(`${k}_MUST_BE_FALSE`);
   if(!["PROMOTION","ROLLBACK"].includes(consumptionRecord?.action)) reasons.push("ACTION_INVALID");
   if(immutableManifest?.ok!==true||immutableManifest?.status!=="IMMUTABLE_MANIFEST_VERIFIED") reasons.push("IMMUTABLE_MANIFEST_REVALIDATION_FAILED");
   if(decisionIdentity?.decisionRecordId!==consumptionRecord?.decisionRecordId) reasons.push("DECISION_IDENTITY_MISMATCH");
+  if(decisionIdentity?.candidateSourceHash!==consumptionRecord?.candidateSourceHash) reasons.push("DECISION_SOURCE_HASH_MISMATCH");
   if(knownGood?.valid!==true||knownGood?.status!=="KNOWN_GOOD_RECORD_VALID") reasons.push("KNOWN_GOOD_INVALID");
   const expectedCurrent=consumptionRecord?.action==="PROMOTION"?knownGood?.sourceCommit:candidateTarget?.sourceCommit;
   const expectedTarget=consumptionRecord?.action==="PROMOTION"?candidateTarget?.sourceCommit:knownGood?.sourceCommit;
@@ -24,6 +25,7 @@ export function buildAiLogicExecutionPreviewContract({consumptionRecord,immutabl
     nonce:consumptionRecord?.nonce??null,
     action:consumptionRecord?.action??null,
     decisionRecordId:consumptionRecord?.decisionRecordId??null,
+    candidateSourceHash:consumptionRecord?.candidateSourceHash??null,
     currentSourceCommit:consumptionRecord?.currentSourceCommit??null,
     targetSourceCommit:consumptionRecord?.targetSourceCommit??null,
     previewOnly:true,paperOnly:true,gitEffects:"NONE",

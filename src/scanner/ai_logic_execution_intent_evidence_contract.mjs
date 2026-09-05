@@ -6,8 +6,8 @@ export function buildAiLogicExecutionIntentEvidence({executionPlan:p}={}){
  if(p?.version!=="ai_logic_execution_plan_v1"||p?.eligible!==true||p?.planOnly!==true||p?.readOnly!==true)r.push("EXECUTION_PLAN_INVALID");
  if(p?.paperOnly!==true)r.push("PAPER_ONLY_REQUIRED");
  for(const k of L)if(p?.[k]!==false)r.push(k+"_MUST_BE_FALSE");
- const id={approvalRecordId:p?.approvalRecordId,nonce:p?.nonce,action:p?.action,decisionRecordId:p?.decisionRecordId,currentSourceCommit:p?.currentSourceCommit,targetSourceCommit:p?.targetSourceCommit};
- if(!["PROMOTION","ROLLBACK"].includes(id.action)||![id.approvalRecordId,id.nonce,id.decisionRecordId,id.currentSourceCommit,id.targetSourceCommit].every(P))r.push("IDENTITY_INVALID");
+ const id={approvalRecordId:p?.approvalRecordId,nonce:p?.nonce,action:p?.action,decisionRecordId:p?.decisionRecordId,candidateSourceHash:p?.candidateSourceHash,currentSourceCommit:p?.currentSourceCommit,targetSourceCommit:p?.targetSourceCommit};
+ if(!["PROMOTION","ROLLBACK"].includes(id.action)||![id.approvalRecordId,id.nonce,id.decisionRecordId,id.candidateSourceHash,id.currentSourceCommit,id.targetSourceCommit].every(P))r.push("IDENTITY_INVALID");
  if(p?.executionSideEffects!=="NONE"||p?.gitEffects!=="NONE"||p?.postconditions?.executionSideEffects!=="NONE"||p?.postconditions?.gitEffects!=="NONE"||p?.postconditions?.runtimeIntegration!=="NONE")r.push("ZERO_EFFECTS_REQUIRED");
  if(id.currentSourceCommit===id.targetSourceCommit)r.push("SOURCE_TRANSITION_INVALID");
  const eligible=r.length===0;

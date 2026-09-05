@@ -11,7 +11,7 @@ export function buildAiLogicOperatorApprovalConsumptionRecord({
   const reasons = [];
   if (approvalRecord?.version !== "ai_logic_operator_approval_record_v1" || approvalRecord?.valid !== true) reasons.push("APPROVAL_RECORD_INVALID");
   if (approvalRecord?.explicitlyApproved !== true || approvalRecord?.oneShot !== true) reasons.push("APPROVAL_NOT_ONE_SHOT_EXPLICIT");
-  if (!present(approvalRecord?.recordId) || !present(approvalRecord?.nonce) || !present(approvalRecord?.decisionRecordId)) reasons.push("APPROVAL_IDENTITY_INCOMPLETE");
+  if (!present(approvalRecord?.recordId) || !present(approvalRecord?.nonce) || !present(approvalRecord?.decisionRecordId) || !present(approvalRecord?.candidateSourceHash)) reasons.push("APPROVAL_IDENTITY_INCOMPLETE");
   if (alreadyConsumed === true) reasons.push("APPROVAL_ALREADY_CONSUMED");
   const nowMs = Date.parse(now ?? "");
   const expMs = Date.parse(approvalRecord?.expiresAt ?? "");
@@ -32,6 +32,7 @@ export function buildAiLogicOperatorApprovalConsumptionRecord({
     nonce: approvalRecord?.nonce ?? null,
     action: approvalRecord?.action ?? null,
     decisionRecordId: approvalRecord?.decisionRecordId ?? null,
+    candidateSourceHash: approvalRecord?.candidateSourceHash ?? null,
     currentSourceCommit: present(currentSourceCommit) ? currentSourceCommit : null,
     targetSourceCommit: present(targetSourceCommit) ? targetSourceCommit : null,
     oneShot: true,
