@@ -91,3 +91,23 @@ test("never relabels runtime git broker account or immutable policy authority",(
    "gitRevertAllowed","gitMergeAllowed","gitCherryPickAllowed"
  ]) assert.equal(r[field],false,field);
 });
+
+test("fails closed when authority or boundary gate is not paper only", () => {
+  for (const target of ["authorityGate", "boundaryGate"]) {
+    const f = fx("PROMOTION");
+    f[target] = { ...f[target], paperOnly: false };
+    const r = build(f);
+    assert.equal(r.eligible, false);
+    assert.equal(r.localCandidateSourceApplySeamReady, false);
+    assert.equal(r.localCandidateFilesystemMutationScope, "NONE");
+  }
+});
+
+test("blocked orchestrator exposes no local candidate filesystem mutation scope", () => {
+  const f = fx("PROMOTION");
+  f.operatorApproval = { ...f.operatorApproval, explicitlyApproved: false };
+  const r = build(f);
+  assert.equal(r.eligible, false);
+  assert.equal(r.localCandidateSourceApplySeamReady, false);
+  assert.equal(r.localCandidateFilesystemMutationScope, "NONE");
+});

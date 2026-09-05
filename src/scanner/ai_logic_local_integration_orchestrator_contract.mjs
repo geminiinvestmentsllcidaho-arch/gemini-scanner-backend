@@ -14,8 +14,8 @@ export function buildAiLogicLocalIntegrationOrchestratorContract({
   }
   if(a?.acceptanceRecordId!=null&&d?.acceptanceRecordId!==a.acceptanceRecordId) reasons.push("DECISION_IDENTITY_MISMATCH_acceptanceRecordId");
   if(c?.version!=="ai_logic_operator_approval_consumption_store_v1"||c?.exactlyOnce!==true||c?.paperOnly!==true) reasons.push("CONSUMPTION_INVALID");
-  if(g?.version!=="ai_logic_execution_authority_gate_v1"||g?.eligible!==true||g?.readOnly!==true||g?.evidenceOnly!==true) reasons.push("AUTHORITY_GATE_INVALID");
-  if(b?.version!=="ai_logic_execution_boundary_gate_v1"||b?.eligible!==true||b?.applyEligibilityOnly!==true||b?.readOnly!==true||b?.evidenceOnly!==true) reasons.push("BOUNDARY_GATE_INVALID");
+  if(g?.version!=="ai_logic_execution_authority_gate_v1"||g?.eligible!==true||g?.readOnly!==true||g?.evidenceOnly!==true||g?.paperOnly!==true) reasons.push("AUTHORITY_GATE_INVALID");
+  if(b?.version!=="ai_logic_execution_boundary_gate_v1"||b?.eligible!==true||b?.applyEligibilityOnly!==true||b?.readOnly!==true||b?.evidenceOnly!==true||b?.paperOnly!==true) reasons.push("BOUNDARY_GATE_INVALID");
   if(m?.ok!==true||m?.status!=="IMMUTABLE_MANIFEST_VERIFIED") reasons.push("IMMUTABLE_MANIFEST_INVALID");
   const action=a?.action;
   if(!["PROMOTION","ROLLBACK"].includes(action)) reasons.push("ACTION_INVALID");
@@ -45,7 +45,7 @@ export function buildAiLogicLocalIntegrationOrchestratorContract({
     reasons:Object.freeze(reasons),
     ...identity,
     localCandidateSourceApplySeamReady:eligible,
-    localCandidateFilesystemMutationScope:"ALLOWLISTED_AI_LOGIC_CANDIDATE_SOURCE_ONLY",
+    localCandidateFilesystemMutationScope:eligible?"ALLOWLISTED_AI_LOGIC_CANDIDATE_SOURCE_ONLY":"NONE",
     runtimeActivationAllowed:false,
     pm2RestartAllowed:false,
     gitCheckoutAllowed:false,
