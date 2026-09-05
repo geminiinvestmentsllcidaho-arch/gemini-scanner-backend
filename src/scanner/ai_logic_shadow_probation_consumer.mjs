@@ -21,6 +21,7 @@ const present = (v) => typeof v === "string" && v.trim().length > 0;
 
 export function evaluateAiLogicShadowProbationEvidence(input = {}) {
   const acceptance = input.acceptanceEvidence ?? {};
+  const shadowEntry = input.shadowEntryEvidence ?? {};
   const knownGood = input.knownGood ?? {};
   const shadow = input.shadowProbationEvidence ?? {};
   const manifest = verifyImmutablePolicyManifest();
@@ -36,6 +37,12 @@ export function evaluateAiLogicShadowProbationEvidence(input = {}) {
   if (knownGood.recordId !== acceptance.knownGoodRecordId) reasons.push("KNOWN_GOOD_RECORD_BINDING_MISMATCH");
   if (knownGood.sourceCommit !== acceptance.sourceCommitBefore) reasons.push("KNOWN_GOOD_SOURCE_COMMIT_BINDING_MISMATCH");
   if (knownGood.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("KNOWN_GOOD_IMMUTABLE_MANIFEST_INVALID");
+
+  if (shadowEntry.version !== "ai_logic_shadow_entry_binding_v1" || shadowEntry.eligible !== true || shadowEntry.status !== "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID" || shadowEntry.disposition !== "SHADOW_ENTRY_EVIDENCE_ONLY") reasons.push("SHADOW_ENTRY_EVIDENCE_INVALID");
+  const entryBinding = shadowEntry.binding ?? {};
+  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+    if (entryBinding[key] !== acceptance[key]) reasons.push(`SHADOW_ENTRY_${key.toUpperCase()}_BINDING_MISMATCH`);
+  }
   if (shadow.status !== "SHADOW_PROBATION_EVIDENCE_COMPLETE") reasons.push("SHADOW_PROBATION_EVIDENCE_NOT_COMPLETE");
   if (!Number.isInteger(shadow.sampleCount) || shadow.sampleCount < 1) reasons.push("SHADOW_PROBATION_SAMPLE_COUNT_REQUIRED");
   if (shadow.candidateId !== acceptance.candidateId) reasons.push("SHADOW_CANDIDATE_BINDING_MISMATCH");
@@ -48,7 +55,7 @@ export function evaluateAiLogicShadowProbationEvidence(input = {}) {
   if (shadow.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("SHADOW_IMMUTABLE_MANIFEST_INVALID");
 
   for (const key of Object.keys(LOCKS)) {
-    if (acceptance[key] !== false || knownGood[key] === true || shadow[key] !== false || input[key] === true) {
+    if (acceptance[key] !== false || shadowEntry[key] === true || knownGood[key] === true || shadow[key] !== false || input[key] === true) {
       reasons.push(`MUTATION_LOCK_NOT_CLOSED_${key.toUpperCase()}`);
     }
   }

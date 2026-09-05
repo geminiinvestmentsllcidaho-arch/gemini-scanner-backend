@@ -21,6 +21,7 @@ const present = (v) => typeof v === "string" && v.trim().length > 0;
 
 export function evaluateAiLogicProbationEligibility(input = {}) {
   const evidence = input.acceptanceEvidence ?? {};
+  const shadowEntry = input.shadowEntryEvidence ?? {};
   const knownGood = input.knownGood ?? {};
   const probation = input.probationEvidence ?? {};
   const manifest = verifyImmutablePolicyManifest();
@@ -54,6 +55,12 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
   }
   if (knownGood.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") {
     reasons.push("KNOWN_GOOD_IMMUTABLE_MANIFEST_INVALID");
+  }
+
+  if (shadowEntry.version !== "ai_logic_shadow_entry_binding_v1" || shadowEntry.eligible !== true || shadowEntry.status !== "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID" || shadowEntry.disposition !== "SHADOW_ENTRY_EVIDENCE_ONLY") reasons.push("SHADOW_ENTRY_EVIDENCE_INVALID");
+  const entryBinding = shadowEntry.binding ?? {};
+  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+    if (entryBinding[key] !== evidence[key]) reasons.push(`SHADOW_ENTRY_${key.toUpperCase()}_BINDING_MISMATCH`);
   }
 
   if (probation.status !== "SHADOW_PROBATION_EVIDENCE_COMPLETE") {
@@ -90,7 +97,7 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
     "allocationMutationAllowed",
   ];
   for (const key of forbiddenTrue) {
-    if (evidence[key] === true || knownGood[key] === true || probation[key] === true) {
+    if (evidence[key] === true || shadowEntry[key] === true || knownGood[key] === true || probation[key] === true) {
       reasons.push(`FORBIDDEN_PERMISSION_OPEN_${key.toUpperCase()}`);
     }
   }

@@ -39,6 +39,21 @@ function validInput() {
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
     },
+    shadowEntryEvidence: {
+      version: "ai_logic_shadow_entry_binding_v1",
+      eligible: true,
+      status: "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID",
+      disposition: "SHADOW_ENTRY_EVIDENCE_ONLY",
+      binding: {
+        candidateId: "candidate-001",
+        knownGoodRecordId: "known-good-001",
+        replayId: "replay-001",
+        sourceCommitBefore: "a".repeat(40),
+        sourceCommitAfter: "b".repeat(40),
+        candidateSourceHash: "c".repeat(64),
+      },
+      ...locks,
+    },
     observations: [
       { sampleId: "s1", baseline: "WAIT", candidate: "ENTER", changed: true },
       { sampleId: "s2", baseline: "WAIT", candidate: "WAIT", changed: false },
@@ -102,4 +117,28 @@ test("candidate source hash provenance is required and preserved", () => {
   assert.equal(buildAiLogicShadowProbationEvidence(a).complete, false);
   const b = buildAiLogicShadowProbationEvidence(validInput());
   assert.equal(b.candidateSourceHash, "c".repeat(64));
+});
+
+
+test("fails closed without valid shadow-entry evidence or on shadow-entry provenance drift", () => {
+  const missing = validInput();
+  delete missing.shadowEntryEvidence;
+  const r1 = buildAiLogicShadowProbationEvidence(missing);
+  assert.equal(r1.complete, false);
+  assert.ok(r1.reasons.includes("SHADOW_ENTRY_EVIDENCE_INVALID"));
+
+  const drift = validInput();
+  drift.shadowEntryEvidence.binding.candidateSourceHash = "d".repeat(64);
+  const r2 = buildAiLogicShadowProbationEvidence(drift);
+  assert.equal(r2.complete, false);
+  assert.ok(r2.reasons.includes("SHADOW_ENTRY_CANDIDATESOURCEHASH_BINDING_MISMATCH"));
+});
+
+test("fails closed if shadow-entry evidence opens authority", () => {
+  const input = validInput();
+  input.shadowEntryEvidence.orderPlacementAllowed = true;
+  const r = buildAiLogicShadowProbationEvidence(input);
+  assert.equal(r.complete, false);
+  assert.ok(r.reasons.some((reason) => reason.includes("ORDERPLACEMENTALLOWED")));
+  assert.equal(r.orderPlacementAllowed, false);
 });

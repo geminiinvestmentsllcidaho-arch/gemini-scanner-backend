@@ -31,6 +31,21 @@ function validInput() {
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
     },
+    shadowEntryEvidence: {
+      version: "ai_logic_shadow_entry_binding_v1",
+      eligible: true,
+      status: "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID",
+      disposition: "SHADOW_ENTRY_EVIDENCE_ONLY",
+      binding: {
+        candidateId: "candidate-001",
+        knownGoodRecordId: "known-good-001",
+        replayId: "replay-001",
+        sourceCommitBefore: "a".repeat(40),
+        sourceCommitAfter: "b".repeat(40),
+        candidateSourceHash: "c".repeat(64),
+      },
+      ...locks,
+    },
     knownGood: {
       valid: true,
       status: "KNOWN_GOOD_RECORD_VALID",
@@ -111,4 +126,25 @@ test("candidate source hash provenance is required and exact", () => {
   assert.equal(evaluateAiLogicProbationEligibility(b).eligible, false);
   const c = evaluateAiLogicProbationEligibility(validInput());
   assert.equal(c.binding.candidateSourceHash, "c".repeat(64));
+});
+
+
+test("fails closed without valid shadow-entry evidence or on shadow-entry binding drift", () => {
+  const a = validInput(); delete a.shadowEntryEvidence;
+  const r1 = evaluateAiLogicProbationEligibility(a);
+  assert.equal(r1.eligible, false);
+  assert.ok(r1.reasons.includes("SHADOW_ENTRY_EVIDENCE_INVALID"));
+  const b = validInput();
+  b.shadowEntryEvidence = { ...b.shadowEntryEvidence, binding: { ...b.shadowEntryEvidence.binding, candidateSourceHash: "d".repeat(64) } };
+  const r2 = evaluateAiLogicProbationEligibility(b);
+  assert.equal(r2.eligible, false);
+  assert.ok(r2.reasons.includes("SHADOW_ENTRY_CANDIDATESOURCEHASH_BINDING_MISMATCH"));
+});
+
+test("fails closed if shadow-entry evidence opens authority", () => {
+  const input = validInput();
+  input.shadowEntryEvidence = { ...input.shadowEntryEvidence, orderPlacementAllowed: true };
+  const r = evaluateAiLogicProbationEligibility(input);
+  assert.equal(r.eligible, false);
+  assert.ok(r.reasons.some((reason) => reason.includes("ORDERPLACEMENTALLOWED")));
 });

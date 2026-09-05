@@ -21,6 +21,7 @@ const present = (value) => typeof value === "string" && value.trim().length > 0;
 
 export function buildAiLogicShadowProbationEvidence(input = {}) {
   const acceptance = input.acceptanceEvidence ?? {};
+  const shadowEntry = input.shadowEntryEvidence ?? {};
   const knownGood = input.knownGood ?? {};
   const observations = Array.isArray(input.observations) ? input.observations : [];
   const manifest = verifyImmutablePolicyManifest();
@@ -55,10 +56,15 @@ export function buildAiLogicShadowProbationEvidence(input = {}) {
     reasons.push("KNOWN_GOOD_IMMUTABLE_MANIFEST_INVALID");
   }
 
+  if (shadowEntry.version !== "ai_logic_shadow_entry_binding_v1" || shadowEntry.eligible !== true || shadowEntry.status !== "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID" || shadowEntry.disposition !== "SHADOW_ENTRY_EVIDENCE_ONLY") reasons.push("SHADOW_ENTRY_EVIDENCE_INVALID");
+  const entryBinding = shadowEntry.binding ?? {};
+  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+    if (entryBinding[key] !== acceptance[key]) reasons.push(`SHADOW_ENTRY_${key.toUpperCase()}_BINDING_MISMATCH`);
+  }
   if (observations.length < 1) reasons.push("PROBATION_OBSERVATIONS_REQUIRED");
 
   for (const key of Object.keys(LOCKS)) {
-    if (acceptance[key] === true || knownGood[key] === true || input[key] === true) {
+    if (acceptance[key] === true || shadowEntry[key] === true || knownGood[key] === true || input[key] === true) {
       reasons.push(`FORBIDDEN_PERMISSION_OPEN_${key.toUpperCase()}`);
     }
   }
