@@ -6,9 +6,9 @@ import { evaluateAiLogicShadowEntryBinding as enter } from "../src/scanner/ai_lo
 
 function fixture() {
   const replay={status:"AI_LOGIC_OFFLINE_CANDIDATE_REPLAY_COMPLETE",disposition:"OFFLINE_EVIDENCE_ONLY",replayId:"replay-1",candidateId:"cand-1",baselineHash:"base",candidateHash:"cand",immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",baselineMetrics:{accuracy:.8},candidateMetrics:{accuracy:.9,accuracyDelta:.1,changedCount:2},sampleCount:10};
-  const safety={eligible:true,status:"AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY",disposition:"OFFLINE_EVIDENCE_ONLY",candidateId:"cand-1",replay};
+  const safety={eligible:true,status:"AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY",disposition:"OFFLINE_EVIDENCE_ONLY",candidateId:"cand-1",topic:"classification_coverage",replay};
   const knownGood={valid:true,status:"KNOWN_GOOD_RECORD_VALID",rollbackTargetIdentified:true,immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",recordId:"kg-1",sourceCommit:"a".repeat(40),versionId:"v1",logicScope:"scanner_logic",rollbackExecutable:false,promotionEligible:false};
-  const orchestrator={eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",disposition:"OFFLINE_EVIDENCE_ONLY",candidateId:"cand-1",sourceHash:"c".repeat(64),safety:structuredClone(safety)};
+  const orchestrator={eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",disposition:"OFFLINE_EVIDENCE_ONLY",candidateId:"cand-1",candidatePath:"src/scanner/ai_logic_candidates/cand-1.mjs",candidateTopic:"classification_coverage",sourceHash:"c".repeat(64),safety:structuredClone(safety)};
   const acceptance={eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ACCEPTANCE_EVIDENCE",disposition:"OFFLINE_ACCEPTANCE_EVIDENCE_ONLY",comparison:{sampleCount:10,baselineAccuracy:.8,candidateAccuracy:.9,accuracyDelta:.1,changedCount:2}};
   return {knownGood,orchestrator,safetyGate:safety,acceptance,candidateSourceHash:"c".repeat(64),sourceCommitAfter:"b".repeat(40)};
 }

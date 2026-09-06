@@ -76,6 +76,9 @@ export function evaluateAiLogicAcceptanceEvidenceBinding(input = {}) {
     if (orchestrator.status !== "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE") reasons.push("ORCHESTRATOR_STATUS_INVALID");
     if (orchestrator.disposition !== "OFFLINE_EVIDENCE_ONLY") reasons.push("ORCHESTRATOR_DISPOSITION_INVALID");
     if (!present(orchestrator.candidateId) || orchestrator.candidateId !== replay.candidateId) reasons.push("ORCHESTRATOR_CANDIDATE_ID_BINDING_MISMATCH");
+    if (!present(orchestrator.candidatePath)) reasons.push("ORCHESTRATOR_CANDIDATE_PATH_REQUIRED");
+    if (!present(orchestrator.candidateTopic)) reasons.push("ORCHESTRATOR_CANDIDATE_TOPIC_REQUIRED");
+    if (present(orchestrator.candidateTopic) && orchestrator.safety?.topic !== orchestrator.candidateTopic) reasons.push("ORCHESTRATOR_CANDIDATE_TOPIC_BINDING_MISMATCH");
     if (!present(orchestrator.sourceHash)) reasons.push("ORCHESTRATOR_SOURCE_HASH_REQUIRED");
     if (present(input.candidateSourceHash) && orchestrator.sourceHash !== input.candidateSourceHash) reasons.push("CANDIDATE_SOURCE_HASH_BINDING_MISMATCH");
     if (orchestrator.safety?.replay?.replayId !== replay.replayId) reasons.push("ORCHESTRATOR_REPLAY_ID_BINDING_MISMATCH");
@@ -99,6 +102,8 @@ export function evaluateAiLogicAcceptanceEvidenceBinding(input = {}) {
       candidateSourceHash: present(input.candidateSourceHash)
         ? input.candidateSourceHash
         : (present(orchestrator.sourceHash) ? orchestrator.sourceHash : null),
+      candidatePath: present(orchestrator.candidatePath) ? orchestrator.candidatePath : null,
+      candidateTopic: present(orchestrator.candidateTopic) ? orchestrator.candidateTopic : null,
     }),
     ...LOCKS,
   });

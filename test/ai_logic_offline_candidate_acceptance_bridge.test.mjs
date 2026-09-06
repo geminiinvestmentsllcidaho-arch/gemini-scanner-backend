@@ -9,12 +9,12 @@ const replay={
   candidateMetrics:{sampleCount:2,correctCount:2,accuracy:1,changedCount:1,accuracyDelta:.5}
 };
 const safety={
-  candidateId:"c1",eligible:true,status:"AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY",
+  candidateId:"c1",topic:"classification_coverage",eligible:true,status:"AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY",
   disposition:"OFFLINE_EVIDENCE_ONLY",replay
 };
 const orchestrator={
   eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",disposition:"OFFLINE_EVIDENCE_ONLY",
-  candidateId:"c1",sourceHash:"sh1",safety
+  candidateId:"c1",candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage",sourceHash:"sh1",safety
 };
 const knownGood={
   valid:true,status:"KNOWN_GOOD_RECORD_VALID",rollbackTargetIdentified:true,

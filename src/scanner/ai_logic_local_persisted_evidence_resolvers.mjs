@@ -71,6 +71,8 @@ function approvalIdentity(row) {
     sourceCommitBefore:row?.sourceCommitBefore ?? null,
     sourceCommitAfter:row?.sourceCommitAfter ?? null,
     candidateSourceHash:row?.candidateSourceHash ?? null,
+    candidatePath:row?.candidatePath ?? null,
+    candidateTopic:row?.candidateTopic ?? null,
     nonce:row?.nonce ?? null,
   };
 }
@@ -88,7 +90,7 @@ function canonicalApproval(row, requestedId) {
     !present(row?.recordId) ||
     row.recordId !== requestedId
   ) return false;
-  for (const key of ["decisionRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","nonce"]) {
+  for (const key of ["decisionRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic","nonce"]) {
     if (!present(row[key])) return false;
   }
   if (row.action === "PROMOTION" && !present(row.acceptanceRecordId)) return false;
@@ -102,8 +104,8 @@ function canonicalApproval(row, requestedId) {
 function decisionIdentity(row, action) {
   const keys = action === "PROMOTION"
 
-    ? ["acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]
-    : ["promotionDecisionRecordId","acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"];
+    ? ["acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]
+    : ["promotionDecisionRecordId","acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"];
   return Object.fromEntries(keys.map((key)=>[key,row?.[key] ?? null]));
 }
 
@@ -126,7 +128,7 @@ function canonicalDecision(row, action, requestedId) {
 
 function bindingMatchesApproval(decision, approval) {
   if (!approval || decision?.recordId !== approval.decisionRecordId) return false;
-  for (const key of ["acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+  for (const key of ["acceptanceRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]) {
     if ((approval[key] ?? null) !== (decision[key] ?? null)) return false;
   }
   return true;

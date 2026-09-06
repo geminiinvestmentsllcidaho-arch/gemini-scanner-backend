@@ -20,6 +20,8 @@ const valid = {
     sourceCommitBefore: "a".repeat(40),
     sourceCommitAfter: "b".repeat(40),
     candidateSourceHash: "c".repeat(64),
+    candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+    candidateTopic: "classification_coverage",
   },
 };
 
@@ -28,6 +30,8 @@ test("builds deterministic offline acceptance evidence with every mutation lock 
   const b = buildAiLogicAcceptanceEvidenceRecord(valid, { now: "2026-09-02T19:00:00.000Z" });
   assert.equal(a.recordId, b.recordId);
   assert.equal(a.candidateSourceHash, "c".repeat(64));
+  assert.equal(a.candidatePath, "src/scanner/ai_logic_candidates/candidate-001.mjs");
+  assert.equal(a.candidateTopic, "classification_coverage");
   const drifted = buildAiLogicAcceptanceEvidenceRecord({
     ...valid,
     binding: { ...valid.binding, candidateSourceHash: "d".repeat(64) },
@@ -72,6 +76,20 @@ test("fails closed for ineligible binding, missing identity, and malformed ledge
     () => buildAiLogicAcceptanceEvidenceRecord({
       ...valid,
       binding: { ...valid.binding, candidateSourceHash: "" },
+    }),
+    /identity_missing/,
+  );
+  assert.throws(
+    () => buildAiLogicAcceptanceEvidenceRecord({
+      ...valid,
+      binding: { ...valid.binding, candidatePath: "" },
+    }),
+    /identity_missing/,
+  );
+  assert.throws(
+    () => buildAiLogicAcceptanceEvidenceRecord({
+      ...valid,
+      binding: { ...valid.binding, candidateTopic: "" },
     }),
     /identity_missing/,
   );

@@ -28,6 +28,8 @@ const valid = () => ({
     promotionDecisionRecordId:"p1",acceptanceRecordId:"a1",candidateId:"c1",
     knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
     candidateSourceHash:"c".repeat(64),
+    candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",
+    candidateTopic:"classification_coverage",
   },
   ...locks,
 });
@@ -68,3 +70,6 @@ test("fails closed on invalid contract, open lock, missing identity, and malform
 
 test("fails closed when candidate source hash binding is missing",()=>{const x=valid();delete x.binding.candidateSourceHash;assert.throws(()=>build(x),/NOT_PERSISTABLE/)});
 test("persists exact candidate source hash binding",()=>{assert.equal(build(valid()).candidateSourceHash,"c".repeat(64))});
+
+test("fails closed when candidate path or topic binding is missing",()=>{const a=valid();delete a.binding.candidatePath;assert.throws(()=>build(a),/NOT_PERSISTABLE/);const b=valid();delete b.binding.candidateTopic;assert.throws(()=>build(b),/NOT_PERSISTABLE/)});
+test("persists exact candidate path and topic binding and identity changes on drift",()=>{const x=build(valid());assert.equal(x.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");assert.equal(x.candidateTopic,"classification_coverage");const a=valid();a.binding={...a.binding,candidatePath:"src/scanner/ai_logic_candidates/other.mjs"};assert.notEqual(build(a).recordId,x.recordId);const b=valid();b.binding={...b.binding,candidateTopic:"evidence_interpretation"};assert.notEqual(build(b).recordId,x.recordId)});

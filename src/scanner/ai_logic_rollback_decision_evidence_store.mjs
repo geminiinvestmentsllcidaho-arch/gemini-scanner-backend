@@ -20,7 +20,7 @@ export function buildAiLogicRollbackDecisionEvidenceRecord(decision = {}, option
   const required = [
     "promotionDecisionRecordId","acceptanceRecordId","candidateId",
     "knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter",
-    "candidateSourceHash",
+    "candidateSourceHash","candidatePath","candidateTopic",
   ];
   if (
     decision.version !== "ai_logic_rollback_decision_evidence_gate_v1" ||

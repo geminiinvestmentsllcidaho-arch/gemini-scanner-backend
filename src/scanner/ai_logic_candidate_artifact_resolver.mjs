@@ -9,7 +9,7 @@ const LOCKS = Object.freeze({
   productionRuntimeWiringAllowed:false,promotionExecutionAllowed:false,rollbackExecutionAllowed:false,
   brokerContactAllowed:false,orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,
   immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,
-  allocationMutationAllowed:false,gitMutationAllowed:false,
+  allocationMutationAllowed:false,gitMutationAllowed:false,localSandboxMutationAllowed:false,filesystemMutationAllowed:false,runtimeActivationAllowed:false,
 });
 const clean = (v) => String(v ?? "").trim().replaceAll("\\","/").replace(/^\.\//,"").replace(/\/+/g,"/");
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
@@ -33,7 +33,7 @@ export function resolveAiLogicCandidateArtifact(input={}, options={}) {
   const root = path.resolve(options.rootDir ?? process.cwd());
   const candidatePath = clean(input.candidatePath);
   const expectedSourceHash = String(input.expectedSourceHash ?? "").trim().toLowerCase();
-  const manifest = options.manifestResult ?? verifyImmutablePolicyManifest();
+  const manifest = options.manifestResult ?? verifyImmutablePolicyManifest({rootDir:root});
   const reasons = [];
 
   if (manifest?.ok !== true || manifest?.status !== "IMMUTABLE_MANIFEST_VERIFIED") {
@@ -60,8 +60,20 @@ export function resolveAiLogicCandidateArtifact(input={}, options={}) {
 
   const stat = fs.lstatSync(target);
   if (!stat.isFile()) return reject(["REGULAR_FILE_REQUIRED"], candidatePath);
-
-  const candidateBytes = fs.readFileSync(target);
+  if ((stat.mode & 0o022) !== 0) return reject(["CANDIDATE_MODE_UNSAFE"], candidatePath);
+  let fd;
+  let candidateBytes;
+  try {
+    fd = fs.openSync(target, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    const fdStat = fs.fstatSync(fd);
+    if (!fdStat.isFile()) return reject(["REGULAR_FILE_REQUIRED"], candidatePath);
+    if ((fdStat.mode & 0o022) !== 0) return reject(["CANDIDATE_MODE_UNSAFE",], candidatePath);
+    candidateBytes = fs.readFileSync(fd);
+  } catch {
+    return reject(["CANDIDATE_SECURE_READ_FAILED"], candidatePath);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
   const sourceHash = sha(candidateBytes);
   if (sourceHash !== expectedSourceHash) return reject(["SOURCE_HASH_MISMATCH"], candidatePath);
 

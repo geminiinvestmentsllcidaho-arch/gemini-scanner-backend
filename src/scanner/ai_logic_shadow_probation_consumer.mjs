@@ -28,7 +28,7 @@ export function evaluateAiLogicShadowProbationEvidence(input = {}) {
   const reasons = [];
   if (manifest.ok !== true || manifest.status !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("IMMUTABLE_MANIFEST_NOT_VERIFIED");
   if (acceptance.version !== "ai_logic_acceptance_evidence_store_v1") reasons.push("ACCEPTANCE_EVIDENCE_VERSION_INVALID");
-  for (const key of ["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+  for (const key of ["recordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]) {
     if (!present(acceptance[key])) reasons.push(`ACCEPTANCE_${key.toUpperCase()}_REQUIRED`);
   }
   if (acceptance.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") reasons.push("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID");
@@ -40,13 +40,15 @@ export function evaluateAiLogicShadowProbationEvidence(input = {}) {
 
   if (shadowEntry.version !== "ai_logic_shadow_entry_binding_v1" || shadowEntry.eligible !== true || shadowEntry.status !== "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID" || shadowEntry.disposition !== "SHADOW_ENTRY_EVIDENCE_ONLY") reasons.push("SHADOW_ENTRY_EVIDENCE_INVALID");
   const entryBinding = shadowEntry.binding ?? {};
-  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]) {
     if (entryBinding[key] !== acceptance[key]) reasons.push(`SHADOW_ENTRY_${key.toUpperCase()}_BINDING_MISMATCH`);
   }
   if (shadow.status !== "SHADOW_PROBATION_EVIDENCE_COMPLETE") reasons.push("SHADOW_PROBATION_EVIDENCE_NOT_COMPLETE");
   if (!Number.isInteger(shadow.sampleCount) || shadow.sampleCount < 1) reasons.push("SHADOW_PROBATION_SAMPLE_COUNT_REQUIRED");
   if (shadow.candidateId !== acceptance.candidateId) reasons.push("SHADOW_CANDIDATE_BINDING_MISMATCH");
   if (shadow.candidateSourceHash !== acceptance.candidateSourceHash) reasons.push("SHADOW_CANDIDATE_SOURCE_HASH_MISMATCH");
+  if (shadow.candidatePath !== acceptance.candidatePath) reasons.push("SHADOW_CANDIDATE_PATH_MISMATCH");
+  if (shadow.candidateTopic !== acceptance.candidateTopic) reasons.push("SHADOW_CANDIDATE_TOPIC_MISMATCH");
   if (shadow.knownGoodRecordId !== acceptance.knownGoodRecordId) reasons.push("SHADOW_KNOWN_GOOD_BINDING_MISMATCH");
   if (shadow.acceptanceRecordId !== acceptance.recordId) reasons.push("SHADOW_ACCEPTANCE_RECORD_BINDING_MISMATCH");
   if (shadow.replayId !== acceptance.replayId) reasons.push("SHADOW_REPLAY_BINDING_MISMATCH");
@@ -77,6 +79,8 @@ export function evaluateAiLogicShadowProbationEvidence(input = {}) {
       sourceCommitBefore: present(acceptance.sourceCommitBefore) ? acceptance.sourceCommitBefore : null,
       sourceCommitAfter: present(acceptance.sourceCommitAfter) ? acceptance.sourceCommitAfter : null,
       candidateSourceHash: present(acceptance.candidateSourceHash) ? acceptance.candidateSourceHash : null,
+      candidatePath: present(acceptance.candidatePath) ? acceptance.candidatePath : null,
+      candidateTopic: present(acceptance.candidateTopic) ? acceptance.candidateTopic : null,
     }),
     shadowEvidence: Object.freeze({
       status: present(shadow.status) ? shadow.status : null,

@@ -20,6 +20,7 @@ function fixture() {
     status:"AI_LOGIC_CANDIDATE_SAFETY_GATE_ELIGIBLE_FOR_OFFLINE_EVIDENCE_ONLY",
     disposition:"OFFLINE_EVIDENCE_ONLY",
     candidateId:"candidate-1",
+    topic:"classification_coverage",
     replay
   };
   return {
@@ -40,6 +41,8 @@ function fixture() {
       status:"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
       disposition:"OFFLINE_EVIDENCE_ONLY",
       candidateId:"candidate-1",
+      candidatePath:"src/scanner/ai_logic_candidates/candidate-1.mjs",
+      candidateTopic:"classification_coverage",
       sourceHash:"source-hash-1",
       safety:structuredClone(safetyGate)
     },
@@ -71,6 +74,8 @@ test("binds genuine pre-shadow acceptance without experiment or shadow results",
     knownGoodRecordId:"known-good-1",
     candidateId:"candidate-1",
     candidateSourceHash:"source-hash-1",
+    candidatePath:"src/scanner/ai_logic_candidates/candidate-1.mjs",
+    candidateTopic:"classification_coverage",
     replayId:"replay-1",
     sourceCommitBefore:"commit-before",
     sourceCommitAfter:"commit-after"
@@ -92,7 +97,9 @@ test("fails closed on source hash replay or candidate provenance drift", () => {
   for (const mutate of [
     x => { x.candidateSourceHash="wrong"; },
     x => { x.orchestrator.safety.replay.replayId="wrong"; },
-    x => { x.orchestrator.candidateId="wrong"; }
+    x => { x.orchestrator.candidateId="wrong"; },
+    x => { x.orchestrator.candidatePath=""; },
+    x => { x.orchestrator.safety.topic="evidence_interpretation"; }
   ]) {
     const input = fixture();
     mutate(input);
@@ -141,4 +148,12 @@ test("fails closed on immutable or authority drift", () => {
   const c = fixture();
   c.acceptance.eligible=false;
   assert.equal(bind(c).eligible,false);
+});
+
+test("fails closed when external safety gate topic drifts from orchestrator provenance",()=>{
+  const x=fixture();
+  x.safetyGate={...x.orchestrator.safety,topic:"evidence_interpretation"};
+  const r=bind(x);
+  assert.equal(r.eligible,false);
+  assert.ok(r.reasons.includes("SAFETY_GATE_CANDIDATE_TOPIC_BINDING_MISMATCH"));
 });

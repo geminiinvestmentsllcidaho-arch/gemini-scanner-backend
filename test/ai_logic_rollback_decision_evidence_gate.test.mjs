@@ -27,6 +27,8 @@ function fixture() {
     sourceCommitBefore: "before",
     sourceCommitAfter: "after",
     candidateSourceHash: "c".repeat(64),
+    candidatePath: "src/scanner/ai_logic_candidates/c1.mjs",
+    candidateTopic: "classification_coverage",
   };
 
   return {
@@ -48,6 +50,8 @@ function fixture() {
       sourceCommitBefore: "before",
       sourceCommitAfter: "after",
       candidateSourceHash: "c".repeat(64),
+      candidatePath: "src/scanner/ai_logic_candidates/c1.mjs",
+      candidateTopic: "classification_coverage",
       localJsonlOnly: true,
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
@@ -89,6 +93,8 @@ test("permits rollback decision evidence only with complete immutable bindings a
     sourceCommitBefore: "before",
     sourceCommitAfter: "after",
     candidateSourceHash: "c".repeat(64),
+    candidatePath: "src/scanner/ai_logic_candidates/c1.mjs",
+    candidateTopic: "classification_coverage",
   });
 });
 
@@ -153,4 +159,14 @@ test("candidate source hash provenance is required and exact", () => {
   const a=fixture(); delete a.promotionDecision.binding.candidateSourceHash; assert.equal(build(a).eligible,false);
   const b=fixture(); b.acceptanceEvidence.candidateSourceHash="d".repeat(64); assert.equal(build(b).eligible,false);
   assert.equal(build(fixture()).binding.candidateSourceHash,"c".repeat(64));
+});
+
+test("fails closed on candidate path or topic provenance drift", () => {
+  const a=fixture(); delete a.promotionDecision.binding.candidatePath; assert.equal(build(a).eligible,false);
+  const b=fixture(); b.promotionDecision.candidateTopic="evidence_interpretation"; assert.equal(build(b).eligible,false);
+  const c=fixture(); c.acceptanceEvidence.candidatePath="src/scanner/ai_logic_candidates/other.mjs"; assert.equal(build(c).eligible,false);
+  const d=fixture(); d.acceptanceEvidence.candidateTopic="evidence_interpretation"; assert.equal(build(d).eligible,false);
+  const e=build(fixture());
+  assert.equal(e.binding.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+  assert.equal(e.binding.candidateTopic,"classification_coverage");
 });

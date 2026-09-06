@@ -28,6 +28,8 @@ function validInput() {
       sourceCommitBefore: "a".repeat(40),
       sourceCommitAfter: "b".repeat(40),
       candidateSourceHash: "c".repeat(64),
+      candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+      candidateTopic: "classification_coverage",
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
     },
@@ -51,6 +53,8 @@ function validInput() {
         sourceCommitBefore: "a".repeat(40),
         sourceCommitAfter: "b".repeat(40),
         candidateSourceHash: "c".repeat(64),
+        candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+        candidateTopic: "classification_coverage",
       },
       ...locks,
     },
@@ -69,6 +73,8 @@ test("builds complete shadow probation evidence with all mutation locks closed",
   assert.equal(r.sampleCount, 2);
   assert.equal(r.candidateId, "candidate-001");
   assert.equal(r.knownGoodRecordId, "known-good-001");
+  assert.equal(r.candidatePath, "src/scanner/ai_logic_candidates/candidate-001.mjs");
+  assert.equal(r.candidateTopic, "classification_coverage");
   for (const [key, value] of Object.entries(locks)) assert.equal(r[key], value);
 })
 
@@ -141,4 +147,13 @@ test("fails closed if shadow-entry evidence opens authority", () => {
   assert.equal(r.complete, false);
   assert.ok(r.reasons.some((reason) => reason.includes("ORDERPLACEMENTALLOWED")));
   assert.equal(r.orderPlacementAllowed, false);
+});
+
+test("fails closed on candidate path or topic provenance drift", () => {
+  const a = validInput();
+  a.acceptanceEvidence.candidatePath = "";
+  assert.equal(buildAiLogicShadowProbationEvidence(a).complete, false);
+  const b = validInput();
+  b.shadowEntryEvidence.binding.candidateTopic = "evidence_interpretation";
+  assert.equal(buildAiLogicShadowProbationEvidence(b).complete, false);
 });

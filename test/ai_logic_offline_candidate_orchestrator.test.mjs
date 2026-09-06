@@ -21,6 +21,8 @@ test("writes binds and replays isolated candidate with authority closed",async()
   assert.equal(r.status,"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE");
   assert.equal(r.disposition,"OFFLINE_EVIDENCE_ONLY");
   assert.equal(r.stage,"COMPLETE");
+  assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/a57g.mjs");
+  assert.equal(r.candidateTopic,"classification_coverage");
   assert.equal(r.binding.sourceExecutionAllowed,false);
   assert.equal(r.binding.dynamicImportAllowed,false);
   assert.equal(r.runner.status,"AI_LOGIC_CANDIDATE_ISOLATED_RUNNER_READY");

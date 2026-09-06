@@ -7,6 +7,8 @@ function fixture() {
     knownGoodRecordId: "kg-1",
     candidateId: "cand-1",
     candidateSourceHash: "c".repeat(64),
+    candidatePath: "src/scanner/ai_logic_candidates/cand-1.mjs",
+    candidateTopic: "classification_coverage",
     replayId: "replay-1",
     sourceCommitBefore: "a".repeat(40),
     sourceCommitAfter: "b".repeat(40),
@@ -68,6 +70,15 @@ test("fails closed on candidate source hash or replay drift", () => {
   assert.equal(gate(a).eligible, false);
   const b = fixture();
   b.acceptanceEvidence.binding.replayId = "other";
+  assert.equal(gate(b).eligible, false);
+});
+
+test("fails closed on candidate path or topic drift", () => {
+  const a = fixture();
+  a.acceptanceEvidence.binding.candidatePath = "src/scanner/ai_logic_candidates/other.mjs";
+  assert.equal(gate(a).eligible, false);
+  const b = fixture();
+  b.preShadowEvidence.binding.candidateTopic = "evidence_interpretation";
   assert.equal(gate(b).eligible, false);
 });
 

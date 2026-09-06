@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { verifyImmutablePolicyManifest } from "./ai_logic_immutable_manifest.mjs";
 import { isAiLogicOperatorApprovalConsumed } from "./ai_logic_operator_approval_consumption_store.mjs";
 import { buildAiLogicOperatorApprovalConsumptionRecord } from "./ai_logic_operator_approval_consumption_contract.mjs";
@@ -59,9 +60,6 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
 
   const {
     approvalRecordId,
-    targetPath,
-    candidateTopic,
-    candidatePath,
     expectedPreimageHash,
     operationId,
     repositoryRoot,
@@ -97,6 +95,16 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   }
   const operatorApproval = persisted.operatorApproval;
   const decisionEvidence = persisted.decisionEvidence;
+  const persistedCandidatePath = operatorApproval?.candidatePath;
+  const persistedCandidateTopic = operatorApproval?.candidateTopic;
+  if (
+    typeof persistedCandidatePath !== "string" || !persistedCandidatePath.trim()
+    || typeof persistedCandidateTopic !== "string" || !persistedCandidateTopic.trim()
+    || decisionEvidence?.candidatePath !== persistedCandidatePath
+    || decisionEvidence?.candidateTopic !== persistedCandidateTopic
+  ) {
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_CANDIDATE_PATH_TOPIC_BINDING_INVALID"]) });
+  }
 
   if (operatorApproval?.version !== "ai_logic_operator_approval_record_v1" || operatorApproval?.valid !== true || operatorApproval?.explicitlyApproved !== true || operatorApproval?.oneShot !== true) {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_INVALID"]) });
@@ -121,16 +129,34 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
   }
   const candidateArtifact = resolveCandidateArtifact({
-    candidatePath,
+    candidatePath:persistedCandidatePath,
     expectedSourceHash:operatorApproval.candidateSourceHash,
   }, {
     rootDir:repositoryRoot,
     manifestResult:immutableManifest,
   });
+  const resolvedBytesHash = Buffer.isBuffer(candidateArtifact?.candidateBytes)
+    ? crypto.createHash("sha256").update(candidateArtifact.candidateBytes).digest("hex")
+    : null;
+  const resolvedTextBytes = typeof candidateArtifact?.sourceText === "string"
+    ? Buffer.from(candidateArtifact.sourceText, "utf8")
+    : null;
   if (
     candidateArtifact?.eligible !== true
+    || candidateArtifact?.status !== "AI_LOGIC_CANDIDATE_ARTIFACT_RESOLVED"
+    || candidateArtifact?.readOnly !== true
+    || candidateArtifact?.evidenceOnly !== true
+    || candidateArtifact?.sourceExecutionAllowed !== false
+    || candidateArtifact?.dynamicImportAllowed !== false
+    || candidateArtifact?.localSandboxMutationAllowed !== false
+    || candidateArtifact?.filesystemMutationAllowed !== false
+    || candidateArtifact?.runtimeActivationAllowed !== false
     || !Buffer.isBuffer(candidateArtifact?.candidateBytes)
+    || typeof candidateArtifact?.sourceText !== "string"
     || candidateArtifact?.sourceHash !== operatorApproval.candidateSourceHash
+    || candidateArtifact?.candidatePath !== persistedCandidatePath
+    || resolvedBytesHash !== operatorApproval.candidateSourceHash
+    || !resolvedTextBytes?.equals(candidateArtifact.candidateBytes)
   ) {
     return out({
       executed:false,
@@ -141,6 +167,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     });
   }
   const resolvedCandidateBytes = candidateArtifact.candidateBytes;
+  const resolvedTargetPath = candidateArtifact.candidatePath;
 
   const consumptionRecord = buildConsumption({
     approvalRecord:operatorApproval,
@@ -164,6 +191,8 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     action:consumptionRecord.action,
     decisionRecordId:consumptionRecord.decisionRecordId,
     candidateSourceHash:consumptionRecord.candidateSourceHash,
+    candidatePath:consumptionRecord.candidatePath,
+    candidateTopic:consumptionRecord.candidateTopic,
     currentSourceCommit:consumptionRecord.currentSourceCommit,
     targetSourceCommit:consumptionRecord.targetSourceCommit,
     productionRuntimeWiringAllowed:false,
@@ -191,7 +220,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const executionPreview = buildPreview({
     consumptionRecord,
     immutableManifest,
-    decisionIdentity:{ decisionRecordId:decisionEvidence.recordId, candidateSourceHash:decisionEvidence.candidateSourceHash },
+    decisionIdentity:{ decisionRecordId:decisionEvidence.recordId, candidateSourceHash:decisionEvidence.candidateSourceHash, candidatePath:decisionEvidence.candidatePath, candidateTopic:decisionEvidence.candidateTopic },
     knownGood:knownGoodStoreBinding.knownGood,
     candidateTarget:{ sourceCommit:operatorApproval.sourceCommitAfter },
   });
@@ -216,8 +245,8 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     immutableManifest,
     candidateArtifact:candidateArtifact.sourceText,
     currentHead,
-    changedPaths:[targetPath],
-    candidateTopic,
+    changedPaths:[resolvedTargetPath],
+    candidateTopic:persistedCandidateTopic,
     now,
   });
   if (
@@ -240,7 +269,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     immutableManifest,
     currentSourceCommit,
     targetSourceCommit,
-    targetPath,
+    targetPath:resolvedTargetPath,
     expectedPreimageHash,
     operationId,
     knownGoodStorePath,
@@ -264,7 +293,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
       repositoryRoot,
       boundaryEvidence,
       candidateBytes:resolvedCandidateBytes,
-      targetPath,
+      targetPath:resolvedTargetPath,
       expectedPreimageHash,
       immutableManifestBefore:immutableManifest,
       verifyImmutableManifestAfter,

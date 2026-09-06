@@ -18,13 +18,15 @@ function fx() {
     version:"ai_logic_operator_approval_record_v1",valid:true,recordId:"ap1",nonce:"nonce1",
     action:"PROMOTION",decisionRecordId:"d1",acceptanceRecordId:"ac1",candidateId:"c1",
     knownGoodRecordId:"kg1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
+    candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
     candidateSourceHash,explicitlyApproved:true,oneShot:true,paperOnly:true,
     expiresAt:"2030-01-01T00:00:00.000Z",...locks,
   };
   const decisionEvidence = {
     version:"ai_logic_promotion_decision_evidence_store_v1",recordId:"d1",acceptanceRecordId:"ac1",
     candidateId:"c1",knownGoodRecordId:"kg1",replayId:"r1",sourceCommitBefore:"before",
-    sourceCommitAfter:"after",candidateSourceHash,immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",
+    sourceCommitAfter:"after",candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
+    candidateSourceHash,immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",
     localJsonlOnly:true,persistenceAllowed:false,promotionAllowed:false,...locks,
   };
   const boundaryEvidence = {
@@ -41,7 +43,7 @@ function fx() {
   return {
     input:{
       approvalRecordId:operatorApproval.recordId,
-      targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
+      candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
       expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
       knownGoodStorePath:"/kg",consumptionPath:"/cons",now:"2029-01-01T00:00:00.000Z",
       currentHeadProvider:()=> "before",
@@ -52,6 +54,9 @@ function fx() {
       verifyImmutablePolicyManifest:()=>({ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}),
       resolveAiLogicCandidateArtifact:({candidatePath,expectedSourceHash},{rootDir,manifestResult})=>({
         eligible:candidatePath==="src/scanner/ai_logic_candidates/x.mjs" && expectedSourceHash===candidateSourceHash && rootDir==="/repo" && manifestResult?.ok===true,
+        status:"AI_LOGIC_CANDIDATE_ARTIFACT_RESOLVED",readOnly:true,evidenceOnly:true,
+        sourceExecutionAllowed:false,dynamicImportAllowed:false,
+        localSandboxMutationAllowed:false,filesystemMutationAllowed:false,runtimeActivationAllowed:false,
         candidatePath,candidateBytes:Buffer.from(candidateBytes),sourceText:candidateBytes.toString("utf8"),sourceHash:candidateSourceHash,reasons:[],
       }),
       resolveAiLogicPersistedApprovalAndDecision:({approvalRecordId})=>({
@@ -66,7 +71,8 @@ function fx() {
         version:"ai_logic_operator_approval_consumption_record_v1",eligible:true,
         status:"AI_LOGIC_OPERATOR_APPROVAL_CONSUMPTION_READY",disposition:"ONE_SHOT_CONSUMPTION_EVIDENCE_ONLY",
         approvalRecordId:"ap1",nonce:"nonce1",action:"PROMOTION",decisionRecordId:"d1",
-        candidateSourceHash,currentSourceCommit:"before",targetSourceCommit:"after",
+        candidateSourceHash,candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
+        currentSourceCommit:"before",targetSourceCommit:"after",
         oneShot:true,atomicConsumptionRequired:true,exactlyOnceRequired:true,auditEvidenceRequired:true,paperOnly:true,...locks,
       }),
       resolveAndBindAiLogicKnownGoodFromStore:()=>({
@@ -110,10 +116,12 @@ test("exports version",()=>assert.equal(VERSION,"ai_logic_explicit_local_nonrunt
 test("explicit invocation builds then delegates exactly once",()=>{
   const f=fx();
   let calls=0;
+  f.input.targetPath="src/server.js";
   f.deps.runAiLogicOneShotNonruntimeInvocation=(x)=>{
     calls++;
     assert.equal(x.consumptionRecord.eligible,true);
     assert.deepEqual(x.executionInput.atomicExecutorInput.candidateBytes,Buffer.from("candidate-v2"));
+    assert.equal(x.executionInput.atomicExecutorInput.targetPath,"src/scanner/ai_logic_candidates/x.mjs");
     return {executed:true,consumed:true,applied:true,status:"OK"};
   };
   const r=run(f.input,f.deps);
@@ -136,6 +144,33 @@ test("already consumed blocks before assembly or invocation",()=>{
   assert.equal(r.consumed,true);
   assert.equal(r.executed,false);
   assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED");
+});
+
+test("candidate artifact resolution fails closed on injected byte or text trust drift",()=>{
+  for (const mutate of [
+    f=>{
+      const good=f.deps.resolveAiLogicCandidateArtifact;
+      f.deps.resolveAiLogicCandidateArtifact=(i,o)=>({...good(i,o),candidateBytes:Buffer.from("tampered")});
+    },
+    f=>{
+      const good=f.deps.resolveAiLogicCandidateArtifact;
+      f.deps.resolveAiLogicCandidateArtifact=(i,o)=>({...good(i,o),sourceText:"different"});
+    },
+    f=>{
+      const good=f.deps.resolveAiLogicCandidateArtifact;
+      f.deps.resolveAiLogicCandidateArtifact=(i,o)=>({...good(i,o),sourceExecutionAllowed:true});
+    },
+  ]) {
+    const f=fx();
+    let n=0;
+    mutate(f);
+    f.deps.runAiLogicOneShotNonruntimeInvocation=()=>{n++;};
+    const r=run(f.input,f.deps);
+    assert.equal(n,0);
+    assert.equal(r.executed,false);
+    assert.equal(r.consumed,false);
+    assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED");
+  }
 });
 
 test("candidate artifact resolution and required validators fail closed before invocation",()=>{

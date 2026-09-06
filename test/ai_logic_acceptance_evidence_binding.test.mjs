@@ -111,8 +111,10 @@ test("binds orchestrator candidate source hash and replay identity when supplied
     status: "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
     disposition: "OFFLINE_EVIDENCE_ONLY",
     candidateId: "candidate-001",
+    candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+    candidateTopic: "classification_coverage",
     sourceHash: "sourcehash001",
-    safety: { replay },
+    safety: { topic: "classification_coverage", replay },
   };
   const r = evaluateAiLogicAcceptanceEvidenceBinding({
     ...base,
@@ -129,8 +131,10 @@ test("fails closed on orchestrator source hash or replay identity drift", () => 
     status: "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
     disposition: "OFFLINE_EVIDENCE_ONLY",
     candidateId: "candidate-001",
+    candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+    candidateTopic: "classification_coverage",
     sourceHash: "sourcehash001",
-    safety: { replay: { ...replay, replayId: "other-replay" } },
+    safety: { topic: "classification_coverage", replay: { ...replay, replayId: "other-replay" } },
   };
   const r = evaluateAiLogicAcceptanceEvidenceBinding({
     ...base,
@@ -140,6 +144,26 @@ test("fails closed on orchestrator source hash or replay identity drift", () => 
   assert.equal(r.eligible, false);
   assert.ok(r.reasons.includes("CANDIDATE_SOURCE_HASH_BINDING_MISMATCH"));
   assert.ok(r.reasons.includes("ORCHESTRATOR_REPLAY_ID_BINDING_MISMATCH"));
+});
+
+test("fails closed on orchestrator candidate topic provenance drift", () => {
+  const orchestrator = {
+    eligible: true,
+    status: "AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
+    disposition: "OFFLINE_EVIDENCE_ONLY",
+    candidateId: "candidate-001",
+    candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+    candidateTopic: "classification_coverage",
+    sourceHash: "sourcehash001",
+    safety: { topic: "evidence_interpretation", replay },
+  };
+  const r = evaluateAiLogicAcceptanceEvidenceBinding({
+    ...base,
+    orchestrator,
+    candidateSourceHash: "sourcehash001",
+  });
+  assert.equal(r.eligible, false);
+  assert.ok(r.reasons.includes("ORCHESTRATOR_CANDIDATE_TOPIC_BINDING_MISMATCH"));
 });
 
 test("fails closed when source hash binding is requested without orchestrator evidence", () => {

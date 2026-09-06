@@ -10,7 +10,7 @@ const hash = (v) => crypto.createHash("sha256").update(JSON.stringify(v)).digest
 
 export function buildAiLogicOperatorApprovalRecord(input = {}) {
   const action = input.action;
-  const fields = ["decisionRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","nonce"];
+  const fields = ["decisionRecordId","candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic","nonce"];
   const reasons = [];
   if (!ACTIONS.has(action)) reasons.push("ACTION_INVALID");
   for (const k of fields) if (!present(input[k])) reasons.push(`${k.toUpperCase()}_REQUIRED`);
@@ -34,6 +34,8 @@ export function buildAiLogicOperatorApprovalRecord(input = {}) {
     sourceCommitBefore: input.sourceCommitBefore ?? null,
     sourceCommitAfter: input.sourceCommitAfter ?? null,
     candidateSourceHash: input.candidateSourceHash ?? null,
+    candidatePath: input.candidatePath ?? null,
+    candidateTopic: input.candidateTopic ?? null,
     nonce: input.nonce ?? null,
   };
   return Object.freeze({

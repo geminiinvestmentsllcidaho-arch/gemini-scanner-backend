@@ -40,7 +40,7 @@ export function evaluateAiLogicShadowEntryBinding(input = {}) {
   if (!pre.binding || typeof pre.binding !== "object") reasons.push("PRE_SHADOW_BINDING_REQUIRED");
 
   const p = pre.binding ?? {};
-  const keys = ["knownGoodRecordId","candidateId","candidateSourceHash","replayId","sourceCommitBefore","sourceCommitAfter"];
+  const keys = ["knownGoodRecordId","candidateId","candidateSourceHash","candidatePath","candidateTopic","replayId","sourceCommitBefore","sourceCommitAfter"];
   for (const key of keys) {
     if (!present(p[key])) reasons.push(`PRE_SHADOW_${key.toUpperCase()}_REQUIRED`);
   }
@@ -64,6 +64,8 @@ export function evaluateAiLogicShadowEntryBinding(input = {}) {
       knownGoodRecordId: present(p.knownGoodRecordId) ? p.knownGoodRecordId : null,
       candidateId: present(p.candidateId) ? p.candidateId : null,
       candidateSourceHash: present(p.candidateSourceHash) ? p.candidateSourceHash : null,
+      candidatePath: present(p.candidatePath) ? p.candidatePath : null,
+      candidateTopic: present(p.candidateTopic) ? p.candidateTopic : null,
       replayId: present(p.replayId) ? p.replayId : null,
       sourceCommitBefore: present(p.sourceCommitBefore) ? p.sourceCommitBefore : null,
       sourceCommitAfter: present(p.sourceCommitAfter) ? p.sourceCommitAfter : null,

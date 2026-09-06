@@ -28,6 +28,7 @@ function fixture(action="PROMOTION") {
   const common={
     acceptanceRecordId:"ac1",candidateId:"c1",knownGoodRecordId:"kg1",replayId:"r1",
     sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"a".repeat(64),
+    candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage",
   };
   const decisionIdentity=action==="PROMOTION"
     ? {...common}
@@ -36,7 +37,8 @@ function fixture(action="PROMOTION") {
   const approvalIdentity={
     action,decisionRecordId,acceptanceRecordId:"ac1",candidateId:"c1",knownGoodRecordId:"kg1",
     replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
-    candidateSourceHash:"a".repeat(64),nonce:"n1",
+    candidateSourceHash:"a".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",
+    candidateTopic:"classification_coverage",nonce:"n1",
   };
   const operatorApproval={
     version:"ai_logic_operator_approval_record_v1",valid:true,status:"AI_LOGIC_OPERATOR_APPROVAL_RECORDED",
@@ -107,4 +109,31 @@ test("decision duplicate identity drift action mismatch and approval binding dri
     assert.equal(r.record,null);
     assert.equal(r.immutablePolicyMutationAllowed,false);
   }
+});
+
+test("candidate path or topic identity drift fails closed",()=>{
+  {
+    const f=fixture();
+    const bad={...f.operatorApproval,candidatePath:"src/scanner/ai_logic_candidates/other.mjs"};
+    fs.writeFileSync(f.approvalPath,JSON.stringify(bad)+"\n");
+    assert.equal(resolveAiLogicOperatorApprovalById({approvalRecordId:f.operatorApproval.recordId},{filePath:f.approvalPath}).eligible,false);
+  }
+  {
+    const f=fixture();
+    const bad={...f.decision,candidateTopic:"evidence_interpretation"};
+    fs.writeFileSync(f.promotionPath,JSON.stringify(bad)+"\n");
+    assert.equal(resolveAiLogicDecisionEvidenceById({action:"PROMOTION",decisionRecordId:f.decision.recordId,operatorApproval:f.operatorApproval},f).eligible,false);
+  }
+  {
+    const f=fixture();
+    const approval={...f.operatorApproval,candidatePath:"src/scanner/ai_logic_candidates/other.mjs"};
+    assert.equal(resolveAiLogicDecisionEvidenceById({action:"PROMOTION",decisionRecordId:f.decision.recordId,operatorApproval:approval},f).eligible,false);
+  }
+  const f=fixture();
+  const r=resolveAiLogicPersistedApprovalAndDecision({approvalRecordId:f.operatorApproval.recordId},f);
+  assert.equal(r.eligible,true);
+  assert.equal(r.operatorApproval.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+  assert.equal(r.operatorApproval.candidateTopic,"classification_coverage");
+  assert.equal(r.decisionEvidence.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+  assert.equal(r.decisionEvidence.candidateTopic,"classification_coverage");
 });

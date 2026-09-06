@@ -83,6 +83,8 @@ export function buildAiLogicRollbackDecisionEvidence({
     "sourceCommitBefore",
     "sourceCommitAfter",
     "candidateSourceHash",
+    "candidatePath",
+    "candidateTopic",
   ]) {
     if (!present(p[key])) reasons.push(`PROMOTION_DECISION_${key.toUpperCase()}_REQUIRED`);
   }
@@ -108,6 +110,12 @@ export function buildAiLogicRollbackDecisionEvidence({
   if (promotionDecision?.candidateSourceHash !== p.candidateSourceHash) {
     reasons.push("PROMOTION_DECISION_CANDIDATE_SOURCE_HASH_MISMATCH");
   }
+  if (promotionDecision?.candidatePath !== p.candidatePath) {
+    reasons.push("PROMOTION_DECISION_CANDIDATE_PATH_MISMATCH");
+  }
+  if (promotionDecision?.candidateTopic !== p.candidateTopic) {
+    reasons.push("PROMOTION_DECISION_CANDIDATE_TOPIC_MISMATCH");
+  }
 
   if (acceptanceEvidence?.recordId !== p.acceptanceRecordId) {
     reasons.push("ACCEPTANCE_RECORD_BINDING_MISMATCH");
@@ -129,6 +137,12 @@ export function buildAiLogicRollbackDecisionEvidence({
   }
   if (acceptanceEvidence?.candidateSourceHash !== p.candidateSourceHash) {
     reasons.push("ACCEPTANCE_CANDIDATE_SOURCE_HASH_MISMATCH");
+  }
+  if (acceptanceEvidence?.candidatePath !== p.candidatePath) {
+    reasons.push("ACCEPTANCE_CANDIDATE_PATH_MISMATCH");
+  }
+  if (acceptanceEvidence?.candidateTopic !== p.candidateTopic) {
+    reasons.push("ACCEPTANCE_CANDIDATE_TOPIC_MISMATCH");
   }
 
   if (knownGood?.recordId !== p.knownGoodRecordId) {
@@ -178,6 +192,12 @@ export function buildAiLogicRollbackDecisionEvidence({
         : null,
       candidateSourceHash: present(acceptanceEvidence?.candidateSourceHash)
         ? acceptanceEvidence.candidateSourceHash
+        : null,
+      candidatePath: present(acceptanceEvidence?.candidatePath)
+        ? acceptanceEvidence.candidatePath
+        : null,
+      candidateTopic: present(acceptanceEvidence?.candidateTopic)
+        ? acceptanceEvidence.candidateTopic
         : null,
     }),
     rollbackTargetIdentified: eligible,

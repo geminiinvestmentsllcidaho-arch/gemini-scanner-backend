@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
 export const VERSION = "ai_logic_immutable_manifest_v1";
 export const IMMUTABLE_POLICY_MANIFEST = Object.freeze([
   Object.freeze({ path: "src/scanner/automatic_position_sizing_policy.mjs", sha256: "999ade4208f16abc5ec6ef8c2c2313502e2702404ede2a616ce298221cb03894" }),
@@ -13,12 +14,16 @@ export const IMMUTABLE_POLICY_MANIFEST = Object.freeze([
   Object.freeze({ path: "src/scanner/paper_auto_execution_submission_boundary.mjs", sha256: "fcf5e9e7a74019e0f7cc02f8b4285fbe2438f778887bbb7693cab625848cf002" }),
   Object.freeze({ path: "src/scanner/paper_auto_execution_position_mutation_lock.mjs", sha256: "c3044f0fed90897b64ccdfda9eb0f36d6702ad2fbc537d3c36df9752e34bc52e" }),
 ]);
-function sha256File(path){return crypto.createHash("sha256").update(fs.readFileSync(path)).digest("hex")}
+function sha256File(filePath){return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex")}
 export function verifyImmutablePolicyManifest(options={}){
   const manifest=Array.isArray(options.manifest)?options.manifest:IMMUTABLE_POLICY_MANIFEST;
+  const rootDir=path.resolve(options.rootDir??process.cwd());
   const results=manifest.map(entry=>{
-    if(!fs.existsSync(entry.path))return Object.freeze({path:entry.path,expectedSha256:entry.sha256,actualSha256:null,ok:false,status:"IMMUTABLE_FILE_MISSING"});
-    const actualSha256=sha256File(entry.path);
+    const filePath=path.resolve(rootDir,entry.path);
+    const relative=path.relative(rootDir,filePath).replaceAll("\\","/");
+    if(relative!==entry.path)return Object.freeze({path:entry.path,expectedSha256:entry.sha256,actualSha256:null,ok:false,status:"IMMUTABLE_FILE_PATH_ESCAPE"});
+    if(!fs.existsSync(filePath))return Object.freeze({path:entry.path,expectedSha256:entry.sha256,actualSha256:null,ok:false,status:"IMMUTABLE_FILE_MISSING"});
+    const actualSha256=sha256File(filePath);
     return Object.freeze({path:entry.path,expectedSha256:entry.sha256,actualSha256,ok:actualSha256===entry.sha256,status:actualSha256===entry.sha256?"IMMUTABLE_FILE_MATCH":"IMMUTABLE_FILE_MISMATCH"});
   });
   const ok=results.every(row=>row.ok);

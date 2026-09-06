@@ -11,7 +11,7 @@ const locks = {
 
 function fixture() {
   const acceptanceEvidence = {
-    version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",candidateSourceHash:"c".repeat(64),
+    version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage",
     knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
     immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",localJsonlOnly:true,...locks,
   };
@@ -21,10 +21,10 @@ function fixture() {
   };
   const shadowEntryEvidence = {
     version:"ai_logic_shadow_entry_binding_v1",eligible:true,status:"AI_LOGIC_SHADOW_ENTRY_BINDING_VALID",
-    disposition:"SHADOW_ENTRY_EVIDENCE_ONLY",binding:{candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64)},...locks,
+    disposition:"SHADOW_ENTRY_EVIDENCE_ONLY",binding:{candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage"},...locks,
   };
   const shadowProbationEvidence = {
-    status:"SHADOW_PROBATION_EVIDENCE_COMPLETE",sampleCount:3,candidateId:"c1",candidateSourceHash:"c".repeat(64),
+    status:"SHADOW_PROBATION_EVIDENCE_COMPLETE",sampleCount:3,candidateId:"c1",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage",
     knownGoodRecordId:"k1",acceptanceRecordId:"a1",replayId:"r1",
     sourceCommitBefore:"before",sourceCommitAfter:"after",
     immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks,
@@ -70,6 +70,8 @@ test("candidate source hash provenance is required and exact",()=>{
   assert.equal(evaluateAiLogicShadowProbationEvidence(b).accepted,false);
   const c=evaluateAiLogicShadowProbationEvidence(fixture());
   assert.equal(c.binding.candidateSourceHash,"c".repeat(64));
+  assert.equal(c.binding.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+  assert.equal(c.binding.candidateTopic,"classification_coverage");
 });
 
 
@@ -89,4 +91,11 @@ test("fails closed if shadow-entry evidence opens authority",()=>{
   const r=evaluateAiLogicShadowProbationEvidence(f);
   assert.equal(r.accepted,false);
   assert.ok(r.reasons.includes("MUTATION_LOCK_NOT_CLOSED_ORDERPLACEMENTALLOWED"));
+});
+
+test("fails closed on candidate path or topic provenance drift",()=>{
+  const a=fixture(); a.acceptanceEvidence={...a.acceptanceEvidence,candidatePath:""}; assert.equal(evaluateAiLogicShadowProbationEvidence(a).accepted,false);
+  const b=fixture(); b.shadowEntryEvidence={...b.shadowEntryEvidence,binding:{...b.shadowEntryEvidence.binding,candidateTopic:"evidence_interpretation"}}; assert.equal(evaluateAiLogicShadowProbationEvidence(b).accepted,false);
+  const c=fixture(); c.shadowProbationEvidence={...c.shadowProbationEvidence,candidatePath:"src/scanner/ai_logic_candidates/other.mjs"}; assert.equal(evaluateAiLogicShadowProbationEvidence(c).accepted,false);
+  const d=fixture(); d.shadowProbationEvidence={...d.shadowProbationEvidence,candidateTopic:"evidence_interpretation"}; assert.equal(evaluateAiLogicShadowProbationEvidence(d).accepted,false);
 });

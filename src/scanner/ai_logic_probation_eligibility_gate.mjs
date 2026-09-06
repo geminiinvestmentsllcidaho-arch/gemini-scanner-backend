@@ -40,6 +40,8 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
   if (!present(evidence.sourceCommitBefore)) reasons.push("SOURCE_COMMIT_BEFORE_REQUIRED");
   if (!present(evidence.sourceCommitAfter)) reasons.push("SOURCE_COMMIT_AFTER_REQUIRED");
   if (!present(evidence.candidateSourceHash)) reasons.push("CANDIDATE_SOURCE_HASH_REQUIRED");
+  if (!present(evidence.candidatePath)) reasons.push("CANDIDATE_PATH_REQUIRED");
+  if (!present(evidence.candidateTopic)) reasons.push("CANDIDATE_TOPIC_REQUIRED");
   if (evidence.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") {
     reasons.push("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID");
   }
@@ -59,7 +61,7 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
 
   if (shadowEntry.version !== "ai_logic_shadow_entry_binding_v1" || shadowEntry.eligible !== true || shadowEntry.status !== "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID" || shadowEntry.disposition !== "SHADOW_ENTRY_EVIDENCE_ONLY") reasons.push("SHADOW_ENTRY_EVIDENCE_INVALID");
   const entryBinding = shadowEntry.binding ?? {};
-  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]) {
     if (entryBinding[key] !== evidence[key]) reasons.push(`SHADOW_ENTRY_${key.toUpperCase()}_BINDING_MISMATCH`);
   }
 
@@ -75,6 +77,8 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
   if (probation.candidateSourceHash !== evidence.candidateSourceHash) {
     reasons.push("PROBATION_CANDIDATE_SOURCE_HASH_MISMATCH");
   }
+  if (probation.candidatePath !== evidence.candidatePath) reasons.push("PROBATION_CANDIDATE_PATH_MISMATCH");
+  if (probation.candidateTopic !== evidence.candidateTopic) reasons.push("PROBATION_CANDIDATE_TOPIC_MISMATCH");
   if (probation.knownGoodRecordId !== evidence.knownGoodRecordId) {
     reasons.push("PROBATION_KNOWN_GOOD_BINDING_MISMATCH");
   }
@@ -119,6 +123,8 @@ export function evaluateAiLogicProbationEligibility(input = {}) {
       sourceCommitBefore: present(evidence.sourceCommitBefore) ? evidence.sourceCommitBefore : null,
       sourceCommitAfter: present(evidence.sourceCommitAfter) ? evidence.sourceCommitAfter : null,
       candidateSourceHash: present(evidence.candidateSourceHash) ? evidence.candidateSourceHash : null,
+      candidatePath: present(evidence.candidatePath) ? evidence.candidatePath : null,
+      candidateTopic: present(evidence.candidateTopic) ? evidence.candidateTopic : null,
     }),
     probationEvidence: Object.freeze({
       status: present(probation.status) ? probation.status : null,

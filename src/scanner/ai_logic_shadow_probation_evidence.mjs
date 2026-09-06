@@ -40,6 +40,8 @@ export function buildAiLogicShadowProbationEvidence(input = {}) {
   if (!present(acceptance.sourceCommitBefore)) reasons.push("SOURCE_COMMIT_BEFORE_REQUIRED");
   if (!present(acceptance.sourceCommitAfter)) reasons.push("SOURCE_COMMIT_AFTER_REQUIRED");
   if (!present(acceptance.candidateSourceHash)) reasons.push("CANDIDATE_SOURCE_HASH_REQUIRED");
+  if (!present(acceptance.candidatePath)) reasons.push("CANDIDATE_PATH_REQUIRED");
+  if (!present(acceptance.candidateTopic)) reasons.push("CANDIDATE_TOPIC_REQUIRED");
   if (acceptance.immutableManifestStatus !== "IMMUTABLE_MANIFEST_VERIFIED") {
     reasons.push("ACCEPTANCE_IMMUTABLE_MANIFEST_INVALID");
   }
@@ -58,7 +60,7 @@ export function buildAiLogicShadowProbationEvidence(input = {}) {
 
   if (shadowEntry.version !== "ai_logic_shadow_entry_binding_v1" || shadowEntry.eligible !== true || shadowEntry.status !== "AI_LOGIC_SHADOW_ENTRY_BINDING_VALID" || shadowEntry.disposition !== "SHADOW_ENTRY_EVIDENCE_ONLY") reasons.push("SHADOW_ENTRY_EVIDENCE_INVALID");
   const entryBinding = shadowEntry.binding ?? {};
-  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+  for (const key of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]) {
     if (entryBinding[key] !== acceptance[key]) reasons.push(`SHADOW_ENTRY_${key.toUpperCase()}_BINDING_MISMATCH`);
   }
   if (observations.length < 1) reasons.push("PROBATION_OBSERVATIONS_REQUIRED");
@@ -84,6 +86,8 @@ export function buildAiLogicShadowProbationEvidence(input = {}) {
     sourceCommitBefore: present(acceptance.sourceCommitBefore) ? acceptance.sourceCommitBefore : null,
     sourceCommitAfter: present(acceptance.sourceCommitAfter) ? acceptance.sourceCommitAfter : null,
     candidateSourceHash: present(acceptance.candidateSourceHash) ? acceptance.candidateSourceHash : null,
+    candidatePath: present(acceptance.candidatePath) ? acceptance.candidatePath : null,
+    candidateTopic: present(acceptance.candidateTopic) ? acceptance.candidateTopic : null,
     immutableManifestStatus: manifest.status,
     observations: Object.freeze(observations.map((row, index) => Object.freeze({
       sampleId: present(row?.sampleId) ? row.sampleId.trim() : `probation-${index + 1}`,

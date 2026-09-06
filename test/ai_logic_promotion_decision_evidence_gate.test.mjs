@@ -5,9 +5,9 @@ import { evaluateAiLogicPromotionDecisionEvidence } from "../src/scanner/ai_logi
 const locks={productionRuntimeWiringAllowed:false,persistenceAllowed:false,promotionAllowed:false,rollbackExecutionAllowed:false,brokerContactAllowed:false,orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,allocationMutationAllowed:false};
 
 function fixture(){
-  const acceptanceEvidence={version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64),immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",localJsonlOnly:true,...locks};
+  const acceptanceEvidence={version:"ai_logic_acceptance_evidence_store_v1",recordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage",immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",localJsonlOnly:true,...locks};
   const knownGood={valid:true,status:"KNOWN_GOOD_RECORD_VALID",recordId:"k1",sourceCommit:"before",immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",rollbackTargetIdentified:true,rollbackExecutable:false,promotionEligible:false,strategySwitchingAllowed:false,...locks};
-  const shadowAssessment={version:"ai_logic_shadow_probation_consumer_v1",accepted:true,status:"AI_LOGIC_SHADOW_PROBATION_ASSESSMENT_EVIDENCE",disposition:"ISOLATED_PROBATION_ASSESSMENT_EVIDENCE_ONLY",binding:{acceptanceRecordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64)},immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks};
+  const shadowAssessment={version:"ai_logic_shadow_probation_consumer_v1",accepted:true,status:"AI_LOGIC_SHADOW_PROBATION_ASSESSMENT_EVIDENCE",disposition:"ISOLATED_PROBATION_ASSESSMENT_EVIDENCE_ONLY",binding:{acceptanceRecordId:"a1",candidateId:"c1",knownGoodRecordId:"k1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",candidateTopic:"classification_coverage"},immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks};
   return {acceptanceEvidence,knownGood,shadowAssessment};
 }
 
@@ -49,4 +49,12 @@ test("candidate source hash provenance is required and exact",()=>{
   assert.equal(evaluateAiLogicPromotionDecisionEvidence(b).eligible,false);
   const c=evaluateAiLogicPromotionDecisionEvidence(fixture());
   assert.equal(c.binding.candidateSourceHash,"c".repeat(64));
+  assert.equal(c.binding.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+  assert.equal(c.binding.candidateTopic,"classification_coverage");
+});
+
+test("fails closed on candidate path or topic provenance drift",()=>{
+  const a=fixture(); a.acceptanceEvidence={...a.acceptanceEvidence,candidatePath:""}; assert.equal(evaluateAiLogicPromotionDecisionEvidence(a).eligible,false);
+  const b=fixture(); b.shadowAssessment={...b.shadowAssessment,binding:{...b.shadowAssessment.binding,candidatePath:"src/scanner/ai_logic_candidates/other.mjs"}}; assert.equal(evaluateAiLogicPromotionDecisionEvidence(b).eligible,false);
+  const c=fixture(); c.shadowAssessment={...c.shadowAssessment,binding:{...c.shadowAssessment.binding,candidateTopic:"evidence_interpretation"}}; assert.equal(evaluateAiLogicPromotionDecisionEvidence(c).eligible,false);
 });

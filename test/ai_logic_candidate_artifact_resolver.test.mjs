@@ -54,3 +54,25 @@ test("fails closed on hash path manifest symlink and malformed utf8",()=>{
   fs.writeFileSync(f.abs,bad);
   assert.equal(resolve({candidatePath:f.rel,expectedSourceHash:H(bad)},{rootDir:f.root,manifestResult:manifest}).eligible,false);
 });
+
+
+test("fails closed on group/world writable candidate mode",()=>{
+  const f=fx();
+  fs.chmodSync(f.abs,0o622);
+  const r=resolve({candidatePath:f.rel,expectedSourceHash:H(f.bytes)},{rootDir:f.root,manifestResult:manifest});
+  assert.equal(r.eligible,false);
+  assert.ok(r.reasons.includes("CANDIDATE_MODE_UNSAFE"));
+});
+
+test("keeps local sandbox filesystem and runtime activation authority closed",()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),"ai-candidate-authority-"));
+  const rel="src/scanner/ai_logic_candidates/c1.mjs", f=path.join(d,rel);
+  fs.mkdirSync(path.dirname(f),{recursive:true});
+  fs.writeFileSync(f,"export function evaluate(x){return x}\n",{mode:0o600});
+  const h=crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex");
+  const r=resolve({candidatePath:rel,expectedSourceHash:h},{rootDir:d,manifestResult:{ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}});
+  assert.equal(r.eligible,true);
+  assert.equal(r.localSandboxMutationAllowed,false);
+  assert.equal(r.filesystemMutationAllowed,false);
+  assert.equal(r.runtimeActivationAllowed,false);
+});

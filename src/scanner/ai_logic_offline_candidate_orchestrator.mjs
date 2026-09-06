@@ -72,7 +72,7 @@ export async function runAiLogicOfflineCandidateOrchestrator(input={},options={}
   return Object.freeze({
     version:VERSION,eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE",
     disposition:"OFFLINE_EVIDENCE_ONLY",stage:"COMPLETE",reasons:Object.freeze([]),
-    candidateId:String(input.candidateId??"").trim(),candidatePath,sourceHash,
+    candidateId:String(input.candidateId??"").trim(),candidatePath,candidateTopic:String(input.topic??"").trim(),sourceHash,
     write,
     binding:Object.freeze({
       status:binding.status,candidatePath:binding.candidatePath,sourceHash:binding.sourceHash,

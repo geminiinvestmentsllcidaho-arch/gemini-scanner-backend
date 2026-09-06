@@ -28,6 +28,8 @@ function validInput() {
       sourceCommitBefore: "a".repeat(40),
       sourceCommitAfter: "b".repeat(40),
       candidateSourceHash: "c".repeat(64),
+      candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+      candidateTopic: "classification_coverage",
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
     },
@@ -43,6 +45,8 @@ function validInput() {
         sourceCommitBefore: "a".repeat(40),
         sourceCommitAfter: "b".repeat(40),
         candidateSourceHash: "c".repeat(64),
+        candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+        candidateTopic: "classification_coverage",
       },
       ...locks,
     },
@@ -66,6 +70,8 @@ function validInput() {
       sampleCount: 10,
       candidateId: "candidate-001",
       candidateSourceHash: "c".repeat(64),
+      candidatePath: "src/scanner/ai_logic_candidates/candidate-001.mjs",
+      candidateTopic: "classification_coverage",
       knownGoodRecordId: "known-good-001",
       immutableManifestStatus: "IMMUTABLE_MANIFEST_VERIFIED",
       ...locks,
@@ -80,6 +86,8 @@ test("permits probation eligibility evidence only with every mutation lock close
   assert.equal(r.disposition, "PROBATION_ELIGIBILITY_EVIDENCE_ONLY");
   assert.equal(r.binding.candidateId, "candidate-001");
   assert.equal(r.binding.knownGoodRecordId, "known-good-001");
+  assert.equal(r.binding.candidatePath, "src/scanner/ai_logic_candidates/candidate-001.mjs");
+  assert.equal(r.binding.candidateTopic, "classification_coverage");
   assert.equal(r.probationEvidence.sampleCount, 10);
   for (const [key, value] of Object.entries(locks)) assert.equal(r[key], value);
 });
@@ -147,4 +155,11 @@ test("fails closed if shadow-entry evidence opens authority", () => {
   const r = evaluateAiLogicProbationEligibility(input);
   assert.equal(r.eligible, false);
   assert.ok(r.reasons.some((reason) => reason.includes("ORDERPLACEMENTALLOWED")));
+});
+
+test("fails closed on candidate path or topic provenance drift", () => {
+  const a=validInput(); a.acceptanceEvidence.candidatePath=""; assert.equal(evaluateAiLogicProbationEligibility(a).eligible,false);
+  const b=validInput(); b.shadowEntryEvidence.binding.candidateTopic="evidence_interpretation"; assert.equal(evaluateAiLogicProbationEligibility(b).eligible,false);
+  const c=validInput(); c.probationEvidence.candidatePath="src/scanner/ai_logic_candidates/other.mjs"; assert.equal(evaluateAiLogicProbationEligibility(c).eligible,false);
+  const d=validInput(); d.probationEvidence.candidateTopic="evidence_interpretation"; assert.equal(evaluateAiLogicProbationEligibility(d).eligible,false);
 });
