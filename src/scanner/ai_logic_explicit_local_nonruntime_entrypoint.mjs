@@ -4,6 +4,7 @@ import { isAiLogicOperatorApprovalConsumed } from "./ai_logic_operator_approval_
 import { buildAiLogicOperatorApprovalConsumptionRecord } from "./ai_logic_operator_approval_consumption_contract.mjs";
 import { buildAiLogicOneShotNonruntimeAssembly } from "./ai_logic_one_shot_nonruntime_assembly_builder.mjs";
 import { runAiLogicOneShotNonruntimeInvocation } from "./ai_logic_one_shot_nonruntime_invocation_runner.mjs";
+import { resolveAiLogicPersistedApprovalAndDecision } from "./ai_logic_local_persisted_evidence_resolvers.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -38,14 +39,14 @@ const out = (x) => Object.freeze({ version:VERSION, ...x, ...CLOSED });
 
 export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {}) {
   const verifyManifest = deps.verifyImmutablePolicyManifest ?? verifyImmutablePolicyManifest;
+  const resolvePersisted = deps.resolveAiLogicPersistedApprovalAndDecision ?? resolveAiLogicPersistedApprovalAndDecision;
   const isConsumed = deps.isAiLogicOperatorApprovalConsumed ?? isAiLogicOperatorApprovalConsumed;
   const buildConsumption = deps.buildAiLogicOperatorApprovalConsumptionRecord ?? buildAiLogicOperatorApprovalConsumptionRecord;
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
 
   const {
-    operatorApproval,
-    decisionEvidence,
+    approvalRecordId,
     authorityGate,
     boundaryEvidence,
     targetPath,
@@ -55,17 +56,42 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     repositoryRoot,
     knownGoodStorePath,
     consumptionPath,
+    approvalStorePath,
+    promotionDecisionStorePath,
+    rollbackDecisionStorePath,
     now,
     currentHeadProvider,
     verifyImmutableManifestAfter,
     validators = {},
   } = input;
 
+  const persisted = resolvePersisted(
+    { approvalRecordId },
+    {
+      approvalPath:approvalStorePath,
+      promotionPath:promotionDecisionStorePath,
+      rollbackPath:rollbackDecisionStorePath,
+    }
+  );
+  if (persisted?.eligible !== true || persisted?.operatorApproval == null || persisted?.decisionEvidence == null) {
+    return out({
+      executed:false,
+      consumed:false,
+      applied:false,
+      status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED",
+      reasons:Object.freeze(["PERSISTED_APPROVAL_DECISION_RESOLUTION_FAILED"]),
+      persistedEvidenceStatus:persisted?.status ?? null,
+      persistedEvidenceReasons:Array.isArray(persisted?.reasons) ? Object.freeze([...persisted.reasons]) : Object.freeze([]),
+    });
+  }
+  const operatorApproval = persisted.operatorApproval;
+  const decisionEvidence = persisted.decisionEvidence;
+
   if (operatorApproval?.version !== "ai_logic_operator_approval_record_v1" || operatorApproval?.valid !== true || operatorApproval?.explicitlyApproved !== true || operatorApproval?.oneShot !== true) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["OPERATOR_APPROVAL_INVALID"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_INVALID"]) });
   }
   if (!["PROMOTION","ROLLBACK"].includes(operatorApproval.action)) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["OPERATOR_ACTION_INVALID"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_ACTION_INVALID"]) });
   }
 
   const immutableManifest = verifyManifest();

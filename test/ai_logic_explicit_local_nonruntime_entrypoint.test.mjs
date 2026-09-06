@@ -40,7 +40,7 @@ function fx() {
   };
   return {
     input:{
-      operatorApproval,decisionEvidence,authorityGate,boundaryEvidence,
+      approvalRecordId:operatorApproval.recordId,authorityGate,boundaryEvidence,
       targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidateBytes,
       expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
       knownGoodStorePath:"/kg",consumptionPath:"/cons",now:"2029-01-01T00:00:00.000Z",
@@ -50,6 +50,13 @@ function fx() {
     },
     deps:{
       verifyImmutablePolicyManifest:()=>({ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}),
+      resolveAiLogicPersistedApprovalAndDecision:({approvalRecordId})=>({
+        eligible:approvalRecordId===operatorApproval.recordId,
+        status:approvalRecordId===operatorApproval.recordId?"AI_LOGIC_PERSISTED_EVIDENCE_READY":"AI_LOGIC_PERSISTED_APPROVAL_HOLD",
+        reasons:[],
+        operatorApproval:approvalRecordId===operatorApproval.recordId?operatorApproval:null,
+        decisionEvidence:approvalRecordId===operatorApproval.recordId?decisionEvidence:null,
+      }),
       isAiLogicOperatorApprovalConsumed:()=>false,
       buildAiLogicOperatorApprovalConsumptionRecord:()=>({
         version:"ai_logic_operator_approval_consumption_record_v1",eligible:true,
