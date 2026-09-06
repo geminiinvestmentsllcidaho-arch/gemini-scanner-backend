@@ -57,6 +57,8 @@ export function buildAiLogicLocalIntegrationOrchestratorContract({
     disposition:eligible?"EXPLICIT_LOCAL_CANDIDATE_SOURCE_APPLY_SEAM_ONLY":"LOCAL_INTEGRATION_BLOCKED",
     reasons:Object.freeze(reasons),
     ...identity,
+    knownGoodRecordId:eligible?k.knownGood.recordId:null,
+    knownGoodSourceCommit:eligible?k.knownGood.sourceCommit:null,
     localCandidateSourceApplySeamReady:eligible,
     localCandidateFilesystemMutationScope:eligible?"ALLOWLISTED_AI_LOGIC_CANDIDATE_SOURCE_ONLY":"NONE",
     runtimeActivationAllowed:false,

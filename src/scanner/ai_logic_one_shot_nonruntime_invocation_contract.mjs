@@ -12,6 +12,7 @@ export function buildAiLogicOneShotNonruntimeInvocationContract({operatorApprova
  const dv=idAction=>idAction==="PROMOTION"?"ai_logic_promotion_decision_evidence_store_v1":"ai_logic_rollback_decision_evidence_store_v1";
  if(!d||d?.version!==dv(a?.action)||d?.recordId!==a?.decisionRecordId||d?.immutableManifestStatus!=="IMMUTABLE_MANIFEST_VERIFIED"||d?.localJsonlOnly!==true)r.push("DECISION_EVIDENCE_INVALID");
  if(o?.version!=="ai_logic_local_integration_orchestrator_contract_v1"||o?.eligible!==true||o?.localCandidateSourceApplySeamReady!==true)r.push("ORCHESTRATOR_INVALID");
+ if(o?.knownGoodRecordId!==a?.knownGoodRecordId||o?.knownGoodSourceCommit!==a?.sourceCommitBefore)r.push("ORCHESTRATOR_KNOWN_GOOD_BINDING_INVALID");
  if(b?.version!=="ai_logic_execution_boundary_gate_v1"||b?.eligible!==true||b?.applyEligibilityOnly!==true||b?.readOnly!==true||b?.evidenceOnly!==true||b?.paperOnly!==true)r.push("BOUNDARY_INVALID");
  const id={approvalRecordId:a?.recordId,nonce:a?.nonce,action:a?.action,decisionRecordId:a?.decisionRecordId,candidateSourceHash:a?.candidateSourceHash,currentSourceCommit:o?.currentSourceCommit,targetSourceCommit:o?.targetSourceCommit};
  if(!["PROMOTION","ROLLBACK"].includes(id.action)||!Object.values(id).every(P))r.push("IDENTITY_INVALID");
@@ -29,6 +30,8 @@ export function buildAiLogicOneShotNonruntimeInvocationContract({operatorApprova
  if(!/^[a-f0-9]{64}$/i.test(String(expectedPreimageHash??"")))r.push("EXPECTED_PREIMAGE_HASH_INVALID");
  if(!/^[A-Za-z0-9._-]{8,128}$/.test(String(operationId??"")))r.push("OPERATION_ID_INVALID");
  const eligible=!r.length;
- return Object.freeze({version:VERSION,eligible,status:eligible?"AI_LOGIC_ONE_SHOT_NONRUNTIME_INVOCATION_READY":"AI_LOGIC_ONE_SHOT_NONRUNTIME_INVOCATION_HOLD",disposition:eligible?"ONE_SHOT_LOCAL_EXISTING_CANDIDATE_REPLACE_ONLY":"INVOCATION_BLOCKED",reasons:Object.freeze(r),...id,targetPath:T(targetPath)?String(targetPath).trim():null,expectedPreimageHash:P(expectedPreimageHash)?expectedPreimageHash:null,operationId:P(operationId)?operationId:null,oneShot:true,operatorInvokedLocalOnly:true,replaceExistingCandidateFileOnly:true,candidateRootBootstrapAllowed:false,runtimeWiringAllowed:false,...Object.fromEntries(X.map(k=>[k,false]))});
+ const knownGoodRecordId=eligible?o.knownGoodRecordId:null;
+ const knownGoodSourceCommit=eligible?o.knownGoodSourceCommit:null;
+ return Object.freeze({version:VERSION,eligible,status:eligible?"AI_LOGIC_ONE_SHOT_NONRUNTIME_INVOCATION_READY":"AI_LOGIC_ONE_SHOT_NONRUNTIME_INVOCATION_HOLD",disposition:eligible?"ONE_SHOT_LOCAL_EXISTING_CANDIDATE_REPLACE_ONLY":"INVOCATION_BLOCKED",reasons:Object.freeze(r),...id,knownGoodRecordId,knownGoodSourceCommit,targetPath:T(targetPath)?String(targetPath).trim():null,expectedPreimageHash:P(expectedPreimageHash)?expectedPreimageHash:null,operationId:P(operationId)?operationId:null,oneShot:true,operatorInvokedLocalOnly:true,replaceExistingCandidateFileOnly:true,candidateRootBootstrapAllowed:false,runtimeWiringAllowed:false,...Object.fromEntries(X.map(k=>[k,false]))});
 }
 export default Object.freeze({VERSION,buildAiLogicOneShotNonruntimeInvocationContract});
