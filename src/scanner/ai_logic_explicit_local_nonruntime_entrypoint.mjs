@@ -5,6 +5,13 @@ import { buildAiLogicOperatorApprovalConsumptionRecord } from "./ai_logic_operat
 import { buildAiLogicOneShotNonruntimeAssembly } from "./ai_logic_one_shot_nonruntime_assembly_builder.mjs";
 import { runAiLogicOneShotNonruntimeInvocation } from "./ai_logic_one_shot_nonruntime_invocation_runner.mjs";
 import { resolveAiLogicPersistedApprovalAndDecision } from "./ai_logic_local_persisted_evidence_resolvers.mjs";
+import { resolveAndBindAiLogicKnownGoodFromStore } from "./ai_logic_known_good_store_integration.mjs";
+import { buildAiLogicExecutionPreviewContract } from "./ai_logic_execution_preview_contract.mjs";
+import { buildAiLogicExecutionAuthorityGate } from "./ai_logic_execution_authority_gate.mjs";
+import { buildAiLogicExecutionPlan } from "./ai_logic_execution_plan.mjs";
+import { buildAiLogicExecutionIntentEvidence } from "./ai_logic_execution_intent_evidence_contract.mjs";
+import { buildAiLogicExecutionIntentAcknowledgement } from "./ai_logic_execution_intent_acknowledgement_contract.mjs";
+import { buildAiLogicExecutionBoundaryGate } from "./ai_logic_execution_boundary_gate.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -42,14 +49,20 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const resolvePersisted = deps.resolveAiLogicPersistedApprovalAndDecision ?? resolveAiLogicPersistedApprovalAndDecision;
   const isConsumed = deps.isAiLogicOperatorApprovalConsumed ?? isAiLogicOperatorApprovalConsumed;
   const buildConsumption = deps.buildAiLogicOperatorApprovalConsumptionRecord ?? buildAiLogicOperatorApprovalConsumptionRecord;
+  const resolveKnownGood = deps.resolveAndBindAiLogicKnownGoodFromStore ?? resolveAndBindAiLogicKnownGoodFromStore;
+  const buildPreview = deps.buildAiLogicExecutionPreviewContract ?? buildAiLogicExecutionPreviewContract;
+  const buildAuthority = deps.buildAiLogicExecutionAuthorityGate ?? buildAiLogicExecutionAuthorityGate;
+  const buildPlan = deps.buildAiLogicExecutionPlan ?? buildAiLogicExecutionPlan;
+  const buildIntent = deps.buildAiLogicExecutionIntentEvidence ?? buildAiLogicExecutionIntentEvidence;
+  const buildAcknowledgement = deps.buildAiLogicExecutionIntentAcknowledgement ?? buildAiLogicExecutionIntentAcknowledgement;
+  const buildBoundary = deps.buildAiLogicExecutionBoundaryGate ?? buildAiLogicExecutionBoundaryGate;
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
 
   const {
     approvalRecordId,
-    authorityGate,
-    boundaryEvidence,
     targetPath,
+    candidateTopic,
     candidateBytes,
     expectedPreimageHash,
     operationId,
@@ -118,33 +131,86 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["CONSUMPTION_RECORD_NOT_ELIGIBLE", ...(consumptionRecord?.reasons ?? [])]) });
   }
 
+  const consumptionStoreRecord = Object.freeze({
+    version:"ai_logic_operator_approval_consumption_store_v1",
+    exactlyOnce:true,
+    paperOnly:true,
+    localJsonlOnly:true,
+    approvalRecordId:consumptionRecord.approvalRecordId,
+    nonce:consumptionRecord.nonce,
+    action:consumptionRecord.action,
+    decisionRecordId:consumptionRecord.decisionRecordId,
+    candidateSourceHash:consumptionRecord.candidateSourceHash,
+    currentSourceCommit:consumptionRecord.currentSourceCommit,
+    targetSourceCommit:consumptionRecord.targetSourceCommit,
+    productionRuntimeWiringAllowed:false,
+    promotionExecutionAllowed:false,
+    rollbackExecutionAllowed:false,
+    brokerContactAllowed:false,
+    orderPlacementAllowed:false,
+    liveTradingAllowed:false,
+    accountMutationAllowed:false,
+    immutablePolicyMutationAllowed:false,
+    thresholdMutationAllowed:false,
+    sizingMutationAllowed:false,
+    allocationMutationAllowed:false,
+    gitMutationAllowed:false,
+  });
+
+  const knownGoodStoreBinding = resolveKnownGood({
+    knownGoodRecordId:operatorApproval.knownGoodRecordId,
+    sourceCommitBefore:operatorApproval.sourceCommitBefore,
+  }, { filePath:knownGoodStorePath });
+  if (knownGoodStoreBinding?.eligible !== true || knownGoodStoreBinding?.knownGood == null) {
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["KNOWN_GOOD_STORE_BINDING_NOT_ELIGIBLE"]) });
+  }
+
+  const executionPreview = buildPreview({
+    consumptionRecord,
+    immutableManifest,
+    decisionIdentity:{ decisionRecordId:decisionEvidence.recordId, candidateSourceHash:decisionEvidence.candidateSourceHash },
+    knownGood:knownGoodStoreBinding.knownGood,
+    candidateTarget:{ sourceCommit:operatorApproval.sourceCommitAfter },
+  });
+  const authorityGate = buildAuthority({
+    executionPreview,
+    consumptionStoreRecord,
+    operatorApproval,
+    decisionEvidence,
+    knownGood:knownGoodStoreBinding.knownGood,
+    immutableManifest,
+    currentSourceCommit,
+    targetSourceCommit,
+    now,
+  });
+  const executionPlan = buildPlan({ authorityGate, immutableManifest, operatorApproval, consumptionStoreRecord, now });
+  const executionIntent = buildIntent({ executionPlan });
+  const executionIntentAcknowledgement = buildAcknowledgement({ executionIntent });
+  const currentHead = typeof currentHeadProvider === "function" ? currentHeadProvider() : null;
+  const boundaryEvidence = buildBoundary({
+    executionIntentAcknowledgement,
+    consumptionRecord:consumptionStoreRecord,
+    immutableManifest,
+    candidateArtifact:Buffer.isBuffer(candidateBytes) ? candidateBytes.toString("utf8") : "",
+    currentHead,
+    changedPaths:[targetPath],
+    candidateTopic,
+    now,
+  });
+  if (
+    executionPreview?.eligible !== true
+    || authorityGate?.eligible !== true
+    || executionPlan?.eligible !== true
+    || executionIntent?.eligible !== true
+    || executionIntentAcknowledgement?.eligible !== true
+    || boundaryEvidence?.eligible !== true
+  ) {
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["INTERNAL_AUTHORITY_BOUNDARY_DERIVATION_FAILED"]) });
+  }
+
   const assembly = buildAssembly({
     operatorApproval,
-    consumptionStoreRecord:Object.freeze({
-      version:"ai_logic_operator_approval_consumption_store_v1",
-      exactlyOnce:true,
-      paperOnly:true,
-      localJsonlOnly:true,
-      approvalRecordId:consumptionRecord.approvalRecordId,
-      nonce:consumptionRecord.nonce,
-      action:consumptionRecord.action,
-      decisionRecordId:consumptionRecord.decisionRecordId,
-      candidateSourceHash:consumptionRecord.candidateSourceHash,
-      currentSourceCommit:consumptionRecord.currentSourceCommit,
-      targetSourceCommit:consumptionRecord.targetSourceCommit,
-      productionRuntimeWiringAllowed:false,
-      promotionExecutionAllowed:false,
-      rollbackExecutionAllowed:false,
-      brokerContactAllowed:false,
-      orderPlacementAllowed:false,
-      liveTradingAllowed:false,
-      accountMutationAllowed:false,
-      immutablePolicyMutationAllowed:false,
-      thresholdMutationAllowed:false,
-      sizingMutationAllowed:false,
-      allocationMutationAllowed:false,
-      gitMutationAllowed:false,
-    }),
+    consumptionStoreRecord,
     decisionEvidence,
     authorityGate,
     boundaryEvidence,

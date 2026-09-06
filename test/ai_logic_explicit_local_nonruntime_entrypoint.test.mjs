@@ -40,8 +40,8 @@ function fx() {
   };
   return {
     input:{
-      approvalRecordId:operatorApproval.recordId,authorityGate,boundaryEvidence,
-      targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidateBytes,
+      approvalRecordId:operatorApproval.recordId,
+      targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",candidateBytes,
       expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
       knownGoodStorePath:"/kg",consumptionPath:"/cons",now:"2029-01-01T00:00:00.000Z",
       currentHeadProvider:()=> "before",
@@ -65,6 +65,16 @@ function fx() {
         candidateSourceHash,currentSourceCommit:"before",targetSourceCommit:"after",
         oneShot:true,atomicConsumptionRequired:true,exactlyOnceRequired:true,auditEvidenceRequired:true,paperOnly:true,...locks,
       }),
+      resolveAndBindAiLogicKnownGoodFromStore:()=>({
+        version:"ai_logic_known_good_store_integration_v1",eligible:true,status:"AI_LOGIC_KNOWN_GOOD_STORE_BINDING_VALID",
+        knownGood:{valid:true,status:"KNOWN_GOOD_RECORD_VALID",recordId:"kg1",sourceCommit:"before"},
+      }),
+      buildAiLogicExecutionPreviewContract:()=>({version:"ai_logic_execution_preview_contract_v1",eligible:true,previewOnly:true}),
+      buildAiLogicExecutionAuthorityGate:()=>authorityGate,
+      buildAiLogicExecutionPlan:()=>({version:"ai_logic_execution_plan_v1",eligible:true,planOnly:true,readOnly:true}),
+      buildAiLogicExecutionIntentEvidence:()=>({version:"ai_logic_execution_intent_evidence_contract_v1",eligible:true,readOnly:true,evidenceOnly:true,paperOnly:true,executionIntentOnly:true}),
+      buildAiLogicExecutionIntentAcknowledgement:()=>({version:"ai_logic_execution_intent_acknowledgement_contract_v1",eligible:true,readOnly:true,evidenceOnly:true,acknowledgementOnly:true,paperOnly:true}),
+      buildAiLogicExecutionBoundaryGate:()=>boundaryEvidence,
       buildAiLogicOneShotNonruntimeAssembly:()=>({
         eligible:true,
         orchestratorContract:{
