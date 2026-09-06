@@ -41,7 +41,7 @@ function fx() {
   return {
     input:{
       approvalRecordId:operatorApproval.recordId,
-      targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",candidateBytes,
+      targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
       expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
       knownGoodStorePath:"/kg",consumptionPath:"/cons",now:"2029-01-01T00:00:00.000Z",
       currentHeadProvider:()=> "before",
@@ -50,6 +50,10 @@ function fx() {
     },
     deps:{
       verifyImmutablePolicyManifest:()=>({ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}),
+      resolveAiLogicCandidateArtifact:({candidatePath,expectedSourceHash},{rootDir,manifestResult})=>({
+        eligible:candidatePath==="src/scanner/ai_logic_candidates/x.mjs" && expectedSourceHash===candidateSourceHash && rootDir==="/repo" && manifestResult?.ok===true,
+        candidatePath,candidateBytes:Buffer.from(candidateBytes),sourceText:candidateBytes.toString("utf8"),sourceHash:candidateSourceHash,reasons:[],
+      }),
       resolveAiLogicPersistedApprovalAndDecision:({approvalRecordId})=>({
         eligible:approvalRecordId===operatorApproval.recordId,
         status:approvalRecordId===operatorApproval.recordId?"AI_LOGIC_PERSISTED_EVIDENCE_READY":"AI_LOGIC_PERSISTED_APPROVAL_HOLD",
@@ -109,7 +113,7 @@ test("explicit invocation builds then delegates exactly once",()=>{
   f.deps.runAiLogicOneShotNonruntimeInvocation=(x)=>{
     calls++;
     assert.equal(x.consumptionRecord.eligible,true);
-    assert.equal(x.executionInput.atomicExecutorInput.candidateBytes,f.input.candidateBytes);
+    assert.deepEqual(x.executionInput.atomicExecutorInput.candidateBytes,Buffer.from("candidate-v2"));
     return {executed:true,consumed:true,applied:true,status:"OK"};
   };
   const r=run(f.input,f.deps);
@@ -134,9 +138,9 @@ test("already consumed blocks before assembly or invocation",()=>{
   assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED");
 });
 
-test("candidate hash and required validators fail closed before invocation",()=>{
+test("candidate artifact resolution and required validators fail closed before invocation",()=>{
   for (const mutate of [
-    f=>{f.input.candidateBytes=Buffer.from("tampered");},
+    f=>{f.deps.resolveAiLogicCandidateArtifact=()=>({eligible:false,reasons:["SOURCE_HASH_MISMATCH"]});},
     f=>{delete f.input.validators.fullRegression;},
   ]) {
     const f=fx();

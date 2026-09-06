@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { verifyImmutablePolicyManifest } from "./ai_logic_immutable_manifest.mjs";
 import { isAiLogicOperatorApprovalConsumed } from "./ai_logic_operator_approval_consumption_store.mjs";
 import { buildAiLogicOperatorApprovalConsumptionRecord } from "./ai_logic_operator_approval_consumption_contract.mjs";
@@ -12,6 +11,7 @@ import { buildAiLogicExecutionPlan } from "./ai_logic_execution_plan.mjs";
 import { buildAiLogicExecutionIntentEvidence } from "./ai_logic_execution_intent_evidence_contract.mjs";
 import { buildAiLogicExecutionIntentAcknowledgement } from "./ai_logic_execution_intent_acknowledgement_contract.mjs";
 import { buildAiLogicExecutionBoundaryGate } from "./ai_logic_execution_boundary_gate.mjs";
+import { resolveAiLogicCandidateArtifact } from "./ai_logic_candidate_artifact_resolver.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -39,9 +39,6 @@ const CLOSED = Object.freeze({
   gitCherryPickAllowed:false,
 });
 
-const sha256 = (value) =>
-  crypto.createHash("sha256").update(Buffer.isBuffer(value) ? value : Buffer.from(String(value ?? ""), "utf8")).digest("hex");
-
 const out = (x) => Object.freeze({ version:VERSION, ...x, ...CLOSED });
 
 export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {}) {
@@ -56,6 +53,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const buildIntent = deps.buildAiLogicExecutionIntentEvidence ?? buildAiLogicExecutionIntentEvidence;
   const buildAcknowledgement = deps.buildAiLogicExecutionIntentAcknowledgement ?? buildAiLogicExecutionIntentAcknowledgement;
   const buildBoundary = deps.buildAiLogicExecutionBoundaryGate ?? buildAiLogicExecutionBoundaryGate;
+  const resolveCandidateArtifact = deps.resolveAiLogicCandidateArtifact ?? resolveAiLogicCandidateArtifact;
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
 
@@ -63,7 +61,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     approvalRecordId,
     targetPath,
     candidateTopic,
-    candidateBytes,
+    candidatePath,
     expectedPreimageHash,
     operationId,
     repositoryRoot,
@@ -118,6 +116,31 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
 
   const currentSourceCommit = operatorApproval.action === "PROMOTION" ? operatorApproval.sourceCommitBefore : operatorApproval.sourceCommitAfter;
   const targetSourceCommit = operatorApproval.action === "PROMOTION" ? operatorApproval.sourceCommitAfter : operatorApproval.sourceCommitBefore;
+
+  if (typeof repositoryRoot !== "string" || !repositoryRoot.trim()) {
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
+  }
+  const candidateArtifact = resolveCandidateArtifact({
+    candidatePath,
+    expectedSourceHash:operatorApproval.candidateSourceHash,
+  }, {
+    rootDir:repositoryRoot,
+    manifestResult:immutableManifest,
+  });
+  if (
+    candidateArtifact?.eligible !== true
+    || !Buffer.isBuffer(candidateArtifact?.candidateBytes)
+    || candidateArtifact?.sourceHash !== operatorApproval.candidateSourceHash
+  ) {
+    return out({
+      executed:false,
+      consumed:false,
+      applied:false,
+      status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED",
+      reasons:Object.freeze(["CANDIDATE_ARTIFACT_RESOLUTION_FAILED", ...(candidateArtifact?.reasons ?? [])]),
+    });
+  }
+  const resolvedCandidateBytes = candidateArtifact.candidateBytes;
 
   const consumptionRecord = buildConsumption({
     approvalRecord:operatorApproval,
@@ -191,7 +214,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     executionIntentAcknowledgement,
     consumptionRecord:consumptionStoreRecord,
     immutableManifest,
-    candidateArtifact:Buffer.isBuffer(candidateBytes) ? candidateBytes.toString("utf8") : "",
+    candidateArtifact:candidateArtifact.sourceText,
     currentHead,
     changedPaths:[targetPath],
     candidateTopic,
@@ -226,12 +249,6 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["ASSEMBLY_NOT_ELIGIBLE"]) });
   }
 
-  if (!Buffer.isBuffer(candidateBytes) || sha256(candidateBytes) !== operatorApproval.candidateSourceHash) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["CANDIDATE_BYTES_HASH_MISMATCH"]) });
-  }
-  if (typeof repositoryRoot !== "string" || !repositoryRoot.trim()) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
-  }
   if (typeof currentHeadProvider !== "function" || typeof verifyImmutableManifestAfter !== "function") {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["EXECUTOR_CALLBACK_REQUIRED"]) });
   }
@@ -246,7 +263,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     atomicExecutorInput:Object.freeze({
       repositoryRoot,
       boundaryEvidence,
-      candidateBytes,
+      candidateBytes:resolvedCandidateBytes,
       targetPath,
       expectedPreimageHash,
       immutableManifestBefore:immutableManifest,
