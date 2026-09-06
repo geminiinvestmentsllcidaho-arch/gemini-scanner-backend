@@ -1,0 +1,135 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import { runAiLogicExplicitLocalNonruntimeEntrypoint as run, VERSION } from "../src/scanner/ai_logic_explicit_local_nonruntime_entrypoint.mjs";
+
+const h = (v) => crypto.createHash("sha256").update(v).digest("hex");
+const locks = {
+  productionRuntimeWiringAllowed:false,promotionExecutionAllowed:false,rollbackExecutionAllowed:false,
+  brokerContactAllowed:false,orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,
+  immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,
+  allocationMutationAllowed:false,gitMutationAllowed:false,
+};
+
+function fx() {
+  const candidateBytes = Buffer.from("candidate-v2");
+  const candidateSourceHash = h(candidateBytes);
+  const operatorApproval = {
+    version:"ai_logic_operator_approval_record_v1",valid:true,recordId:"ap1",nonce:"nonce1",
+    action:"PROMOTION",decisionRecordId:"d1",acceptanceRecordId:"ac1",candidateId:"c1",
+    knownGoodRecordId:"kg1",replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
+    candidateSourceHash,explicitlyApproved:true,oneShot:true,paperOnly:true,
+    expiresAt:"2030-01-01T00:00:00.000Z",...locks,
+  };
+  const decisionEvidence = {
+    version:"ai_logic_promotion_decision_evidence_store_v1",recordId:"d1",acceptanceRecordId:"ac1",
+    candidateId:"c1",knownGoodRecordId:"kg1",replayId:"r1",sourceCommitBefore:"before",
+    sourceCommitAfter:"after",candidateSourceHash,immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",
+    localJsonlOnly:true,persistenceAllowed:false,promotionAllowed:false,...locks,
+  };
+  const boundaryEvidence = {
+    version:"ai_logic_execution_boundary_gate_v1",eligible:true,applyEligibilityOnly:true,
+    readOnly:true,evidenceOnly:true,paperOnly:true,approvalRecordId:"ap1",nonce:"nonce1",
+    action:"PROMOTION",decisionRecordId:"d1",candidateSourceHash,currentSourceCommit:"before",
+    targetSourceCommit:"after",...locks,
+  };
+  const authorityGate = {
+    version:"ai_logic_execution_authority_gate_v1",eligible:true,readOnly:true,evidenceOnly:true,paperOnly:true,
+    approvalRecordId:"ap1",nonce:"nonce1",action:"PROMOTION",decisionRecordId:"d1",
+    candidateSourceHash,currentSourceCommit:"before",targetSourceCommit:"after",...locks,
+  };
+  return {
+    input:{
+      operatorApproval,decisionEvidence,authorityGate,boundaryEvidence,
+      targetPath:"src/scanner/ai_logic_candidates/x.mjs",candidateBytes,
+      expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
+      knownGoodStorePath:"/kg",consumptionPath:"/cons",now:"2029-01-01T00:00:00.000Z",
+      currentHeadProvider:()=> "before",
+      verifyImmutableManifestAfter:()=>({ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}),
+      validators:{syntax:()=>true,focusedTests:()=>true,fullRegression:()=>true},
+    },
+    deps:{
+      verifyImmutablePolicyManifest:()=>({ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}),
+      isAiLogicOperatorApprovalConsumed:()=>false,
+      buildAiLogicOperatorApprovalConsumptionRecord:()=>({
+        version:"ai_logic_operator_approval_consumption_record_v1",eligible:true,
+        status:"AI_LOGIC_OPERATOR_APPROVAL_CONSUMPTION_READY",disposition:"ONE_SHOT_CONSUMPTION_EVIDENCE_ONLY",
+        approvalRecordId:"ap1",nonce:"nonce1",action:"PROMOTION",decisionRecordId:"d1",
+        candidateSourceHash,currentSourceCommit:"before",targetSourceCommit:"after",
+        oneShot:true,atomicConsumptionRequired:true,exactlyOnceRequired:true,auditEvidenceRequired:true,paperOnly:true,...locks,
+      }),
+      buildAiLogicOneShotNonruntimeAssembly:()=>({
+        eligible:true,
+        orchestratorContract:{
+          version:"ai_logic_local_integration_orchestrator_contract_v1",eligible:true,
+          localCandidateSourceApplySeamReady:true,status:"AI_LOGIC_LOCAL_INTEGRATION_ORCHESTRATOR_READY",
+          disposition:"EXPLICIT_LOCAL_CANDIDATE_SOURCE_APPLY_SEAM_ONLY",
+          localCandidateFilesystemMutationScope:"ALLOWLISTED_AI_LOGIC_CANDIDATE_SOURCE_ONLY",
+          knownGoodRecordId:"kg1",knownGoodSourceCommit:"before",
+          approvalRecordId:"ap1",nonce:"nonce1",action:"PROMOTION",decisionRecordId:"d1",
+          candidateSourceHash,currentSourceCommit:"before",targetSourceCommit:"after",
+          runtimeActivationAllowed:false,pm2RestartAllowed:false,gitCheckoutAllowed:false,gitResetAllowed:false,
+          gitRevertAllowed:false,gitMergeAllowed:false,gitCherryPickAllowed:false,...locks,
+        },
+        invocationContract:{
+          version:"ai_logic_one_shot_nonruntime_invocation_contract_v1",eligible:true,
+          operatorInvokedLocalOnly:true,runtimeWiringAllowed:false,knownGoodRecordId:"kg1",
+          knownGoodSourceCommit:"before",targetPath:"src/scanner/ai_logic_candidates/x.mjs",
+          expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",
+          approvalRecordId:"ap1",nonce:"nonce1",action:"PROMOTION",decisionRecordId:"d1",
+          candidateSourceHash,currentSourceCommit:"before",targetSourceCommit:"after",
+        },
+      }),
+    },
+  };
+}
+
+test("exports version",()=>assert.equal(VERSION,"ai_logic_explicit_local_nonruntime_entrypoint_v1"));
+
+test("explicit invocation builds then delegates exactly once",()=>{
+  const f=fx();
+  let calls=0;
+  f.deps.runAiLogicOneShotNonruntimeInvocation=(x)=>{
+    calls++;
+    assert.equal(x.consumptionRecord.eligible,true);
+    assert.equal(x.executionInput.atomicExecutorInput.candidateBytes,f.input.candidateBytes);
+    return {executed:true,consumed:true,applied:true,status:"OK"};
+  };
+  const r=run(f.input,f.deps);
+  assert.equal(calls,1);
+  assert.equal(r.executed,true);
+  assert.equal(r.applied,true);
+  assert.equal(r.runtimeActivationAllowed,false);
+  assert.equal(r.liveTradingAllowed,false);
+  assert.equal(r.gitMutationAllowed,false);
+});
+
+test("already consumed blocks before assembly or invocation",()=>{
+  const f=fx();
+  let n=0;
+  f.deps.isAiLogicOperatorApprovalConsumed=()=>true;
+  f.deps.buildAiLogicOneShotNonruntimeAssembly=()=>{n++;};
+  f.deps.runAiLogicOneShotNonruntimeInvocation=()=>{n++;};
+  const r=run(f.input,f.deps);
+  assert.equal(n,0);
+  assert.equal(r.consumed,true);
+  assert.equal(r.executed,false);
+  assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED");
+});
+
+test("candidate hash and required validators fail closed before invocation",()=>{
+  for (const mutate of [
+    f=>{f.input.candidateBytes=Buffer.from("tampered");},
+    f=>{delete f.input.validators.fullRegression;},
+  ]) {
+    const f=fx();
+    let n=0;
+    mutate(f);
+    f.deps.runAiLogicOneShotNonruntimeInvocation=()=>{n++;};
+    const r=run(f.input,f.deps);
+    assert.equal(n,0);
+    assert.equal(r.executed,false);
+    assert.equal(r.consumed,false);
+    assert.equal(r.liveTradingAllowed,false);
+  }
+});
