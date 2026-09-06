@@ -4,6 +4,7 @@ const present=v=>typeof v==="string"&&v.trim().length>0;
 export function buildAiLogicLocalIntegrationOrchestratorContract({
   operatorApproval:a,decisionEvidence:d,consumptionStoreRecord:c,
   authorityGate:g,boundaryGate:b,immutableManifest:m,
+  knownGoodStoreBinding:k,
   currentSourceCommit,targetSourceCommit,
 }={}){
   const reasons=[];
@@ -17,6 +18,18 @@ export function buildAiLogicLocalIntegrationOrchestratorContract({
   if(g?.version!=="ai_logic_execution_authority_gate_v1"||g?.eligible!==true||g?.readOnly!==true||g?.evidenceOnly!==true||g?.paperOnly!==true) reasons.push("AUTHORITY_GATE_INVALID");
   if(b?.version!=="ai_logic_execution_boundary_gate_v1"||b?.eligible!==true||b?.applyEligibilityOnly!==true||b?.readOnly!==true||b?.evidenceOnly!==true||b?.paperOnly!==true) reasons.push("BOUNDARY_GATE_INVALID");
   if(m?.ok!==true||m?.status!=="IMMUTABLE_MANIFEST_VERIFIED") reasons.push("IMMUTABLE_MANIFEST_INVALID");
+  if(
+    k?.version!=="ai_logic_known_good_store_integration_v1"
+    || k?.eligible!==true
+    || k?.status!=="AI_LOGIC_KNOWN_GOOD_STORE_BINDING_VALID"
+    || k?.readOnly!==true
+    || k?.localJsonlOnly!==true
+    || k?.storeWritePerformed!==false
+  ) reasons.push("KNOWN_GOOD_STORE_BINDING_INVALID");
+  if(k?.binding?.knownGoodRecordId!==a?.knownGoodRecordId) reasons.push("KNOWN_GOOD_STORE_RECORD_ID_MISMATCH");
+  if(k?.binding?.sourceCommitBefore!==a?.sourceCommitBefore) reasons.push("KNOWN_GOOD_STORE_SOURCE_COMMIT_MISMATCH");
+  if(k?.knownGood?.recordId!==a?.knownGoodRecordId||k?.knownGood?.sourceCommit!==a?.sourceCommitBefore) reasons.push("KNOWN_GOOD_STORE_RECORD_IDENTITY_MISMATCH");
+  for(const f of ["productionRuntimeWiringAllowed","persistenceAllowed","promotionAllowed","promotionExecutionAllowed","rollbackExecutionAllowed","brokerContactAllowed","orderPlacementAllowed","liveTradingAllowed","accountMutationAllowed","immutablePolicyMutationAllowed","thresholdMutationAllowed","sizingMutationAllowed","allocationMutationAllowed","gitMutationAllowed"]) if(k?.[f]!==false) reasons.push(`KNOWN_GOOD_STORE_${f}_MUST_BE_FALSE`);
   const action=a?.action;
   if(!["PROMOTION","ROLLBACK"].includes(action)) reasons.push("ACTION_INVALID");
   const expectedCurrent=action==="PROMOTION"?a?.sourceCommitBefore:a?.sourceCommitAfter;

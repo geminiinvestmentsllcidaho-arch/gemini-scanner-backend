@@ -34,6 +34,17 @@ function fx(action="PROMOTION"){
   authorityGate:{version:"ai_logic_execution_authority_gate_v1",eligible:true,readOnly:true,evidenceOnly:true,paperOnly:true,...id,...locks},
   boundaryGate:{version:"ai_logic_execution_boundary_gate_v1",eligible:true,applyEligibilityOnly:true,readOnly:true,evidenceOnly:true,paperOnly:true,...id,...locks},
   immutableManifest:{ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"},
+  knownGoodStoreBinding:{
+   version:"ai_logic_known_good_store_integration_v1",eligible:true,
+   status:"AI_LOGIC_KNOWN_GOOD_STORE_BINDING_VALID",readOnly:true,localJsonlOnly:true,storeWritePerformed:false,
+   binding:{knownGoodRecordId:"kg1",sourceCommitBefore:before},
+   knownGood:{recordId:"kg1",sourceCommit:before},
+   productionRuntimeWiringAllowed:false,persistenceAllowed:false,promotionAllowed:false,
+   promotionExecutionAllowed:false,rollbackExecutionAllowed:false,brokerContactAllowed:false,
+   orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,
+   immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,
+   allocationMutationAllowed:false,gitMutationAllowed:false
+  },
   currentSourceCommit,targetSourceCommit
  };
 }
@@ -110,4 +121,14 @@ test("blocked orchestrator exposes no local candidate filesystem mutation scope"
   assert.equal(r.eligible, false);
   assert.equal(r.localCandidateSourceApplySeamReady, false);
   assert.equal(r.localCandidateFilesystemMutationScope, "NONE");
+});
+
+test("fails closed when persisted known-good binding is absent or drifts",()=>{
+  const x=fx();
+  const missing=build({...x,knownGoodStoreBinding:undefined});
+  assert.equal(missing.eligible,false);
+  assert.ok(missing.reasons.includes("KNOWN_GOOD_STORE_BINDING_INVALID"));
+  const drift=build({...x,knownGoodStoreBinding:{...x.knownGoodStoreBinding,binding:{...x.knownGoodStoreBinding.binding,sourceCommitBefore:"drift"}}});
+  assert.equal(drift.eligible,false);
+  assert.ok(drift.reasons.includes("KNOWN_GOOD_STORE_SOURCE_COMMIT_MISMATCH"));
 });
