@@ -33,7 +33,7 @@ export function executeAiLogicLocalIntegrationSeam({
     || o?.localCandidateFilesystemMutationScope !== "ALLOWLISTED_AI_LOGIC_CANDIDATE_SOURCE_ONLY"
   ) reasons.push("ORCHESTRATOR_CONTRACT_NOT_READY");
 
-  for (const f of ["approvalRecordId","nonce","action","decisionRecordId","candidateSourceHash","currentSourceCommit","targetSourceCommit"]) {
+  for (const f of ["approvalRecordId","nonce","action","decisionRecordId","candidateSourceHash","candidatePath","candidateTopic","currentSourceCommit","targetSourceCommit"]) {
     if (!present(o?.[f])) reasons.push(`ORCHESTRATOR_IDENTITY_MISSING_${f}`);
   }
   if (!["PROMOTION","ROLLBACK"].includes(o?.action)) reasons.push("ORCHESTRATOR_ACTION_INVALID");
@@ -49,10 +49,11 @@ export function executeAiLogicLocalIntegrationSeam({
     || b?.paperOnly !== true
   ) reasons.push("BOUNDARY_EVIDENCE_INVALID");
 
-  for (const f of ["approvalRecordId","nonce","action","decisionRecordId","candidateSourceHash","currentSourceCommit","targetSourceCommit"]) {
+  for (const f of ["approvalRecordId","nonce","action","decisionRecordId","candidateSourceHash","candidatePath","candidateTopic","currentSourceCommit","targetSourceCommit"]) {
     if (b?.[f] !== o?.[f]) reasons.push(`BOUNDARY_ORCHESTRATOR_BINDING_MISMATCH_${f}`);
   }
   if (!allowedTarget(e?.targetPath)) reasons.push("TARGET_PATH_NOT_ALLOWLISTED");
+  else if (e.targetPath !== o?.candidatePath) reasons.push("TARGET_PATH_CANDIDATE_PATH_MISMATCH");
   if (typeof atomicExecutor !== "function") reasons.push("ATOMIC_EXECUTOR_INVALID");
 
   if (reasons.length) {

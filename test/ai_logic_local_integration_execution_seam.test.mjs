@@ -31,6 +31,8 @@ function fixture() {
     action:"PROMOTION",
     decisionRecordId:"d",
     candidateSourceHash:"c".repeat(64),
+    candidatePath:"src/scanner/ai_logic_candidates/x.mjs",
+    candidateTopic:"evidence_interpretation",
     currentSourceCommit:"before",
     targetSourceCommit:"after",
   };
@@ -131,6 +133,8 @@ test("identity or target drift fails closed before atomic executor", () => {
   for (const mutate of [
     f => { f.atomicExecutorInput = {...f.atomicExecutorInput, boundaryEvidence:{...f.atomicExecutorInput.boundaryEvidence, nonce:"other"}}; },
     f => { f.atomicExecutorInput = {...f.atomicExecutorInput, targetPath:"src/scanner/not-allowed.mjs"}; },
+    f => { f.atomicExecutorInput = {...f.atomicExecutorInput, targetPath:"src/scanner/ai_logic_candidates/other.mjs"}; },
+    f => { f.atomicExecutorInput = {...f.atomicExecutorInput, boundaryEvidence:{...f.atomicExecutorInput.boundaryEvidence, candidateTopic:"other"}}; },
   ]) {
     const f = fixture();
     mutate(f);
