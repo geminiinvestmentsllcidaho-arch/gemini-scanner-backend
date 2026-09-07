@@ -10,7 +10,7 @@ export function buildAiLogicLocalIntegrationOrchestratorContract({
   const reasons=[];
   if(a?.version!=="ai_logic_operator_approval_record_v1"||a?.valid!==true||a?.explicitlyApproved!==true||a?.oneShot!==true) reasons.push("OPERATOR_APPROVAL_INVALID");
   if(!d||d?.recordId!==a?.decisionRecordId) reasons.push("DECISION_EVIDENCE_INVALID");
-  for(const f of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"]) {
+  for(const f of ["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"]) {
     if(!present(a?.[f])||d?.[f]!==a[f]) reasons.push(`DECISION_IDENTITY_MISMATCH_${f}`);
   }
   if(a?.acceptanceRecordId!=null&&d?.acceptanceRecordId!==a.acceptanceRecordId) reasons.push("DECISION_IDENTITY_MISMATCH_acceptanceRecordId");
@@ -42,6 +42,8 @@ export function buildAiLogicLocalIntegrationOrchestratorContract({
     action,
     decisionRecordId:a?.decisionRecordId,
     candidateSourceHash:a?.candidateSourceHash,
+    candidatePath:a?.candidatePath,
+    candidateTopic:a?.candidateTopic,
     currentSourceCommit,
     targetSourceCommit,
   };

@@ -17,16 +17,16 @@ function fx(action="PROMOTION"){
   version:"ai_logic_operator_approval_record_v1",valid:true,recordId:"ap1",nonce:"n1",action,
   decisionRecordId:"d1",acceptanceRecordId:action==="PROMOTION"?"ac1":null,candidateId:"c1",
   knownGoodRecordId:"kg1",replayId:"r1",sourceCommitBefore:before,sourceCommitAfter:after,
-  candidateSourceHash:"c".repeat(64),explicitlyApproved:true,oneShot:true,paperOnly:true,...locks
+  candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/example.mjs",candidateTopic:"evidence_interpretation",explicitlyApproved:true,oneShot:true,paperOnly:true,...locks
  };
  const decisionEvidence={
   recordId:"d1",acceptanceRecordId:operatorApproval.acceptanceRecordId,candidateId:"c1",
   knownGoodRecordId:"kg1",replayId:"r1",sourceCommitBefore:before,sourceCommitAfter:after,
-  candidateSourceHash:"c".repeat(64)
+  candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/example.mjs",candidateTopic:"evidence_interpretation"
  };
  const id={
   approvalRecordId:"ap1",nonce:"n1",action,decisionRecordId:"d1",
-  candidateSourceHash:"c".repeat(64),currentSourceCommit,targetSourceCommit
+  candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/example.mjs",candidateTopic:"evidence_interpretation",currentSourceCommit,targetSourceCommit
  };
  return {
   operatorApproval,decisionEvidence,

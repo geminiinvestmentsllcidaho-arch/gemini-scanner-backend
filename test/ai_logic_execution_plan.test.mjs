@@ -4,12 +4,12 @@ import{buildAiLogicExecutionPlan as b}from"../src/scanner/ai_logic_execution_pla
 const L={productionRuntimeWiringAllowed:false,promotionExecutionAllowed:false,rollbackExecutionAllowed:false,brokerContactAllowed:false,orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,immutablePolicyMutationAllowed:false,thresholdMutationAllowed:false,sizingMutationAllowed:false,allocationMutationAllowed:false,gitMutationAllowed:false};
 function fx(action="PROMOTION"){
  const before="before",after="after",cur=action==="PROMOTION"?before:after,tar=action==="PROMOTION"?after:before;
- const identity={action,decisionRecordId:"d1",sourceCommitBefore:before,sourceCommitAfter:after,candidateSourceHash:"c".repeat(64),nonce:"n1"};
+ const identity={action,decisionRecordId:"d1",sourceCommitBefore:before,sourceCommitAfter:after,candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/example.mjs",candidateTopic:"evidence_interpretation",nonce:"n1"};
  return{
-  authorityGate:{version:"ai_logic_execution_authority_gate_v1",eligible:true,evidenceOnly:true,approvalRecordId:"ap1",nonce:"n1",action,decisionRecordId:"d1",candidateSourceHash:"c".repeat(64),currentSourceCommit:cur,targetSourceCommit:tar,...L},
+  authorityGate:{version:"ai_logic_execution_authority_gate_v1",eligible:true,evidenceOnly:true,approvalRecordId:"ap1",nonce:"n1",action,decisionRecordId:"d1",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/example.mjs",candidateTopic:"evidence_interpretation",currentSourceCommit:cur,targetSourceCommit:tar,...L},
   immutableManifest:{ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"},
   operatorApproval:{version:"ai_logic_operator_approval_record_v1",valid:true,explicitlyApproved:true,oneShot:true,recordId:"ap1",...identity,expiresAt:"2030-01-01T00:00:00.000Z"},
-  consumptionStoreRecord:{version:"ai_logic_operator_approval_consumption_store_v1",exactlyOnce:true,approvalRecordId:"ap1",nonce:"n1",action,decisionRecordId:"d1",candidateSourceHash:"c".repeat(64),currentSourceCommit:cur,targetSourceCommit:tar},
+  consumptionStoreRecord:{version:"ai_logic_operator_approval_consumption_store_v1",exactlyOnce:true,approvalRecordId:"ap1",nonce:"n1",action,decisionRecordId:"d1",candidateSourceHash:"c".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/example.mjs",candidateTopic:"evidence_interpretation",currentSourceCommit:cur,targetSourceCommit:tar},
   now:"2029-01-01T00:00:00.000Z"
  }
 }
@@ -27,7 +27,7 @@ test("builds promotion and rollback readonly plans with zero effects", ()=>{
   assert.equal(r.exactSourceTransition.from,r.currentSourceCommit);
   assert.equal(r.exactSourceTransition.to,r.targetSourceCommit);
   assert.equal(r.rollbackTarget,action==="PROMOTION"?r.currentSourceCommit:r.targetSourceCommit);
-  assert.deepEqual(r.auditIdentity,{approvalRecordId:r.approvalRecordId,nonce:r.nonce,action:r.action,decisionRecordId:r.decisionRecordId,candidateSourceHash:r.candidateSourceHash,currentSourceCommit:r.currentSourceCommit,targetSourceCommit:r.targetSourceCommit});
+  assert.deepEqual(r.auditIdentity,{approvalRecordId:r.approvalRecordId,nonce:r.nonce,action:r.action,decisionRecordId:r.decisionRecordId,candidateSourceHash:r.candidateSourceHash,candidatePath:r.candidatePath,candidateTopic:r.candidateTopic,currentSourceCommit:r.currentSourceCommit,targetSourceCommit:r.targetSourceCommit});
   assert.equal(r.preconditions.authorityGateEligible,true);
   assert.equal(r.preconditions.immutableManifestVerified,true);
   assert.equal(r.preconditions.operatorApprovalValid,true);

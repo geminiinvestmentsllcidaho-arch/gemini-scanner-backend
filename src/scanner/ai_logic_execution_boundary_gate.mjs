@@ -9,15 +9,16 @@ export function buildAiLogicExecutionBoundaryGate({executionIntentAcknowledgemen
  if(a?.version!=="ai_logic_execution_intent_acknowledgement_contract_v1"||a?.eligible!==true||a?.readOnly!==true||a?.evidenceOnly!==true||a?.acknowledgementOnly!==true||a?.paperOnly!==true)r.push("ACKNOWLEDGEMENT_INVALID");
  if(c?.version!=="ai_logic_operator_approval_consumption_store_v1"||c?.exactlyOnce!==true||c?.paperOnly!==true)r.push("CONSUMPTION_INVALID");
  for(const k of LOCKS){if(a?.[k]!==false)r.push("ACK_"+k+"_MUST_BE_FALSE");if(c?.[k]!==false)r.push("CONSUMPTION_"+k+"_MUST_BE_FALSE")}
- const id={approvalRecordId:a?.approvalRecordId,nonce:a?.nonce,action:a?.action,decisionRecordId:a?.decisionRecordId,candidateSourceHash:a?.candidateSourceHash,currentSourceCommit:a?.currentSourceCommit,targetSourceCommit:a?.targetSourceCommit};
- if(!["PROMOTION","ROLLBACK"].includes(id.action)||![id.approvalRecordId,id.nonce,id.decisionRecordId,id.candidateSourceHash,id.currentSourceCommit,id.targetSourceCommit].every(P))r.push("IDENTITY_INVALID");
+ const id={approvalRecordId:a?.approvalRecordId,nonce:a?.nonce,action:a?.action,decisionRecordId:a?.decisionRecordId,candidateSourceHash:a?.candidateSourceHash,candidatePath:a?.candidatePath,candidateTopic:a?.candidateTopic,currentSourceCommit:a?.currentSourceCommit,targetSourceCommit:a?.targetSourceCommit};
+ if(!["PROMOTION","ROLLBACK"].includes(id.action)||![id.approvalRecordId,id.nonce,id.decisionRecordId,id.candidateSourceHash,id.candidatePath,id.candidateTopic,id.currentSourceCommit,id.targetSourceCommit].every(P))r.push("IDENTITY_INVALID");
  for(const k of Object.keys(id))if(c?.[k]!==id[k])r.push("CONSUMPTION_BINDING_MISMATCH_"+k);
  if(currentHead!==id.currentSourceCommit)r.push("CURRENT_HEAD_MISMATCH");
  if(!P(candidateArtifact)||sha(candidateArtifact)!==id.candidateSourceHash)r.push("CANDIDATE_SOURCE_HASH_MISMATCH");
  if(m?.ok!==true||m?.status!=="IMMUTABLE_MANIFEST_VERIFIED")r.push("IMMUTABLE_MANIFEST_INVALID");
- if(!Array.isArray(changedPaths)||changedPaths.length===0)r.push("CHANGED_PATHS_REQUIRED");
+ if(candidateTopic!==id.candidateTopic)r.push("CANDIDATE_TOPIC_ARGUMENT_MISMATCH");
+ if(!Array.isArray(changedPaths)||changedPaths.length!==1||changedPaths[0]!==id.candidatePath)r.push("CHANGED_PATHS_CANDIDATE_PATH_MISMATCH");
  else {
-  const allow=evaluateAiLogicCandidateDiff({topic:candidateTopic,changedPaths});
+  const allow=evaluateAiLogicCandidateDiff({topic:id.candidateTopic,changedPaths});
   if(allow?.eligible!==true)r.push("CHANGED_PATH_ALLOWLIST_REJECTED");
  }
  const n=Date.parse(now??"");

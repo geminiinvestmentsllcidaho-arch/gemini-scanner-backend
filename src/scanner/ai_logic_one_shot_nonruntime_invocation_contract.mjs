@@ -14,19 +14,19 @@ export function buildAiLogicOneShotNonruntimeInvocationContract({operatorApprova
  if(o?.version!=="ai_logic_local_integration_orchestrator_contract_v1"||o?.eligible!==true||o?.localCandidateSourceApplySeamReady!==true)r.push("ORCHESTRATOR_INVALID");
  if(o?.knownGoodRecordId!==a?.knownGoodRecordId||o?.knownGoodSourceCommit!==a?.sourceCommitBefore)r.push("ORCHESTRATOR_KNOWN_GOOD_BINDING_INVALID");
  if(b?.version!=="ai_logic_execution_boundary_gate_v1"||b?.eligible!==true||b?.applyEligibilityOnly!==true||b?.readOnly!==true||b?.evidenceOnly!==true||b?.paperOnly!==true)r.push("BOUNDARY_INVALID");
- const id={approvalRecordId:a?.recordId,nonce:a?.nonce,action:a?.action,decisionRecordId:a?.decisionRecordId,candidateSourceHash:a?.candidateSourceHash,currentSourceCommit:o?.currentSourceCommit,targetSourceCommit:o?.targetSourceCommit};
+ const id={approvalRecordId:a?.recordId,nonce:a?.nonce,action:a?.action,decisionRecordId:a?.decisionRecordId,candidateSourceHash:a?.candidateSourceHash,candidatePath:a?.candidatePath,candidateTopic:a?.candidateTopic,currentSourceCommit:o?.currentSourceCommit,targetSourceCommit:o?.targetSourceCommit};
  if(!["PROMOTION","ROLLBACK"].includes(id.action)||!Object.values(id).every(P))r.push("IDENTITY_INVALID");
  const expectedCurrent=id.action==="PROMOTION"?a?.sourceCommitBefore:a?.sourceCommitAfter;
  const expectedTarget=id.action==="PROMOTION"?a?.sourceCommitAfter:a?.sourceCommitBefore;
  if(id.currentSourceCommit!==expectedCurrent)r.push("CURRENT_SOURCE_COMMIT_DRIFT");
  if(id.targetSourceCommit!==expectedTarget)r.push("TARGET_SOURCE_COMMIT_DRIFT");
- const decisionFields=["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash"];
+ const decisionFields=["candidateId","knownGoodRecordId","replayId","sourceCommitBefore","sourceCommitAfter","candidateSourceHash","candidatePath","candidateTopic"];
  for(const k of decisionFields)if(d?.[k]!==a?.[k])r.push(`DECISION_BINDING_MISMATCH_${k}`);
  if(id.action==="PROMOTION"&&d?.acceptanceRecordId!==a?.acceptanceRecordId)r.push("DECISION_BINDING_MISMATCH_acceptanceRecordId");
  if(id.action==="ROLLBACK"&&(!P(d?.promotionDecisionRecordId)||!P(d?.acceptanceRecordId)))r.push("ROLLBACK_DECISION_BINDING_INVALID");
  for(const [k,v] of Object.entries(id)){if(c?.[k]!==v)r.push(`CONSUMPTION_BINDING_MISMATCH_${k}`);if(o?.[k]!==v)r.push(`ORCHESTRATOR_BINDING_MISMATCH_${k}`);if(b?.[k]!==v)r.push(`BOUNDARY_BINDING_MISMATCH_${k}`)}
  for(const [q,ks] of [[a,G],[c,G],[d,D],[o,X],[b,G]])for(const k of ks)if(q?.[k]!==false)r.push(`${k}_MUST_BE_FALSE`);
- if(!T(targetPath))r.push("TARGET_PATH_INVALID");
+ if(!T(targetPath))r.push("TARGET_PATH_INVALID"); else if(String(targetPath).trim()!==id.candidatePath)r.push("TARGET_PATH_CANDIDATE_PATH_MISMATCH");
  if(!/^[a-f0-9]{64}$/i.test(String(expectedPreimageHash??"")))r.push("EXPECTED_PREIMAGE_HASH_INVALID");
  if(!/^[A-Za-z0-9._-]{8,128}$/.test(String(operationId??"")))r.push("OPERATION_ID_INVALID");
  const eligible=!r.length;
