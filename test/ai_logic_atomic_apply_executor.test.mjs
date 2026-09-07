@@ -43,6 +43,8 @@ function fixture() {
         evidenceOnly:true,
         paperOnly:true,
         candidateSourceHash:hash(candidate),
+        candidatePath:"src/scanner/ai_logic_candidates/example.mjs",
+        candidateTopic:"evidence_interpretation",
         currentSourceCommit:"commit-12345678",
         ...LOCKS,
       },
@@ -110,6 +112,25 @@ test("fails closed before target mutation on preimage or authority drift", () =>
   }
 });
 
+
+
+test("fails closed on direct-entry candidate provenance drift before source mutation", () => {
+  for (const mutate of [
+    (x)=>{x.boundaryEvidence.candidatePath="src/scanner/ai_logic_candidates/other.mjs";},
+    (x)=>{x.boundaryEvidence.candidateTopic="";},
+  ]) {
+    const f = fixture();
+    try {
+      mutate(f.input);
+      const before = fs.readFileSync(f.target);
+      assert.throws(() => execute(f.input), /(TARGET_PATH_CANDIDATE_PATH_MISMATCH|CANDIDATE_TOPIC_REQUIRED)/);
+      assert.equal(hash(fs.readFileSync(f.target)), hash(before));
+    } finally {
+      fs.rmSync(f.root, {recursive:true,force:true});
+    }
+  }
+});
+
 test("rejects traversal and absolute target paths before target access", () => {
   for (const badTarget of [
     "../outside.mjs",
@@ -119,7 +140,7 @@ test("rejects traversal and absolute target paths before target access", () => {
     const f = fixture();
     try {
       f.input.targetPath = badTarget;
-      assert.throws(() => execute(f.input), /TARGET_PATH_(INVALID|NOT_ALLOWLISTED|OUTSIDE_CANDIDATE_ROOT)/);
+      assert.throws(() => execute(f.input), /TARGET_PATH_(INVALID|NOT_ALLOWLISTED|OUTSIDE_CANDIDATE_ROOT|CANDIDATE_PATH_MISMATCH)/);
       assert.equal(hash(fs.readFileSync(f.target)), hash(f.preimage));
     } finally {
       fs.rmSync(f.root, {recursive:true,force:true});

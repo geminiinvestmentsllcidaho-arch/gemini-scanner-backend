@@ -79,6 +79,10 @@ export function executeAiLogicAtomicApply(input = {}) {
   if (typeof operationId !== "string" || !/^[A-Za-z0-9._-]{8,128}$/.test(operationId)) throw new Error("OPERATION_ID_INVALID");
 
   const root = path.resolve(repositoryRoot);
+  const normalizedRequestedTarget = String(targetPath ?? "").trim().replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+/g, "/");
+  const normalizedBoundaryCandidatePath = String(boundaryEvidence?.candidatePath ?? "").trim().replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+/g, "/");
+  if (!normalizedBoundaryCandidatePath || normalizedRequestedTarget !== normalizedBoundaryCandidatePath) throw new Error("TARGET_PATH_CANDIDATE_PATH_MISMATCH");
+  if (typeof boundaryEvidence?.candidateTopic !== "string" || !boundaryEvidence.candidateTopic.trim()) throw new Error("CANDIDATE_TOPIC_REQUIRED");
   const targetValidation = validateContainedTarget(root, targetPath);
   const normalizedTarget = targetValidation.normalized;
   const absoluteTarget = targetValidation.absoluteTarget;
@@ -158,6 +162,8 @@ throw new Error(`POST_APPLY_VALIDATOR_REQUIRED_${name}`);
       rolledBack: false,
       status: "LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED",
       candidateSourceHash: boundaryEvidence.candidateSourceHash,
+      candidatePath: boundaryEvidence.candidatePath,
+      candidateTopic: boundaryEvidence.candidateTopic,
       preimageHash: expectedPreimageHash,
       runtimeActivated: false,
       pm2RestartPerformed: false,

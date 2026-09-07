@@ -32,6 +32,8 @@ function fixture() {
       evidenceOnly:true,
       paperOnly:true,
       candidateSourceHash:hash(candidateBytes),
+      candidatePath:"src/scanner/ai_logic_candidates/example.mjs",
+      candidateTopic:"evidence_interpretation",
       ...LOCKS,
     },
     candidateBytes,
@@ -51,6 +53,8 @@ test("emits atomic apply eligibility evidence only with every authority closed",
   assert.equal(result.filesystemMutationAllowed, false);
   assert.equal(result.mutationAuthority, "NONE");
   assert.equal(result.candidateBytesHash, result.candidateSourceHash);
+  assert.equal(result.candidatePath, result.targetPath);
+  assert.equal(result.candidateTopic, "evidence_interpretation");
   assert.equal(result.currentTargetHash, result.expectedPreimageHash);
 });
 
@@ -61,6 +65,8 @@ test("fails closed on boundary hash preimage manifest path symlink or authority 
     (x) => { x.expectedPreimageHash = hash("wrong"); },
     (x) => { x.immutableManifest = {ok:false,status:"BAD"}; },
     (x) => { x.targetPath = "src/server.js"; },
+    (x) => { x.boundaryEvidence.candidatePath = "src/scanner/ai_logic_candidates/other.mjs"; },
+    (x) => { x.boundaryEvidence.candidateTopic = ""; },
     (x) => { x.targetLstat = {isSymbolicLink:()=>true}; },
     (x) => { x.boundaryEvidence.gitMutationAllowed = true; },
   ];

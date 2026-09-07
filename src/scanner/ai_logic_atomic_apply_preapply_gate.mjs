@@ -64,6 +64,11 @@ export function buildAiLogicAtomicApplyPreapplyGate({
   }
 
   const normalizedTargetPath = normalizeRepoPath(targetPath);
+  const normalizedCandidatePath = normalizeRepoPath(boundaryEvidence?.candidatePath);
+  const candidateTopic = boundaryEvidence?.candidateTopic;
+  if (!present(boundaryEvidence?.candidatePath)) reasons.push("BOUNDARY_CANDIDATE_PATH_REQUIRED");
+  if (!normalizedCandidatePath || normalizedCandidatePath !== normalizedTargetPath) reasons.push("TARGET_PATH_CANDIDATE_PATH_MISMATCH");
+  if (!present(candidateTopic)) reasons.push("BOUNDARY_CANDIDATE_TOPIC_REQUIRED");
   if (!normalizedTargetPath.startsWith(ALLOWED_TARGET_PREFIX)) reasons.push("TARGET_PATH_NOT_ALLOWLISTED");
 
   if (!present(expectedPreimageHash) || sha256(currentTargetBytes) !== expectedPreimageHash) {
@@ -99,6 +104,8 @@ export function buildAiLogicAtomicApplyPreapplyGate({
     reasons: Object.freeze(reasons),
     targetPath: normalizedTargetPath || null,
     candidateSourceHash: present(candidateSourceHash) ? candidateSourceHash : null,
+    candidatePath: normalizedCandidatePath || null,
+    candidateTopic: present(candidateTopic) ? candidateTopic : null,
     candidateBytesHash: sha256(candidateBytes),
     expectedPreimageHash: present(expectedPreimageHash) ? expectedPreimageHash : null,
     currentTargetHash: sha256(currentTargetBytes),
