@@ -67,6 +67,9 @@ test("applies exact candidate locally while runtime git and broker authority sta
     assert.equal(r.applied, true);
     assert.equal(r.rolledBack, false);
     assert.equal(r.status, "LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED");
+    assert.equal(r.candidateSourceHash, f.input.boundaryEvidence.candidateSourceHash);
+    assert.equal(r.candidatePath, f.input.boundaryEvidence.candidatePath);
+    assert.equal(r.candidateTopic, f.input.boundaryEvidence.candidateTopic);
     assert.equal(hash(fs.readFileSync(f.target)), hash(f.candidate));
     assert.equal(r.runtimeActivated, false);
     assert.equal(r.pm2RestartPerformed, false);
@@ -85,6 +88,9 @@ test("restores exact preimage when post-apply validation fails", () => {
     assert.equal(r.applied, false);
     assert.equal(r.rolledBack, true);
     assert.equal(r.status, "ATOMIC_APPLY_FAILED_ROLLED_BACK");
+    assert.equal(r.candidateSourceHash, f.input.boundaryEvidence.candidateSourceHash);
+    assert.equal(r.candidatePath, f.input.boundaryEvidence.candidatePath);
+    assert.equal(r.candidateTopic, f.input.boundaryEvidence.candidateTopic);
     assert.equal(hash(fs.readFileSync(f.target)), hash(f.preimage));
     assert.match(r.errorCode, /POST_APPLY_VALIDATION_FAILED_focusedTests/);
   } finally {
@@ -105,6 +111,9 @@ test("fails closed before target mutation on preimage or authority drift", () =>
       assert.equal(r.applied, false);
       assert.equal(r.rolledBack, false);
       assert.equal(r.status, "ATOMIC_APPLY_BLOCKED_PRECONDITION");
+      assert.equal(r.candidateSourceHash, f.input.boundaryEvidence.candidateSourceHash);
+      assert.equal(r.candidatePath, f.input.boundaryEvidence.candidatePath);
+      assert.equal(r.candidateTopic, f.input.boundaryEvidence.candidateTopic);
       assert.equal(hash(fs.readFileSync(f.target)), hash(before));
     } finally {
       fs.rmSync(f.root, {recursive:true,force:true});
@@ -213,6 +222,9 @@ test("fails closed before source mutation when fresh current HEAD drifts", () =>
     assert.equal(r.applied, false);
     assert.equal(r.rolledBack, false);
     assert.equal(r.status, "ATOMIC_APPLY_FAILED_BEFORE_RENAME");
+    assert.equal(r.candidateSourceHash, f.input.boundaryEvidence.candidateSourceHash);
+    assert.equal(r.candidatePath, f.input.boundaryEvidence.candidatePath);
+    assert.equal(r.candidateTopic, f.input.boundaryEvidence.candidateTopic);
     assert.match(r.errorCode, /CURRENT_HEAD_FRESHNESS_MISMATCH/);
     assert.equal(hash(fs.readFileSync(f.target)), hash(before));
   } finally {
