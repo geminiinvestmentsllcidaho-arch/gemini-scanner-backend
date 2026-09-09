@@ -65,9 +65,16 @@ test("bridge top-level hold receipts preserve attempted candidate path and topic
     bridge({orchestrator,knownGood,experiment,candidateSourceHash:"wrong",replayId:"r1"}),
     bridge({orchestrator,knownGood,experiment,candidateSourceHash:"sh1",replayId:"wrong"}),
   ];
-  for(const r of cases){
+  const expected=[
+    {candidateSourceHash:"sh1",replayId:"r1"},
+    {candidateSourceHash:"wrong",replayId:"r1"},
+    {candidateSourceHash:"sh1",replayId:"wrong"},
+  ];
+  cases.forEach((r,i)=>{
     assert.equal(r.eligible,false);
+    assert.equal(r.candidateSourceHash,expected[i].candidateSourceHash);
+    assert.equal(r.replayId,expected[i].replayId);
     assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
     assert.equal(r.candidateTopic,"classification_coverage");
-  }
+  });
 });

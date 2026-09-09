@@ -25,11 +25,11 @@ export function evaluateAiLogicOfflineCandidateAcceptanceBridge(input={}) {
   if(orchestrator.eligible!==true ||
      orchestrator.status!=="AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE" ||
      orchestrator.disposition!=="OFFLINE_EVIDENCE_ONLY") {
-    return fail("ORCHESTRATOR",["ORCHESTRATOR_EVIDENCE_INVALID"],{},orchestrator);
+    return fail("ORCHESTRATOR",["ORCHESTRATOR_EVIDENCE_INVALID"],{candidateSourceHash,replayId},orchestrator);
   }
 
   if(!candidateSourceHash || orchestrator.sourceHash!==candidateSourceHash) {
-    return fail("IDENTITY_BINDING",["CANDIDATE_SOURCE_HASH_BINDING_MISMATCH"],{candidateSourceHash},orchestrator);
+    return fail("IDENTITY_BINDING",["CANDIDATE_SOURCE_HASH_BINDING_MISMATCH"],{candidateSourceHash,replayId},orchestrator);
   }
   if(!replayId || orchestrator.safety?.replay?.replayId!==replayId) {
     return fail("IDENTITY_BINDING",["REPLAY_ID_BINDING_MISMATCH"],{candidateSourceHash,replayId},orchestrator);
