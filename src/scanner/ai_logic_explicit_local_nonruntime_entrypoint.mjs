@@ -76,6 +76,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
 
   const {
+    explicitOperatorInvocation,
     approvalRecordId,
     expectedPreimageHash,
     operationId,
@@ -147,9 +148,31 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
   }
 
+  const observedCurrentHead = typeof currentHeadProvider === "function" ? String(currentHeadProvider() ?? "").trim() : "";
+
   if (operatorApproval.action === "PROMOTION") {
+    if (explicitOperatorInvocation !== true) {
+      return out({
+        executed:false,
+        consumed:false,
+        applied:false,
+        status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED",
+        ...receiptProvenance,
+        reasons:Object.freeze(["EXPLICIT_OPERATOR_INVOCATION_REQUIRED"]),
+      });
+    }
+    if (!observedCurrentHead || observedCurrentHead !== currentSourceCommit) {
+      return out({
+        executed:false,
+        consumed:false,
+        applied:false,
+        status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED",
+        ...receiptProvenance,
+        reasons:Object.freeze(["PROMOTION_AUTHORITY_CURRENT_HEAD_MISMATCH"]),
+      });
+    }
     const promotionAuthorityReview = buildPersistedPromotionAuthority(
-      { explicitOperatorInvocation:true, approvalRecordId:operatorApproval.recordId, currentSourceCommit },
+      { explicitOperatorInvocation, approvalRecordId:operatorApproval.recordId, currentSourceCommit:observedCurrentHead },
       {
         approvalPath:approvalStorePath,
         promotionPath:promotionDecisionStorePath,
@@ -303,7 +326,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const executionPlan = buildPlan({ authorityGate, immutableManifest, operatorApproval, consumptionStoreRecord, now });
   const executionIntent = buildIntent({ executionPlan });
   const executionIntentAcknowledgement = buildAcknowledgement({ executionIntent });
-  const currentHead = typeof currentHeadProvider === "function" ? currentHeadProvider() : null;
+  const currentHead = observedCurrentHead || null;
   const boundaryEvidence = buildBoundary({
     executionIntentAcknowledgement,
     consumptionRecord:consumptionStoreRecord,

@@ -42,6 +42,7 @@ function fx() {
   };
   return {
     input:{
+      explicitOperatorInvocation:true,
       approvalRecordId:operatorApproval.recordId,
       candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
       expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
@@ -238,4 +239,43 @@ test("candidate artifact resolution and required validators fail closed before i
     assert.equal(r.consumed,false);
     assert.equal(r.liveTradingAllowed,false);
   }
+});
+
+
+test("promotion authority requires caller explicit invocation and fresh observed HEAD before review",()=>{
+  for (const mutate of [
+    f=>{delete f.input.explicitOperatorInvocation;},
+    f=>{f.input.explicitOperatorInvocation=false;},
+    f=>{f.input.currentHeadProvider=()=> "drift";},
+    f=>{f.input.currentHeadProvider=null;},
+  ]) {
+    const f=fx();
+    let authorityCalls=0, invocationCalls=0;
+    mutate(f);
+    f.deps.buildAiLogicPersistedPromotionAuthorityAdapter=()=>{authorityCalls++; return {eligible:true};};
+    f.deps.runAiLogicOneShotNonruntimeInvocation=()=>{invocationCalls++; return {executed:true,consumed:true,applied:true,status:"OK"};};
+    const r=run(f.input,f.deps);
+    assert.equal(authorityCalls,0);
+    assert.equal(invocationCalls,0);
+    assert.equal(r.executed,false);
+    assert.equal(r.consumed,false);
+    assert.equal(r.applied,false);
+    assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED");
+  }
+});
+
+test("promotion authority receives exact caller explicit flag and observed current HEAD",()=>{
+  const f=fx();
+  let seen=null;
+  const good=f.deps.buildAiLogicPersistedPromotionAuthorityAdapter;
+  f.deps.buildAiLogicPersistedPromotionAuthorityAdapter=(input,options)=>{
+    seen={input,options};
+    return good(input,options);
+  };
+  f.deps.runAiLogicOneShotNonruntimeInvocation=()=>({executed:true,consumed:true,applied:true,status:"OK"});
+  const r=run(f.input,f.deps);
+  assert.equal(r.executed,true);
+  assert.equal(seen.input.explicitOperatorInvocation,true);
+  assert.equal(seen.input.approvalRecordId,"ap1");
+  assert.equal(seen.input.currentSourceCommit,"before");
 });
