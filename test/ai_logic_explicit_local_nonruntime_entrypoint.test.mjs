@@ -133,6 +133,8 @@ test("explicit invocation builds then delegates exactly once",()=>{
   assert.equal(r.gitMutationAllowed,false);
 });
 
+test("entrypoint successful receipt canonicalizes candidate provenance from persisted evidence",()=>{for(const invocationResult of [{executed:true,consumed:true,applied:true,status:"OK"},{executed:true,consumed:true,applied:true,status:"OK",candidateSourceHash:"d".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/other.mjs",candidateTopic:"other"}]){const f=fx();f.input.targetPath="src/server.js";f.deps.runAiLogicOneShotNonruntimeInvocation=()=>invocationResult;const r=run(f.input,f.deps);assert.equal(r.candidateSourceHash,h(Buffer.from("candidate-v2")));assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/x.mjs");assert.equal(r.candidateTopic,"evidence_interpretation");assert.equal(r.runtimeActivationAllowed,false);assert.equal(r.liveTradingAllowed,false);assert.equal(r.gitMutationAllowed,false)}});
+
 test("already consumed blocks before assembly or invocation",()=>{
   const f=fx();
   let n=0;

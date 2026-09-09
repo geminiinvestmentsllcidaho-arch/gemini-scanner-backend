@@ -320,12 +320,15 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     }),
   });
 
-  return out(runInvocation({
-    invocationContract:assembly.invocationContract,
-    consumptionRecord,
-    consumptionPath,
-    executionInput,
-  }));
+  return out({
+    ...runInvocation({
+      invocationContract:assembly.invocationContract,
+      consumptionRecord,
+      consumptionPath,
+      executionInput,
+    }),
+    ...receiptProvenance,
+  });
 }
 
 export default Object.freeze({ VERSION, runAiLogicExplicitLocalNonruntimeEntrypoint });
