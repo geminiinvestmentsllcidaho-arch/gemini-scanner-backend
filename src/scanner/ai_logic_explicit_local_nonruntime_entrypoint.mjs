@@ -15,6 +15,7 @@ import { buildAiLogicExecutionBoundaryGate } from "./ai_logic_execution_boundary
 import { resolveAiLogicCandidateArtifact } from "./ai_logic_candidate_artifact_resolver.mjs";
 import { buildAiLogicPersistedPromotionAuthorityAdapter } from "./ai_logic_persisted_promotion_authority_adapter.mjs";
 import { buildAiLogicPersistedRollbackAuthorityAdapter } from "./ai_logic_persisted_rollback_authority_adapter.mjs";
+import { appendAiLogicApplyOutcomeRecord } from "./ai_logic_apply_outcome_store.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -76,6 +77,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const buildPersistedRollbackAuthority = deps.buildAiLogicPersistedRollbackAuthorityAdapter ?? buildAiLogicPersistedRollbackAuthorityAdapter;
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
+  const appendOutcome = deps.appendAiLogicApplyOutcomeRecord ?? appendAiLogicApplyOutcomeRecord;
 
   const {
     explicitOperatorInvocation,
@@ -88,6 +90,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     approvalStorePath,
     promotionDecisionStorePath,
     rollbackDecisionStorePath,
+    applyOutcomePath,
     now,
     currentHeadProvider,
     verifyImmutableManifestAfter,
@@ -431,14 +434,47 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     }),
   });
 
-  return out({
-    ...runInvocation({
-      invocationContract:assembly.invocationContract,
-      consumptionRecord,
-      consumptionPath,
-      executionInput,
-    }),
+  const invocationReceipt = runInvocation({
+    invocationContract:assembly.invocationContract,
+    consumptionRecord,
+    consumptionPath,
+    executionInput,
+  });
+  const receipt = out({
+    ...invocationReceipt,
     ...receiptProvenance,
+  });
+
+  let applyOutcomePersistence;
+  try {
+    const persistedOutcome = appendOutcome(
+      { receipt, operatorApproval, operationId, expectedPreimageHash },
+      { filePath:applyOutcomePath, now }
+    );
+    applyOutcomePersistence = Object.freeze({
+      attempted:true,
+      persisted:true,
+      appended:persistedOutcome?.appended === true,
+      duplicateSkipped:persistedOutcome?.duplicateSkipped === true,
+      recordId:persistedOutcome?.record?.recordId ?? null,
+      status:"APPLY_OUTCOME_PERSISTED",
+      error:null,
+    });
+  } catch (error) {
+    applyOutcomePersistence = Object.freeze({
+      attempted:true,
+      persisted:false,
+      appended:false,
+      duplicateSkipped:false,
+      recordId:null,
+      status:"APPLY_OUTCOME_PERSIST_FAILED",
+      error:String(error?.message ?? error).slice(0,200),
+    });
+  }
+
+  return out({
+    ...receipt,
+    applyOutcomePersistence,
   });
 }
 

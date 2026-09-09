@@ -46,7 +46,7 @@ function fx() {
       approvalRecordId:operatorApproval.recordId,
       candidatePath:"src/scanner/ai_logic_candidates/x.mjs",candidateTopic:"evidence_interpretation",
       expectedPreimageHash:"e".repeat(64),operationId:"op-ready-001",repositoryRoot:"/repo",
-      knownGoodStorePath:"/kg",consumptionPath:"/cons",now:"2029-01-01T00:00:00.000Z",
+      knownGoodStorePath:"/kg",consumptionPath:"/cons",applyOutcomePath:"/outcomes",now:"2029-01-01T00:00:00.000Z",
       currentHeadProvider:()=> "before",
       verifyImmutableManifestAfter:()=>({ok:true,status:"IMMUTABLE_MANIFEST_VERIFIED"}),
       validators:{syntax:()=>true,focusedTests:()=>true,fullRegression:()=>true},
@@ -117,6 +117,7 @@ function fx() {
       buildAiLogicExecutionIntentEvidence:()=>({version:"ai_logic_execution_intent_evidence_contract_v1",eligible:true,readOnly:true,evidenceOnly:true,paperOnly:true,executionIntentOnly:true}),
       buildAiLogicExecutionIntentAcknowledgement:()=>({version:"ai_logic_execution_intent_acknowledgement_contract_v1",eligible:true,readOnly:true,evidenceOnly:true,acknowledgementOnly:true,paperOnly:true}),
       buildAiLogicExecutionBoundaryGate:()=>boundaryEvidence,
+      appendAiLogicApplyOutcomeRecord:()=>({appended:true,duplicateSkipped:false,record:{recordId:"out1"}}),
       buildAiLogicOneShotNonruntimeAssembly:()=>({
         eligible:true,
         orchestratorContract:{
@@ -310,4 +311,73 @@ test("rollback authority receives exact caller explicit flag and observed curren
   assert.deepEqual(seen.input,{explicitOperatorInvocation:true,approvalRecordId:"ap1",currentSourceCommit:"after"});
   assert.equal(seen.options.knownGoodPath,"/kg"); assert.equal(seen.options.rootDir,"/repo");
   assert.equal(r.executed,false); assert.equal(r.consumed,false); assert.equal(r.reasons[0],"PERSISTED_ROLLBACK_AUTHORITY_REVIEW_NOT_READY");
+});
+
+
+test("successful invocation persists canonical apply outcome once after invocation",()=>{
+  const f=fx();
+  let invocationCalls=0, outcomeCalls=0, seen=null;
+  f.deps.runAiLogicOneShotNonruntimeInvocation=()=>{
+    invocationCalls++;
+    return {executed:true,consumed:true,applied:true,rolledBack:false,status:"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED"};
+  };
+  f.deps.appendAiLogicApplyOutcomeRecord=(input,options)=>{
+    outcomeCalls++;
+    seen={input,options};
+    return {appended:true,duplicateSkipped:false,record:{recordId:"outcome-1"}};
+  };
+  const r=run(f.input,f.deps);
+  assert.equal(invocationCalls,1);
+  assert.equal(outcomeCalls,1);
+  assert.equal(seen.input.operatorApproval.recordId,"ap1");
+  assert.equal(seen.input.operationId,"op-ready-001");
+  assert.equal(seen.input.expectedPreimageHash,"e".repeat(64));
+  assert.equal(seen.input.receipt.status,"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED");
+  assert.equal(seen.input.receipt.candidateSourceHash,h(Buffer.from("candidate-v2")));
+  assert.equal(seen.options.filePath,"/outcomes");
+  assert.equal(seen.options.now,"2029-01-01T00:00:00.000Z");
+  assert.equal(r.status,"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED");
+  assert.equal(r.applyOutcomePersistence.persisted,true);
+  assert.equal(r.applyOutcomePersistence.recordId,"outcome-1");
+  assert.equal(r.runtimeActivationAllowed,false);
+  assert.equal(r.liveTradingAllowed,false);
+  assert.equal(r.gitMutationAllowed,false);
+});
+
+test("apply outcome persistence failure preserves authoritative invocation receipt and never reruns execution",()=>{
+  const f=fx();
+  let invocationCalls=0, outcomeCalls=0;
+  f.deps.runAiLogicOneShotNonruntimeInvocation=()=>{
+    invocationCalls++;
+    return {executed:true,consumed:true,applied:false,rolledBack:true,status:"ATOMIC_APPLY_FAILED_ROLLED_BACK",errorCode:"VALIDATION_FAILED"};
+  };
+  f.deps.appendAiLogicApplyOutcomeRecord=()=>{
+    outcomeCalls++;
+    throw new Error("ledger unavailable");
+  };
+  const r=run(f.input,f.deps);
+  assert.equal(invocationCalls,1);
+  assert.equal(outcomeCalls,1);
+  assert.equal(r.executed,true);
+  assert.equal(r.consumed,true);
+  assert.equal(r.applied,false);
+  assert.equal(r.rolledBack,true);
+  assert.equal(r.status,"ATOMIC_APPLY_FAILED_ROLLED_BACK");
+  assert.equal(r.applyOutcomePersistence.persisted,false);
+  assert.equal(r.applyOutcomePersistence.status,"APPLY_OUTCOME_PERSIST_FAILED");
+  assert.match(r.applyOutcomePersistence.error,/ledger unavailable/);
+  assert.equal(r.runtimeActivationAllowed,false);
+  assert.equal(r.liveTradingAllowed,false);
+  assert.equal(r.gitMutationAllowed,false);
+});
+
+test("entrypoint blockers before invocation do not attempt apply outcome persistence",()=>{
+  const f=fx();
+  let outcomeCalls=0;
+  f.deps.isAiLogicOperatorApprovalConsumed=()=>true;
+  f.deps.appendAiLogicApplyOutcomeRecord=()=>{outcomeCalls++;};
+  const r=run(f.input,f.deps);
+  assert.equal(outcomeCalls,0);
+  assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED");
+  assert.equal(r.executed,false);
 });
