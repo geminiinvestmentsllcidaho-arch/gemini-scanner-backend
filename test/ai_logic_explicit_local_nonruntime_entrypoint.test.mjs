@@ -173,6 +173,31 @@ test("candidate artifact resolution fails closed on injected byte or text trust 
   }
 });
 
+
+test("entrypoint blocked receipts preserve canonical candidate provenance after persisted evidence resolution",()=>{
+  const cases=[
+    f=>{f.deps.verifyImmutablePolicyManifest=()=>({ok:false,status:"BAD"});},
+    f=>{f.deps.isAiLogicOperatorApprovalConsumed=()=>true;},
+    f=>{f.input.repositoryRoot="";},
+    f=>{f.deps.resolveAndBindAiLogicKnownGoodFromStore=()=>({eligible:false});},
+    f=>{f.deps.buildAiLogicOneShotNonruntimeAssembly=()=>({eligible:false});},
+    f=>{f.input.currentHeadProvider=null;},
+    f=>{delete f.input.validators.syntax;},
+  ];
+  for(const mutate of cases){
+    const f=fx();
+    const persisted=f.deps.resolveAiLogicPersistedApprovalAndDecision({approvalRecordId:"ap1"});
+    const a=persisted.operatorApproval;
+    mutate(f);
+    const r=run(f.input,f.deps);
+    assert.equal(r.candidateSourceHash,a.candidateSourceHash);
+    assert.equal(r.candidatePath,a.candidatePath);
+    assert.equal(r.candidateTopic,a.candidateTopic);
+    assert.equal(r.executed,false);
+    assert.equal(r.applied,false);
+  }
+});
+
 test("candidate artifact resolution and required validators fail closed before invocation",()=>{
   for (const mutate of [
     f=>{f.deps.resolveAiLogicCandidateArtifact=()=>({eligible:false,reasons:["SOURCE_HASH_MISMATCH"]});},

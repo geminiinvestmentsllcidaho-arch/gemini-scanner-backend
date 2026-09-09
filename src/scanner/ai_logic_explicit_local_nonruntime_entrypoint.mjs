@@ -42,6 +42,21 @@ const CLOSED = Object.freeze({
 
 const out = (x) => Object.freeze({ version:VERSION, ...x, ...CLOSED });
 
+const provenance = (operatorApproval, decisionEvidence) => Object.freeze({
+  candidateSourceHash:
+    typeof operatorApproval?.candidateSourceHash === "string" && operatorApproval.candidateSourceHash
+      ? operatorApproval.candidateSourceHash
+      : (typeof decisionEvidence?.candidateSourceHash === "string" && decisionEvidence.candidateSourceHash ? decisionEvidence.candidateSourceHash : null),
+  candidatePath:
+    typeof operatorApproval?.candidatePath === "string" && operatorApproval.candidatePath
+      ? operatorApproval.candidatePath
+      : (typeof decisionEvidence?.candidatePath === "string" && decisionEvidence.candidatePath ? decisionEvidence.candidatePath : null),
+  candidateTopic:
+    typeof operatorApproval?.candidateTopic === "string" && operatorApproval.candidateTopic
+      ? operatorApproval.candidateTopic
+      : (typeof decisionEvidence?.candidateTopic === "string" && decisionEvidence.candidateTopic ? decisionEvidence.candidateTopic : null),
+});
+
 export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {}) {
   const verifyManifest = deps.verifyImmutablePolicyManifest ?? verifyImmutablePolicyManifest;
   const resolvePersisted = deps.resolveAiLogicPersistedApprovalAndDecision ?? resolveAiLogicPersistedApprovalAndDecision;
@@ -95,6 +110,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   }
   const operatorApproval = persisted.operatorApproval;
   const decisionEvidence = persisted.decisionEvidence;
+  const receiptProvenance = provenance(operatorApproval, decisionEvidence);
   const persistedCandidatePath = operatorApproval?.candidatePath;
   const persistedCandidateTopic = operatorApproval?.candidateTopic;
   if (
@@ -103,30 +119,30 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     || decisionEvidence?.candidatePath !== persistedCandidatePath
     || decisionEvidence?.candidateTopic !== persistedCandidateTopic
   ) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_CANDIDATE_PATH_TOPIC_BINDING_INVALID"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["PERSISTED_CANDIDATE_PATH_TOPIC_BINDING_INVALID"]) });
   }
 
   if (operatorApproval?.version !== "ai_logic_operator_approval_record_v1" || operatorApproval?.valid !== true || operatorApproval?.explicitlyApproved !== true || operatorApproval?.oneShot !== true) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_INVALID"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_INVALID"]) });
   }
   if (!["PROMOTION","ROLLBACK"].includes(operatorApproval.action)) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_ACTION_INVALID"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["PERSISTED_OPERATOR_APPROVAL_ACTION_INVALID"]) });
   }
 
   const immutableManifest = verifyManifest();
   if (immutableManifest?.ok !== true || immutableManifest?.status !== "IMMUTABLE_MANIFEST_VERIFIED") {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["IMMUTABLE_MANIFEST_REVALIDATION_FAILED"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["IMMUTABLE_MANIFEST_REVALIDATION_FAILED"]) });
   }
 
   if (isConsumed({ approvalRecordId:operatorApproval.recordId, nonce:operatorApproval.nonce, filePath:consumptionPath }) === true) {
-    return out({ executed:false, consumed:true, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED", reasons:Object.freeze(["APPROVAL_ALREADY_CONSUMED"]) });
+    return out({ executed:false, consumed:true, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED", ...receiptProvenance, reasons:Object.freeze(["APPROVAL_ALREADY_CONSUMED"]) });
   }
 
   const currentSourceCommit = operatorApproval.action === "PROMOTION" ? operatorApproval.sourceCommitBefore : operatorApproval.sourceCommitAfter;
   const targetSourceCommit = operatorApproval.action === "PROMOTION" ? operatorApproval.sourceCommitAfter : operatorApproval.sourceCommitBefore;
 
   if (typeof repositoryRoot !== "string" || !repositoryRoot.trim()) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
   }
   const candidateArtifact = resolveCandidateArtifact({
     candidatePath:persistedCandidatePath,
@@ -163,6 +179,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
       consumed:false,
       applied:false,
       status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED",
+      ...receiptProvenance,
       reasons:Object.freeze(["CANDIDATE_ARTIFACT_RESOLUTION_FAILED", ...(candidateArtifact?.reasons ?? [])]),
     });
   }
@@ -178,7 +195,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     immutableManifest,
   });
   if (consumptionRecord?.eligible !== true) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["CONSUMPTION_RECORD_NOT_ELIGIBLE", ...(consumptionRecord?.reasons ?? [])]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["CONSUMPTION_RECORD_NOT_ELIGIBLE", ...(consumptionRecord?.reasons ?? [])]) });
   }
 
   const consumptionStoreRecord = Object.freeze({
@@ -214,7 +231,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     sourceCommitBefore:operatorApproval.sourceCommitBefore,
   }, { filePath:knownGoodStorePath });
   if (knownGoodStoreBinding?.eligible !== true || knownGoodStoreBinding?.knownGood == null) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["KNOWN_GOOD_STORE_BINDING_NOT_ELIGIBLE"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["KNOWN_GOOD_STORE_BINDING_NOT_ELIGIBLE"]) });
   }
 
   const executionPreview = buildPreview({
@@ -257,7 +274,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     || executionIntentAcknowledgement?.eligible !== true
     || boundaryEvidence?.eligible !== true
   ) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["INTERNAL_AUTHORITY_BOUNDARY_DERIVATION_FAILED"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["INTERNAL_AUTHORITY_BOUNDARY_DERIVATION_FAILED"]) });
   }
 
   const assembly = buildAssembly({
@@ -275,15 +292,15 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     knownGoodStorePath,
   });
   if (assembly?.eligible !== true) {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["ASSEMBLY_NOT_ELIGIBLE"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["ASSEMBLY_NOT_ELIGIBLE"]) });
   }
 
   if (typeof currentHeadProvider !== "function" || typeof verifyImmutableManifestAfter !== "function") {
-    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze(["EXECUTOR_CALLBACK_REQUIRED"]) });
+    return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["EXECUTOR_CALLBACK_REQUIRED"]) });
   }
   for (const name of ["syntax","focusedTests","fullRegression"]) {
     if (typeof validators[name] !== "function") {
-      return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", reasons:Object.freeze([`VALIDATOR_REQUIRED_${name}`]) });
+      return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze([`VALIDATOR_REQUIRED_${name}`]) });
     }
   }
 
