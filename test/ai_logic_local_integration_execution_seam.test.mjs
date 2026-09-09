@@ -129,6 +129,18 @@ test("unready orchestrator fails closed before atomic executor", () => {
   assert.equal(result.applied, false);
 });
 
+test("blocked postidentity receipt preserves canonical candidate provenance", () => {
+  const f = fixture();
+  const result = run({ ...f, atomicExecutor:null });
+  assert.equal(result.executed, false);
+  assert.equal(result.applied, false);
+  assert.equal(result.status, "LOCAL_INTEGRATION_EXECUTION_SEAM_BLOCKED");
+  assert.ok(result.reasons.includes("ATOMIC_EXECUTOR_INVALID"));
+  assert.equal(result.candidateSourceHash, f.orchestratorContract.candidateSourceHash);
+  assert.equal(result.candidatePath, f.orchestratorContract.candidatePath);
+  assert.equal(result.candidateTopic, f.orchestratorContract.candidateTopic);
+});
+
 test("identity or target drift fails closed before atomic executor", () => {
   for (const mutate of [
     f => { f.atomicExecutorInput = {...f.atomicExecutorInput, boundaryEvidence:{...f.atomicExecutorInput.boundaryEvidence, nonce:"other"}}; },

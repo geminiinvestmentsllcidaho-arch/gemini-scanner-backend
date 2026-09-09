@@ -12,6 +12,11 @@ const LOCKS = Object.freeze([
 ]);
 
 const present = (v) => typeof v === "string" && v.trim().length > 0;
+const provenance = (o = {}) => Object.freeze({
+  candidateSourceHash: present(o?.candidateSourceHash) ? o.candidateSourceHash : null,
+  candidatePath: present(o?.candidatePath) ? o.candidatePath : null,
+  candidateTopic: present(o?.candidateTopic) ? o.candidateTopic : null,
+});
 const allowedTarget = (v) => {
   const s = String(v ?? "").trim().replaceAll("\\", "/");
   return !!s && !s.startsWith("/") && !s.split("/").includes("..")
@@ -63,6 +68,7 @@ export function executeAiLogicLocalIntegrationSeam({
       applied: false,
       status: "LOCAL_INTEGRATION_EXECUTION_SEAM_BLOCKED",
       reasons: Object.freeze(reasons),
+      ...provenance(o),
       runtimeActivated: false,
       pm2RestartPerformed: false,
       gitMutationPerformed: false,
