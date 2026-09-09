@@ -55,3 +55,41 @@ test("fails closed before replay when sandbox mutation is forbidden",async()=>{
   assert.equal(calls,0);
   assert.equal(fs.existsSync(path.join(root,"src/scanner/ai_logic_candidates/a57g.mjs")),false);
 });
+
+
+test("preserves candidate identity on evaluator binding reject",async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"a57g-bind-"));
+  const input=base();
+  input.files[0].content="export function evaluateCandidate(x){ return x; }\nimport './x.mjs';\n";
+  const r=await run(input,{rootDir:root,manifestResult:manifest});
+  assert.equal(r.eligible,false);
+  assert.equal(r.stage,"EVALUATOR_BINDING");
+  assert.equal(r.candidateId,"a57g-1");
+  assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/a57g.mjs");
+  assert.equal(r.candidateTopic,"classification_coverage");
+  assert.equal(r.sourceHash,crypto.createHash("sha256").update(String(input.files[0].content)).digest("hex"));
+});
+
+test("preserves candidate identity on isolated runner reject",async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"a57g-runner-"));
+  const input=base();
+  const r=await run(input,{rootDir:root,manifestResult:manifest,candidateTimeoutMs:Number.NaN});
+  assert.equal(r.eligible,false);
+  assert.equal(r.stage,"ISOLATED_RUNNER");
+  assert.equal(r.candidateId,"a57g-1");
+  assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/a57g.mjs");
+  assert.equal(r.candidateTopic,"classification_coverage");
+  assert.equal(r.sourceHash,crypto.createHash("sha256").update(String(input.files[0].content)).digest("hex"));
+});
+
+test("preserves candidate identity on safety gate reject",async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"a57g-safety-"));
+  const input={...base(),explicitFixtureOrInMemoryOnly:false};
+  const r=await run(input,{rootDir:root,manifestResult:manifest});
+  assert.equal(r.eligible,false);
+  assert.equal(r.stage,"SAFETY_GATE");
+  assert.equal(r.candidateId,"a57g-1");
+  assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/a57g.mjs");
+  assert.equal(r.candidateTopic,"classification_coverage");
+  assert.equal(r.sourceHash,crypto.createHash("sha256").update(String(input.files[0].content)).digest("hex"));
+});
