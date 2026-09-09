@@ -76,6 +76,14 @@ function fx() {
         allocationMutationAllowed:false,
         gitMutationAllowed:false,
       }),
+      buildAiLogicPersistedRollbackAuthorityAdapter:()=>({
+        version:"ai_logic_persisted_rollback_authority_adapter_v1",eligible:true,status:"AI_LOGIC_PERSISTED_ROLLBACK_AUTHORITY_ADAPTER_READY",
+        approvalRecordId:operatorApproval.recordId,rollbackDecisionRecordId:decisionEvidence.recordId,candidateSourceHash,
+        candidatePath:operatorApproval.candidatePath,candidateTopic:operatorApproval.candidateTopic,authorityReview:{eligible:true},
+        approvalConsumptionAllowed:false,rollbackExecutionAllowed:false,productionRuntimeWiringAllowed:false,brokerContactAllowed:false,
+        orderPlacementAllowed:false,liveTradingAllowed:false,accountMutationAllowed:false,immutablePolicyMutationAllowed:false,
+        thresholdMutationAllowed:false,sizingMutationAllowed:false,allocationMutationAllowed:false,gitMutationAllowed:false,
+      }),
       resolveAiLogicCandidateArtifact:({candidatePath,expectedSourceHash},{rootDir,manifestResult})=>({
         eligible:candidatePath==="src/scanner/ai_logic_candidates/x.mjs" && expectedSourceHash===candidateSourceHash && rootDir==="/repo" && manifestResult?.ok===true,
         status:"AI_LOGIC_CANDIDATE_ARTIFACT_RESOLVED",readOnly:true,evidenceOnly:true,
@@ -278,4 +286,28 @@ test("promotion authority receives exact caller explicit flag and observed curre
   assert.equal(seen.input.explicitOperatorInvocation,true);
   assert.equal(seen.input.approvalRecordId,"ap1");
   assert.equal(seen.input.currentSourceCommit,"before");
+});
+
+
+test("rollback authority requires caller explicit invocation and fresh observed HEAD before review",()=>{
+  for (const mutate of [f=>{f.input.explicitOperatorInvocation=false;},f=>{f.input.currentHeadProvider=()=>"drift";},f=>{f.input.currentHeadProvider=null;}]) {
+    const f=fx(), base=f.deps.resolveAiLogicPersistedApprovalAndDecision;
+    f.deps.resolveAiLogicPersistedApprovalAndDecision=(i)=>{const r=base(i);return {...r,operatorApproval:{...r.operatorApproval,action:"ROLLBACK",sourceCommitBefore:"before",sourceCommitAfter:"after"},decisionEvidence:{...r.decisionEvidence,version:"ai_logic_rollback_decision_evidence_store_v1"}}};
+    f.input.currentHeadProvider=()=>"after"; mutate(f);
+    let calls=0; f.deps.buildAiLogicPersistedRollbackAuthorityAdapter=()=>{calls++;return {eligible:true};};
+    const r=run(f.input,f.deps);
+    assert.equal(calls,0); assert.equal(r.executed,false); assert.equal(r.consumed,false);
+  }
+});
+
+test("rollback authority receives exact caller explicit flag and observed current HEAD",()=>{
+  const f=fx(), base=f.deps.resolveAiLogicPersistedApprovalAndDecision;
+  f.deps.resolveAiLogicPersistedApprovalAndDecision=(i)=>{const r=base(i);return {...r,operatorApproval:{...r.operatorApproval,action:"ROLLBACK",sourceCommitBefore:"before",sourceCommitAfter:"after"},decisionEvidence:{...r.decisionEvidence,version:"ai_logic_rollback_decision_evidence_store_v1"}}};
+  f.input.currentHeadProvider=()=>"after";
+  let seen=null;
+  f.deps.buildAiLogicPersistedRollbackAuthorityAdapter=(input,options)=>{seen={input,options};return {version:"ai_logic_persisted_rollback_authority_adapter_v1",eligible:false,status:"AI_LOGIC_PERSISTED_ROLLBACK_AUTHORITY_ADAPTER_HOLD",reasons:["TEST_HOLD"]};};
+  const r=run(f.input,f.deps);
+  assert.deepEqual(seen.input,{explicitOperatorInvocation:true,approvalRecordId:"ap1",currentSourceCommit:"after"});
+  assert.equal(seen.options.knownGoodPath,"/kg"); assert.equal(seen.options.rootDir,"/repo");
+  assert.equal(r.executed,false); assert.equal(r.consumed,false); assert.equal(r.reasons[0],"PERSISTED_ROLLBACK_AUTHORITY_REVIEW_NOT_READY");
 });

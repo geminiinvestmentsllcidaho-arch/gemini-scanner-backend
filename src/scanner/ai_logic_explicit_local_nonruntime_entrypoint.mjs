@@ -14,6 +14,7 @@ import { buildAiLogicExecutionIntentAcknowledgement } from "./ai_logic_execution
 import { buildAiLogicExecutionBoundaryGate } from "./ai_logic_execution_boundary_gate.mjs";
 import { resolveAiLogicCandidateArtifact } from "./ai_logic_candidate_artifact_resolver.mjs";
 import { buildAiLogicPersistedPromotionAuthorityAdapter } from "./ai_logic_persisted_promotion_authority_adapter.mjs";
+import { buildAiLogicPersistedRollbackAuthorityAdapter } from "./ai_logic_persisted_rollback_authority_adapter.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -72,6 +73,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const buildBoundary = deps.buildAiLogicExecutionBoundaryGate ?? buildAiLogicExecutionBoundaryGate;
   const resolveCandidateArtifact = deps.resolveAiLogicCandidateArtifact ?? resolveAiLogicCandidateArtifact;
   const buildPersistedPromotionAuthority = deps.buildAiLogicPersistedPromotionAuthorityAdapter ?? buildAiLogicPersistedPromotionAuthorityAdapter;
+  const buildPersistedRollbackAuthority = deps.buildAiLogicPersistedRollbackAuthorityAdapter ?? buildAiLogicPersistedRollbackAuthorityAdapter;
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
 
@@ -212,6 +214,44 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
         ...receiptProvenance,
         reasons:Object.freeze(["PERSISTED_PROMOTION_AUTHORITY_REVIEW_NOT_READY", ...(promotionAuthorityReview?.reasons ?? [])]),
       });
+    }
+  }
+
+  if (operatorApproval.action === "ROLLBACK") {
+    if (explicitOperatorInvocation !== true) {
+      return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["EXPLICIT_OPERATOR_INVOCATION_REQUIRED"]) });
+    }
+    if (!observedCurrentHead || observedCurrentHead !== currentSourceCommit) {
+      return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["ROLLBACK_AUTHORITY_CURRENT_HEAD_MISMATCH"]) });
+    }
+    const rollbackAuthorityReview = buildPersistedRollbackAuthority(
+      { explicitOperatorInvocation, approvalRecordId:operatorApproval.recordId, currentSourceCommit:observedCurrentHead },
+      { approvalPath:approvalStorePath, promotionPath:promotionDecisionStorePath, rollbackPath:rollbackDecisionStorePath, knownGoodPath:knownGoodStorePath, rootDir:repositoryRoot }
+    );
+    if (
+      rollbackAuthorityReview?.version !== "ai_logic_persisted_rollback_authority_adapter_v1"
+      || rollbackAuthorityReview?.eligible !== true
+      || rollbackAuthorityReview?.status !== "AI_LOGIC_PERSISTED_ROLLBACK_AUTHORITY_ADAPTER_READY"
+      || rollbackAuthorityReview?.approvalRecordId !== operatorApproval.recordId
+      || rollbackAuthorityReview?.rollbackDecisionRecordId !== decisionEvidence.recordId
+      || rollbackAuthorityReview?.candidateSourceHash !== operatorApproval.candidateSourceHash
+      || rollbackAuthorityReview?.candidatePath !== persistedCandidatePath
+      || rollbackAuthorityReview?.candidateTopic !== persistedCandidateTopic
+      || rollbackAuthorityReview?.authorityReview?.eligible !== true
+      || rollbackAuthorityReview?.approvalConsumptionAllowed !== false
+      || rollbackAuthorityReview?.rollbackExecutionAllowed !== false
+      || rollbackAuthorityReview?.productionRuntimeWiringAllowed !== false
+      || rollbackAuthorityReview?.brokerContactAllowed !== false
+      || rollbackAuthorityReview?.orderPlacementAllowed !== false
+      || rollbackAuthorityReview?.liveTradingAllowed !== false
+      || rollbackAuthorityReview?.accountMutationAllowed !== false
+      || rollbackAuthorityReview?.immutablePolicyMutationAllowed !== false
+      || rollbackAuthorityReview?.thresholdMutationAllowed !== false
+      || rollbackAuthorityReview?.sizingMutationAllowed !== false
+      || rollbackAuthorityReview?.allocationMutationAllowed !== false
+      || rollbackAuthorityReview?.gitMutationAllowed !== false
+    ) {
+      return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["PERSISTED_ROLLBACK_AUTHORITY_REVIEW_NOT_READY", ...(rollbackAuthorityReview?.reasons ?? [])]) });
     }
   }
 
