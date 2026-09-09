@@ -84,6 +84,7 @@ export function executeAiLogicLocalIntegrationSeam({
     version: VERSION,
     executed: true,
     ...result,
+    ...provenance(o),
     runtimeActivated: false,
     pm2RestartPerformed: false,
     gitMutationPerformed: false,

@@ -184,3 +184,26 @@ test("seam never grants runtime git broker account live or immutable-policy auth
     assert.equal(result[field], false, field);
   }
 });
+
+test("successful seam receipt canonicalizes candidate provenance from orchestrator", () => {
+  for (const atomicResult of [
+    { applied:true, status:"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED" },
+    {
+      applied:true,
+      status:"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED",
+      candidateSourceHash:"d".repeat(64),
+      candidatePath:"src/scanner/ai_logic_candidates/other.mjs",
+      candidateTopic:"other",
+    },
+  ]) {
+    const f = fixture();
+    const result = run({
+      ...f,
+      atomicExecutor: () => atomicResult,
+    });
+    assert.equal(result.executed, true);
+    assert.equal(result.candidateSourceHash, f.orchestratorContract.candidateSourceHash);
+    assert.equal(result.candidatePath, f.orchestratorContract.candidatePath);
+    assert.equal(result.candidateTopic, f.orchestratorContract.candidateTopic);
+  }
+});
