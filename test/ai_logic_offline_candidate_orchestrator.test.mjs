@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -42,10 +43,15 @@ test("writes binds and replays isolated candidate with authority closed",async()
 test("fails closed before replay when sandbox mutation is forbidden",async()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),"a57g-"));
   let calls=0;
-  const r=await run({...base(),mutationIntents:["position_sizing"],baselineEvaluator:()=>{calls++;return "NO";}},
+  const input=base();
+  const r=await run({...input,mutationIntents:["position_sizing"],baselineEvaluator:()=>{calls++;return "NO";}},
     {rootDir:root,manifestResult:manifest});
   assert.equal(r.eligible,false);
   assert.equal(r.stage,"SANDBOX_WRITE");
+  assert.equal(r.candidateId,"a57g-1");
+  assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/a57g.mjs");
+  assert.equal(r.candidateTopic,"classification_coverage");
+  assert.equal(r.sourceHash,crypto.createHash("sha256").update(String(input.files[0].content)).digest("hex"));
   assert.equal(calls,0);
   assert.equal(fs.existsSync(path.join(root,"src/scanner/ai_logic_candidates/a57g.mjs")),false);
 });

@@ -25,27 +25,33 @@ export async function runAiLogicOfflineCandidateOrchestrator(input={},options={}
   const candidatePath=String(sourceFiles[0].path??"").trim();
   const sourceText=String(sourceFiles[0].content??"");
   const sourceHash=hash(sourceText);
+  const candidateIdentity=Object.freeze({
+    candidateId:String(input.candidateId??"").trim()||null,
+    candidatePath:candidatePath||null,
+    candidateTopic:String(input.topic??"").trim()||null,
+    sourceHash,
+  });
 
   const write=applyAiLogicSandboxMutation({
     topic:input.topic,mutationIntents:input.mutationIntents,files
   },{
     rootDir:options.rootDir,manifestResult:options.manifestResult
   });
-  if(write.eligible!==true) return reject("SANDBOX_WRITE",write.reasons,{write});
+  if(write.eligible!==true) return reject("SANDBOX_WRITE",write.reasons,{...candidateIdentity,write});
 
   const binding=await bindAiLogicCandidateEvaluator({
     candidatePath,expectedSourceHash:sourceHash
   },{
     rootDir:options.rootDir,manifestResult:options.manifestResult
   });
-  if(binding.eligible!==true) return reject("EVALUATOR_BINDING",binding.reasons,{write,binding});
+  if(binding.eligible!==true) return reject("EVALUATOR_BINDING",binding.reasons,{...candidateIdentity,write,binding});
 
   const runner=createAiLogicIsolatedEvaluator({
     sourceText,expectedSourceHash:binding.sourceHash
   },{
     timeoutMs:options.candidateTimeoutMs
   });
-  if(runner.eligible!==true) return reject("ISOLATED_RUNNER",runner.reasons,{write,binding,runner});
+  if(runner.eligible!==true) return reject("ISOLATED_RUNNER",runner.reasons,{...candidateIdentity,write,binding,runner});
 
   const safety=evaluateAiLogicCandidateSafetyGate({
     candidateId:input.candidateId,
@@ -63,7 +69,7 @@ export async function runAiLogicOfflineCandidateOrchestrator(input={},options={}
   },{
     manifestResult:options.manifestResult
   });
-  if(safety.eligible!==true) return reject("SAFETY_GATE",safety.reasons,{write,binding,runner:Object.freeze({
+  if(safety.eligible!==true) return reject("SAFETY_GATE",safety.reasons,{...candidateIdentity,write,binding,runner:Object.freeze({
     status:runner.status,sourceHash:runner.sourceHash,isolation:runner.isolation,
     importsAllowed:runner.importsAllowed,dynamicImportAllowed:runner.dynamicImportAllowed,
     timeoutEnforced:runner.timeoutEnforced,environmentAuthority:runner.environmentAuthority
