@@ -17,3 +17,11 @@ test("candidate path and topic provenance is required preserved and identity-bou
   assert.notEqual(build({...base(),candidatePath:"src/scanner/ai_logic_candidates/other.mjs"}).recordId,x.recordId);
   assert.notEqual(build({...base(),candidateTopic:"evidence_interpretation"}).recordId,x.recordId);
 });
+
+test("persists and identity-binds required safety acknowledgements",()=>{
+  const r=build(base());
+  assert.equal(r.noLiveTradingAcknowledged,true);
+  assert.equal(r.noImmutablePolicyMutationAcknowledged,true);
+  assert.equal(build({...base(),noLiveTradingAcknowledged:false}).valid,false);
+  assert.equal(build({...base(),noImmutablePolicyMutationAcknowledged:false}).valid,false);
+});

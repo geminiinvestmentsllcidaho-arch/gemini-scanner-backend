@@ -39,10 +39,12 @@ function fixture(action="PROMOTION") {
     replayId:"r1",sourceCommitBefore:"before",sourceCommitAfter:"after",
     candidateSourceHash:"a".repeat(64),candidatePath:"src/scanner/ai_logic_candidates/c1.mjs",
     candidateTopic:"classification_coverage",nonce:"n1",
+    noLiveTradingAcknowledged:true,noImmutablePolicyMutationAcknowledged:true,
   };
   const operatorApproval={
     version:"ai_logic_operator_approval_record_v1",valid:true,status:"AI_LOGIC_OPERATOR_APPROVAL_RECORDED",
     reasons:[],recordId:hash(approvalIdentity),...approvalIdentity,explicitlyApproved:true,oneShot:true,
+    noLiveTradingAcknowledged:true,noImmutablePolicyMutationAcknowledged:true,
     issuedAt:"2026-01-01T00:00:00.000Z",expiresAt:"2030-01-01T00:00:00.000Z",
     paperOnly:true,localJsonlOnly:true,...locks,
   };
@@ -136,4 +138,13 @@ test("candidate path or topic identity drift fails closed",()=>{
   assert.equal(r.operatorApproval.candidateTopic,"classification_coverage");
   assert.equal(r.decisionEvidence.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
   assert.equal(r.decisionEvidence.candidateTopic,"classification_coverage");
+});
+
+test("persisted approval requires identity-bound safety acknowledgements",()=>{
+  const f=fixture();
+  for(const k of ["noLiveTradingAcknowledged","noImmutablePolicyMutationAcknowledged"]){
+    const bad={...f.operatorApproval}; delete bad[k];
+    fs.writeFileSync(f.approvalPath,JSON.stringify(bad)+"\n");
+    assert.equal(resolveAiLogicOperatorApprovalById({approvalRecordId:f.operatorApproval.recordId},{filePath:f.approvalPath}).eligible,false);
+  }
 });

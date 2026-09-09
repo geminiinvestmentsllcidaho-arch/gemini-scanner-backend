@@ -37,6 +37,8 @@ export function buildAiLogicOperatorApprovalRecord(input = {}) {
     candidatePath: input.candidatePath ?? null,
     candidateTopic: input.candidateTopic ?? null,
     nonce: input.nonce ?? null,
+    noLiveTradingAcknowledged: input.noLiveTradingAcknowledged === true,
+    noImmutablePolicyMutationAcknowledged: input.noImmutablePolicyMutationAcknowledged === true,
   };
   return Object.freeze({
     version: VERSION,
@@ -47,6 +49,8 @@ export function buildAiLogicOperatorApprovalRecord(input = {}) {
     ...identity,
     explicitlyApproved: input.explicitlyApproved === true,
     oneShot: input.oneShot === true,
+    noLiveTradingAcknowledged: input.noLiveTradingAcknowledged === true,
+    noImmutablePolicyMutationAcknowledged: input.noImmutablePolicyMutationAcknowledged === true,
     issuedAt: Number.isFinite(issued) ? new Date(issued).toISOString() : null,
     expiresAt: Number.isFinite(expires) ? new Date(expires).toISOString() : null,
     paperOnly: true,

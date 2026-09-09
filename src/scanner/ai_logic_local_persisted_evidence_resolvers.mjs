@@ -74,6 +74,8 @@ function approvalIdentity(row) {
     candidatePath:row?.candidatePath ?? null,
     candidateTopic:row?.candidateTopic ?? null,
     nonce:row?.nonce ?? null,
+    noLiveTradingAcknowledged:row?.noLiveTradingAcknowledged === true,
+    noImmutablePolicyMutationAcknowledged:row?.noImmutablePolicyMutationAcknowledged === true,
   };
 }
 
@@ -84,6 +86,8 @@ function canonicalApproval(row, requestedId) {
     row?.status !== "AI_LOGIC_OPERATOR_APPROVAL_RECORDED" ||
     row?.explicitlyApproved !== true ||
     row?.oneShot !== true ||
+    row?.noLiveTradingAcknowledged !== true ||
+    row?.noImmutablePolicyMutationAcknowledged !== true ||
     row?.paperOnly !== true ||
     row?.localJsonlOnly !== true ||
     !["PROMOTION","ROLLBACK"].includes(row?.action) ||
