@@ -50,15 +50,15 @@ export function buildAiLogicApplyOutcomeRecord({receipt,operatorApproval,operati
     currentSourceCommit,
     targetSourceCommit,
     expectedPreimageHash:String(expectedPreimageHash).toLowerCase(),
-    outcomeStatus:receipt.status,
-    applied,
-    rolledBack,
   };
   return Object.freeze({
     version:VERSION,
     recordId:hash(identity),
     recordedAt:now.toISOString(),
     ...identity,
+    outcomeStatus:receipt.status,
+    applied,
+    rolledBack,
     errorCode:present(receipt.errorCode)?receipt.errorCode.slice(0,200):null,
     localJsonlOnly:true,
     paperOnly:true,
@@ -85,8 +85,10 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   const matches=existing.filter(r=>r?.recordId===record.recordId);
   if(matches.length>1) throw new Error("APPLY_OUTCOME_DUPLICATE_RECORD_ID");
   if(matches.length===1){
-    if(JSON.stringify(matches[0])!==JSON.stringify(record)) throw new Error("APPLY_OUTCOME_IDENTITY_DRIFT");
-    return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...matches[0]}),filePath,localJsonlOnly:true});
+    const stored=matches[0];
+    const comparable=({recordedAt,...rest})=>rest;
+    if(JSON.stringify(comparable(stored))!==JSON.stringify(comparable(record))) throw new Error("APPLY_OUTCOME_IDENTITY_DRIFT");
+    return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...stored}),filePath,localJsonlOnly:true});
   }
   fs.appendFileSync(filePath,JSON.stringify(record)+"\n",{encoding:"utf8",mode:0o600});
   try{fs.chmodSync(filePath,0o600)}catch{}

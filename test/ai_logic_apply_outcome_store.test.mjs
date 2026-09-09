@@ -47,3 +47,34 @@ test("persists once at 0600 and lists newest first",()=>{
     assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+
+test("retry with a later recordedAt is idempotent and preserves the original record",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-retry-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    const first=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"});
+    const retry=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:01:00Z"});
+    assert.equal(first.appended,true);
+    assert.equal(retry.appended,false);
+    assert.equal(retry.duplicateSkipped,true);
+    assert.equal(retry.record.recordId,first.record.recordId);
+    assert.equal(retry.record.recordedAt,first.record.recordedAt);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("one approval operation identity cannot record a conflicting outcome",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-drift-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const base={operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    appendAiLogicApplyOutcomeRecord({...base,receipt:{...success,applied:false,status:"ATOMIC_APPLY_BLOCKED_PRECONDITION"}},{filePath,now:"2026-09-09T22:00:00Z"});
+    assert.throws(
+      ()=>appendAiLogicApplyOutcomeRecord({...base,receipt:{...success,applied:false,status:"ATOMIC_APPLY_FAILED_BEFORE_RENAME"}},{filePath,now:"2026-09-09T22:01:00Z"}),
+      /APPLY_OUTCOME_IDENTITY_DRIFT/
+    );
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
