@@ -8,10 +8,14 @@ const LOCKS = Object.freeze({
   liveTradingAllowed:false,accountMutationAllowed:false,immutablePolicyMutationAllowed:false,
   thresholdMutationAllowed:false,sizingMutationAllowed:false,allocationMutationAllowed:false,
 });
-const fail=(stage,reasons,extra={})=>Object.freeze({
+const provenance=(orchestrator={})=>Object.freeze({
+  candidatePath:typeof orchestrator?.candidatePath==="string"&&orchestrator.candidatePath?orchestrator.candidatePath:null,
+  candidateTopic:typeof orchestrator?.candidateTopic==="string"&&orchestrator.candidateTopic?orchestrator.candidateTopic:null,
+});
+const fail=(stage,reasons,extra={},orchestrator={})=>Object.freeze({
   version:VERSION,eligible:false,status:"AI_LOGIC_OFFLINE_CANDIDATE_ACCEPTANCE_BRIDGE_HOLD",
   disposition:"REJECT_OR_HOLD",stage,reasons:Object.freeze([...new Set(reasons??[])].sort()),
-  ...extra,...LOCKS
+  ...provenance(orchestrator),...extra,...LOCKS
 });
 
 export function evaluateAiLogicOfflineCandidateAcceptanceBridge(input={}) {
@@ -21,19 +25,19 @@ export function evaluateAiLogicOfflineCandidateAcceptanceBridge(input={}) {
   if(orchestrator.eligible!==true ||
      orchestrator.status!=="AI_LOGIC_OFFLINE_CANDIDATE_ORCHESTRATION_COMPLETE" ||
      orchestrator.disposition!=="OFFLINE_EVIDENCE_ONLY") {
-    return fail("ORCHESTRATOR",["ORCHESTRATOR_EVIDENCE_INVALID"]);
+    return fail("ORCHESTRATOR",["ORCHESTRATOR_EVIDENCE_INVALID"],{},orchestrator);
   }
 
   if(!candidateSourceHash || orchestrator.sourceHash!==candidateSourceHash) {
-    return fail("IDENTITY_BINDING",["CANDIDATE_SOURCE_HASH_BINDING_MISMATCH"]);
+    return fail("IDENTITY_BINDING",["CANDIDATE_SOURCE_HASH_BINDING_MISMATCH"],{candidateSourceHash},orchestrator);
   }
   if(!replayId || orchestrator.safety?.replay?.replayId!==replayId) {
-    return fail("IDENTITY_BINDING",["REPLAY_ID_BINDING_MISMATCH"]);
+    return fail("IDENTITY_BINDING",["REPLAY_ID_BINDING_MISMATCH"],{candidateSourceHash,replayId},orchestrator);
   }
 
   const acceptance=evaluateAiLogicOfflineCandidateAcceptance(orchestrator.safety);
   if(acceptance.eligible!==true) {
-    return fail("ACCEPTANCE_GATE",acceptance.reasons,{acceptance});
+    return fail("ACCEPTANCE_GATE",acceptance.reasons,{candidateSourceHash,replayId,acceptance},orchestrator);
   }
 
   const binding=evaluateAiLogicAcceptanceEvidenceBinding({
@@ -45,13 +49,13 @@ export function evaluateAiLogicOfflineCandidateAcceptanceBridge(input={}) {
     candidateSourceHash,
   });
   if(binding.eligible!==true) {
-    return fail("ACCEPTANCE_BINDING",binding.reasons,{acceptance,binding});
+    return fail("ACCEPTANCE_BINDING",binding.reasons,{candidateSourceHash,replayId,acceptance,binding},orchestrator);
   }
 
   return Object.freeze({
     version:VERSION,eligible:true,status:"AI_LOGIC_OFFLINE_CANDIDATE_ACCEPTANCE_BRIDGE_READY",
     disposition:"OFFLINE_ACCEPTANCE_BINDING_EVIDENCE_ONLY",stage:"COMPLETE",
-    reasons:Object.freeze([]),candidateSourceHash,replayId,
+    reasons:Object.freeze([]),candidateSourceHash,replayId,...provenance(orchestrator),
     acceptance,binding,...LOCKS
   });
 }

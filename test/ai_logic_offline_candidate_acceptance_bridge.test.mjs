@@ -32,6 +32,8 @@ test("bridges isolated orchestration replay into acceptance binding evidence onl
   assert.equal(r.eligible,true);
   assert.equal(r.status,"AI_LOGIC_OFFLINE_CANDIDATE_ACCEPTANCE_BRIDGE_READY");
   assert.equal(r.candidateSourceHash,"sh1");
+  assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+  assert.equal(r.candidateTopic,"classification_coverage");
   assert.equal(r.acceptance.eligible,true);
   assert.equal(r.binding.eligible,true);
   assert.equal(r.binding.binding.candidateSourceHash,"sh1");
@@ -55,4 +57,17 @@ test("fails closed before acceptance when orchestration is not eligible",()=>{
   const r=bridge({orchestrator:{...orchestrator,eligible:false},knownGood,experiment});
   assert.equal(r.eligible,false);
   assert.equal(r.stage,"ORCHESTRATOR");
+});
+
+test("bridge top-level hold receipts preserve attempted candidate path and topic",()=>{
+  const cases=[
+    bridge({orchestrator:{...orchestrator,eligible:false},knownGood,experiment,candidateSourceHash:"sh1",replayId:"r1"}),
+    bridge({orchestrator,knownGood,experiment,candidateSourceHash:"wrong",replayId:"r1"}),
+    bridge({orchestrator,knownGood,experiment,candidateSourceHash:"sh1",replayId:"wrong"}),
+  ];
+  for(const r of cases){
+    assert.equal(r.eligible,false);
+    assert.equal(r.candidatePath,"src/scanner/ai_logic_candidates/c1.mjs");
+    assert.equal(r.candidateTopic,"classification_coverage");
+  }
 });
