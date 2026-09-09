@@ -13,6 +13,7 @@ import { buildAiLogicExecutionIntentEvidence } from "./ai_logic_execution_intent
 import { buildAiLogicExecutionIntentAcknowledgement } from "./ai_logic_execution_intent_acknowledgement_contract.mjs";
 import { buildAiLogicExecutionBoundaryGate } from "./ai_logic_execution_boundary_gate.mjs";
 import { resolveAiLogicCandidateArtifact } from "./ai_logic_candidate_artifact_resolver.mjs";
+import { buildAiLogicPersistedPromotionAuthorityAdapter } from "./ai_logic_persisted_promotion_authority_adapter.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -70,6 +71,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const buildAcknowledgement = deps.buildAiLogicExecutionIntentAcknowledgement ?? buildAiLogicExecutionIntentAcknowledgement;
   const buildBoundary = deps.buildAiLogicExecutionBoundaryGate ?? buildAiLogicExecutionBoundaryGate;
   const resolveCandidateArtifact = deps.resolveAiLogicCandidateArtifact ?? resolveAiLogicCandidateArtifact;
+  const buildPersistedPromotionAuthority = deps.buildAiLogicPersistedPromotionAuthorityAdapter ?? buildAiLogicPersistedPromotionAuthorityAdapter;
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
 
@@ -144,6 +146,52 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   if (typeof repositoryRoot !== "string" || !repositoryRoot.trim()) {
     return out({ executed:false, consumed:false, applied:false, status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED", ...receiptProvenance, reasons:Object.freeze(["REPOSITORY_ROOT_REQUIRED"]) });
   }
+
+  if (operatorApproval.action === "PROMOTION") {
+    const promotionAuthorityReview = buildPersistedPromotionAuthority(
+      { explicitOperatorInvocation:true, approvalRecordId:operatorApproval.recordId, currentSourceCommit },
+      {
+        approvalPath:approvalStorePath,
+        promotionPath:promotionDecisionStorePath,
+        rollbackPath:rollbackDecisionStorePath,
+        knownGoodPath:knownGoodStorePath,
+        rootDir:repositoryRoot,
+      }
+    );
+    if (
+      promotionAuthorityReview?.version !== "ai_logic_persisted_promotion_authority_adapter_v1"
+      || promotionAuthorityReview?.eligible !== true
+      || promotionAuthorityReview?.status !== "AI_LOGIC_PERSISTED_PROMOTION_AUTHORITY_ADAPTER_READY"
+      || promotionAuthorityReview?.approvalRecordId !== operatorApproval.recordId
+      || promotionAuthorityReview?.promotionDecisionRecordId !== decisionEvidence.recordId
+      || promotionAuthorityReview?.candidateSourceHash !== operatorApproval.candidateSourceHash
+      || promotionAuthorityReview?.candidatePath !== persistedCandidatePath
+      || promotionAuthorityReview?.candidateTopic !== persistedCandidateTopic
+      || promotionAuthorityReview?.authorityReview?.eligible !== true
+      || promotionAuthorityReview?.approvalConsumptionAllowed !== false
+      || promotionAuthorityReview?.promotionExecutionAllowed !== false
+      || promotionAuthorityReview?.productionRuntimeWiringAllowed !== false
+      || promotionAuthorityReview?.brokerContactAllowed !== false
+      || promotionAuthorityReview?.orderPlacementAllowed !== false
+      || promotionAuthorityReview?.liveTradingAllowed !== false
+      || promotionAuthorityReview?.accountMutationAllowed !== false
+      || promotionAuthorityReview?.immutablePolicyMutationAllowed !== false
+      || promotionAuthorityReview?.thresholdMutationAllowed !== false
+      || promotionAuthorityReview?.sizingMutationAllowed !== false
+      || promotionAuthorityReview?.allocationMutationAllowed !== false
+      || promotionAuthorityReview?.gitMutationAllowed !== false
+    ) {
+      return out({
+        executed:false,
+        consumed:false,
+        applied:false,
+        status:"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_BLOCKED",
+        ...receiptProvenance,
+        reasons:Object.freeze(["PERSISTED_PROMOTION_AUTHORITY_REVIEW_NOT_READY", ...(promotionAuthorityReview?.reasons ?? [])]),
+      });
+    }
+  }
+
   const candidateArtifact = resolveCandidateArtifact({
     candidatePath:persistedCandidatePath,
     expectedSourceHash:operatorApproval.candidateSourceHash,
