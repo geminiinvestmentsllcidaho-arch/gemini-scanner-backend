@@ -12,12 +12,14 @@ const locks=()=>({
 function fixture(action="PROMOTION"){
   const before="a".repeat(40), after="b".repeat(40), decisionRecordId="decision-1";
   const identity={decisionRecordId,candidateId:"cand-1",knownGoodRecordId:"kg-1",replayId:"replay-1",
-    sourceCommitBefore:before,sourceCommitAfter:after,nonce:"nonce-1",
+    sourceCommitBefore:before,sourceCommitAfter:after,candidateSourceHash:"c".repeat(64),
+    candidatePath:"src/scanner/ai_logic_candidates/cand-1.mjs",candidateTopic:"classification_coverage",nonce:"nonce-1",
     ...(action==="PROMOTION"?{acceptanceRecordId:"acc-1"}:{})};
   const decisionEvidence={
     version:action==="PROMOTION"?"ai_logic_promotion_decision_evidence_store_v1":"ai_logic_rollback_decision_evidence_store_v1",
     recordId:decisionRecordId,candidateId:identity.candidateId,knownGoodRecordId:identity.knownGoodRecordId,
     replayId:identity.replayId,sourceCommitBefore:before,sourceCommitAfter:after,
+    candidateSourceHash:identity.candidateSourceHash,candidatePath:identity.candidatePath,candidateTopic:identity.candidateTopic,
     ...(identity.acceptanceRecordId?{acceptanceRecordId:identity.acceptanceRecordId}:{}),
     ...(action==="ROLLBACK"?{rollbackTargetIdentified:true,rollbackDecisionEvidenceOnly:true}:{}),
     localJsonlOnly:true,persistenceAllowed:false,promotionAllowed:false,immutableManifestStatus:"IMMUTABLE_MANIFEST_VERIFIED",...locks()
@@ -30,11 +32,13 @@ function fixture(action="PROMOTION"){
   const currentSourceCommit=action==="PROMOTION"?before:after;
   const targetSourceCommit=action==="PROMOTION"?after:before;
   const executionPreview={version:"ai_logic_execution_preview_contract_v1",eligible:true,previewOnly:true,paperOnly:true,
-    approvalRecordId:"approval-1",nonce:"nonce-1",action,decisionRecordId,currentSourceCommit,targetSourceCommit,
-    gitEffects:"NONE",...locks()};
+    approvalRecordId:"approval-1",nonce:"nonce-1",action,decisionRecordId,
+    candidateSourceHash:identity.candidateSourceHash,candidatePath:identity.candidatePath,candidateTopic:identity.candidateTopic,
+    currentSourceCommit,targetSourceCommit,gitEffects:"NONE",...locks()};
   const consumptionStoreRecord={version:"ai_logic_operator_approval_consumption_store_v1",exactlyOnce:true,paperOnly:true,
-    localJsonlOnly:true,approvalRecordId:"approval-1",nonce:"nonce-1",action,decisionRecordId,currentSourceCommit,targetSourceCommit,
-    ...locks()};
+    localJsonlOnly:true,approvalRecordId:"approval-1",nonce:"nonce-1",action,decisionRecordId,
+    candidateSourceHash:identity.candidateSourceHash,candidatePath:identity.candidatePath,candidateTopic:identity.candidateTopic,
+    currentSourceCommit,targetSourceCommit,...locks()};
   return {action,decisionEvidence,knownGood,executionPreview,operatorApproval,consumptionStoreRecord};
 }
 
@@ -65,6 +69,15 @@ test("fails closed on version lock mode and binding drift",()=>{
     f=>f.executionPreview.decisionRecordId="other",
     f=>f.consumptionStoreRecord.currentSourceCommit=f.consumptionStoreRecord.targetSourceCommit,
     f=>f.decisionEvidence.candidateId="other",
+    f=>f.decisionEvidence.candidateSourceHash="d".repeat(64),
+    f=>f.decisionEvidence.candidatePath="src/scanner/ai_logic_candidates/other.mjs",
+    f=>f.decisionEvidence.candidateTopic="evidence_interpretation",
+    f=>f.executionPreview.candidateSourceHash="d".repeat(64),
+    f=>f.consumptionStoreRecord.candidatePath="src/scanner/ai_logic_candidates/other.mjs",
+    f=>f.operatorApproval.candidateTopic="evidence_interpretation",
+    f=>delete f.decisionEvidence.candidateSourceHash,
+    f=>delete f.executionPreview.candidatePath,
+    f=>delete f.operatorApproval.candidateTopic,
     f=>delete f.decisionEvidence.acceptanceRecordId,
     f=>f.knownGood.sourceCommit="d".repeat(40),
     f=>f.knownGood.rollbackTargetIdentified=false,
