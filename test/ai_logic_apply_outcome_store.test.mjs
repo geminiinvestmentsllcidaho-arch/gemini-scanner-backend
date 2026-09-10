@@ -188,6 +188,25 @@ test("writer rejects a non-directory parent after fd open before lock or ledger 
 });
 
 
+test("normal lock lifecycle fsyncs parent directory metadata",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-dir-fsync-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),originalFsync=fs.fsyncSync;
+  let dirFsyncs=0;
+  try{
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===dir) dirFsyncs++;
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    const out=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"});
+    assert.equal(out.appended,true);
+    assert.ok(dirFsyncs>=4);
+    assert.equal(fs.existsSync(filePath+".lock"),false);
+  }finally{fs.fsyncSync=originalFsync;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("stale definitely-dead concurrency lock is quarantined and recovered",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");
