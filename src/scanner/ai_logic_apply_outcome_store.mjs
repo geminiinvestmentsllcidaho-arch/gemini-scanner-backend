@@ -92,6 +92,14 @@ function rows(filePath){
   if(!lstatIfExists(resolved)) return [];
   return fs.readFileSync(resolved,"utf8").split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
 }
+function acquireLedgerLock(filePath){
+  const lockPath=`${filePath}.lock`;
+  const fd=fs.openSync(lockPath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
+  return {fd,lockPath};
+}
+function releaseLedgerLock(lock){
+  try{fs.closeSync(lock.fd)}finally{try{fs.unlinkSync(lock.lockPath)}catch{}}
+}
 
 export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   const record=buildAiLogicApplyOutcomeRecord(input,options);
@@ -100,19 +108,22 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   fs.mkdirSync(dir,{recursive:true,mode:0o700});
   assertSafeLedgerPath(filePath);
   try{fs.chmodSync(dir,0o700)}catch{}
-  const existing=rows(filePath);
-  const matches=existing.filter(r=>r?.recordId===record.recordId);
-  if(matches.length>1) throw new Error("APPLY_OUTCOME_DUPLICATE_RECORD_ID");
-  if(matches.length===1){
-    const stored=matches[0];
-    const comparable=({recordedAt,...rest})=>rest;
-    if(JSON.stringify(comparable(stored))!==JSON.stringify(comparable(record))) throw new Error("APPLY_OUTCOME_IDENTITY_DRIFT");
-    return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...stored}),filePath,localJsonlOnly:true});
-  }
-  const fd=fs.openSync(filePath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_NOFOLLOW,0o600);
-  try{fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd)}finally{fs.closeSync(fd)}
-  try{fs.chmodSync(filePath,0o600)}catch{}
-  return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
+  const lock=acquireLedgerLock(filePath);
+  try{
+    const existing=rows(filePath);
+    const matches=existing.filter(r=>r?.recordId===record.recordId);
+    if(matches.length>1) throw new Error("APPLY_OUTCOME_DUPLICATE_RECORD_ID");
+    if(matches.length===1){
+      const stored=matches[0];
+      const comparable=({recordedAt,...rest})=>rest;
+      if(JSON.stringify(comparable(stored))!==JSON.stringify(comparable(record))) throw new Error("APPLY_OUTCOME_IDENTITY_DRIFT");
+      return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...stored}),filePath,localJsonlOnly:true});
+    }
+    const fd=fs.openSync(filePath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_NOFOLLOW,0o600);
+    try{fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd)}finally{fs.closeSync(fd)}
+    try{fs.chmodSync(filePath,0o600)}catch{}
+    return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
+  }finally{releaseLedgerLock(lock)}
 }
 
 function validatePersistedApplyOutcomeRecord(record){

@@ -137,3 +137,15 @@ test("ledger file and parent symlinks fail closed without modifying targets",()=
     assert.equal(fs.existsSync(path.join(realDir,"outcomes.jsonl")),false);
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test("existing concurrency lock fails closed without modifying ledger",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    fs.writeFileSync(filePath+".lock","held\n",{mode:0o600});
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),error=>error?.code==="EEXIST");
+    assert.equal(fs.existsSync(filePath),false);
+    assert.equal(fs.readFileSync(filePath+".lock","utf8"),"held\n");
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
