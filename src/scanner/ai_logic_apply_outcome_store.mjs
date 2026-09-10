@@ -70,16 +70,35 @@ export function buildAiLogicApplyOutcomeRecord({receipt,operatorApproval,operati
   });
 }
 
+function lstatIfExists(filePath){
+  try{return fs.lstatSync(filePath)}catch(error){if(error?.code==="ENOENT") return null;throw error}
+}
+function assertSafeLedgerPath(filePath){
+  const resolved=path.resolve(filePath);
+  const root=path.parse(resolved).root;
+  let current=root;
+  for(const part of resolved.slice(root.length).split(path.sep).filter(Boolean)){
+    current=path.join(current,part);
+    const st=lstatIfExists(current);
+    if(!st) continue;
+    if(st.isSymbolicLink()) throw new Error("APPLY_OUTCOME_LEDGER_PATH_SYMLINK");
+    if(current!==resolved&&!st.isDirectory()) throw new Error("APPLY_OUTCOME_LEDGER_PARENT_INVALID");
+    if(current===resolved&&!st.isFile()) throw new Error("APPLY_OUTCOME_LEDGER_TYPE_INVALID");
+  }
+  return resolved;
+}
 function rows(filePath){
-  if(!fs.existsSync(filePath)) return [];
-  return fs.readFileSync(filePath,"utf8").split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
+  const resolved=assertSafeLedgerPath(filePath);
+  if(!lstatIfExists(resolved)) return [];
+  return fs.readFileSync(resolved,"utf8").split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
 }
 
 export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   const record=buildAiLogicApplyOutcomeRecord(input,options);
-  const filePath=path.resolve(options.filePath??DEFAULT_PATH);
+  const filePath=assertSafeLedgerPath(options.filePath??DEFAULT_PATH);
   const dir=path.dirname(filePath);
   fs.mkdirSync(dir,{recursive:true,mode:0o700});
+  assertSafeLedgerPath(filePath);
   try{fs.chmodSync(dir,0o700)}catch{}
   const existing=rows(filePath);
   const matches=existing.filter(r=>r?.recordId===record.recordId);
@@ -90,7 +109,8 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
     if(JSON.stringify(comparable(stored))!==JSON.stringify(comparable(record))) throw new Error("APPLY_OUTCOME_IDENTITY_DRIFT");
     return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...stored}),filePath,localJsonlOnly:true});
   }
-  fs.appendFileSync(filePath,JSON.stringify(record)+"\n",{encoding:"utf8",mode:0o600});
+  const fd=fs.openSync(filePath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_NOFOLLOW,0o600);
+  try{fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd)}finally{fs.closeSync(fd)}
   try{fs.chmodSync(filePath,0o600)}catch{}
   return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
 }

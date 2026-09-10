@@ -116,3 +116,24 @@ test("list reader fails closed on invalid authority or effect rows",()=>{
     }
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test("ledger file and parent symlinks fail closed without modifying targets",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-symlink-"));
+  try{
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    const target=path.join(dir,"target.jsonl");
+    const link=path.join(dir,"link.jsonl");
+    fs.writeFileSync(target,"sentinel\n");
+    fs.symlinkSync(target,link);
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath:link,now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_PATH_SYMLINK/);
+    assert.throws(()=>listAiLogicApplyOutcomeRecords({filePath:link}),/APPLY_OUTCOME_LEDGER_PATH_SYMLINK/);
+    assert.equal(fs.readFileSync(target,"utf8"),"sentinel\n");
+
+    const realDir=path.join(dir,"real");
+    const linkedDir=path.join(dir,"linked");
+    fs.mkdirSync(realDir);
+    fs.symlinkSync(realDir,linkedDir,"dir");
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath:path.join(linkedDir,"outcomes.jsonl"),now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_PATH_SYMLINK/);
+    assert.equal(fs.existsSync(path.join(realDir,"outcomes.jsonl")),false);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
