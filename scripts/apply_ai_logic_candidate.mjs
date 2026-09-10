@@ -40,5 +40,10 @@ const receipt=runAiLogicExplicitLocalNonruntimeCli({
     },
   },
 });
-console.log(JSON.stringify({ok:receipt?.applied===true,receipt},null,2));
-process.exit(receipt?.applied===true?0:1);
+const durableApplyOutcomeValid=
+  receipt?.applied===true &&
+  receipt?.applyOutcomePersistence?.persisted===true &&
+  receipt?.applyOutcomeBinding?.durableEvidenceEligible===true &&
+  receipt?.applyOutcomeBinding?.status==="AI_LOGIC_APPLY_OUTCOME_DURABLE_EVIDENCE_VALID";
+console.log(JSON.stringify({ok:durableApplyOutcomeValid,receipt},null,2));
+process.exit(durableApplyOutcomeValid?0:1);
