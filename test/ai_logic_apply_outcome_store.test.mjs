@@ -326,6 +326,25 @@ test("lock release race preserves replacement instead of unlinking it",()=>{
   }finally{fs.renameSync=originalRename;fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("parent directory fd closes when lock acquisition fails",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-dir-close-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),originalClose=fs.closeSync;
+  let dirClosed=false;
+  try{
+    fs.writeFileSync(filePath+".lock","held\n",{mode:0o600});
+    fs.closeSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===dir) dirClosed=true;
+      return originalClose(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),error=>error?.code==="EEXIST");
+    assert.equal(dirClosed,true);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.closeSync=originalClose;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("existing concurrency lock fails closed without modifying ledger",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");

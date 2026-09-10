@@ -202,8 +202,9 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   fs.mkdirSync(dir,{recursive:true,mode:0o700});
   assertSafeLedgerPath(filePath);
   const dirFd=openLedgerParentDirectory(dir);
-  const lock=acquireLedgerLock(filePath,dirFd);
   try{
+    const lock=acquireLedgerLock(filePath,dirFd);
+    try{
     const existing=rows(filePath);
     const matches=existing.filter(r=>r?.recordId===record.recordId);
     if(matches.length>1) throw new Error("APPLY_OUTCOME_DUPLICATE_RECORD_ID");
@@ -220,7 +221,8 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
     }finally{fs.closeSync(fd)}
     fs.fsyncSync(dirFd);
     return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
-  }finally{try{releaseLedgerLock(lock,dirFd)}finally{fs.closeSync(dirFd)}}
+    }finally{releaseLedgerLock(lock,dirFd)}
+  }finally{fs.closeSync(dirFd)}
 }
 
 function validatePersistedApplyOutcomeRecord(record){
