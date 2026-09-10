@@ -76,7 +76,7 @@ test("binds exact durable apply outcome record and keeps all authority closed",(
   const {dir,filePath}=tmp();
   try{
     const p=persisted(filePath);
-    const r=resolve({applyOutcomePersistence:p},{filePath});
+    const r=resolve({receipt:{...receipt,applyOutcomePersistence:p}},{filePath});
     assert.equal(r.eligible,true);
     assert.equal(r.durable,true);
     assert.equal(r.applyOutcomeRecord.recordId,p.recordId);
@@ -95,7 +95,7 @@ test("accepts idempotent duplicate skip as durable existing evidence without cla
     const p=persisted(filePath);
     assert.equal(p.appended,false);
     assert.equal(p.duplicateSkipped,true);
-    const r=resolve({applyOutcomePersistence:p},{filePath});
+    const r=resolve({receipt:{...receipt,applyOutcomePersistence:p}},{filePath});
     assert.equal(r.eligible,true);
     assert.equal(r.durable,true);
     assert.equal(r.persistenceReceipt.appended,false);
@@ -135,7 +135,7 @@ test("fails closed when claimed persisted record is absent",()=>{
   const {dir,filePath}=tmp();
   try{
     const p={attempted:true,persisted:true,appended:true,duplicateSkipped:false,recordId:"missing-record",status:"APPLY_OUTCOME_PERSISTED",error:null};
-    const r=resolve({applyOutcomePersistence:p},{filePath});
+    const r=resolve({receipt:{...receipt,applyOutcomePersistence:p}},{filePath});
     assert.equal(r.eligible,false);
     assert.match(r.reasons.join(","),/RECORD_NOT_FOUND/);
   } finally { fs.rmSync(dir,{recursive:true,force:true}); }
@@ -208,5 +208,32 @@ test("durable row drift fails closed and correctly persisted rollback remains va
     assert.equal(rr.executionOutcomeStatus,"ATOMIC_APPLY_FAILED_ROLLED_BACK");
     assert.equal(rr.applied,false);
     assert.equal(rr.rolledBack,true);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("requires full raw execution receipt before durable eligibility",()=>{
+  const {dir,filePath}=tmp();
+  try{
+    const p=persisted(filePath);
+    const r=resolve({applyOutcomePersistence:p},{filePath});
+    assert.equal(r.eligible,false);
+    assert.equal(r.durable,false);
+    assert.equal(r.durableEvidenceEligible,false);
+    assert.match(r.reasons.join(","),/EXECUTION_RECEIPT_REQUIRED/);
+    assert.equal(r.applyOutcomeRecord,null);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("fails closed when explicit and nested persistence receipts disagree",()=>{
+  const {dir,filePath}=tmp();
+  try{
+    const nested=persisted(filePath);
+    const explicit={...nested,appended:false,duplicateSkipped:true};
+    const r=resolve({receipt:{...receipt,applyOutcomePersistence:nested},applyOutcomePersistence:explicit},{filePath});
+    assert.equal(r.eligible,false);
+    assert.equal(r.durable,false);
+    assert.equal(r.durableEvidenceEligible,false);
+    assert.match(r.reasons.join(","),/PERSISTENCE_RECEIPT_MISMATCH/);
+    assert.equal(r.applyOutcomeRecord,null);
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });

@@ -38,8 +38,12 @@ function fail(reasons,input={},p={}){
 
 export function resolveAndBindAiLogicApplyOutcomePersistence(input={},options={}){
   const receipt=input.receipt??null;
-  const p=input.applyOutcomePersistence??receipt?.applyOutcomePersistence;
+  const explicit=input.applyOutcomePersistence;
+  const nested=receipt?.applyOutcomePersistence;
+  const p=explicit??nested;
   const reasons=[];
+  if(!receipt||typeof receipt!=="object") reasons.push("APPLY_OUTCOME_EXECUTION_RECEIPT_REQUIRED");
+  if(explicit!=null&&nested!=null&&JSON.stringify(explicit)!==JSON.stringify(nested)) reasons.push("APPLY_OUTCOME_PERSISTENCE_RECEIPT_MISMATCH");
   if(p?.attempted!==true) reasons.push("APPLY_OUTCOME_PERSISTENCE_ATTEMPT_REQUIRED");
   if(p?.persisted!==true) reasons.push("APPLY_OUTCOME_PERSISTENCE_REQUIRED");
   if(p?.status!=="APPLY_OUTCOME_PERSISTED") reasons.push("APPLY_OUTCOME_PERSISTENCE_STATUS_INVALID");
