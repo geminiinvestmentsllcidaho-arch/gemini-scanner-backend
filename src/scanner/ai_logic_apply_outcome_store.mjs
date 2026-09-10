@@ -87,6 +87,18 @@ function assertSafeLedgerPath(filePath){
   }
   return resolved;
 }
+function openLedgerParentDirectory(dir){
+  let fd;
+  try{
+    fd=fs.openSync(dir,fs.constants.O_RDONLY|fs.constants.O_DIRECTORY|fs.constants.O_NOFOLLOW);
+    if(!fs.fstatSync(fd).isDirectory()) throw new Error("APPLY_OUTCOME_LEDGER_PARENT_INVALID");
+    fs.fchmodSync(fd,0o700);
+    return fd;
+  }catch(error){
+    if(fd!=null) try{fs.closeSync(fd)}catch{}
+    throw error;
+  }
+}
 function rows(filePath){
   const resolved=assertSafeLedgerPath(filePath);
   let fd;
@@ -189,7 +201,7 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   const dir=path.dirname(filePath);
   fs.mkdirSync(dir,{recursive:true,mode:0o700});
   assertSafeLedgerPath(filePath);
-  try{fs.chmodSync(dir,0o700)}catch{}
+  const dirFd=openLedgerParentDirectory(dir);
   const lock=acquireLedgerLock(filePath);
   try{
     const existing=rows(filePath);
@@ -206,8 +218,9 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
       if(!fs.fstatSync(fd).isFile()) throw new Error("APPLY_OUTCOME_LEDGER_TYPE_INVALID");
       fs.fchmodSync(fd,0o600);fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd);
     }finally{fs.closeSync(fd)}
+    fs.fsyncSync(dirFd);
     return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
-  }finally{releaseLedgerLock(lock)}
+  }finally{try{releaseLedgerLock(lock)}finally{fs.closeSync(dirFd)}}
 }
 
 function validatePersistedApplyOutcomeRecord(record){

@@ -170,6 +170,24 @@ test("writer rejects a non-regular ledger after fd open before write",()=>{
   }finally{fs.fstatSync=originalFstat;fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("writer rejects a non-directory parent after fd open before lock or ledger mutation",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-parent-fd-type-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),originalFstat=fs.fstatSync;
+  try{
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    fs.fstatSync=(fd)=>{
+      const st=originalFstat(fd);
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      return target===dir?{...st,isDirectory:()=>false}:st;
+    };
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_PARENT_INVALID/);
+    assert.equal(fs.existsSync(filePath),false);
+    assert.equal(fs.existsSync(filePath+".lock"),false);
+  }finally{fs.fstatSync=originalFstat;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+
 test("stale definitely-dead concurrency lock is quarantined and recovered",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");
