@@ -31,6 +31,7 @@ const receipt=runAiLogicExplicitLocalNonruntimeCli({
     repositoryRoot:root,
     expectedPreimageHash,
     operationId,
+    now:new Date().toISOString(),
     currentHeadProvider:head,
     verifyImmutableManifestAfter:()=>verifyImmutablePolicyManifest({rootDir:root}),
     validators:{
