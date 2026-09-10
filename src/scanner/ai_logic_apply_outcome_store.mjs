@@ -92,7 +92,10 @@ function rows(filePath){
   let fd;
   try{fd=fs.openSync(resolved,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW)}catch(error){if(error?.code==="ENOENT") return [];throw error}
   let text;
-  try{text=fs.readFileSync(fd,"utf8")}finally{fs.closeSync(fd)}
+  try{
+    if(!fs.fstatSync(fd).isFile()) throw new Error("APPLY_OUTCOME_LEDGER_TYPE_INVALID");
+    text=fs.readFileSync(fd,"utf8");
+  }finally{fs.closeSync(fd)}
   return text.split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
 }
 const APPLY_OUTCOME_LEDGER_LOCK_STALE_MS=30_000;
@@ -199,7 +202,10 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
       return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...stored}),filePath,localJsonlOnly:true});
     }
     const fd=fs.openSync(filePath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_NOFOLLOW,0o600);
-    try{fs.fchmodSync(fd,0o600);fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd)}finally{fs.closeSync(fd)}
+    try{
+      if(!fs.fstatSync(fd).isFile()) throw new Error("APPLY_OUTCOME_LEDGER_TYPE_INVALID");
+      fs.fchmodSync(fd,0o600);fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd);
+    }finally{fs.closeSync(fd)}
     return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
   }finally{releaseLedgerLock(lock)}
 }

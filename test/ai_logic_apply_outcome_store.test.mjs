@@ -138,6 +138,38 @@ test("ledger file and parent symlinks fail closed without modifying targets",()=
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("reader rejects a non-regular ledger after fd open",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-fd-read-type-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),originalFstat=fs.fstatSync;
+  try{
+    fs.writeFileSync(filePath,"");
+    fs.fstatSync=(fd)=>{
+      const st=originalFstat(fd);
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      return target===filePath?{...st,isFile:()=>false}:st;
+    };
+    assert.throws(()=>listAiLogicApplyOutcomeRecords({filePath}),/APPLY_OUTCOME_LEDGER_TYPE_INVALID/);
+  }finally{fs.fstatSync=originalFstat;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("writer rejects a non-regular ledger after fd open before write",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-fd-write-type-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),originalFstat=fs.fstatSync;
+  try{
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    fs.fstatSync=(fd)=>{
+      const st=originalFstat(fd);
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      return target===filePath?{...st,isFile:()=>false}:st;
+    };
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_TYPE_INVALID/);
+    assert.equal(fs.existsSync(filePath),true);
+    assert.equal(fs.statSync(filePath).size,0);
+  }finally{fs.fstatSync=originalFstat;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("stale definitely-dead concurrency lock is quarantined and recovered",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");
