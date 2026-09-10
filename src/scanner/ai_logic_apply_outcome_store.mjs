@@ -95,6 +95,19 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
   return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
 }
 
+export function readAiLogicApplyOutcomeRecordById(recordId,filePath=DEFAULT_PATH){
+  if(!present(recordId)) throw new Error("APPLY_OUTCOME_RECORD_ID_REQUIRED");
+  const resolved=path.resolve(filePath);
+  const matches=rows(resolved).filter(r=>r?.recordId===recordId);
+  if(matches.length===0) throw new Error("APPLY_OUTCOME_RECORD_NOT_FOUND");
+  if(matches.length!==1) throw new Error("APPLY_OUTCOME_DUPLICATE_RECORD_ID");
+  const record=matches[0];
+  if(record?.version!==VERSION||record?.localJsonlOnly!==true||record?.paperOnly!==true) throw new Error("APPLY_OUTCOME_RECORD_INVALID");
+  for(const k of LOCKS) if(record?.[k]!==false) throw new Error(`APPLY_OUTCOME_LOCK_OPEN_${k}`);
+  if(record.runtimeActivated!==false||record.pm2RestartPerformed!==false||record.gitMutationPerformed!==false||record.brokerOrderAccountEffects!=="NONE") throw new Error("APPLY_OUTCOME_EFFECTS_INVALID");
+  return Object.freeze({...record});
+}
+
 export function listAiLogicApplyOutcomeRecords(options={}){
   const filePath=path.resolve(options.filePath??DEFAULT_PATH);
   const raw=Number(options.limit??20);
@@ -102,4 +115,4 @@ export function listAiLogicApplyOutcomeRecords(options={}){
   return Object.freeze(rows(filePath).slice(-limit).reverse().map(r=>Object.freeze({...r})));
 }
 
-export default Object.freeze({VERSION,DEFAULT_PATH,buildAiLogicApplyOutcomeRecord,appendAiLogicApplyOutcomeRecord,listAiLogicApplyOutcomeRecords});
+export default Object.freeze({VERSION,DEFAULT_PATH,buildAiLogicApplyOutcomeRecord,appendAiLogicApplyOutcomeRecord,readAiLogicApplyOutcomeRecordById,listAiLogicApplyOutcomeRecords});

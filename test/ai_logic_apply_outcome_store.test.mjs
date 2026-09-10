@@ -78,3 +78,24 @@ test("one approval operation identity cannot record a conflicting outcome",()=>{
     assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test("exact reader resolves records older than list limit and fails closed on duplicate or malformed ledger",async()=>{
+  const {readAiLogicApplyOutcomeRecordById}=await import("../src/scanner/ai_logic_apply_outcome_store.mjs");
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-exact-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    let firstId=null;
+    for(let i=0;i<101;i++){
+      const a={...approval,recordId:`approval-${i}`,nonce:`nonce-${i}`};
+      const r=appendAiLogicApplyOutcomeRecord({receipt:{...success},operatorApproval:a,operationId:`operation-${String(i).padStart(8,"0")}`,expectedPreimageHash:h},{filePath,now:new Date(Date.UTC(2026,8,9,22,0,i)).toISOString()});
+      if(i===0) firstId=r.record.recordId;
+    }
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath,limit:100}).some(r=>r.recordId===firstId),false);
+    assert.equal(readAiLogicApplyOutcomeRecordById(firstId,filePath).recordId,firstId);
+    const row=readAiLogicApplyOutcomeRecordById(firstId,filePath);
+    fs.appendFileSync(filePath,JSON.stringify(row)+"\n");
+    assert.throws(()=>readAiLogicApplyOutcomeRecordById(firstId,filePath),/DUPLICATE_RECORD_ID/);
+    fs.writeFileSync(filePath,"{bad json\n");
+    assert.throws(()=>readAiLogicApplyOutcomeRecordById(firstId,filePath),/LEDGER_MALFORMED/);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
