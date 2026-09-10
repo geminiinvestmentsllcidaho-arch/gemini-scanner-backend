@@ -89,19 +89,24 @@ function assertSafeLedgerPath(filePath){
 }
 function rows(filePath){
   const resolved=assertSafeLedgerPath(filePath);
-  if(!lstatIfExists(resolved)) return [];
-  return fs.readFileSync(resolved,"utf8").split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
+  let fd;
+  try{fd=fs.openSync(resolved,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW)}catch(error){if(error?.code==="ENOENT") return [];throw error}
+  let text;
+  try{text=fs.readFileSync(fd,"utf8")}finally{fs.closeSync(fd)}
+  return text.split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
 }
 const APPLY_OUTCOME_LEDGER_LOCK_STALE_MS=30_000;
 function readLedgerLock(lockPath){
+  let fd;
   try{
-    const st=fs.lstatSync(lockPath);
-    if(st.isSymbolicLink()||!st.isFile()) return null;
-    const value=JSON.parse(fs.readFileSync(lockPath,"utf8"));
+    fd=fs.openSync(lockPath,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+    const st=fs.fstatSync(fd);
+    if(!st.isFile()) return null;
+    const value=JSON.parse(fs.readFileSync(fd,"utf8"));
     const pid=Number(value?.pid),createdAtMs=Number(value?.createdAtMs),token=String(value?.token??"").trim();
     if(!Number.isInteger(pid)||pid<=0||!Number.isFinite(createdAtMs)||!token) return null;
     return {pid,createdAtMs,token,ino:st.ino,dev:st.dev,mtimeMs:st.mtimeMs};
-  }catch{return null}
+  }catch{return null}finally{if(fd!=null) try{fs.closeSync(fd)}catch{}}
 }
 function ledgerLockOwnerDefinitelyDead(pid){
   try{process.kill(pid,0);return false}catch(error){return error?.code==="ESRCH"}
@@ -169,8 +174,7 @@ export function appendAiLogicApplyOutcomeRecord(input={},options={}){
       return Object.freeze({appended:false,duplicateSkipped:true,record:Object.freeze({...stored}),filePath,localJsonlOnly:true});
     }
     const fd=fs.openSync(filePath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_APPEND|fs.constants.O_NOFOLLOW,0o600);
-    try{fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd)}finally{fs.closeSync(fd)}
-    try{fs.chmodSync(filePath,0o600)}catch{}
+    try{fs.fchmodSync(fd,0o600);fs.writeSync(fd,JSON.stringify(record)+"\n",null,"utf8");fs.fsyncSync(fd)}finally{fs.closeSync(fd)}
     return Object.freeze({appended:true,duplicateSkipped:false,record,filePath,localJsonlOnly:true});
   }finally{releaseLedgerLock(lock)}
 }

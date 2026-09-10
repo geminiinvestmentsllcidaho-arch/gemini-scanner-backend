@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {buildAiLogicApplyOutcomeRecord,appendAiLogicApplyOutcomeRecord,listAiLogicApplyOutcomeRecords} from "../src/scanner/ai_logic_apply_outcome_store.mjs";
+import {buildAiLogicApplyOutcomeRecord,appendAiLogicApplyOutcomeRecord,readAiLogicApplyOutcomeRecordById,listAiLogicApplyOutcomeRecords} from "../src/scanner/ai_logic_apply_outcome_store.mjs";
 
 const h="a".repeat(64);
 const approval=Object.freeze({
@@ -80,7 +80,6 @@ test("one approval operation identity cannot record a conflicting outcome",()=>{
 });
 
 test("exact reader resolves records older than list limit and fails closed on duplicate or malformed ledger",async()=>{
-  const {readAiLogicApplyOutcomeRecordById}=await import("../src/scanner/ai_logic_apply_outcome_store.mjs");
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-exact-"));
   const filePath=path.join(dir,"outcomes.jsonl");
   try{
@@ -126,6 +125,7 @@ test("ledger file and parent symlinks fail closed without modifying targets",()=
     fs.writeFileSync(target,"sentinel\n");
     fs.symlinkSync(target,link);
     assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath:link,now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_PATH_SYMLINK/);
+    assert.throws(()=>readAiLogicApplyOutcomeRecordById("missing-record",link),/APPLY_OUTCOME_LEDGER_PATH_SYMLINK/);
     assert.throws(()=>listAiLogicApplyOutcomeRecords({filePath:link}),/APPLY_OUTCOME_LEDGER_PATH_SYMLINK/);
     assert.equal(fs.readFileSync(target,"utf8"),"sentinel\n");
 
