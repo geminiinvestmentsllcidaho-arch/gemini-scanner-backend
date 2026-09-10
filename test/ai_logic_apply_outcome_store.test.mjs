@@ -212,6 +212,51 @@ test("symlinked concurrency lock fails closed without modifying target",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("lock create failure never deletes a concurrently replaced lock path",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-create-race-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalFsync=fs.fsyncSync;
+  const replacement=JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now(),token:"replacement-create"})+"\n";
+  let injected=false;
+  try{
+    fs.fsyncSync=(fd)=>{
+      if(!injected){
+        injected=true;
+        fs.renameSync(lockPath,lockPath+".original");
+        fs.writeFileSync(lockPath,replacement,{mode:0o600});
+        const error=new Error("FORCED_LOCK_FSYNC_FAILURE");error.code="EIO";throw error;
+      }
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/FORCED_LOCK_FSYNC_FAILURE/);
+    assert.equal(fs.readFileSync(lockPath,"utf8"),replacement);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.fsyncSync=originalFsync;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("lock release race preserves replacement instead of unlinking it",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-release-race-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalRename=fs.renameSync;
+  const replacement=JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now(),token:"replacement-release"})+"\n";
+  let injected=false;
+  try{
+    fs.renameSync=(from,to)=>{
+      if(!injected&&from===lockPath&&String(to).includes(".owned-")){
+        injected=true;
+        originalRename(lockPath,lockPath+".original");
+        fs.writeFileSync(lockPath,replacement,{mode:0o600});
+      }
+      return originalRename(from,to);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED/);
+    assert.equal(fs.readFileSync(lockPath,"utf8"),replacement);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{fs.renameSync=originalRename;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("existing concurrency lock fails closed without modifying ledger",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");

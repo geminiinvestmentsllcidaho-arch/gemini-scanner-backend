@@ -116,15 +116,39 @@ function sameLedgerLockIdentity(lockPath,observed){
   const current=readLedgerLock(lockPath);
   return !!current&&current.token===observed.token&&current.ino===observed.ino&&current.dev===observed.dev;
 }
+function readLedgerLockFileIdentity(lockPath){
+  let fd;
+  try{
+    fd=fs.openSync(lockPath,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+    const st=fs.fstatSync(fd);
+    return st.isFile()?{ino:st.ino,dev:st.dev}:null;
+  }catch{return null}finally{if(fd!=null) try{fs.closeSync(fd)}catch{}}
+}
+function removeOwnedLedgerLock(lock,errorCode){
+  const current=readLedgerLockFileIdentity(lock.lockPath);
+  if(!current||current.ino!==lock.ino||current.dev!==lock.dev) throw new Error(errorCode);
+  const quarantine=`${lock.lockPath}.owned-${crypto.randomUUID()}`;
+  try{fs.renameSync(lock.lockPath,quarantine)}catch{throw new Error(errorCode)}
+  const moved=readLedgerLockFileIdentity(quarantine);
+  if(!moved||moved.ino!==lock.ino||moved.dev!==lock.dev){
+    try{if(!fs.existsSync(lock.lockPath)&&fs.existsSync(quarantine)) fs.renameSync(quarantine,lock.lockPath)}catch{}
+    throw new Error(errorCode);
+  }
+  try{fs.rmSync(quarantine,{force:true})}catch(error){
+    try{if(!fs.existsSync(lock.lockPath)&&fs.existsSync(quarantine)) fs.renameSync(quarantine,lock.lockPath)}catch{}
+    throw error;
+  }
+}
 function acquireLedgerLock(filePath){
   const lockPath=`${filePath}.lock`;
   const token=crypto.randomUUID();
   const create=()=>{
     const fd=fs.openSync(lockPath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
-    try{fs.writeSync(fd,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now(),token})+"\n",null,"utf8");fs.fsyncSync(fd)}
-    catch(error){try{fs.closeSync(fd)}catch{};try{fs.unlinkSync(lockPath)}catch{};throw error}
     const st=fs.fstatSync(fd);
-    return {fd,lockPath,token,ino:st.ino,dev:st.dev};
+    const lock={fd,lockPath,token,ino:st.ino,dev:st.dev};
+    try{fs.writeSync(fd,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now(),token})+"\n",null,"utf8");fs.fsyncSync(fd)}
+    catch(error){try{fs.closeSync(fd)}catch{};try{removeOwnedLedgerLock(lock,"APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED")}catch{};throw error}
+    return lock;
   };
   try{return create()}catch(error){
     if(error?.code!=="EEXIST") throw error;
@@ -152,7 +176,7 @@ function releaseLedgerLock(lock){
   try{fs.closeSync(lock.fd)}finally{
     const current=readLedgerLock(lock.lockPath);
     if(!current||current.token!==lock.token||current.ino!==lock.ino||current.dev!==lock.dev) throw new Error("APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED");
-    fs.unlinkSync(lock.lockPath);
+    removeOwnedLedgerLock(lock,"APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED");
   }
 }
 
