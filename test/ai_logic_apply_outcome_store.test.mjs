@@ -99,3 +99,20 @@ test("exact reader resolves records older than list limit and fails closed on du
     assert.throws(()=>readAiLogicApplyOutcomeRecordById(firstId,filePath),/LEDGER_MALFORMED/);
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test("list reader fails closed on invalid authority or effect rows",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-list-closed-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    const written=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}).record;
+    for(const drift of [
+      {...written,runtimeActivationAllowed:true},
+      {...written,brokerOrderAccountEffects:"ORDER"},
+      {...written,paperOnly:false},
+    ]){
+      fs.writeFileSync(filePath,JSON.stringify(drift)+"\n");
+      assert.throws(()=>listAiLogicApplyOutcomeRecords({filePath}),/APPLY_OUTCOME_(LOCK_OPEN_runtimeActivationAllowed|EFFECTS_INVALID|RECORD_INVALID)/);
+    }
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
