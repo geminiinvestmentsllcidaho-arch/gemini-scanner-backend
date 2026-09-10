@@ -224,6 +224,33 @@ test("requires full raw execution receipt before durable eligibility",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("accepts semantically identical explicit and nested persistence receipts regardless of property order",()=>{
+  const {dir,filePath}=tmp();
+  try{
+    const nested=persisted(filePath);
+    const explicit={error:nested.error,status:nested.status,recordId:nested.recordId,duplicateSkipped:nested.duplicateSkipped,appended:nested.appended,persisted:nested.persisted,attempted:nested.attempted};
+    const r=resolve({receipt:{...receipt,applyOutcomePersistence:nested},applyOutcomePersistence:explicit},{filePath});
+    assert.equal(r.eligible,true);
+    assert.equal(r.durable,true);
+    assert.equal(r.durableEvidenceEligible,true);
+    assert.equal(r.applyOutcomeRecord.recordId,nested.recordId);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("fails closed when explicit persistence receipt adds unmatched metadata",()=>{
+  const {dir,filePath}=tmp();
+  try{
+    const nested=persisted(filePath);
+    const explicit={...nested,unexpectedMetadata:"drift"};
+    const r=resolve({receipt:{...receipt,applyOutcomePersistence:nested},applyOutcomePersistence:explicit},{filePath});
+    assert.equal(r.eligible,false);
+    assert.equal(r.durable,false);
+    assert.equal(r.durableEvidenceEligible,false);
+    assert.match(r.reasons.join(","),/PERSISTENCE_RECEIPT_MISMATCH/);
+    assert.equal(r.applyOutcomeRecord,null);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("fails closed when explicit and nested persistence receipts disagree",()=>{
   const {dir,filePath}=tmp();
   try{

@@ -43,7 +43,12 @@ export function resolveAndBindAiLogicApplyOutcomePersistence(input={},options={}
   const p=explicit??nested;
   const reasons=[];
   if(!receipt||typeof receipt!=="object") reasons.push("APPLY_OUTCOME_EXECUTION_RECEIPT_REQUIRED");
-  if(explicit!=null&&nested!=null&&JSON.stringify(explicit)!==JSON.stringify(nested)) reasons.push("APPLY_OUTCOME_PERSISTENCE_RECEIPT_MISMATCH");
+  const samePersistenceReceipt=(a,b)=>{
+    if(a==null||b==null||typeof a!=="object"||typeof b!=="object") return a===b;
+    const ak=Object.keys(a).sort(),bk=Object.keys(b).sort();
+    return ak.length===bk.length&&ak.every((key,index)=>key===bk[index]&&a[key]===b[key]);
+  };
+  if(explicit!=null&&nested!=null&&!samePersistenceReceipt(explicit,nested)) reasons.push("APPLY_OUTCOME_PERSISTENCE_RECEIPT_MISMATCH");
   if(p?.attempted!==true) reasons.push("APPLY_OUTCOME_PERSISTENCE_ATTEMPT_REQUIRED");
   if(p?.persisted!==true) reasons.push("APPLY_OUTCOME_PERSISTENCE_REQUIRED");
   if(p?.status!=="APPLY_OUTCOME_PERSISTED") reasons.push("APPLY_OUTCOME_PERSISTENCE_STATUS_INVALID");
