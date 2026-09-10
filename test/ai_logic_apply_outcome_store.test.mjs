@@ -281,6 +281,26 @@ test("symlinked concurrency lock fails closed without modifying target",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("lock fd closes when fstat fails during creation",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-fstat-close-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalFstat=fs.fstatSync,originalClose=fs.closeSync;
+  let lockFd=null,lockClosed=false;
+  try{
+    fs.fstatSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===lockPath){lockFd=fd;const error=new Error("FORCED_LOCK_FSTAT_FAILURE");error.code="EIO";throw error}
+      return originalFstat(fd);
+    };
+    fs.closeSync=(fd)=>{if(fd===lockFd) lockClosed=true;return originalClose(fd)};
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/FORCED_LOCK_FSTAT_FAILURE/);
+    assert.equal(lockClosed,true);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.fstatSync=originalFstat;fs.closeSync=originalClose;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("lock create failure never deletes a concurrently replaced lock path",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-create-race-"));
   const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";

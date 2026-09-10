@@ -159,7 +159,9 @@ function acquireLedgerLock(filePath,dirFd){
   const token=crypto.randomUUID();
   const create=()=>{
     const fd=fs.openSync(lockPath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
-    const st=fs.fstatSync(fd);
+    let st;
+    try{st=fs.fstatSync(fd)}
+    catch(error){try{fs.closeSync(fd)}catch{};throw error}
     const lock={fd,lockPath,token,ino:st.ino,dev:st.dev};
     try{fs.writeSync(fd,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now(),token})+"\n",null,"utf8");fs.fsyncSync(fd);fs.fsyncSync(dirFd)}
     catch(error){try{fs.closeSync(fd)}catch{};try{removeOwnedLedgerLock(lock,"APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED",dirFd)}catch{};throw error}
