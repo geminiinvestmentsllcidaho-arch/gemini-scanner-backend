@@ -103,6 +103,7 @@ function readLedgerLock(lockPath){
     const st=fs.fstatSync(fd);
     if(!st.isFile()) return null;
     const value=JSON.parse(fs.readFileSync(fd,"utf8"));
+    if(value?.version!=="ai_logic_apply_outcome_ledger_lock_v1") return null;
     const pid=Number(value?.pid),createdAtMs=Number(value?.createdAtMs),token=String(value?.token??"").trim();
     if(!Number.isInteger(pid)||pid<=0||!Number.isFinite(createdAtMs)||!token) return null;
     return {pid,createdAtMs,token,ino:st.ino,dev:st.dev,mtimeMs:st.mtimeMs};

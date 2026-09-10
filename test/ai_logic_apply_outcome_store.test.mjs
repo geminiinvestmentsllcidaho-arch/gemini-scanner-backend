@@ -153,6 +153,65 @@ test("stale definitely-dead concurrency lock is quarantined and recovered",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("recent dead-owner concurrency lock remains fail closed and preserved",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-recent-dead-lock-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const lockPath=filePath+".lock";
+    const body=JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:2147483647,createdAtMs:Date.now(),token:"recent-dead"})+"\n";
+    fs.writeFileSync(lockPath,body,{mode:0o600});
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),error=>error?.code==="EEXIST");
+    assert.equal(fs.readFileSync(lockPath,"utf8"),body);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("stale live-owner concurrency lock remains fail closed and preserved",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-live-lock-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const lockPath=filePath+".lock";
+    const body=JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now()-60000,token:"live-owner"})+"\n";
+    fs.writeFileSync(lockPath,body,{mode:0o600});
+    const old=new Date(Date.now()-60000);fs.utimesSync(lockPath,old,old);
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),error=>error?.code==="EEXIST");
+    assert.equal(fs.readFileSync(lockPath,"utf8"),body);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("stale wrong-version concurrency lock remains fail closed and preserved",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-wrong-version-lock-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const lockPath=filePath+".lock";
+    const body=JSON.stringify({version:"wrong_lock_v1",pid:2147483647,createdAtMs:Date.now()-60000,token:"wrong-version"})+"\n";
+    fs.writeFileSync(lockPath,body,{mode:0o600});
+    const old=new Date(Date.now()-60000);fs.utimesSync(lockPath,old,old);
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),error=>error?.code==="EEXIST");
+    assert.equal(fs.readFileSync(lockPath,"utf8"),body);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
+test("symlinked concurrency lock fails closed without modifying target",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-symlink-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const target=path.join(dir,"target.lock");
+    fs.writeFileSync(target,"sentinel\n",{mode:0o600});
+    fs.symlinkSync(target,filePath+".lock");
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),error=>error?.code==="EEXIST");
+    assert.equal(fs.readFileSync(target,"utf8"),"sentinel\n");
+    assert.equal(fs.lstatSync(filePath+".lock").isSymbolicLink(),true);
+    assert.equal(fs.existsSync(filePath),false);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("existing concurrency lock fails closed without modifying ledger",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");
