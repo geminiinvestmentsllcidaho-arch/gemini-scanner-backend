@@ -381,3 +381,46 @@ test("entrypoint blockers before invocation do not attempt apply outcome persist
   assert.equal(r.status,"EXPLICIT_LOCAL_NONRUNTIME_ENTRYPOINT_ALREADY_CONSUMED");
   assert.equal(r.executed,false);
 });
+
+test("entrypoint binds persisted apply outcome into durable evidence exactly once",()=>{
+  const f=fx();
+  let bindCalls=0, seen;
+  f.deps.runAiLogicOneShotNonruntimeInvocation=()=>({executed:true,consumed:true,applied:true,rolledBack:false,status:"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED"});
+  f.deps.appendAiLogicApplyOutcomeRecord=()=>({appended:true,duplicateSkipped:false,record:{recordId:"outcome-1"}});
+  f.deps.resolveAndBindAiLogicApplyOutcomePersistence=(input,options)=>{
+    bindCalls++; seen={input,options};
+    return {version:"ai_logic_apply_outcome_persistence_binding_v1",eligible:true,durable:true,durableEvidenceEligible:true,status:"AI_LOGIC_APPLY_OUTCOME_DURABLE_EVIDENCE_VALID",disposition:"LOCAL_DURABLE_APPLY_OUTCOME_EVIDENCE_ONLY"};
+  };
+  const r=run(f.input,f.deps);
+  assert.equal(bindCalls,1);
+  assert.equal(seen.input.receipt.status,"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED");
+  assert.equal(seen.input.applyOutcomePersistence.recordId,"outcome-1");
+  assert.equal(seen.options.filePath,"/outcomes");
+  assert.equal(r.applyOutcomeBinding.durableEvidenceEligible,true);
+  assert.equal(r.runtimeActivationAllowed,false);
+  assert.equal(r.liveTradingAllowed,false);
+  assert.equal(r.gitMutationAllowed,false);
+});
+
+test("entrypoint preserves execution fact while exposing fail-closed durable binding on persistence failure",()=>{
+  const f=fx();
+  let bindCalls=0;
+  f.deps.runAiLogicOneShotNonruntimeInvocation=()=>({executed:true,consumed:true,applied:false,rolledBack:true,status:"ATOMIC_APPLY_FAILED_ROLLED_BACK"});
+  f.deps.appendAiLogicApplyOutcomeRecord=()=>{throw new Error("ledger unavailable")};
+  f.deps.resolveAndBindAiLogicApplyOutcomePersistence=({receipt,applyOutcomePersistence})=>{
+    bindCalls++;
+    assert.equal(receipt.status,"ATOMIC_APPLY_FAILED_ROLLED_BACK");
+    assert.equal(applyOutcomePersistence.persisted,false);
+    return {version:"ai_logic_apply_outcome_persistence_binding_v1",eligible:false,durable:false,durableEvidenceEligible:false,status:"AI_LOGIC_APPLY_OUTCOME_PERSISTENCE_BINDING_HOLD",disposition:"REJECT_OR_HOLD",reasons:["APPLY_OUTCOME_PERSISTENCE_REQUIRED"]};
+  };
+  const r=run(f.input,f.deps);
+  assert.equal(bindCalls,1);
+  assert.equal(r.status,"ATOMIC_APPLY_FAILED_ROLLED_BACK");
+  assert.equal(r.applied,false);
+  assert.equal(r.rolledBack,true);
+  assert.equal(r.applyOutcomePersistence.persisted,false);
+  assert.equal(r.applyOutcomeBinding.durableEvidenceEligible,false);
+  assert.equal(r.runtimeActivationAllowed,false);
+  assert.equal(r.liveTradingAllowed,false);
+  assert.equal(r.gitMutationAllowed,false);
+});

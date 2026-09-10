@@ -16,6 +16,7 @@ import { resolveAiLogicCandidateArtifact } from "./ai_logic_candidate_artifact_r
 import { buildAiLogicPersistedPromotionAuthorityAdapter } from "./ai_logic_persisted_promotion_authority_adapter.mjs";
 import { buildAiLogicPersistedRollbackAuthorityAdapter } from "./ai_logic_persisted_rollback_authority_adapter.mjs";
 import { appendAiLogicApplyOutcomeRecord } from "./ai_logic_apply_outcome_store.mjs";
+import { resolveAndBindAiLogicApplyOutcomePersistence } from "./ai_logic_apply_outcome_persistence_binding.mjs";
 
 export const VERSION = "ai_logic_explicit_local_nonruntime_entrypoint_v1";
 
@@ -78,6 +79,7 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
   const buildAssembly = deps.buildAiLogicOneShotNonruntimeAssembly ?? buildAiLogicOneShotNonruntimeAssembly;
   const runInvocation = deps.runAiLogicOneShotNonruntimeInvocation ?? runAiLogicOneShotNonruntimeInvocation;
   const appendOutcome = deps.appendAiLogicApplyOutcomeRecord ?? appendAiLogicApplyOutcomeRecord;
+  const bindApplyOutcome = deps.resolveAndBindAiLogicApplyOutcomePersistence ?? resolveAndBindAiLogicApplyOutcomePersistence;
 
   const {
     explicitOperatorInvocation,
@@ -472,9 +474,18 @@ export function runAiLogicExplicitLocalNonruntimeEntrypoint(input = {}, deps = {
     });
   }
 
+  const applyOutcomeBinding = bindApplyOutcome(
+    {
+      receipt:Object.freeze({ ...receipt, applyOutcomePersistence }),
+      applyOutcomePersistence,
+    },
+    { filePath:applyOutcomePath }
+  );
+
   return out({
     ...receipt,
     applyOutcomePersistence,
+    applyOutcomeBinding,
   });
 }
 
