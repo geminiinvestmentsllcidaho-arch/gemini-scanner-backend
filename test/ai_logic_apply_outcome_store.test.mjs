@@ -138,6 +138,21 @@ test("ledger file and parent symlinks fail closed without modifying targets",()=
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("stale definitely-dead concurrency lock is quarantined and recovered",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-lock-"));
+  const filePath=path.join(dir,"outcomes.jsonl");
+  try{
+    const lockPath=filePath+".lock";
+    fs.writeFileSync(lockPath,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:2147483647,createdAtMs:Date.now()-60000,token:"dead-owner"})+"\n",{mode:0o600});
+    const old=new Date(Date.now()-60000);fs.utimesSync(lockPath,old,old);
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    const out=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"});
+    assert.equal(out.appended,true);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("existing concurrency lock fails closed without modifying ledger",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");

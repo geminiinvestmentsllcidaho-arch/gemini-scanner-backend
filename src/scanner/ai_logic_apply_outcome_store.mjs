@@ -92,13 +92,62 @@ function rows(filePath){
   if(!lstatIfExists(resolved)) return [];
   return fs.readFileSync(resolved,"utf8").split(/\r?\n/).filter(Boolean).map(line=>{try{return JSON.parse(line)}catch{throw new Error("APPLY_OUTCOME_LEDGER_MALFORMED")}});
 }
+const APPLY_OUTCOME_LEDGER_LOCK_STALE_MS=30_000;
+function readLedgerLock(lockPath){
+  try{
+    const st=fs.lstatSync(lockPath);
+    if(st.isSymbolicLink()||!st.isFile()) return null;
+    const value=JSON.parse(fs.readFileSync(lockPath,"utf8"));
+    const pid=Number(value?.pid),createdAtMs=Number(value?.createdAtMs),token=String(value?.token??"").trim();
+    if(!Number.isInteger(pid)||pid<=0||!Number.isFinite(createdAtMs)||!token) return null;
+    return {pid,createdAtMs,token,ino:st.ino,dev:st.dev,mtimeMs:st.mtimeMs};
+  }catch{return null}
+}
+function ledgerLockOwnerDefinitelyDead(pid){
+  try{process.kill(pid,0);return false}catch(error){return error?.code==="ESRCH"}
+}
+function sameLedgerLockIdentity(lockPath,observed){
+  const current=readLedgerLock(lockPath);
+  return !!current&&current.token===observed.token&&current.ino===observed.ino&&current.dev===observed.dev;
+}
 function acquireLedgerLock(filePath){
   const lockPath=`${filePath}.lock`;
-  const fd=fs.openSync(lockPath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
-  return {fd,lockPath};
+  const token=crypto.randomUUID();
+  const create=()=>{
+    const fd=fs.openSync(lockPath,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_EXCL|fs.constants.O_NOFOLLOW,0o600);
+    try{fs.writeSync(fd,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:process.pid,createdAtMs:Date.now(),token})+"\n",null,"utf8");fs.fsyncSync(fd)}
+    catch(error){try{fs.closeSync(fd)}catch{};try{fs.unlinkSync(lockPath)}catch{};throw error}
+    const st=fs.fstatSync(fd);
+    return {fd,lockPath,token,ino:st.ino,dev:st.dev};
+  };
+  try{return create()}catch(error){
+    if(error?.code!=="EEXIST") throw error;
+    const observed=readLedgerLock(lockPath);
+    const ageMs=observed?Math.max(0,Date.now()-Number(observed.mtimeMs)):0;
+    if(!observed||!Number.isFinite(ageMs)||ageMs<APPLY_OUTCOME_LEDGER_LOCK_STALE_MS||!ledgerLockOwnerDefinitelyDead(observed.pid)||!sameLedgerLockIdentity(lockPath,observed)) throw error;
+    const quarantine=`${lockPath}.stale-${crypto.randomUUID()}`;
+    try{fs.renameSync(lockPath,quarantine)}catch{throw error}
+    const quarantined=readLedgerLock(quarantine);
+    if(!quarantined||quarantined.token!==observed.token||quarantined.ino!==observed.ino||quarantined.dev!==observed.dev){
+      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)) fs.renameSync(quarantine,lockPath)}catch{}
+      throw error;
+    }
+    try{
+      const acquired=create();
+      try{fs.rmSync(quarantine,{force:true})}catch{}
+      return acquired;
+    }catch(retryError){
+      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)) fs.renameSync(quarantine,lockPath)}catch{}
+      throw retryError;
+    }
+  }
 }
 function releaseLedgerLock(lock){
-  try{fs.closeSync(lock.fd)}finally{try{fs.unlinkSync(lock.lockPath)}catch{}}
+  try{fs.closeSync(lock.fd)}finally{
+    const current=readLedgerLock(lock.lockPath);
+    if(!current||current.token!==lock.token||current.ino!==lock.ino||current.dev!==lock.dev) throw new Error("APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED");
+    fs.unlinkSync(lock.lockPath);
+  }
 }
 
 export function appendAiLogicApplyOutcomeRecord(input={},options={}){
