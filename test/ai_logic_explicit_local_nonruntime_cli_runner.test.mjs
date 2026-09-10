@@ -26,6 +26,25 @@ test("delegates exactly once with caller-derived explicit invocation and persist
  assert.equal(r.status,"OK");
 });
 
+test("passes apply outcome path through and preserves outcome persistence receipt",()=>{
+ let calls=0,seen;
+ const r=runAiLogicExplicitLocalNonruntimeCli({
+   argv:["--approval-record-id=ap1","--explicit-operator-invocation","--confirm-local-candidate-source-apply"],
+   entrypointInput:{repositoryRoot:"/repo",operationId:"op1",applyOutcomePath:"/outcomes"}
+ },{runAiLogicExplicitLocalNonruntimeEntrypoint(input){
+   calls++; seen=input;
+   return {executed:true,consumed:true,applied:true,status:"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED",applyOutcomePersistence:{attempted:true,persisted:true,appended:true,duplicateSkipped:false,recordId:"out1",status:"APPLY_OUTCOME_PERSISTED",error:null}};
+ }});
+ assert.equal(calls,1);
+ assert.equal(seen.applyOutcomePath,"/outcomes");
+ assert.equal(r.status,"LOCAL_SOURCE_APPLIED_VALIDATED_RUNTIME_NOT_ACTIVATED");
+ assert.equal(r.applyOutcomePersistence.persisted,true);
+ assert.equal(r.applyOutcomePersistence.recordId,"out1");
+ assert.equal(r.runtimeWiringAllowed,false);
+ assert.equal(r.liveTradingAllowed,false);
+ assert.equal(r.gitMutationAllowed,false);
+});
+
 test("never opens runtime broker account policy sizing allocation or git authority",()=>{
  const r=runAiLogicExplicitLocalNonruntimeCli({argv:[]});
  for(const k of ["runtimeWiringAllowed","productionRuntimeWiringAllowed","promotionExecutionAllowed","rollbackExecutionAllowed","brokerContactAllowed","orderPlacementAllowed","liveTradingAllowed","accountMutationAllowed","immutablePolicyMutationAllowed","thresholdMutationAllowed","sizingMutationAllowed","allocationMutationAllowed","gitMutationAllowed"]) assert.equal(r[k],false,k);
