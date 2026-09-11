@@ -480,3 +480,47 @@ test("existing concurrency lock fails closed without modifying ledger",()=>{
     assert.equal(fs.readFileSync(filePath+".lock","utf8"),"held\n");
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+
+test("post-rm parent fsync failure remains idempotently retryable without duplicate ledger row",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-owned-post-rm-fsync-retry-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalRm=fs.rmSync,originalFsync=fs.fsyncSync;
+  let ownedRmSeen=false,injected=false;
+  try{
+    fs.rmSync=(target,options)=>{
+      const out=originalRm(target,options);
+      if(String(target).includes(".owned-")) ownedRmSeen=true;
+      return out;
+    };
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(ownedRmSeen&&!injected&&target===dir){
+        injected=true;
+        const error=new Error("FORCED_OWNED_POST_RM_DIR_FSYNC_FAILURE");error.code="EIO";throw error;
+      }
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(
+      ()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),
+      /FORCED_OWNED_POST_RM_DIR_FSYNC_FAILURE/
+    );
+    assert.equal(ownedRmSeen,true);
+    assert.equal(injected,true);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(fs.readdirSync(dir).filter(name=>name.startsWith(path.basename(lockPath)+".owned-")).length,0);
+    fs.rmSync=originalRm;fs.fsyncSync=originalFsync;
+    const retry=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:01:00Z"});
+    assert.equal(retry.appended,false);
+    assert.equal(retry.duplicateSkipped,true);
+    assert.equal(retry.record.recordedAt,"2026-09-09T22:00:00.000Z");
+    const rows=listAiLogicApplyOutcomeRecords({filePath});
+    assert.equal(rows.length,1);
+    assert.equal(rows[0].recordedAt,"2026-09-09T22:00:00.000Z");
+  }finally{
+    fs.rmSync=originalRm;fs.fsyncSync=originalFsync;
+    originalRm(dir,{recursive:true,force:true});
+  }
+});
