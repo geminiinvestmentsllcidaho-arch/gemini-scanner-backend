@@ -372,6 +372,43 @@ test("lock release race preserves replacement instead of unlinking it",()=>{
   }finally{fs.renameSync=originalRename;fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("owned lock cleanup failure rollback fsyncs parent directory metadata",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-owned-lock-rollback-fsync-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalRename=fs.renameSync,originalRm=fs.rmSync,originalFsync=fs.fsyncSync;
+  const events=[];
+  let injected=false;
+  try{
+    fs.renameSync=(from,to)=>{
+      const out=originalRename(from,to);
+      if(String(from).includes(".owned-")&&to===lockPath) events.push("rollback-rename");
+      return out;
+    };
+    fs.rmSync=(target,options)=>{
+      if(!injected&&String(target).includes(".owned-")){
+        injected=true;
+        const error=new Error("FORCED_OWNED_QUARANTINE_RM_FAILURE");error.code="EIO";throw error;
+      }
+      return originalRm(target,options);
+    };
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===dir) events.push("fsync");
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/FORCED_OWNED_QUARANTINE_RM_FAILURE/);
+    const rollbackIndex=events.indexOf("rollback-rename");
+    assert.ok(rollbackIndex>=0&&events[rollbackIndex+1]==="fsync");
+    assert.equal(fs.existsSync(lockPath),true);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{
+    fs.renameSync=originalRename;fs.rmSync=originalRm;fs.fsyncSync=originalFsync;
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
+
 test("parent directory fd closes when lock acquisition fails",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-dir-close-"));
   const filePath=path.join(dir,"outcomes.jsonl"),originalClose=fs.closeSync;
