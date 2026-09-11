@@ -608,3 +608,33 @@ test("ledger fd close failure occurs after durable row write and lock cleanup",(
     fs.rmSync(dir,{recursive:true,force:true});
   }
 });
+
+test("reader fd close failure propagates without mutating durable ledger",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-reader-close-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),originalClose=fs.closeSync;
+  let injected=false,readerFd=null;
+  try{
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"});
+    const before=fs.readFileSync(filePath);
+    fs.closeSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(!injected&&target===filePath){
+        injected=true;
+        readerFd=fd;
+        const e=new Error("FORCED_READER_FD_CLOSE_FAILURE");
+        e.code="EIO";
+        throw e;
+      }
+      return originalClose(fd);
+    };
+    assert.throws(()=>listAiLogicApplyOutcomeRecords({filePath}),/FORCED_READER_FD_CLOSE_FAILURE/);
+    assert.equal(injected,true);
+    assert.deepEqual(fs.readFileSync(filePath),before);
+  }finally{
+    fs.closeSync=originalClose;
+    if(readerFd!==null){try{originalClose(readerFd)}catch{}}
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
