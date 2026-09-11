@@ -143,7 +143,10 @@ function removeOwnedLedgerLock(lock,errorCode,dirFd){
   const current=readLedgerLockFileIdentity(lock.lockPath);
   if(!current||current.ino!==lock.ino||current.dev!==lock.dev) throw new Error(errorCode);
   const quarantine=`${lock.lockPath}.owned-${crypto.randomUUID()}`;
-  try{fs.renameSync(lock.lockPath,quarantine);fs.fsyncSync(dirFd)}catch{throw new Error(errorCode)}
+  try{fs.renameSync(lock.lockPath,quarantine);fs.fsyncSync(dirFd)}catch{
+    try{if(!fs.existsSync(lock.lockPath)&&fs.existsSync(quarantine)){fs.renameSync(quarantine,lock.lockPath);fs.fsyncSync(dirFd)}}catch{}
+    throw new Error(errorCode);
+  }
   const moved=readLedgerLockFileIdentity(quarantine);
   if(!moved||moved.ino!==lock.ino||moved.dev!==lock.dev){
     try{if(!fs.existsSync(lock.lockPath)&&fs.existsSync(quarantine)){fs.renameSync(quarantine,lock.lockPath);fs.fsyncSync(dirFd)}}catch{}

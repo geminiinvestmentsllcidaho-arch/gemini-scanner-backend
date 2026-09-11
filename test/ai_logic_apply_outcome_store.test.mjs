@@ -409,6 +409,47 @@ test("owned lock cleanup failure rollback fsyncs parent directory metadata",()=>
   }
 });
 
+test("owned lock initial quarantine fsync failure rolls back durably",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-owned-lock-initial-fsync-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalRename=fs.renameSync,originalFsync=fs.fsyncSync;
+  const events=[];
+  let failNextDirFsync=false,injected=false;
+  try{
+    fs.renameSync=(from,to)=>{
+      const out=originalRename(from,to);
+      if(from===lockPath&&String(to).includes(".owned-")){
+        events.push("quarantine-rename");
+        failNextDirFsync=true;
+      }else if(String(from).includes(".owned-")&&to===lockPath){
+        events.push("rollback-rename");
+      }
+      return out;
+    };
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(failNextDirFsync&&target===dir&&!injected){
+        injected=true;failNextDirFsync=false;
+        const error=new Error("FORCED_OWNED_QUARANTINE_DIR_FSYNC_FAILURE");error.code="EIO";throw error;
+      }
+      if(target===dir&&events.at(-1)==="rollback-rename") events.push("rollback-fsync");
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/APPLY_OUTCOME_LEDGER_LOCK_OWNERSHIP_CHANGED/);
+    const rollbackIndex=events.indexOf("rollback-rename");
+    assert.equal(injected,true);
+    assert.ok(rollbackIndex>=0&&events[rollbackIndex+1]==="rollback-fsync");
+    assert.equal(fs.existsSync(lockPath),true);
+    assert.equal(fs.readdirSync(dir).filter(name=>name.startsWith(path.basename(lockPath)+".owned-")).length,0);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{
+    fs.renameSync=originalRename;fs.fsyncSync=originalFsync;
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
+
 test("parent directory fd closes when lock acquisition fails",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-lock-dir-close-"));
   const filePath=path.join(dir,"outcomes.jsonl"),originalClose=fs.closeSync;
