@@ -222,6 +222,32 @@ test("stale definitely-dead concurrency lock is quarantined and recovered",()=>{
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 
+test("stale lock quarantine metadata transitions are fsynced",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-lock-fsync-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalRename=fs.renameSync,originalRm=fs.rmSync,originalFsync=fs.fsyncSync;
+  const events=[];
+  try{
+    fs.writeFileSync(lockPath,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:2147483647,createdAtMs:Date.now()-60000,token:"dead-owner"})+"\n",{mode:0o600});
+    const old=new Date(Date.now()-60000);fs.utimesSync(lockPath,old,old);
+    fs.renameSync=(from,to)=>{const out=originalRename(from,to);if(from===lockPath) events.push("rename");return out};
+    fs.rmSync=(target,options)=>{const out=originalRm(target,options);if(String(target).startsWith(lockPath+".stale-")) events.push("rm");return out};
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===dir) events.push("fsync");
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    const out=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"});
+    assert.equal(out.appended,true);
+    const renameIndex=events.indexOf("rename"),rmIndex=events.indexOf("rm");
+    assert.ok(renameIndex>=0&&events[renameIndex+1]==="fsync");
+    assert.ok(rmIndex>=0&&events[rmIndex+1]==="fsync");
+    assert.equal(fs.existsSync(lockPath),false);
+  }finally{fs.renameSync=originalRename;fs.rmSync=originalRm;fs.fsyncSync=originalFsync;fs.rmSync(dir,{recursive:true,force:true})}
+});
+
 test("recent dead-owner concurrency lock remains fail closed and preserved",()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-recent-dead-lock-"));
   const filePath=path.join(dir,"outcomes.jsonl");

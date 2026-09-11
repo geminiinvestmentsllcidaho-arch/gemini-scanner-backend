@@ -173,18 +173,21 @@ function acquireLedgerLock(filePath,dirFd){
     const ageMs=observed?Math.max(0,Date.now()-Number(observed.mtimeMs)):0;
     if(!observed||!Number.isFinite(ageMs)||ageMs<APPLY_OUTCOME_LEDGER_LOCK_STALE_MS||!ledgerLockOwnerDefinitelyDead(observed.pid)||!sameLedgerLockIdentity(lockPath,observed)) throw error;
     const quarantine=`${lockPath}.stale-${crypto.randomUUID()}`;
-    try{fs.renameSync(lockPath,quarantine)}catch{throw error}
+    try{fs.renameSync(lockPath,quarantine);fs.fsyncSync(dirFd)}catch{
+      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)){fs.renameSync(quarantine,lockPath);fs.fsyncSync(dirFd)}}catch{}
+      throw error;
+    }
     const quarantined=readLedgerLock(quarantine);
     if(!quarantined||quarantined.token!==observed.token||quarantined.ino!==observed.ino||quarantined.dev!==observed.dev){
-      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)) fs.renameSync(quarantine,lockPath)}catch{}
+      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)){fs.renameSync(quarantine,lockPath);fs.fsyncSync(dirFd)}}catch{}
       throw error;
     }
     try{
       const acquired=create();
-      try{fs.rmSync(quarantine,{force:true})}catch{}
+      try{fs.rmSync(quarantine,{force:true});fs.fsyncSync(dirFd)}catch{}
       return acquired;
     }catch(retryError){
-      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)) fs.renameSync(quarantine,lockPath)}catch{}
+      try{if(!fs.existsSync(lockPath)&&fs.existsSync(quarantine)){fs.renameSync(quarantine,lockPath);fs.fsyncSync(dirFd)}}catch{}
       throw retryError;
     }
   }
