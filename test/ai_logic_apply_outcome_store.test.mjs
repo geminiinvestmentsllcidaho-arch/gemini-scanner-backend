@@ -752,3 +752,77 @@ test("post-write parent directory fsync failure remains idempotently retryable",
     fs.rmSync(dir,{recursive:true,force:true});
   }
 });
+
+
+test("stale quarantine cleanup failures after replacement acquisition do not invalidate ownership",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-cleanup-rm-failure-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock",originalRm=fs.rmSync;
+  let injected=false;
+  try{
+    fs.writeFileSync(lockPath,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:2147483647,createdAtMs:Date.now()-60000,token:"dead-owner"})+"\n",{mode:0o600});
+    const old=new Date(Date.now()-60000);fs.utimesSync(lockPath,old,old);
+    fs.rmSync=(target,options)=>{
+      if(!injected&&String(target).startsWith(lockPath+".stale-")){
+        injected=true;
+        const e=new Error("FORCED_STALE_QUARANTINE_RM_FAILURE");e.code="EIO";throw e;
+      }
+      return originalRm(target,options);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-stale-cleanup-rm-failure",expectedPreimageHash:h};
+    const result=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-11T19:30:00Z"});
+    fs.rmSync=originalRm;
+    assert.equal(result.appended,true);
+    assert.equal(injected,true);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(fs.readdirSync(dir).filter(n=>n.includes(".owned-")).length,0);
+    assert.equal(fs.readdirSync(dir).filter(n=>n.includes(".stale-")).length,1);
+    assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+    const retry=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-11T19:31:00Z"});
+    assert.equal(retry.appended,false);
+    assert.equal(retry.duplicateSkipped,true);
+    assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+  }finally{
+    fs.rmSync=originalRm;
+    originalRm(dir,{recursive:true,force:true});
+  }
+});
+
+test("stale quarantine cleanup directory fsync failure after replacement acquisition does not invalidate ownership",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-stale-cleanup-fsync-failure-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock",originalRm=fs.rmSync,originalFsync=fs.fsyncSync;
+  let staleRemoved=false,injected=false;
+  try{
+    fs.writeFileSync(lockPath,JSON.stringify({version:"ai_logic_apply_outcome_ledger_lock_v1",pid:2147483647,createdAtMs:Date.now()-60000,token:"dead-owner"})+"\n",{mode:0o600});
+    const old=new Date(Date.now()-60000);fs.utimesSync(lockPath,old,old);
+    fs.rmSync=(target,options)=>{
+      const out=originalRm(target,options);
+      if(String(target).startsWith(lockPath+".stale-")) staleRemoved=true;
+      return out;
+    };
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(staleRemoved&&!injected&&target===dir){
+        injected=true;
+        const e=new Error("FORCED_STALE_QUARANTINE_POST_RM_DIR_FSYNC_FAILURE");e.code="EIO";throw e;
+      }
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-stale-cleanup-fsync-failure",expectedPreimageHash:h};
+    const result=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-11T19:32:00Z"});
+    fs.rmSync=originalRm;fs.fsyncSync=originalFsync;
+    assert.equal(result.appended,true);
+    assert.equal(staleRemoved,true);
+    assert.equal(injected,true);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(fs.readdirSync(dir).filter(n=>n.includes(".owned-")||n.includes(".stale-")).length,0);
+    assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+    const retry=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-11T19:33:00Z"});
+    assert.equal(retry.appended,false);
+    assert.equal(retry.duplicateSkipped,true);
+    assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+  }finally{
+    fs.rmSync=originalRm;fs.fsyncSync=originalFsync;
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
