@@ -578,3 +578,33 @@ test("parent directory close failure occurs after lock cleanup and ledger persis
     fs.rmSync(dir,{recursive:true,force:true});
   }
 });
+
+test("ledger fd close failure occurs after durable row write and lock cleanup",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-ledger-close-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock",originalClose=fs.closeSync;
+  let injected=false,ledgerFd=null;
+  try{
+    fs.closeSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(!injected&&target===filePath){
+        injected=true;
+        ledgerFd=fd;
+        const e=new Error("FORCED_LEDGER_FD_CLOSE_FAILURE");
+        e.code="EIO";
+        throw e;
+      }
+      return originalClose(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/FORCED_LEDGER_FD_CLOSE_FAILURE/);
+    assert.equal(injected,true);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(fs.readdirSync(dir).some(n=>n.startsWith(path.basename(lockPath)+".owned-")),false);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{
+    fs.closeSync=originalClose;
+    if(ledgerFd!==null){try{originalClose(ledgerFd)}catch{}}
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
