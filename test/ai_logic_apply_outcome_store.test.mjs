@@ -524,3 +524,27 @@ test("post-rm parent fsync failure remains idempotently retryable without duplic
     originalRm(dir,{recursive:true,force:true});
   }
 });
+
+test("release lock close failure still cleans lock namespace and preserves ledger row",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-release-close-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock",originalClose=fs.closeSync;
+  let injected=false,lockFd=null;
+  try{
+    fs.closeSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(!injected&&target===lockPath){injected=true;lockFd=fd;const e=new Error("FORCED_RELEASE_LOCK_FD_CLOSE_FAILURE");e.code="EIO";throw e}
+      return originalClose(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/FORCED_RELEASE_LOCK_FD_CLOSE_FAILURE/);
+    assert.equal(injected,true);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(fs.readdirSync(dir).some(n=>n.startsWith(path.basename(lockPath)+".owned-")),false);
+    assert.equal(listAiLogicApplyOutcomeRecords({filePath}).length,1);
+  }finally{
+    fs.closeSync=originalClose;
+    if(lockFd!==null){try{originalClose(lockFd)}catch{}}
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
