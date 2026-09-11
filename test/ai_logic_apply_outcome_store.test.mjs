@@ -638,3 +638,78 @@ test("reader fd close failure propagates without mutating durable ledger",()=>{
     fs.rmSync(dir,{recursive:true,force:true});
   }
 });
+
+test("parent directory error cleanup close failure preserves primary error and no ledger mutation",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-parent-error-close-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock";
+  const originalFstat=fs.fstatSync,originalClose=fs.closeSync;
+  let parentFd=null,closeInjected=false;
+  try{
+    fs.fstatSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===dir){
+        parentFd=fd;
+        const e=new Error("FORCED_PARENT_DIR_FSTAT_FAILURE");
+        e.code="EIO";
+        throw e;
+      }
+      return originalFstat(fd);
+    };
+    fs.closeSync=(fd)=>{
+      if(!closeInjected&&fd===parentFd){
+        closeInjected=true;
+        const e=new Error("FORCED_PARENT_DIR_CLEANUP_CLOSE_FAILURE");
+        e.code="EIO";
+        throw e;
+      }
+      return originalClose(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),/FORCED_PARENT_DIR_FSTAT_FAILURE/);
+    assert.equal(closeInjected,true);
+    assert.equal(fs.existsSync(filePath),false);
+    assert.equal(fs.existsSync(lockPath),false);
+  }finally{
+    fs.fstatSync=originalFstat;
+    fs.closeSync=originalClose;
+    if(parentFd!==null){try{originalClose(parentFd)}catch{}}
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
+
+test("swallowed lock reader close failures do not alter append or cleanup",()=>{
+  for(const ordinal of [2,3]){
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),`ai-outcome-lock-reader-close-${ordinal}-`));
+    const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock",originalClose=fs.closeSync;
+    let lockCloseCount=0,injected=false,leakedFd=null;
+    try{
+      fs.closeSync=(fd)=>{
+        let target="";
+        try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+        if(target===lockPath){
+          lockCloseCount++;
+          if(!injected&&lockCloseCount===ordinal){
+            injected=true;
+            leakedFd=fd;
+            const e=new Error("FORCED_SWALLOWED_LOCK_READER_FD_CLOSE_FAILURE");
+            e.code="EIO";
+            throw e;
+          }
+        }
+        return originalClose(fd);
+      };
+      const input={receipt:success,operatorApproval:approval,operationId:`operation-lock-reader-${ordinal}`,expectedPreimageHash:h};
+      const result=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"});
+      assert.equal(result.appended,true);
+      assert.equal(injected,true);
+      assert.equal(fs.existsSync(lockPath),false);
+      assert.equal(fs.readdirSync(dir).filter(n=>n.includes(".owned-")||n.includes(".stale-")).length,0);
+      assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+    }finally{
+      fs.closeSync=originalClose;
+      if(leakedFd!==null){try{originalClose(leakedFd)}catch{}}
+      fs.rmSync(dir,{recursive:true,force:true});
+    }
+  }
+});
