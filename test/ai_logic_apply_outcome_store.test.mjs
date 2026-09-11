@@ -713,3 +713,42 @@ test("swallowed lock reader close failures do not alter append or cleanup",()=>{
     }
   }
 });
+
+test("post-write parent directory fsync failure remains idempotently retryable",()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"ai-outcome-post-write-dir-fsync-"));
+  const filePath=path.join(dir,"outcomes.jsonl"),lockPath=filePath+".lock",originalFsync=fs.fsyncSync;
+  let dirFsyncCount=0,injected=false;
+  try{
+    fs.fsyncSync=(fd)=>{
+      let target="";
+      try{target=fs.readlinkSync(`/proc/self/fd/${fd}`)}catch{}
+      if(target===dir){
+        dirFsyncCount++;
+        if(!injected&&dirFsyncCount===2){
+          injected=true;
+          const e=new Error("FORCED_POST_WRITE_PARENT_DIR_FSYNC_FAILURE");
+          e.code="EIO";
+          throw e;
+        }
+      }
+      return originalFsync(fd);
+    };
+    const input={receipt:success,operatorApproval:approval,operationId:"operation-123",expectedPreimageHash:h};
+    assert.throws(
+      ()=>appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:00:00Z"}),
+      /FORCED_POST_WRITE_PARENT_DIR_FSYNC_FAILURE/
+    );
+    fs.fsyncSync=originalFsync;
+    assert.equal(injected,true);
+    assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+    assert.equal(fs.existsSync(lockPath),false);
+    assert.equal(fs.readdirSync(dir).filter(n=>n.includes(".owned-")||n.includes(".stale-")).length,0);
+    const retry=appendAiLogicApplyOutcomeRecord(input,{filePath,now:"2026-09-09T22:01:00Z"});
+    assert.equal(retry.appended,false);
+    assert.equal(retry.duplicateSkipped,true);
+    assert.equal(fs.readFileSync(filePath,"utf8").trim().split(/\r?\n/).filter(Boolean).length,1);
+  }finally{
+    fs.fsyncSync=originalFsync;
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
