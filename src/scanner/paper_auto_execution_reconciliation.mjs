@@ -88,6 +88,7 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
   if (enterOrder?.filledAt) patch.enterBrokerFilledAt = enterOrder.filledAt
   if (exitOrder?.submittedAt) patch.exitBrokerSubmittedAt = exitOrder.submittedAt
   if (exitOrder?.filledAt) patch.exitBrokerFilledAt = exitOrder.filledAt
+  if (Number.isFinite(exitOrder?.filledAvgPrice) && exitOrder.filledAvgPrice > 0) patch.exitAverageFillPrice = exitOrder.filledAvgPrice
 
   const exitOwnedState = [S.EXIT_SUBMITTING, S.EXIT_UNKNOWN, S.EXIT_PARTIALLY_FILLED].includes(lifecycle.state)
     || (lifecycle.state === S.UNRESOLVED_NEEDS_RECONCILIATION && Boolean(exitClientId || exitBrokerId))
@@ -174,6 +175,7 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     exitOrderStatus: exitOrder?.status ?? null,
     exitOrderQuantity: Number.isFinite(exitOrder?.qty) ? exitOrder.qty : null,
     exitFilledQuantity: Number.isFinite(exitOrder?.filledQty) ? exitOrder.filledQty : null,
+    exitAverageFillPrice: Number.isFinite(exitOrder?.filledAvgPrice) && exitOrder.filledAvgPrice > 0 ? exitOrder.filledAvgPrice : null,
     residualPositionQuantity: position && Number.isFinite(position.qty) ? position.qty : null,
   }))
 

@@ -26,6 +26,9 @@ function validate(state) {
   if (state.filledQuantity !== null && (!Number.isFinite(state.filledQuantity) || state.filledQuantity <= 0)) {
     throw new Error('paper_auto_filled_quantity_invalid')
   }
+  if (state.exitAverageFillPrice !== undefined && state.exitAverageFillPrice !== null && (!Number.isFinite(state.exitAverageFillPrice) || state.exitAverageFillPrice <= 0)) {
+    throw new Error('paper_auto_exit_average_fill_price_invalid')
+  }
   return state
 }
 
@@ -66,6 +69,7 @@ export class PaperAutoExecutionLifecycleStore {
       exitBrokerOrderId: null,
       filledQuantity: null,
       averageFillPrice: null,
+      exitAverageFillPrice: null,
       brokerPositionIdentity: null,
       reconciliation: [],
       createdAt: ts,
@@ -199,7 +203,7 @@ export class PaperAutoExecutionLifecycleStore {
     if (String(expectedLifecycleId ?? '').trim() !== current.lifecycleId) throw new Error('paper_auto_exit_recovery_patch_lifecycle_changed')
     if (normalizeSymbol(expectedSymbol) !== current.selectedSymbol) throw new Error('paper_auto_exit_recovery_patch_symbol_changed')
     if (String(expectedState ?? '').trim() !== current.state) throw new Error('paper_auto_exit_recovery_patch_state_changed')
-    const allowed = new Set(['exitBrokerOrderId', 'reconciliation'])
+    const allowed = new Set(['exitBrokerOrderId', 'exitAverageFillPrice', 'reconciliation'])
     for (const key of Object.keys(patch)) if (!allowed.has(key)) throw new Error(`paper_auto_exit_recovery_patch_forbidden:${key}`)
     let exitBrokerOrderId = current.exitBrokerOrderId
     if ('exitBrokerOrderId' in patch) {

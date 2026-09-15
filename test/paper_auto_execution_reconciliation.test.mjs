@@ -180,3 +180,26 @@ test('quantity contradiction audit remains unresolved with blocker evidence', ()
   assert.equal(a.exitFilledQuantity,1)
   assert.equal(a.residualPositionQuantity,2)
 })
+
+
+test('persists broker-authoritative EXIT average fill price in lifecycle patch and audit evidence', () => {
+  const lifecycle = { ...base, state: S.EXIT_UNKNOWN, filledQuantity: 1, exitClientOrderId: 'exit-price-1' }
+  const result = reconcilePaperAutoExecution({
+    lifecycle,
+    orders: [{
+      id: 'broker-exit-price-1',
+      client_order_id: 'exit-price-1',
+      symbol: 'SPY',
+      side: 'sell',
+      status: 'filled',
+      qty: '1',
+      filled_qty: '1',
+      filled_avg_price: '631.10',
+      filled_at: '2026-08-11T15:00:00.300Z',
+    }],
+    positions: [],
+  })
+  assert.equal(result.nextState, S.ROUND_TRIP_COMPLETED)
+  assert.equal(result.patch.exitAverageFillPrice, 631.10)
+  assert.equal(result.patch.reconciliation.at(-1).exitAverageFillPrice, 631.10)
+})

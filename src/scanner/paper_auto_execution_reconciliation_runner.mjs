@@ -96,6 +96,7 @@ export async function runPaperAutoExecutionReconciliation({
         reconciliation: reconciliation.patch.reconciliation,
       }
       if (reconciliation.patch.exitBrokerOrderId) recoveryPatch.exitBrokerOrderId = reconciliation.patch.exitBrokerOrderId
+      if (Number.isFinite(reconciliation.patch.exitAverageFillPrice) && reconciliation.patch.exitAverageFillPrice > 0) recoveryPatch.exitAverageFillPrice = reconciliation.patch.exitAverageFillPrice
       persistedLifecycle = lifecycleStore.patchExitRecovery(recoveryPatch)
       changed = true
     }

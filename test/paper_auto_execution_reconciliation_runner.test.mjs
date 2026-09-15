@@ -149,3 +149,38 @@ test('persists same-state EXIT recovery audit and learned broker order identity'
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+
+test('persists broker-authoritative EXIT average fill price through reconciliation runner', async () => {
+  const { store, dir } = makeStore()
+  try {
+    store.create({ selectedSymbol: 'AAPL' })
+    store.transition(S.ENTER_SUBMITTING, { enterClientOrderId: 'enter-price-1' })
+    store.transition(S.POSITION_CONFIRMED, { filledQuantity: 1, averageFillPrice: 202.5, brokerPositionIdentity: 'asset-1' })
+    store.transition(S.EXIT_TRIGGERED, { exitClientOrderId: 'exit-price-1' })
+    store.transition(S.EXIT_SUBMITTING)
+    const result = await runPaperAutoExecutionReconciliation({
+      lifecycleStore: store,
+      accountSnapshot: snapshot({ positions: [] }),
+      historicalOrders: [{
+        id: 'broker-exit-price-1',
+        client_order_id: 'exit-price-1',
+        symbol: 'AAPL',
+        side: 'sell',
+        status: 'filled',
+        qty: '1',
+        filled_qty: '1',
+        filled_avg_price: '205.25',
+        filled_at: '2026-08-04T04:39:59.000Z',
+      }],
+      nowMs: Date.parse('2026-08-04T04:40:30.000Z'),
+    })
+    assert.equal(result.status, 'RECONCILED_STATE_UPDATED')
+    assert.equal(result.lifecycle.state, S.ROUND_TRIP_COMPLETED)
+    assert.equal(result.lifecycle.exitAverageFillPrice, 205.25)
+    assert.equal(store.load().exitAverageFillPrice, 205.25)
+    assert.equal(result.lifecycle.reconciliation.at(-1).exitAverageFillPrice, 205.25)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
