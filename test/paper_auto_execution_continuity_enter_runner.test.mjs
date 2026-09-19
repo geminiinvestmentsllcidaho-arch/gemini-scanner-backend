@@ -541,7 +541,7 @@ test('concurrent enter cycles deduplicate to one submission', async () => {
       fetchAccount: async () => ({
         ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: new Date(now).toISOString(), runtime: { readOnly: true, allowedMethods: ['GET'] },
         account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
-        positions: submitted ? [{ symbol: 'ONE', qty: 1, averageEntryPrice: 5 }] : [],
+        positions: submitted ? [{ symbol: 'ONE', qty: 10, averageEntryPrice: 5 }] : [],
         openOrders: [],
       }),
       fetchHistoricalOrders: async () => ({ historicalOrders: submitted ? [{ id: 'o1', client_order_id: new PaperAutoExecutionLifecycleStore({ filePath: file }).load()?.enterClientOrderId, symbol: 'ONE', side: 'buy', status: 'filled', filled_qty: '10', filled_avg_price: '5' }] : [] }),
@@ -581,7 +581,7 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
           observedAt: new Date(now).toISOString(),
           runtime: { readOnly: true, allowedMethods: ['GET'] },
           account: { accountIdentity: PAPER_ACCOUNT_IDENTITY, tradingBlocked: false, accountBlocked: false, equity: 1000, buyingPower: 1000 },
-          positions: [{ symbol: 'RST', qty: 1, averageEntryPrice: 7.5 }],
+          positions: [{ symbol: 'RST', qty: 10, averageEntryPrice: 7.5 }],
           openOrders: [],
         }),
         fetchHistoricalOrders: async () => ({
@@ -612,8 +612,8 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
       assert.equal(out.reconciliations, 1)
       assert.equal(out.lastStatus, 'CONTINUITY_ENTER_MONITORING_CONFIRMED')
       assert.equal(out.lastLifecycle.state, 'MONITORING')
-      assert.equal(out.lastLifecycle.filledQuantity, 1)
-      assert.equal(out.lastLifecycle.brokerPositionIdentity, 'RST:1')
+      assert.equal(out.lastLifecycle.filledQuantity, 10)
+      assert.equal(out.lastLifecycle.brokerPositionIdentity, 'RST:10')
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }

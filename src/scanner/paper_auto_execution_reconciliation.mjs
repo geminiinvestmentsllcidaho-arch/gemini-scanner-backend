@@ -4,7 +4,7 @@ export const VERSION = 'paper_auto_execution_reconciliation_v1'
 
 const clean = (value) => String(value ?? '').trim()
 const upper = (value) => clean(value).toUpperCase()
-const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null
+const finite = (value) => value === null || value === undefined || String(value).trim() === '' ? null : Number.isFinite(Number(value)) ? Number(value) : null
 const unique = (values = []) => [...new Set(values.filter(Boolean))]
 const timestamp = (value) => { const ms = Date.parse(clean(value)); return Number.isFinite(ms) ? new Date(ms).toISOString() : null }
 
@@ -94,20 +94,37 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     || (lifecycle.state === S.UNRESOLVED_NEEDS_RECONCILIATION && Boolean(exitClientId || exitBrokerId))
 
   if (!exitOwnedState && [S.ENTER_SUBMITTING, S.ENTER_UNKNOWN, S.ENTER_OPEN, S.ENTER_PARTIALLY_FILLED, S.UNRESOLVED_NEEDS_RECONCILIATION].includes(lifecycle.state)) {
-    if (position) {
+    if (enterOrder?.status === 'partially_filled' && Number(enterOrder.filledQty) > 0) {
+      if (position && Math.abs(Number(position.qty) - Number(enterOrder.filledQty)) > 1e-9) {
+        nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
+        blockers.push('enter_partial_quantity_inconsistent')
+      } else {
+        patch.filledQuantity = position?.qty ?? enterOrder.filledQty
+        patch.averageFillPrice = position?.avgEntryPrice ?? enterOrder.filledAvgPrice
+        if (position) patch.brokerPositionIdentity = position.assetId ?? `${position.symbol}:${position.qty}`
+        if (enterOrder.id) patch.enterBrokerOrderId = enterOrder.id
+        nextState = S.ENTER_PARTIALLY_FILLED
+      }
+    } else if (enterOrder?.status === 'filled' && Number(enterOrder.filledQty) > 0) {
+      if (position && Math.abs(Number(position.qty) - Number(enterOrder.filledQty)) > 1e-9) {
+        nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
+        blockers.push('enter_filled_quantity_inconsistent')
+      } else {
+        patch.filledQuantity = position?.qty ?? enterOrder.filledQty
+        patch.averageFillPrice = position?.avgEntryPrice ?? enterOrder.filledAvgPrice
+        if (position) patch.brokerPositionIdentity = position.assetId ?? `${position.symbol}:${position.qty}`
+        if (enterOrder.id) patch.enterBrokerOrderId = enterOrder.id
+        nextState = S.POSITION_CONFIRMED
+      }
+    } else if (enterOrder && ['new', 'accepted', 'pending_new', 'open'].includes(enterOrder.status)) {
+      if (enterOrder.id) patch.enterBrokerOrderId = enterOrder.id
+      nextState = S.ENTER_OPEN
+    } else if (position) {
       patch.filledQuantity = position.qty
       patch.averageFillPrice = position.avgEntryPrice
       patch.brokerPositionIdentity = position.assetId ?? `${position.symbol}:${position.qty}`
       if (enterOrder?.id) patch.enterBrokerOrderId = enterOrder.id
       nextState = S.POSITION_CONFIRMED
-    } else if (enterOrder?.status === 'partially_filled' && Number(enterOrder.filledQty) > 0) {
-      patch.filledQuantity = enterOrder.filledQty
-      patch.averageFillPrice = enterOrder.filledAvgPrice
-      if (enterOrder.id) patch.enterBrokerOrderId = enterOrder.id
-      nextState = S.ENTER_PARTIALLY_FILLED
-    } else if (enterOrder && ['new', 'accepted', 'pending_new', 'open'].includes(enterOrder.status)) {
-      if (enterOrder.id) patch.enterBrokerOrderId = enterOrder.id
-      nextState = S.ENTER_OPEN
     } else if (!enterOrder && !position) {
       nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
       blockers.push('enter_identity_not_found')

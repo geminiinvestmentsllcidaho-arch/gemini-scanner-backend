@@ -30,6 +30,50 @@ test('fails closed when ambiguous enter identity cannot be found', () => {
   assert.deepEqual(result.blockers, ['enter_identity_not_found'])
 })
 
+test('ENTER partial fill remains ENTER_PARTIALLY_FILLED and does not emit EXIT residual blocker when filled quantity is unset', () => {
+  const result = reconcilePaperAutoExecution({
+    lifecycle: { ...base, state: S.ENTER_OPEN, filledQuantity: null },
+    orders: [{ id: 'bo-enter', client_order_id: 'enter-1', symbol: 'SPY', side: 'buy', status: 'partially_filled', qty: '22', filled_qty: '6', filled_avg_price: '4.26' }],
+    positions: [{ symbol: 'SPY', qty: '6', avg_entry_price: '4.26' }],
+  })
+  assert.equal(result.nextState, S.ENTER_PARTIALLY_FILLED)
+  assert.equal(result.patch.filledQuantity, 6)
+  assert.equal(result.patch.brokerPositionIdentity, 'SPY:6')
+  assert.equal(result.blockers.includes('exit_residual_position_exceeds_lifecycle_quantity'), false)
+})
+
+test('ENTER filled order with matching broker position becomes POSITION_CONFIRMED', () => {
+  const result = reconcilePaperAutoExecution({
+    lifecycle: { ...base, state: S.ENTER_PARTIALLY_FILLED, filledQuantity: 6 },
+    orders: [{ id: 'bo-enter', client_order_id: 'enter-1', symbol: 'SPY', side: 'buy', status: 'filled', qty: '22', filled_qty: '22', filled_avg_price: '4.27' }],
+    positions: [{ symbol: 'SPY', qty: '22', avg_entry_price: '4.27' }],
+  })
+  assert.equal(result.nextState, S.POSITION_CONFIRMED)
+  assert.equal(result.patch.filledQuantity, 22)
+  assert.equal(result.patch.brokerPositionIdentity, 'SPY:22')
+})
+
+test('ENTER partial fill quantity mismatch fails closed', () => {
+  const result = reconcilePaperAutoExecution({
+    lifecycle: { ...base, state: S.ENTER_OPEN, filledQuantity: null },
+    orders: [{ id: 'bo-enter', client_order_id: 'enter-1', symbol: 'SPY', side: 'buy', status: 'partially_filled', qty: '22', filled_qty: '6', filled_avg_price: '4.26' }],
+    positions: [{ symbol: 'SPY', qty: '7', avg_entry_price: '4.26' }],
+  })
+  assert.equal(result.nextState, S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.deepEqual(result.blockers, ['enter_partial_quantity_inconsistent'])
+})
+
+test('ENTER recovery without matching order may still confirm broker-authoritative position', () => {
+  const result = reconcilePaperAutoExecution({
+    lifecycle: { ...base, state: S.ENTER_UNKNOWN, enterClientOrderId: 'missing-enter' },
+    orders: [],
+    positions: [{ symbol: 'SPY', qty: '5', avg_entry_price: '4.30' }],
+  })
+  assert.equal(result.nextState, S.POSITION_CONFIRMED)
+  assert.equal(result.patch.filledQuantity, 5)
+  assert.equal(result.patch.brokerPositionIdentity, 'SPY:5')
+})
+
 test('reconciles exact exit completion only when position is absent and exit order filled', () => {
   const lifecycle = { ...base, state: S.EXIT_UNKNOWN, filledQuantity: 1, exitClientOrderId: 'exit-1' }
   const complete = reconcilePaperAutoExecution({
