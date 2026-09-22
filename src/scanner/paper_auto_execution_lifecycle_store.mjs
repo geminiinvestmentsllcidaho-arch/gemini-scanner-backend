@@ -214,7 +214,8 @@ export class PaperAutoExecutionLifecycleStore {
     }
     const reconciliation = 'reconciliation' in patch ? clone(patch.reconciliation) : clone(current.reconciliation ?? [])
     if (!Array.isArray(reconciliation)) throw new Error('paper_auto_exit_recovery_patch_reconciliation_invalid')
-    const next = { ...current, exitBrokerOrderId, reconciliation, lifecycleId: current.lifecycleId, state: current.state, selectedSymbol: current.selectedSymbol, updatedAt: new Date(this.clock()).toISOString() }
+    const exitAverageFillPrice = 'exitAverageFillPrice' in patch ? Number(patch.exitAverageFillPrice) : current.exitAverageFillPrice
+    const next = { ...current, exitBrokerOrderId, exitAverageFillPrice, reconciliation, lifecycleId: current.lifecycleId, state: current.state, selectedSymbol: current.selectedSymbol, updatedAt: new Date(this.clock()).toISOString() }
     validate(next)
     this.#write(next)
     return clone(next)
