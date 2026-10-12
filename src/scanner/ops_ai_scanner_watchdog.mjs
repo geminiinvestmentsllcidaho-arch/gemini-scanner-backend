@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { readLatestJsonlValue } from "./jsonl_tail_reader.mjs";
 export const VERSION="ops_ai_scanner_watchdog_v1";
 export const DEFAULT_INCIDENT_LEDGER_PATH=path.resolve("runs/ops_ai_scanner_watchdog_incidents.jsonl");
 const LOCKS=["orderPlacementAllowed","brokerContactAllowed","accountMutationAllowed","scannerLogicMutationAllowed","thresholdMutationAllowed","automaticLearningAllowed","liveTradingAllowed","enterEnabled"];
@@ -32,6 +33,6 @@ export function evaluateOpsAiScannerWatchdog(input={},options={}){
 }
 export function buildWatchdogIncidentTransition(report,previous=null,options={}){const now=new Date(options.now??report?.generatedAt??Date.now()),cool=Math.max(0,Number(options.cooldownMs??3600000)),esc=Math.max(cool,Number(options.escalationAfterMs??14400000)),bad=report?.healthy!==true,was=previous?.open===true,opened=was?previous.openedAt:bad?now.toISOString():null,dur=opened?Math.max(0,now-Date.parse(opened)):0,same=was&&previous.incidentKey===key(report),la=Date.parse(previous?.lastAlertAt??""),elapsed=!Number.isFinite(la)||now-la>=cool;let transition="none",shouldAlert=false;if(bad&&!was){transition="failure_opened";shouldAlert=true}else if(!bad&&was){transition="recovered";shouldAlert=true}else if(bad&&was&&(!same||(dur>=esc&&elapsed))){transition=same?"failure_escalated":"failure_changed";shouldAlert=true}return Object.freeze({version:VERSION,transition,shouldAlert,open:bad,incidentKey:bad?key(report):null,openedAt:opened,lastObservedAt:now.toISOString(),lastAlertAt:shouldAlert?now.toISOString():previous?.lastAlertAt??null,durationMs:dur,failureCodes:Object.freeze([...(report?.failureCodes??[])]),alertKind:transition==="recovered"?"recovery":shouldAlert?"failure":null,deduplicated:bad&&was&&same&&!shouldAlert,cooldownMs:cool,escalationAfterMs:esc,readOnly:true,remediationAllowed:false})}
 const json=l=>{try{return JSON.parse(l)}catch{return null}};
-export function readLatestWatchdogIncident(options={}){const p=path.resolve(options.ledgerPath??DEFAULT_INCIDENT_LEDGER_PATH);if(!fs.existsSync(p))return null;return fs.readFileSync(p,"utf8").split(/\r?\n/).filter(Boolean).map(json).filter(Boolean).at(-1)??null}
+export function readLatestWatchdogIncident(options={}){const p=path.resolve(options.ledgerPath??DEFAULT_INCIDENT_LEDGER_PATH);return readLatestJsonlValue(p,{skipInvalid:true})}
 export function appendWatchdogIncidentRecord(record,options={}){const p=path.resolve(options.ledgerPath??DEFAULT_INCIDENT_LEDGER_PATH);fs.mkdirSync(path.dirname(p),{recursive:true,mode:0o700});fs.appendFileSync(p,`${JSON.stringify(record)}\n`,{encoding:"utf8",mode:0o600});try{fs.chmodSync(p,0o600)}catch{}return Object.freeze({appended:true,ledgerPath:p,localJsonlOnly:true,containsSecrets:false})}
 export default Object.freeze({VERSION,DEFAULT_INCIDENT_LEDGER_PATH,evaluateOpsAiScannerWatchdog,buildWatchdogIncidentTransition,readLatestWatchdogIncident,appendWatchdogIncidentRecord});

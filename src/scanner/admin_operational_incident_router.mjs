@@ -123,12 +123,42 @@ export function buildAdminOperationalIncidentTransition(incident, previous = nul
 
 export function readLatestAdminOperationalIncident(options = {}) {
   const ledgerPath = path.resolve(options.ledgerPath ?? DEFAULT_LEDGER_PATH);
+  let fd;
   try {
-    if (!fs.existsSync(ledgerPath)) return null;
-    const lines = fs.readFileSync(ledgerPath, "utf8").split(/\r?\n/).filter(Boolean);
-    return lines.length ? JSON.parse(lines.at(-1)) : null;
+    fd = fs.openSync(ledgerPath, "r");
+    let offset = fs.fstatSync(fd).size;
+    let parts = [];
+    let endsWithNewline = false;
+    const line = () => {
+      let value = Buffer.concat(parts.reverse()).toString("utf8");
+      if (endsWithNewline && value.endsWith("\r")) value = value.slice(0, -1);
+      return value;
+    };
+    // Read only the final nonempty record, rather than allocating the entire
+    // growing ledger on every watchdog tick. Decode after joining UTF-8 bytes.
+    while (offset > 0) {
+      const size = Math.min(offset, 64 * 1024);
+      offset -= size;
+      const buffer = Buffer.allocUnsafe(size);
+      if (fs.readSync(fd, buffer, 0, size, offset) !== size) return null;
+      let end = size;
+      for (let i = size - 1; i >= 0; i -= 1) {
+        if (buffer[i] !== 10) continue;
+        parts.push(buffer.subarray(i + 1, end));
+        const value = line();
+        if (value.length) return JSON.parse(value);
+        parts = [];
+        endsWithNewline = true;
+        end = i;
+      }
+      parts.push(buffer.subarray(0, end));
+    }
+    const value = line();
+    return value.length ? JSON.parse(value) : null;
   } catch {
     return null;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
   }
 }
 

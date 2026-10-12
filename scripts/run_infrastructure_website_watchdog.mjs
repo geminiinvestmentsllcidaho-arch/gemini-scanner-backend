@@ -6,6 +6,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createAdminOperationalEmailDelivery } from "../src/scanner/admin_operational_notification_delivery.mjs";
+import { readLatestJsonlValue } from "../src/scanner/jsonl_tail_reader.mjs";
 
 process.umask(0o077);
 const execFileAsync=promisify(execFile);
@@ -15,7 +16,7 @@ const allowEmail=String(process.env.GS_INFRA_WATCHDOG_EMAIL_SEND_AUTHORIZED||"")
 const clean=(v,n=500)=>String(v??"").trim().slice(0,n);
 const parse=(v)=>{try{return JSON.parse(v)}catch{return null}};
 async function probe(url){const started=Date.now();const c=new AbortController();const t=setTimeout(()=>c.abort(),10000);t.unref?.();try{const r=await fetch(url,{redirect:"follow",signal:c.signal});const body=await r.text();return{url,ok:r.ok,statusCode:r.status,latencyMs:Date.now()-started,body:body.slice(0,700)}}catch(e){return{url,ok:false,statusCode:null,latencyMs:Date.now()-started,errorCode:clean(e?.name||"FETCH_FAILED",120)}}finally{clearTimeout(t)}}
-function latest(){try{return parse(fs.readFileSync(ledger,"utf8").trim().split(/\r?\n/).filter(Boolean).at(-1))??null}catch{return null}}
+function latest(){return readLatestJsonlValue(ledger,{trimEmpty:true})??null}
 function append(row){fs.mkdirSync(path.dirname(ledger),{recursive:true,mode:0o700});fs.appendFileSync(ledger,JSON.stringify(row)+"\n",{mode:0o600});try{fs.chmodSync(ledger,0o600)}catch{}}
 async function send(report,state){
  const delivery=createAdminOperationalEmailDelivery();
