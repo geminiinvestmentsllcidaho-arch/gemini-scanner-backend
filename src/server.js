@@ -760,8 +760,8 @@ async function fetchCustomerBrokerPerformanceEvidence(options = {}) {
   const [fetchedPaperAccount, historicalOrderResult] = await Promise.all([
     options.fetchedPaperAccount
       ? Promise.resolve(options.fetchedPaperAccount)
-      : accountData.fetchAlpacaPaperAccountReadonly(),
-    historyFetch.fetchAlpacaPaperHistoricalOrdersReadonly(),
+      : accountData.fetchAlpacaPaperAccountReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
+    historyFetch.fetchAlpacaPaperHistoricalOrdersReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
   ]);
   const adapted = historyAdapter.adaptAlpacaPaperFilledOrderHistory({
     historicalOrders: historicalOrderResult.historicalOrders,
@@ -819,7 +819,7 @@ async function buildAuthenticatedCustomerLifetimeEarningsBanner(account, reqPath
     const now = new Date();
     const [brokerPerformance, marketClockResult] = await Promise.all([
       buildCustomerBrokerPerformanceReport({ accountId: account?.id, period: 'lifetime', defaultPeriod: 'lifetime', now }),
-      clockMod.fetchAlpacaMarketClockReadonly(),
+      clockMod.fetchAlpacaMarketClockReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials }),
     ]);
     if (requestContext && typeof requestContext === 'object') {
       requestContext.fetchedPaperAccount = brokerPerformance.evidence.fetchedPaperAccount;

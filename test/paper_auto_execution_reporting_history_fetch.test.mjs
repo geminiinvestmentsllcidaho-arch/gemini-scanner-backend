@@ -85,17 +85,53 @@ test('reporting history fetch retains APCA credential aliases as fallback', asyn
 })
 
 
-test('reporting history fetch marks exact limit hit as possibly truncated without another call', async () => {
+test('reporting history fetch proves completeness after an exact full page', async () => {
   const calls = []
   const orders = Array.from({ length: 500 }, (_, index) => ({ id: `order-${index}` }))
   const result = await fetchAlpacaPaperHistoricalOrdersReadonly({
     env: { APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', APCA_API_KEY_ID: 'paper-key', APCA_API_SECRET_KEY: 'paper-secret' },
-    fetchImpl: async (url, init) => { calls.push({ url: String(url), init }); return { ok: true, status: 200, json: async () => orders } },
+    fetchImpl: async (url, init) => { calls.push({ url: String(url), init }); return { ok: true, status: 200, json: async () => calls.length === 1 ? orders : [] } },
   })
-  assert.equal(calls.length, 1)
+  assert.equal(calls.length, 2)
   assert.equal(result.historyLimit, 500)
   assert.equal(result.sourceRecordCount, 500)
   assert.equal(result.historyLimitReached, true)
-  assert.equal(result.historyComplete, false)
-  assert.equal(result.historyPossiblyTruncated, true)
+  assert.equal(result.historyComplete, true)
+  assert.equal(result.historyPossiblyTruncated, false)
+  assert.match(calls[1].url, /before_order_id=order-499/)
+})
+
+test('reporting history includes older orders and deduplicates pagination overlap using resolved owner credentials', async () => {
+  const pages = [Array.from({ length: 500 }, (_, i) => ({ id: `order-${i}` })), [{ id: 'order-499' }, ...Array.from({ length: 88 }, (_, i) => ({ id: `order-${500 + i}` }))]]
+  let calls = 0
+  const result = await fetchAlpacaPaperHistoricalOrdersReadonly({
+    env: { APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_KEY: 'wrong-key', ALPACA_SECRET: 'wrong-secret' },
+    credentialResolver: async () => ({ readyForReadonlyBrokerRead: true, env: { ALPACA_KEY: 'owner-key', ALPACA_SECRET: 'owner-secret' } }),
+    fetchImpl: async (url, init) => {
+      assert.equal(init.method, 'GET')
+      assert.equal(init.redirect, 'error')
+      assert.equal(init.headers['APCA-API-KEY-ID'], 'owner-key')
+      assert.equal(init.headers['APCA-API-SECRET-KEY'], 'owner-secret')
+      return { ok: true, json: async () => pages[calls++] }
+    },
+  })
+  assert.equal(result.sourceRecordCount, 588)
+  assert.equal(result.historyComplete, true)
+  assert.equal(result.historicalOrders.at(-1).id, 'order-587')
+})
+
+test('reporting rejects unavailable owner credentials rather than falling back to another account', async () => {
+  await assert.rejects(fetchAlpacaPaperHistoricalOrdersReadonly({
+    env: { APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_KEY: 'wrong-key', ALPACA_SECRET: 'wrong-secret' },
+    credentialResolver: async () => ({ readyForReadonlyBrokerRead: false }),
+    fetchImpl: async () => { assert.fail('broker must not be contacted') },
+  }), /credentials_required/)
+})
+
+test('reporting rejects a stalled pagination cursor instead of claiming complete history', async () => {
+  const page = Array.from({ length: 500 }, (_, i) => ({ id: `order-${i}` }))
+  await assert.rejects(fetchAlpacaPaperHistoricalOrdersReadonly({
+    env: { APCA_API_BASE_URL: 'https://paper-api.alpaca.markets', ALPACA_KEY: 'key', ALPACA_SECRET: 'secret' },
+    fetchImpl: async () => ({ ok: true, json: async () => page }),
+  }), /cursor_stalled/)
 })
