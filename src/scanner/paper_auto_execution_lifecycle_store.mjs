@@ -103,6 +103,27 @@ export class PaperAutoExecutionLifecycleStore {
     return clone(next)
   }
 
+  patchPartialEntryProgress(input = {}) {
+    const current = this.load()
+    if (!current) throw new Error('paper_auto_lifecycle_missing')
+    if (current.state !== S.ENTER_PARTIALLY_FILLED) throw new Error('paper_auto_entry_progress_invalid_state')
+    const { expectedLifecycleId, expectedSymbol, expectedQuantity, expectedClientOrderId, expectedBrokerOrderId, ...patch } = input
+    if (expectedLifecycleId !== current.lifecycleId) throw new Error('paper_auto_entry_progress_lifecycle_changed')
+    if (normalizeSymbol(expectedSymbol) !== current.selectedSymbol) throw new Error('paper_auto_entry_progress_symbol_changed')
+    if (expectedQuantity !== current.filledQuantity) throw new Error('paper_auto_entry_progress_quantity_changed')
+    if (!expectedClientOrderId || expectedClientOrderId !== current.enterClientOrderId) throw new Error('paper_auto_entry_progress_client_identity_changed')
+    if (!expectedBrokerOrderId || expectedBrokerOrderId !== current.enterBrokerOrderId) throw new Error('paper_auto_entry_progress_broker_identity_changed')
+    const allowed = new Set(['filledQuantity', 'averageFillPrice', 'brokerPositionIdentity', 'reconciliation', 'enterBrokerSubmittedAt', 'enterBrokerFilledAt'])
+    for (const key of Object.keys(patch)) if (!allowed.has(key)) throw new Error(`paper_auto_entry_progress_forbidden:${key}`)
+    if (!Number.isFinite(patch.filledQuantity) || patch.filledQuantity <= current.filledQuantity) throw new Error('paper_auto_entry_progress_increase_required')
+    if ('averageFillPrice' in patch && (!Number.isFinite(patch.averageFillPrice) || patch.averageFillPrice <= 0)) throw new Error('paper_auto_entry_progress_price_invalid')
+    if (!Array.isArray(patch.reconciliation)) throw new Error('paper_auto_entry_progress_reconciliation_required')
+    const next = { ...current, ...clone(patch), updatedAt: new Date(this.clock()).toISOString() }
+    validate(next)
+    this.#write(next)
+    return clone(next)
+  }
+
   patchCandidateStrategyEvidence({ expectedLifecycleId, expectedSymbol, strategyEvidence } = {}) {
     const current = this.load()
     if (!current) throw new Error('paper_auto_lifecycle_missing')

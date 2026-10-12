@@ -2,7 +2,7 @@ export const VERSION = 'paper_auto_execution_snapshot_adapter_v1'
 
 const clean = (value) => String(value ?? '').trim()
 const upper = (value) => clean(value).toUpperCase()
-const finite = (value) => Number.isFinite(Number(value)) ? Number(value) : null
+const finite = (value) => value == null || String(value).trim() === '' ? null : Number.isFinite(Number(value)) ? Number(value) : null
 const timestamp = (value) => { const ms = Date.parse(clean(value)); return Number.isFinite(ms) ? new Date(ms).toISOString() : null }
 
 function normalizeOrder(order = {}) {
@@ -12,6 +12,7 @@ function normalizeOrder(order = {}) {
     symbol: upper(order.symbol),
     side: clean(order.side).toLowerCase(),
     status: clean(order.status).toLowerCase(),
+    qty: finite(order.qty),
     filledQty: finite(order.filledQty ?? order.filled_qty),
     filledAvgPrice: finite(order.filledAvgPrice ?? order.filled_avg_price),
     submittedAt: timestamp(order.submittedAt ?? order.submitted_at),
@@ -61,8 +62,26 @@ export function adaptPaperAutoExecutionSnapshot({
   const byIdentity = new Map()
   for (const order of [...completedOrders, ...openOrders]) {
     const key = order.clientOrderId || order.id
-    if (key) byIdentity.set(key, order)
+    if (!key) continue
+    const previous = byIdentity.get(key)
+    if (!previous) {
+      byIdentity.set(key, order)
+      continue
+    }
+    // Concurrent reads may disagree. Do not erase richer evidence or combine
+    // contradictory observations into an apparently authoritative order.
+    const fields = Object.keys(order)
+    const present = (value) => value !== null && value !== ''
+    if (fields.some((field) => present(previous[field]) && present(order[field]) && previous[field] !== order[field])) {
+      blockers.push('order_snapshot_conflict')
+      continue
+    }
+    byIdentity.set(key, Object.freeze(Object.fromEntries(fields.map((field) =>
+      [field, present(order[field]) ? order[field] : previous[field]]))))
   }
+
+  const brokerIds = [...byIdentity.values()].map((order) => order.id).filter(Boolean)
+  if (new Set(brokerIds).size !== brokerIds.length) blockers.push('duplicate_broker_order_identity')
 
   return Object.freeze({
     ok: blockers.length === 0,

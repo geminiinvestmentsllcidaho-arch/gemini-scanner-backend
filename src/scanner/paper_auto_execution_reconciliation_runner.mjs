@@ -87,6 +87,26 @@ export async function runPaperAutoExecutionReconciliation({
       || (lifecycle.state === S.UNRESOLVED_NEEDS_RECONCILIATION && Boolean(lifecycle.exitClientOrderId || lifecycle.exitBrokerOrderId))
     let persistedLifecycle = lifecycle
     let changed = false
+    if (lifecycle.state === S.ENTER_PARTIALLY_FILLED
+      && reconciliation.blockers.length === 0
+      && reconciliation.patch.filledQuantity > lifecycle.filledQuantity) {
+      if (typeof lifecycleStore.patchPartialEntryProgress !== 'function') throw new Error('paper_auto_entry_progress_patch_required')
+      const progressPatch = {
+        expectedLifecycleId: lifecycle.lifecycleId,
+        expectedSymbol: lifecycle.selectedSymbol,
+        expectedQuantity: lifecycle.filledQuantity,
+        expectedClientOrderId: lifecycle.enterClientOrderId,
+        expectedBrokerOrderId: lifecycle.enterBrokerOrderId,
+        filledQuantity: reconciliation.patch.filledQuantity,
+        reconciliation: reconciliation.patch.reconciliation,
+      }
+      for (const field of ['brokerPositionIdentity', 'enterBrokerSubmittedAt', 'enterBrokerFilledAt']) {
+        if (reconciliation.patch[field]) progressPatch[field] = reconciliation.patch[field]
+      }
+      if (Number.isFinite(reconciliation.patch.averageFillPrice) && reconciliation.patch.averageFillPrice > 0) progressPatch.averageFillPrice = reconciliation.patch.averageFillPrice
+      persistedLifecycle = lifecycleStore.patchPartialEntryProgress(progressPatch)
+      changed = true
+    }
     if (exitRecoveryState) {
       if (typeof lifecycleStore.patchExitRecovery !== 'function') throw new Error('paper_auto_exit_recovery_patch_required')
       const recoveryPatch = {

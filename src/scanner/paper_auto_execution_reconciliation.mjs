@@ -39,7 +39,8 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
 
   const normalizedOrders = orders.map(normalizeOrder)
   const normalizedPositions = positions.map(normalizePosition)
-  const enterOrder = normalizedOrders.find((order) => order.clientOrderId && order.clientOrderId === lifecycle.enterClientOrderId) ?? null
+  const enterMatches = normalizedOrders.filter((order) => order.clientOrderId && order.clientOrderId === lifecycle.enterClientOrderId)
+  const enterOrder = enterMatches.length === 1 ? enterMatches[0] : null
   const exitClientId = clean(lifecycle.exitClientOrderId)
   const exitBrokerId = clean(lifecycle.exitBrokerOrderId)
   const exitClientMatches = exitClientId ? normalizedOrders.filter((order) => order.clientOrderId === exitClientId) : []
@@ -62,12 +63,15 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     blockers.push('exit_order_target_mismatch')
     exitOrder = null
   }
+  const exitOwnedState = [S.EXIT_SUBMITTING, S.EXIT_UNKNOWN, S.EXIT_PARTIALLY_FILLED].includes(lifecycle.state)
+    || (lifecycle.state === S.UNRESOLVED_NEEDS_RECONCILIATION && Boolean(exitClientId || exitBrokerId))
+
   const lifecycleQty = finite(lifecycle.filledQuantity)
   if (exitOrder && Number.isFinite(exitOrder.qty) && lifecycleQty !== null && exitOrder.qty !== lifecycleQty) {
     blockers.push('exit_order_quantity_mismatch')
     exitOrder = null
   }
-  if (position && lifecycleQty !== null && Number(position.qty) > lifecycleQty) {
+  if (exitOwnedState && position && lifecycleQty !== null && Number(position.qty) > lifecycleQty) {
     blockers.push('exit_residual_position_exceeds_lifecycle_quantity')
   }
   if (exitOrder && Number.isFinite(exitOrder.filledQty)) {
@@ -90,11 +94,19 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
   if (exitOrder?.filledAt) patch.exitBrokerFilledAt = exitOrder.filledAt
   if (Number.isFinite(exitOrder?.filledAvgPrice) && exitOrder.filledAvgPrice > 0) patch.exitAverageFillPrice = exitOrder.filledAvgPrice
 
-  const exitOwnedState = [S.EXIT_SUBMITTING, S.EXIT_UNKNOWN, S.EXIT_PARTIALLY_FILLED].includes(lifecycle.state)
-    || (lifecycle.state === S.UNRESOLVED_NEEDS_RECONCILIATION && Boolean(exitClientId || exitBrokerId))
 
   if (!exitOwnedState && [S.ENTER_SUBMITTING, S.ENTER_UNKNOWN, S.ENTER_OPEN, S.ENTER_PARTIALLY_FILLED, S.UNRESOLVED_NEEDS_RECONCILIATION].includes(lifecycle.state)) {
-    if (enterOrder?.status === 'partially_filled' && Number(enterOrder.filledQty) > 0) {
+    if (enterMatches.length > 1) blockers.push('duplicate_enter_client_order_identity')
+    if (enterOrder && normalizedOrders.filter((order) => order.id && order.id === enterOrder.id).length > 1) blockers.push('duplicate_enter_broker_order_identity')
+    if (enterOrder && (enterOrder.symbol !== symbol || enterOrder.side !== 'buy')) blockers.push('enter_order_target_mismatch')
+    if (enterOrder && clean(lifecycle.enterBrokerOrderId) && enterOrder.id !== lifecycle.enterBrokerOrderId) blockers.push('enter_order_identity_conflict')
+    if (enterOrder && ['partially_filled', 'filled'].includes(enterOrder.status)
+      && (!(enterOrder.filledQty > 0) || (enterOrder.qty !== null &&
+        (enterOrder.status === 'filled' ? enterOrder.filledQty !== enterOrder.qty : enterOrder.filledQty >= enterOrder.qty)))) blockers.push('enter_filled_quantity_invalid')
+    const entryBlocked = blockers.some((value) => value === 'multiple_matching_positions' || value.startsWith('duplicate_enter_') || value.startsWith('enter_'))
+    if (entryBlocked) {
+      nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
+    } else if (enterOrder?.status === 'partially_filled' && Number(enterOrder.filledQty) > 0) {
       if (position && Math.abs(Number(position.qty) - Number(enterOrder.filledQty)) > 1e-9) {
         nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
         blockers.push('enter_partial_quantity_inconsistent')
@@ -119,15 +131,9 @@ export function reconcilePaperAutoExecution({ lifecycle, orders = [], positions 
     } else if (enterOrder && ['new', 'accepted', 'pending_new', 'open'].includes(enterOrder.status)) {
       if (enterOrder.id) patch.enterBrokerOrderId = enterOrder.id
       nextState = S.ENTER_OPEN
-    } else if (position) {
-      patch.filledQuantity = position.qty
-      patch.averageFillPrice = position.avgEntryPrice
-      patch.brokerPositionIdentity = position.assetId ?? `${position.symbol}:${position.qty}`
-      if (enterOrder?.id) patch.enterBrokerOrderId = enterOrder.id
-      nextState = S.POSITION_CONFIRMED
-    } else if (!enterOrder && !position) {
+    } else {
       nextState = S.UNRESOLVED_NEEDS_RECONCILIATION
-      blockers.push('enter_identity_not_found')
+      blockers.push(enterOrder ? 'enter_fill_evidence_required' : 'enter_identity_not_found')
     }
   }
 

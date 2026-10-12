@@ -46,14 +46,15 @@ test('fails closed for stale, disconnected, non-paper, or non-GET snapshots', ()
   ])
 })
 
-test('deduplicates historical and open orders by exact client identity', () => {
+test('rejects conflicting broker identities for the same client order', () => {
   const result = adaptPaperAutoExecutionSnapshot({
     accountSnapshot: base,
     nowMs: Date.parse(observedAt),
     historicalOrders: [{ id: 'old', clientOrderId: 'cid-enter', symbol: 'AAPL', side: 'buy', status: 'new' }],
   })
   assert.equal(result.orders.length, 1)
-  assert.equal(result.orders[0].id, 'open-1')
+  assert.equal(result.ready, false)
+  assert.deepEqual(result.blockers, ['order_snapshot_conflict'])
 })
 
 test('snapshot adapter performs no network or broker mutation', () => {

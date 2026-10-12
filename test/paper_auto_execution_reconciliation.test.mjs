@@ -63,15 +63,15 @@ test('ENTER partial fill quantity mismatch fails closed', () => {
   assert.deepEqual(result.blockers, ['enter_partial_quantity_inconsistent'])
 })
 
-test('ENTER recovery without matching order may still confirm broker-authoritative position', () => {
+test('ENTER recovery without matching order cannot adopt a position', () => {
   const result = reconcilePaperAutoExecution({
     lifecycle: { ...base, state: S.ENTER_UNKNOWN, enterClientOrderId: 'missing-enter' },
     orders: [],
     positions: [{ symbol: 'SPY', qty: '5', avg_entry_price: '4.30' }],
   })
-  assert.equal(result.nextState, S.POSITION_CONFIRMED)
-  assert.equal(result.patch.filledQuantity, 5)
-  assert.equal(result.patch.brokerPositionIdentity, 'SPY:5')
+  assert.equal(result.nextState, S.UNRESOLVED_NEEDS_RECONCILIATION)
+  assert.equal(result.patch.filledQuantity, undefined)
+  assert.deepEqual(result.blockers, ['enter_identity_not_found'])
 })
 
 test('reconciles exact exit completion only when position is absent and exit order filled', () => {

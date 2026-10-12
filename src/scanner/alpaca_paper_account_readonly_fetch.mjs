@@ -68,6 +68,10 @@ function openOrder(raw = {}) {
     symbol: s(raw.symbol, "UNKNOWN"),
     side: s(raw.side, "unknown").toLowerCase(),
     qty: n(raw.qty),
+    filledQty: raw.filled_qty == null || String(raw.filled_qty).trim() === "" ? null : n(raw.filled_qty),
+    filledAvgPrice: raw.filled_avg_price == null || String(raw.filled_avg_price).trim() === "" ? null : n(raw.filled_avg_price),
+    submittedAt: s(raw.submitted_at) || null,
+    filledAt: s(raw.filled_at) || null,
     status: s(raw.status, "unknown").toLowerCase(),
   };
 }
