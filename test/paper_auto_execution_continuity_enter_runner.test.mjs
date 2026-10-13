@@ -62,6 +62,25 @@ test('passes GEMINI_CREDENTIAL_MASTER_KEY into the account credential resolver w
 })
 const clockOpen = async ({ nowMs = Date.now() } = {}) => ({ ok: true, status: 'connected_readonly', marketClock: { isOpen: true, timestamp: new Date(nowMs).toISOString() } })
 
+test('explicit entry pause with exits enabled blocks a selected candidate before any broker work', async () => {
+  const dir = tmp()
+  try {
+    const file = path.join(dir, 'paused.json')
+    new PaperAutoExecutionLifecycleStore({ filePath: file }).create({ selectedSymbol: 'PAUSE' })
+    const forbidden = async () => { throw new Error('paused_new_entry_must_not_contact_broker') }
+    const runner = createPaperAutoExecutionContinuityEnterRunner({
+      env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '0', PAPER_AUTO_EXIT_MONITOR_ENABLED: '1' },
+      getLifecycleFile: () => file,
+      accountCredentialResolver: forbidden, fetchAccount: forbidden, fetchClock: forbidden,
+      submitOrder: forbidden, reconcile: forbidden,
+    })
+    const out = await runner.runOnce()
+    assert.equal(out.lastStatus, 'CONTINUITY_ENTER_DISABLED_BY_ENV')
+    assert.equal(out.submissions, 0)
+    assert.equal(out.reconciliations, 0)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('disabled by default never contacts broker or submits', async () => {
   let contacts = 0
   const runner = createPaperAutoExecutionContinuityEnterRunner({
@@ -555,8 +574,8 @@ test('concurrent enter cycles deduplicate to one submission', async () => {
 })
 
 
-for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
-  test(`persisted ${restartState} restart reconciles without blind ENTER resubmission`, async () => {
+for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN', 'ENTER_PARTIALLY_FILLED']) for (const entryFlag of ['1', '0']) {
+  test(`persisted ${restartState} with entries=${entryFlag} reconciles without blind ENTER resubmission`, async () => {
     const dir = tmp()
     try {
       const file = path.join(dir, 'life.json')
@@ -569,7 +588,7 @@ for (const restartState of ['ENTER_OPEN', 'ENTER_UNKNOWN']) {
       let clockFetches = 0
       const now = Date.now()
       const runner = createPaperAutoExecutionContinuityEnterRunner({
-        env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: '1' },
+        env: { PAPER_AUTO_CONTINUITY_ENTER_ENABLED: entryFlag, PAPER_AUTO_EXIT_MONITOR_ENABLED: '1' },
         getLifecycleFile: () => file,
         now: () => now,
         accountCredentialResolver: readyCredentials,

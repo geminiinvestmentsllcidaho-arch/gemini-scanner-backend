@@ -199,7 +199,11 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     cycles += 1
     lastCycleStartedAt = new Date(Number(now())).toISOString()
     lastError = null
-    if (!on(env, 'PAPER_AUTO_CONTINUITY_ENTER_ENABLED')) return fail('CONTINUITY_ENTER_DISABLED_BY_ENV')
+    const entriesEnabled = on(env, 'PAPER_AUTO_CONTINUITY_ENTER_ENABLED')
+    // An explicit pause blocks new buys, but must not strand previously submitted fills.
+    const pausedReconciliation = clean(env.PAPER_AUTO_CONTINUITY_ENTER_ENABLED) === '0'
+      && on(env, 'PAPER_AUTO_EXIT_MONITOR_ENABLED')
+    if (!entriesEnabled && !pausedReconciliation) return fail('CONTINUITY_ENTER_DISABLED_BY_ENV')
     const lifecycleFile = clean(lifecycleFileOverride || await getLifecycleFile?.())
     lastLifecycleFile = lifecycleFile || null
     if (!lifecycleFile) return fail('ACTIVE_LIFECYCLE_PATH_REQUIRED')
@@ -208,6 +212,9 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     let lifecycle = store.load()
     lastLifecycle = lifecycle
     if (!lifecycle) return fail('ACTIVE_LIFECYCLE_REQUIRED')
+    if (!entriesEnabled && !ENTER_RECONCILE_STATES.has(lifecycle.state)) {
+      return fail('CONTINUITY_ENTER_DISABLED_BY_ENV', lifecycle)
+    }
     if ([S.MONITORING, S.POSITION_CONFIRMED, S.ROUND_TRIP_COMPLETED, S.FAILED_NEEDS_REVIEW, S.CANDIDATE_EXPIRED].includes(lifecycle.state)) {
       return fail('CONTINUITY_ENTER_NOT_REQUIRED', lifecycle)
     }
