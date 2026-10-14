@@ -8,6 +8,8 @@ const finite = value => {
   const number = Number(value)
   return Number.isFinite(number) ? number : null
 }
+const observedNumber = value => value === null || value === undefined
+  || typeof value === 'boolean' || String(value).trim() === '' ? null : finite(value)
 const boundedStrings = (values, limit = 20) =>
   Object.freeze([...new Set((Array.isArray(values) ? values : []).map(clean).filter(Boolean))].slice(0, limit))
 const isoOrNull = value => {
@@ -45,6 +47,24 @@ export function buildPaperAutoExecutionStrategyEvidence({
     rankingSetupScore: finite(candidate?.rankingSetupScore),
     rankingConfidence: finite(candidate?.rankingConfidence),
     rankingQuality: finite(candidate?.rankingQuality),
+    // Bounded observations for offline research; never inputs to authorization.
+    entryObservations: Object.freeze({
+      changePct: observedNumber(candidate?.changePct),
+      momentumPct: observedNumber(candidate?.momentumPct),
+      volume: observedNumber(candidate?.volume),
+      dailyVolume: observedNumber(candidate?.dailyVolume),
+      dollarVolume: observedNumber(candidate?.dollarVolume),
+      previousClose: observedNumber(candidate?.previousClose),
+      relativeVolume: observedNumber(candidate?.relativeVolume),
+      bidPrice: observedNumber(candidate?.bidPrice),
+      askPrice: observedNumber(candidate?.askPrice),
+      spreadBps: observedNumber(candidate?.spreadBps),
+      spreadPct: observedNumber(candidate?.spreadPct),
+      sourceAgeSec: observedNumber(candidate?.sourceAgeSec),
+      maxSourceAgeSec: observedNumber(candidate?.maxSourceAgeSec),
+      readonlyPotentialFlags: boundedStrings(candidate?.readonlyPotentialFlags),
+      confidenceIsCalibratedProbability: false,
+    }),
     strategyAuthorization: Object.freeze({
       version: clean(authorization?.version) || null,
       authorized: authorization?.authorized === true,
