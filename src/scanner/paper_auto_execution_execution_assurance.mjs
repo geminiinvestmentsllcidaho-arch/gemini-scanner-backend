@@ -138,7 +138,7 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
     failureCodes.push('LIFECYCLE_TIMESTAMP_FUTURE')
   }
 
-  if (marketOpen &&
+  if (marketOpen && enter.enabled !== false &&
       lifecycleState === 'CANDIDATE_SELECTED' &&
       !enterEvidence &&
       nonnegativeFinite(lifecycleUpdatedAgeMs) &&
@@ -167,7 +167,7 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
     if (marketOpen && ((createdAge !== null && createdAge < 0) || (updatedAge !== null && updatedAge < 0))) {
       failureCodes.push('LIFECYCLE_TIMESTAMP_FUTURE')
     }
-    if (marketOpen && state === 'CANDIDATE_SELECTED' && !evidence &&
+    if (marketOpen && enter.enabled !== false && state === 'CANDIDATE_SELECTED' && !evidence &&
         nonnegativeFinite(updatedAge) && updatedAge > thresholds.candidateSelectedStallMs) {
       failureCodes.push('ELIGIBLE_ENTER_STALLED')
     }
@@ -197,7 +197,7 @@ export function evaluatePaperAutoExecutionExecutionAssurance(input = {}) {
       eligibleCount <= candidateCount
     if (!snapshotProvenFresh) {
       failureCodes.push('NO_ELIGIBLE_CANDIDATE_UNPROVEN')
-    } else if (eligibleCount > 0) {
+    } else if (eligibleCount > 0 && enter.enabled !== false) {
       failureCodes.push('QUALIFIED_CANDIDATE_NOT_SELECTED')
     }
   }

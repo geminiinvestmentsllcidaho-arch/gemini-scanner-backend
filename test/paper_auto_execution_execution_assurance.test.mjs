@@ -1,4 +1,18 @@
 import test from 'node:test'
+
+test('explicitly paused entries do not flag waiting candidates as execution failures',()=>{
+ const out=evaluate({nowMs:NOW,marketOpen:true,...fresh,enter:{...fresh.enter,enabled:false},
+  continuity:{...fresh.continuity,lastEligibleCandidateCount:1},
+  lifecycle:{state:'CANDIDATE_SELECTED',createdAt:isoAgo(100000),updatedAt:isoAgo(100000)},
+  lifecycles:[{state:'CANDIDATE_SELECTED',createdAt:isoAgo(100000),updatedAt:isoAgo(100000)}]})
+ assert.equal(out.failureCodes.includes('ELIGIBLE_ENTER_STALLED'),false)
+ assert.equal(out.failureCodes.includes('QUALIFIED_CANDIDATE_NOT_SELECTED'),false)
+})
+test('paused entries still report previously submitted reconciliation failures',()=>{
+ const out=evaluate({nowMs:NOW,marketOpen:true,...fresh,enter:{...fresh.enter,enabled:false},
+  lifecycle:{state:'ENTER_OPEN',enterBrokerOrderId:'existing',createdAt:isoAgo(100000),updatedAt:isoAgo(100000)}})
+ assert.equal(out.failureCodes.includes('ENTER_RECONCILIATION_STALLED'),true)
+})
 import assert from 'node:assert/strict'
 import {
   evaluatePaperAutoExecutionExecutionAssurance as evaluate,
