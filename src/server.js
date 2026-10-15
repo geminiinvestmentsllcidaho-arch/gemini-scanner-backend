@@ -72,7 +72,7 @@ import { startMarketDataStream } from './market_data_stream.js';
 import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_monitor_worker.mjs';
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
-import { filterContinuitySnapshotForUnownedSymbols, readPaperAutoExecutionLifecyclePortfolio, selectLifecycleRowsForState } from './scanner/paper_auto_execution_lifecycle_portfolio.mjs';
+import { filterContinuitySnapshotForUnownedSymbols, readPaperAutoExecutionLifecyclePortfolioAsync, selectLifecycleRowsForState } from './scanner/paper_auto_execution_lifecycle_portfolio.mjs';
 import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
 import { listPaperAutoExecutionEntryValidationRecords } from './scanner/paper_auto_execution_entry_validation_store.mjs';
 import { buildPaperAutoExecutionSessionValidationReport } from './scanner/paper_auto_execution_session_validation_report.mjs';
@@ -2873,7 +2873,7 @@ let activePaperAutoExecutionLifecycleFile = resolvePaperAutoExecutionActiveLifec
   pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,
   configuredLifecycleFile: configuredPaperAutoExecutionLifecycleFile,
 });
-const readPaperAutoExecutionServerLifecyclePortfolio = () => readPaperAutoExecutionLifecyclePortfolio({
+const readPaperAutoExecutionServerLifecyclePortfolio = () => readPaperAutoExecutionLifecyclePortfolioAsync({
   runsDir: 'runs',
   pointerFile: PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE,
 });
@@ -2881,8 +2881,8 @@ const paperAutoMultiLifecycleEnabled =
   String(process.env.PAPER_AUTO_MULTI_LIFECYCLE_ENABLED ?? '').trim() === '1';
 
 const paperAutoExecutionCapitalGrowthCoordinator = createPaperCapitalGrowthCoordinator({
-  inspectConflicts: ({ currentLifecycleId } = {}) => detectPaperCapitalGrowthConflicts({
-    portfolio: readPaperAutoExecutionServerLifecyclePortfolio(),
+  inspectConflicts: async ({ currentLifecycleId } = {}) => detectPaperCapitalGrowthConflicts({
+    portfolio: await readPaperAutoExecutionServerLifecyclePortfolio(),
     currentLifecycleId,
     readScaleAction: row => {
       const file = derivePaperScaleActionFile(row.file);
@@ -3094,7 +3094,7 @@ const runPaperAutoExecutionExecutionAssurance = async ({ marketOpen = false } = 
     enter: paperAutoExecutionContinuityEnterRunner.diagnostics(),
     lifecycle: readActivePaperAutoExecutionLifecycleReadonly(),
     ...(paperAutoMultiLifecycleEnabled ? {
-      lifecycles: readPaperAutoExecutionServerLifecyclePortfolio().rows.map(row => row.lifecycle),
+      lifecycles: (await readPaperAutoExecutionServerLifecyclePortfolio()).rows.map(row => row.lifecycle),
     } : {}),
   });
   paperAutoExecutionExecutionAssuranceLastReport = report;
@@ -3197,14 +3197,14 @@ const runPaperAutoExecutionScaleCycle=async(source='runtime',lifecycleFileOverri
 }catch(e){console.error('[paper-auto-execution-scale] cycle failed closed',{source,error:e?.message??String(e)});return paperAutoExecutionScaleRunner.diagnostics()}};
 
 let paperAutoExecutionMonitoringLifecycleFiles = Object.freeze([])
-const refreshPaperAutoExecutionMonitoringLifecycleFiles = () => {
-  const portfolio = readPaperAutoExecutionServerLifecyclePortfolio()
+const refreshPaperAutoExecutionMonitoringLifecycleFiles = async () => {
+  const portfolio = await readPaperAutoExecutionServerLifecyclePortfolio()
   paperAutoExecutionMonitoringLifecycleFiles = Object.freeze(
     selectLifecycleRowsForState(portfolio, ['MONITORING']).map(row => row.file),
   )
   return paperAutoExecutionMonitoringLifecycleFiles
 }
-if (paperAutoMultiLifecycleEnabled) refreshPaperAutoExecutionMonitoringLifecycleFiles()
+if (paperAutoMultiLifecycleEnabled) await refreshPaperAutoExecutionMonitoringLifecycleFiles()
 
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
@@ -3241,13 +3241,13 @@ const paperAutoExecutionExitReplacementRunner = createPaperAutoExecutionExitRepl
 });
 
 const runPaperAutoExecutionPortfolioRunner = async (runner) => {
-  const portfolio = readPaperAutoExecutionServerLifecyclePortfolio();
+  const portfolio = await readPaperAutoExecutionServerLifecyclePortfolio();
   for (const row of portfolio.rows) await runner.runOnce({ lifecycleFile: row.file });
   return runner.diagnostics();
 };
 
 const runPaperAutoExecutionPortfolioScaleCycle = async (source = 'runtime') => {
-  const portfolio = readPaperAutoExecutionServerLifecyclePortfolio();
+  const portfolio = await readPaperAutoExecutionServerLifecyclePortfolio();
   for (const row of selectLifecycleRowsForState(portfolio, ['MONITORING'])) {
     await runPaperAutoExecutionScaleCycle(source, row.file);
   }
@@ -3337,10 +3337,10 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
         error: error?.message ?? String(error),
       });
     }
-  })().finally(() => {
+  })().finally(async () => {
     if (paperAutoMultiLifecycleEnabled) {
       try {
-        refreshPaperAutoExecutionMonitoringLifecycleFiles()
+        await refreshPaperAutoExecutionMonitoringLifecycleFiles()
       } catch (error) {
         console.error('[paper-auto-exit-monitor] monitoring lifecycle cache refresh failed closed', {
           source,

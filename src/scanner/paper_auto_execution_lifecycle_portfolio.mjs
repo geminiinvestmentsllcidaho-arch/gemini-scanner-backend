@@ -1,4 +1,4 @@
-import { discoverNonterminalPaperAutoExecutionLifecycles } from './paper_auto_execution_active_lifecycle_pointer.mjs'
+import { discoverNonterminalPaperAutoExecutionLifecycles, discoverNonterminalPaperAutoExecutionLifecyclesAsync } from './paper_auto_execution_active_lifecycle_pointer.mjs'
 
 export const VERSION = 'paper_auto_execution_lifecycle_portfolio_v1'
 
@@ -10,6 +10,14 @@ export function readPaperAutoExecutionLifecyclePortfolio({ runsDir = 'runs', poi
     runsDir,
     ...(pointerFile ? { pointerFile } : {}),
   })
+  return buildPortfolio(rows)
+}
+
+export async function readPaperAutoExecutionLifecyclePortfolioAsync({ runsDir = 'runs', pointerFile } = {}) {
+  return buildPortfolio(await discoverNonterminalPaperAutoExecutionLifecyclesAsync({ runsDir, ...(pointerFile ? { pointerFile } : {}) }))
+}
+
+function buildPortfolio(rows) {
   const normalized = rows.map(row => Object.freeze({
     file: row.file,
     lifecycle: row.lifecycle,

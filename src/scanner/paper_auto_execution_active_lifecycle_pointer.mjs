@@ -93,6 +93,32 @@ export function discoverSingleNonterminalPaperAutoExecutionLifecycle(options = {
   return matches[0]?.file ?? null
 }
 
+// Runtime scans must yield while enumerating large mixed audit/lifecycle directories.
+// Keep the synchronous API for existing tools; runtime callers await this fresh scan.
+export async function discoverNonterminalPaperAutoExecutionLifecyclesAsync({ runsDir = path.dirname(DEFAULT_POINTER_FILE), pointerFile = path.join(runsDir, path.basename(DEFAULT_POINTER_FILE)) } = {}) {
+  let directory
+  try { directory = await fs.promises.opendir(runsDir) } catch (error) {
+    if (error.code === 'ENOENT') return []
+    throw error
+  }
+  const matches = []
+  let visited = 0
+  for await (const entry of directory) {
+    if (++visited % 128 === 0) await new Promise(resolve => setImmediate(resolve))
+    const name = entry.name
+    if (!/^paper_auto_execution_[A-Za-z0-9._-]+\.json$/.test(name)) continue
+    if (name === path.basename(pointerFile) || name === 'paper_auto_execution_active_lifecycle.json') continue
+    const file = path.resolve(runsDir, name)
+    let lifecycle
+    try { lifecycle = new PaperAutoExecutionLifecycleStore({ filePath: file }).load() } catch { continue }
+    if (isOwnedContinuityLifecycle(lifecycle) && lifecycle.state !== 'IDLE' && !terminalStates.has(lifecycle.state)) {
+      matches.push(Object.freeze({ file, lifecycle: Object.freeze({ ...lifecycle }) }))
+    }
+    await new Promise(resolve => setImmediate(resolve))
+  }
+  return Object.freeze(matches.sort((a,b) => String(a.lifecycle?.selectedSymbol ?? '').localeCompare(String(b.lifecycle?.selectedSymbol ?? ''))))
+}
+
 export function resolvePaperAutoExecutionActiveLifecycleFile({
   pointerFile = DEFAULT_POINTER_FILE,
   configuredLifecycleFile = '',
