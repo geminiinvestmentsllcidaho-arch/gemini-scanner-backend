@@ -10,6 +10,20 @@ function saveOutcome(file, value) {
   fs.renameSync(temp, file);
 }
 
+function reentryEvidence(control) {
+  if (!control || typeof control !== 'object') return null;
+  const boolean = value => typeof value === 'boolean' ? value : null;
+  const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const permission = value => ['allowed', 'restricted', 'denied'].includes(value) ? value : null;
+  return {
+    connected: boolean(control.connected), fresh: boolean(control.fresh), stale: boolean(control.stale),
+    sourceAgeSec: number(control.sourceAgeSec), maxAgeSec: number(control.maxAgeSec),
+    cooldownState: ['cooldown_clear', 'cooldown_caution', 'cooldown_watch', 'cooldown_active', 'cooldown_required'].includes(control.cooldownState) ? control.cooldownState : null,
+    resetPermission: permission(control.resetPermission), reentryPermission: permission(control.reentryPermission),
+    continuationPermission: permission(control.continuationPermission),
+  };
+}
+
 // Dormant without an explicit private operator request. No recurring entry flag.
 export function createDiagnosticController({ requestFile, claimedFile, reservationFile,
   runtimeOptions, createRunner, boundary, readAccountIdentity, readAccountState,
@@ -35,14 +49,21 @@ export function createDiagnosticController({ requestFile, claimedFile, reservati
     if (!lifecycleFile) throw Error('diagnostic_portfolio_file_required');
     // The server's existing monitor cache must know this lifecycle before entry.
     await refreshMonitoring();
-    const runner = createScoped({ createRunner, runtimeOptions, lifecycleFile, boundary,
+    let observedReentryControl = null;
+    const diagnosticOptions = { ...runtimeOptions, getScanSnapshot: async (...args) => {
+      const snapshot = await runtimeOptions.getScanSnapshot(...args);
+      observedReentryControl = reentryEvidence(snapshot?.reentryControl);
+      return snapshot;
+    } };
+    const runner = createScoped({ createRunner, runtimeOptions: diagnosticOptions, lifecycleFile, boundary,
       readAccountIdentity, readAccountState, reservationFile, permit, now });
     try {
       const result = await runner.runOnce();
       evidence(result?.lastStatus ?? result?.status ?? 'DIAGNOSTIC_RESULT_UNAVAILABLE', {
         lifecycleState: result?.lastLifecycle?.state ?? null,
         submissions: result?.submissions ?? null,
-        reconciliations: result?.reconciliations ?? null });
+        reconciliations: result?.reconciliations ?? null,
+        reentryControl: observedReentryControl });
       return result;
     }
     finally { await refreshMonitoring(); }
