@@ -1,3 +1,5 @@
+import { createDiagnosticController } from './scanner/paper-diagnostic-controller.mjs';
+import { submitPaperAutoOrder } from './scanner/paper_auto_execution_submission_boundary.mjs';
 import { randomBytes } from 'node:crypto';
 import {
 
@@ -3036,7 +3038,8 @@ const getCurrentPaperPremarketBaseline = async () => {
   });
 };
 
-const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner({
+const paperAutoExecutionContinuityEnterOptions = {
+  env: process.env,
   getLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
   ...(paperAutoMultiLifecycleEnabled ? {
     getLifecyclePortfolio: readPaperAutoExecutionServerLifecyclePortfolio,
@@ -3047,7 +3050,8 @@ const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinui
   degradedBrokerMode: paperAutoExecutionDegradedBrokerMode,
   capitalGrowthCoordinator: paperAutoExecutionCapitalGrowthCoordinator,
   getPortfolioWindDownState: getPaperAutoExecutionPortfolioWindDownState,
-});
+};
+const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner(paperAutoExecutionContinuityEnterOptions);
 
 const PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs/paper_auto_execution_execution_assurance_incidents.jsonl';
 let paperAutoExecutionExecutionAssuranceLastReport = Object.freeze({
@@ -3206,6 +3210,29 @@ const refreshPaperAutoExecutionMonitoringLifecycleFiles = async () => {
 }
 if (paperAutoMultiLifecycleEnabled) await refreshPaperAutoExecutionMonitoringLifecycleFiles()
 
+const PAPER_DIAGNOSTIC_REQUEST_FILE = 'runs/paper_diagnostic_request.json';
+const readPaperDiagnosticAccountState = async () => {
+  const result = await fetchAlpacaPaperAccountReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials });
+  if (result?.ok !== true || result?.status !== 'connected_readonly') throw Error('diagnostic_account_read_failed');
+  return { ...result.account, positions: result.positions, openOrders: result.openOrders };
+};
+const paperDiagnosticController = createDiagnosticController({
+  requestFile: PAPER_DIAGNOSTIC_REQUEST_FILE,
+  claimedFile: 'runs/paper_diagnostic_request.claimed.json',
+  reservationFile: 'runs/paper_diagnostic_attempt.json',
+  runtimeOptions: { ...paperAutoExecutionContinuityEnterOptions, getLifecyclePortfolio: readPaperAutoExecutionServerLifecyclePortfolio },
+  createRunner: createPaperAutoExecutionContinuityEnterRunner,
+  boundary: submitPaperAutoOrder,
+  readAccountState: readPaperDiagnosticAccountState,
+  readAccountIdentity: async () => (await readPaperDiagnosticAccountState()).accountIdentity,
+  marketOpen: async () => {
+    const clock = await fetchAlpacaMarketClockReadonly({ credentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials });
+    return clock?.ok === true && clock?.status === 'connected_readonly' && clock?.marketClock?.isOpen === true;
+  },
+  refreshMonitoring: refreshPaperAutoExecutionMonitoringLifecycleFiles,
+});
+
+
 const paperAutoExitMonitorWorker = createPaperAutoExitMonitorWorker({
   accountCredentialResolver: resolveInternalOwnerAlpacaReadonlyCredentials,
   getConfiguredLifecycleFile: () => activePaperAutoExecutionLifecycleFile,
@@ -3294,6 +3321,10 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
       });
     }
     try {
+      if (fs.existsSync(PAPER_DIAGNOSTIC_REQUEST_FILE) && !fs.existsSync('runs/paper_diagnostic_request.claimed.json')) {
+        try { await paperDiagnosticController.runOnce(); }
+        catch (error) { console.error('[paper-diagnostic] request failed closed', { error: error?.message ?? String(error) }); }
+      }
       if (paperAutoMultiLifecycleEnabled) await runPaperAutoExecutionPortfolioRunner(paperAutoExecutionContinuityEnterRunner);
       else await paperAutoExecutionContinuityEnterRunner.runOnce();
     } catch (error) {
