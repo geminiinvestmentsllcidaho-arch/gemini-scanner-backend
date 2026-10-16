@@ -1,3 +1,4 @@
+import { readLatestJsonlValue } from './scanner/jsonl_tail_reader.mjs';
 import { createDiagnosticController } from './scanner/paper-diagnostic-controller.mjs';
 import { submitPaperAutoOrder } from './scanner/paper_auto_execution_submission_boundary.mjs';
 import { randomBytes } from 'node:crypto';
@@ -2207,14 +2208,7 @@ app.get('/admin/api/companion/status', requireAdminAuthorization, async (_req, r
   ]);
   const tradingEngine = tradingMod.collectAdminTradingEngine({ alpacaAccess });
   const fs = await import('node:fs');
-  const readLastJsonl = (file) => {
-    try {
-      const lines = fs.readFileSync(file, 'utf8').trim().split(/\n+/).filter(Boolean);
-      return lines.length ? JSON.parse(lines.at(-1)) : null;
-    } catch {
-      return null;
-    }
-  };
+  const readLastJsonl = file => readLatestJsonlValue(file, { trimEmpty: true });
   const infrastructureIncident = readLastJsonl('runs/infrastructure_website_watchdog_incidents.jsonl');
   const opsAiIncident = readLastJsonl('runs/ops_ai_scanner_watchdog_incidents.jsonl')
     || readLastJsonl('runs/ops_ai_scanner_watchdog_incident_ledger.jsonl');
