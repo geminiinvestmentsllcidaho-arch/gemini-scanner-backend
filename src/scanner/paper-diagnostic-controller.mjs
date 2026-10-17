@@ -40,6 +40,8 @@ export function createDiagnosticController({ requestFile, claimedFile, reservati
     // Persist a started marker before any invocation; after a crash it remains
     // explicitly incomplete, while the existing request claim prevents replay.
     evidence('DIAGNOSTIC_STARTED');
+    let observedReentryControl = null;
+    let runnerEvidence = null;
     try {
     const portfolio = await runtimeOptions.getLifecyclePortfolio();
     const matches = (portfolio?.rows ?? []).filter(row =>
@@ -49,7 +51,6 @@ export function createDiagnosticController({ requestFile, claimedFile, reservati
     if (!lifecycleFile) throw Error('diagnostic_portfolio_file_required');
     // The server's existing monitor cache must know this lifecycle before entry.
     await refreshMonitoring();
-    let observedReentryControl = null;
     const diagnosticOptions = { ...runtimeOptions, getScanSnapshot: async (...args) => {
       const snapshot = await runtimeOptions.getScanSnapshot(...args);
       observedReentryControl = reentryEvidence(snapshot?.reentryControl);
@@ -59,17 +60,20 @@ export function createDiagnosticController({ requestFile, claimedFile, reservati
       readAccountIdentity, readAccountState, reservationFile, permit, now });
     try {
       const result = await runner.runOnce();
-      evidence(result?.lastStatus ?? result?.status ?? 'DIAGNOSTIC_RESULT_UNAVAILABLE', {
+      runnerEvidence = {
+        runnerStatus: result?.lastStatus ?? result?.status ?? 'DIAGNOSTIC_RESULT_UNAVAILABLE',
         lifecycleState: result?.lastLifecycle?.state ?? null,
         submissions: result?.submissions ?? null,
         reconciliations: result?.reconciliations ?? null,
-        reentryControl: observedReentryControl });
+      };
+      evidence(runnerEvidence.runnerStatus, { ...runnerEvidence, reentryControl: observedReentryControl });
       return result;
     }
     finally { await refreshMonitoring(); }
     } catch (error) {
       const code = String(error?.message ?? 'DIAGNOSTIC_EXCEPTION');
-      evidence('DIAGNOSTIC_EXCEPTION', { errorCode: /^[a-zA-Z0-9_:.-]{1,160}$/.test(code) ? code : 'UNEXPECTED_ERROR' });
+      evidence('DIAGNOSTIC_EXCEPTION', { ...runnerEvidence, reentryControl: observedReentryControl,
+        errorCode: /^[a-zA-Z0-9_:.-]{1,160}$/.test(code) ? code : 'UNEXPECTED_ERROR' });
       throw error;
     }
   };
