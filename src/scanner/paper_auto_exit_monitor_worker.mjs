@@ -124,6 +124,19 @@ export function createPaperAutoExitMonitorWorker(options = {}) {
     try {
       const lifecycleFiles = resolveConfiguredLifecycleFiles()
       if (lifecycleFiles.length === 0) {
+        if (typeof getConfiguredLifecycleFiles === 'function' && !eventSymbol) {
+          const account = await fetchAccount({ env, fetchImpl })
+          const age = Number(now()) - Date.parse(account?.observedAt)
+          if (account?.status === 'connected_readonly' && account.ok === true && account.mode === 'PAPER_ONLY' &&
+              account.account && age >= 0 && age <= 30000 &&
+              Array.isArray(account.positions) && account.positions.length === 0 &&
+              Array.isArray(account.openOrders) && account.openOrders.length === 0) {
+            lastStatus = 'NO_OPEN_PAPER_POSITIONS_OR_ORDERS'
+            lastResult = []
+            clearIncidentLatch()
+            return diagnostics()
+          }
+        }
         lastStatus = 'ACTIVE_LIFECYCLE_PATH_REQUIRED'
         lastResult = []
         await incident('paper_auto_exit_monitor_lifecycle_path_required')

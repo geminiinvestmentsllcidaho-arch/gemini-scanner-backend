@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildCustomerZeroPerformanceReport } from "../src/scanner/customer_zero_performance_report.mjs";
 
+import { buildCustomerReportModel } from "../src/scanner/customer_report_model.mjs";
+
 test("builds read-only Customer Zero performance totals from paper sources", () => {
   const report = buildCustomerZeroPerformanceReport({
     period: "weekly",
@@ -335,4 +337,31 @@ test("future performance epoch cannot invert the customer-zero report range", ()
   assert.equal(report.performanceEpochStartedAt, null);
   assert.equal(report.periodRange.startIso, null);
   assert.equal(report.periodRange.endIso, "2026-08-15T23:08:00.000Z");
+});
+
+test("both broker reports recognize matched sells on their fill dates while a position is open", () => {
+  const options = {
+    timeZone: "UTC",
+    fillLedgerHistorySource: "alpaca_paper_order_history",
+    paperAccount: { summary: { totalUnrealizedPl: 0 } },
+    fillLedgerHistory: [
+      { symbol: "ABC", side: "buy", qty: 10, fillPrice: 10, createdAt: "2026-09-01T14:00:00Z" },
+      { symbol: "ABC", side: "sell", qty: 4, fillPrice: 8, createdAt: "2026-09-01T15:00:00Z" },
+      { symbol: "ABC", side: "sell", qty: 6, fillPrice: 11, createdAt: "2026-09-02T15:00:00Z" },
+    ],
+  };
+  for (const [period, asOf, epoch, expectedPnl, closedTrades] of [
+    ["daily", "2026-09-01T18:00:00Z", null, -8, 0],
+    ["daily", "2026-09-02T18:00:00Z", null, 6, 1],
+    ["lifetime", "2026-09-02T18:00:00Z", null, -2, 1],
+    ["lifetime", "2026-09-02T18:00:00Z", "2026-09-02T00:00:00Z", 6, 1],
+  ]) {
+    const input = { ...options, period, now: new Date(asOf), performanceEpochStartedAt: epoch };
+    const summary = buildCustomerZeroPerformanceReport(input);
+    const report = buildCustomerReportModel(input);
+    assert.equal(summary.realizedPl, expectedPnl);
+    assert.equal(report.performance.realizedPl, expectedPnl);
+    assert.equal(summary.closedTrades, closedTrades);
+    assert.equal(report.trades.totalTrades, closedTrades);
+  }
 });

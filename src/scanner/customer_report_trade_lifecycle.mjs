@@ -123,6 +123,7 @@ export function reconstructCustomerReportTradeLifecycle(options = {}) {
   const completedTrades = [];
   let positionsOpened = 0;
   let partialCloseCount = 0;
+  let realizedPnlInRange = 0;
   let oversellQuantityIgnored = 0;
 
   for (const fill of fills) {
@@ -161,6 +162,7 @@ export function reconstructCustomerReportTradeLifecycle(options = {}) {
 
     const closeQty = Math.min(fill.qty, state.qty);
     const realized = (fill.fillPrice - state.avgEntryPrice) * closeQty;
+    if (inRange(fill, options.range)) realizedPnlInRange += realized;
     const completed = closeTrade(state, fill, closeQty, realized, fill.timeMs);
 
     if (completed) {
@@ -208,6 +210,7 @@ export function reconstructCustomerReportTradeLifecycle(options = {}) {
     metricLimitations: "Long-only local simulated fills. Sell quantity beyond the open long position is ignored; short positions and reversals are not inferred.",
     fillEventsObserved: fillsInRange.length,
     positionsOpened,
+    realizedPnlInRange: round2(realizedPnlInRange),
     closedTrades: periodTrades.length,
     completedRoundTrips: periodTrades.length,
     winningTrades: winners.length,

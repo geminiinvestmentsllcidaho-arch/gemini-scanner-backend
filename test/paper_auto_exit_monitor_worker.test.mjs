@@ -627,3 +627,35 @@ test('portfolio market event scopes evaluation to matching lifecycle only', asyn
   assert.deepEqual(assessed,['BBB'])
   assert.deepEqual(r.lastResult.map(x=>x.symbol),['BBB'])
 })
+
+test('empty discovered monitor list is idle only with fresh flat paper broker evidence', async () => {
+  const stamp = '2026-10-15T15:00:00.000Z'
+  const flat = { ok: true, status: 'connected_readonly', mode: 'PAPER_ONLY', observedAt: stamp,
+    account: {}, positions: [], openOrders: [] }
+  let snapshot = flat
+  let reads = 0
+  const incidents = []
+  const worker = createPaperAutoExitMonitorWorker({
+    env: { PAPER_AUTO_EXIT_MONITOR_ENABLED: '1' }, now: () => Date.parse(stamp),
+    getConfiguredLifecycleFiles: () => [],
+    fetchAccount: async () => { reads++; return snapshot },
+    incidentEmitter: async event => incidents.push(event),
+    exitRunner: async () => assert.fail('empty discovery cannot submit an exit'),
+  })
+  worker.onMarketDataEvent({ symbol: 'ABC' })
+  assert.equal(reads, 0)
+  assert.equal((await worker.runOnce()).lastStatus, 'NO_OPEN_PAPER_POSITIONS_OR_ORDERS')
+  assert.equal(incidents.length, 0)
+  for (const change of [{ positions: [{}] }, { openOrders: [{}] }, { openOrders: undefined },
+    { account: null }, { mode: 'LIVE' }, { status: 'readonly_fetch_failed' },
+    { observedAt: 'invalid' }, { observedAt: '2026-10-15T14:59:00Z' }]) {
+    snapshot = { ...flat, ...change }
+    assert.equal((await worker.runOnce()).lastStatus, 'ACTIVE_LIFECYCLE_PATH_REQUIRED')
+  }
+  assert.equal(incidents.length, 1)
+  snapshot = flat
+  assert.equal((await worker.runOnce()).lastStatus, 'NO_OPEN_PAPER_POSITIONS_OR_ORDERS')
+  snapshot = { ...flat, positions: [{}] }
+  await worker.runOnce()
+  assert.equal(incidents.length, 2)
+})

@@ -39,8 +39,13 @@ export async function reconcilePaperExitReplacementAction({lifecycleStore,replac
  if(s==='partially_filled'){if(a.state!==S.PARTIALLY_FILLED)a=mv(replacementActionStore,a,S.PARTIALLY_FILLED,{...common,observedFilledQuantity:f,observedResidualQuantity:r});return {ok:true,version:VERSION,status:'EXIT_REPLACEMENT_ORDER_PARTIALLY_FILLED',reconciled:false,action:a}}
  if(s==='filled'){
   if(f!==a.quantity||r!==0){a=mv(replacementActionStore,a,S.FAILED_NEEDS_REVIEW,{...common,failureReason:'replacement_filled_position_not_flat'});return {ok:false,version:VERSION,status:'EXIT_REPLACEMENT_FILLED_POSITION_NOT_FLAT_REVIEW_REQUIRED',reconciled:false,action:a}}
-  const e={at:new Date(Number(now())).toISOString(),kind:'exit_replacement_reconciliation',replacementSequence:a.replacementSequence,replacementClientOrderId:a.clientOrderId,replacementBrokerOrderId:b,replacementOrderStatus:s,replacementFilledQuantity:f,observedResidualQuantity:0,paperOnly:true}
-  l=lifecycleStore.transition(L.ROUND_TRIP_COMPLETED,{reconciliation:[...(Array.isArray(l.reconciliation)?l.reconciliation:[]),e]})
+  const filledMs = Date.parse(c(o.filled_at ?? o.filledAt))
+  const replacementBrokerFilledAt = Number.isFinite(filledMs) ? new Date(filledMs).toISOString() : null
+  const e={at:new Date(Number(now())).toISOString(),kind:'exit_replacement_reconciliation',replacementSequence:a.replacementSequence,replacementClientOrderId:a.clientOrderId,replacementBrokerOrderId:b,replacementOrderStatus:s,replacementFilledQuantity:f,replacementBrokerFilledAt,observedResidualQuantity:0,paperOnly:true}
+  l=lifecycleStore.transition(L.ROUND_TRIP_COMPLETED,{
+   exitBrokerFilledAt: replacementBrokerFilledAt,
+   reconciliation: [...(Array.isArray(l.reconciliation) ? l.reconciliation : []), e],
+  })
   a=mv(replacementActionStore,a,S.FILLED_RECONCILED,{...common,observedFilledQuantity:f,observedResidualQuantity:0,reconciledAt:new Date(Number(now())).toISOString()})
   return {ok:true,version:VERSION,status:'PAPER_EXIT_REPLACEMENT_FILLED_ROUND_TRIP_COMPLETED',reconciled:true,action:a,lifecycle:l,paperOnly:true,liveTradingAllowed:false}
  }

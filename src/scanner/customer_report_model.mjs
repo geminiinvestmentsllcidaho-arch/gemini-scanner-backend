@@ -270,15 +270,9 @@ export function buildCustomerReportModel(options = {}) {
         historyPossiblyTruncated: historyCompletenessInput.historyPossiblyTruncated === true,
       })
     : null;
-  const brokerRealizedPl = lifecycleTrades
-    ? round2(list(lifecycleTrades.completedTrades).reduce(
-        (sum, trade) => sum + (finite(trade?.realizedPnl) ?? 0),
-        0,
-      ))
-    : null;
   const performance = performanceSummary(paperRecords, baseline, {
     ...options,
-    realizedPl: brokerBackedFillHistory ? brokerRealizedPl : undefined,
+    realizedPl: brokerBackedFillHistory ? lifecycleTrades?.realizedPnlInRange : undefined,
     startingBalance: brokerBackedFillHistory ? null : options.startingBalance,
     preferDerivedStartingBalance: false,
   });

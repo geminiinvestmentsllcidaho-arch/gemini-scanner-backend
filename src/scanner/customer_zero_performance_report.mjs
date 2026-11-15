@@ -142,7 +142,7 @@ export function buildCustomerZeroPerformanceReport(options = {}) {
       range: effectivePeriodRange,
     });
     const completedTrades = Array.isArray(lifecycle.completedTrades) ? lifecycle.completedTrades : [];
-    const realizedPl = round2(completedTrades.reduce((sum, trade) => sum + finite(trade?.realizedPnl), 0));
+    const realizedPl = lifecycle.realizedPnlInRange;
     const unrealizedPl = round2(paperAccount?.summary?.totalUnrealizedPl);
     const totalPl = round2(realizedPl + unrealizedPl);
     const sourceTs = options.brokerObservationTs ?? options.sourceTs ?? null;

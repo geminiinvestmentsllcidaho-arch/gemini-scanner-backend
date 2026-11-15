@@ -6,14 +6,16 @@ import path from 'node:path'
 import {PaperAutoExecutionExitReplacementActionStore,STATES as S} from '../src/scanner/paper_auto_execution_exit_replacement_action_store.mjs'
 import {reconcilePaperExitReplacementAction as reconcile} from '../src/scanner/paper_auto_execution_exit_replacement_reconciliation_service.mjs'
 
+import {evaluateSameSymbolHardLossCooldown} from '../src/scanner/paper_auto_execution_same_symbol_hard_loss_cooldown.mjs'
+
 const nowMs=Date.parse('2026-08-16T20:10:00.000Z')
-function setup(){
+function setup(lifecycleFields = {}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gs-exitrepl-recon-'))
   const actionStore=new PaperAutoExecutionExitReplacementActionStore({filePath:path.join(dir,'action.json'),clock:()=>nowMs})
   let a=actionStore.prepare({lifecycleId:'life-1',symbol:'ABC',residualQuantity:3,priorExitClientOrderId:'prior-c',priorExitBrokerOrderId:'prior-b',terminalReason:'canceled'})
   a=actionStore.transition({expectedReplacementSequence:a.replacementSequence,expectedClientOrderId:a.clientOrderId,expectedState:S.PREPARED,nextState:S.SUBMITTING})
   a=actionStore.transition({expectedReplacementSequence:a.replacementSequence,expectedClientOrderId:a.clientOrderId,expectedState:S.SUBMITTING,nextState:S.UNKNOWN})
-  let lifecycle={lifecycleId:'life-1',state:'EXIT_UNKNOWN',selectedSymbol:'ABC',filledQuantity:3,scannerEvidence:{paperOnly:true},reconciliation:[]}
+  let lifecycle={lifecycleId:'life-1',state:'EXIT_UNKNOWN',selectedSymbol:'ABC',filledQuantity:3,scannerEvidence:{paperOnly:true},reconciliation:[],...lifecycleFields}
   const transitions=[]
   const lifecycleStore={
     load(){return structuredClone(lifecycle)},
@@ -119,4 +121,35 @@ test('active broker replacement remains mutation locked and cannot release next 
     assert.equal(x.actionStore.mutationLocked(),true)
     assert.deepEqual(x.transitions,[])
   }finally{fs.rmSync(x.dir,{recursive:true,force:true})}
+})
+
+test('hard-loss cooldown uses the replacement fill time even when the original exit has an older timestamp', async () => {
+  const brokerTime = '2026-08-16T20:09:00.000Z'
+  for (const filledAt of [brokerTime, undefined, 'invalid']) {
+    const x = setup({
+      exitReason: 'OWNED_POSITION_HARD_LOSS_REVIEW',
+      exitBrokerFilledAt: '2026-08-16T18:00:00.000Z',
+    })
+    try {
+      const action = x.actionStore.load().current
+      const order = { id:'replacement-b', client_order_id:action.clientOrderId, symbol:'ABC',
+        side:'sell', qty:'3', filled_qty:'3', status:'filled', filled_at:filledAt }
+      const result = await reconcile({
+        lifecycleStore:x.lifecycleStore, replacementActionStore:x.actionStore,
+        fetchOrderByClientOrderId:lookup(order), fetchAccount:account([]), now:() => nowMs,
+      })
+      assert.equal(result.lifecycle.state, 'ROUND_TRIP_COMPLETED')
+      fs.writeFileSync(path.join(x.dir, 'paper_auto_execution_abc.json'), JSON.stringify(result.lifecycle))
+      const evaluate = at => evaluateSameSymbolHardLossCooldown({ runsDir:x.dir, symbol:'ABC', nowMs:at })
+      const cooldown = evaluate(nowMs)
+      assert.equal(cooldown.allowed, false)
+      if (filledAt === brokerTime) {
+        assert.equal(cooldown.cooldownStartedAt, brokerTime)
+        assert.equal(evaluate(Date.parse(brokerTime) + 1_799_999).allowed, false)
+        assert.equal(evaluate(Date.parse(brokerTime) + 1_800_000).allowed, true)
+      } else {
+        assert.equal(cooldown.status, 'SAME_SYMBOL_HARD_LOSS_COOLDOWN_EVIDENCE_INVALID')
+      }
+    } finally { fs.rmSync(x.dir, {recursive:true, force:true}) }
+  }
 })
