@@ -76,7 +76,8 @@ import { createPaperAutoExitMonitorWorker } from './scanner/paper_auto_exit_moni
 import { createPaperAutoExecutionContinuityRuntime } from './scanner/paper_auto_execution_continuity_runtime.mjs';
 import { DEFAULT_POINTER_FILE as PAPER_AUTO_EXECUTION_ACTIVE_LIFECYCLE_POINTER_FILE, resolvePaperAutoExecutionActiveLifecycleFile, writePaperAutoExecutionActiveLifecyclePointer } from './scanner/paper_auto_execution_active_lifecycle_pointer.mjs';
 import { filterContinuitySnapshotForUnownedSymbols, readPaperAutoExecutionLifecyclePortfolioAsync, selectLifecycleRowsForState } from './scanner/paper_auto_execution_lifecycle_portfolio.mjs';
-import { createPaperAutoExecutionContinuityEnterRunner } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
+import { captureReviewMarket, recordPausedEntryReviews } from './scanner/paused_entry_review_store.mjs';
+import { createPaperAutoExecutionContinuityEnterRunner, reviewPausedPaperEntry } from './scanner/paper_auto_execution_continuity_enter_runner.mjs';
 import { listPaperAutoExecutionEntryValidationRecords } from './scanner/paper_auto_execution_entry_validation_store.mjs';
 import { buildPaperAutoExecutionSessionValidationReport } from './scanner/paper_auto_execution_session_validation_report.mjs';
 import { evaluatePaperAutoExecutionExecutionAssurance } from './scanner/paper_auto_execution_execution_assurance.mjs';
@@ -2876,16 +2877,15 @@ const readPaperAutoExecutionServerLifecyclePortfolio = () => readPaperAutoExecut
 const paperAutoMultiLifecycleEnabled =
   String(process.env.PAPER_AUTO_MULTI_LIFECYCLE_ENABLED ?? '').trim() === '1';
 
-const paperAutoExecutionCapitalGrowthCoordinator = createPaperCapitalGrowthCoordinator({
-  inspectConflicts: async ({ currentLifecycleId } = {}) => detectPaperCapitalGrowthConflicts({
+const inspectPaperCapitalGrowthConflicts = async ({ currentLifecycleId } = {}) => detectPaperCapitalGrowthConflicts({
     portfolio: await readPaperAutoExecutionServerLifecyclePortfolio(),
     currentLifecycleId,
     readScaleAction: row => {
       const file = derivePaperScaleActionFile(row.file);
       return fs.existsSync(file) ? new PaperAutoExecutionScaleActionStore({ filePath: file }).load() : null;
     },
-  }),
-});
+  });
+const paperAutoExecutionCapitalGrowthCoordinator = createPaperCapitalGrowthCoordinator({ inspectConflicts: inspectPaperCapitalGrowthConflicts });
 
 const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const cache = await underFiveSharedCachePromise;
@@ -2894,7 +2894,10 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const wakeRefreshRequired = !current || current?.idleNoDemand === true;
   cache.noteDemand?.();
   const source = wakeRefreshRequired ? await cache.refreshNow() : current;
-  const rankingRoot = readUnderFiveLiveRankings(source);
+  return buildContinuityScanSnapshot(source);
+};
+
+function buildContinuityScanSnapshot(source, rankingRoot = readUnderFiveLiveRankings(source)) {
   const customerSource = bridgeCustomerZeroFreshRankings(
     source,
     rankingRoot,
@@ -2967,7 +2970,7 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
       };
     }),
   };
-};
+}
 const paperAutoExecutionDegradedBrokerMode = createPaperAutoExecutionDegradedBrokerMode({ env: process.env });
 const runPaperAutoExecutionDegradedBrokerRecoveryProbe = async () => {
   const before = paperAutoExecutionDegradedBrokerMode.diagnostics();
@@ -3046,6 +3049,27 @@ const paperAutoExecutionContinuityEnterOptions = {
   getPortfolioWindDownState: getPaperAutoExecutionPortfolioWindDownState,
 };
 const paperAutoExecutionContinuityEnterRunner = createPaperAutoExecutionContinuityEnterRunner(paperAutoExecutionContinuityEnterOptions);
+
+// Independent observers use the completed cache and the persisted session baseline.
+const pausedReviewOptions = {
+  ...paperAutoExecutionContinuityEnterOptions,
+  getPremarketBaseline: () => getPersistedPremarketCapitalBaseline({ now: new Date() }),
+  capitalGrowthCoordinator: createPaperCapitalGrowthCoordinator({ inspectConflicts: inspectPaperCapitalGrowthConflicts }),
+};
+const reviewPausedEntries = recordPausedEntryReviews({
+  getPortfolio: readPaperAutoExecutionServerLifecyclePortfolio,
+  review: (file, getScanSnapshot) => reviewPausedPaperEntry({ ...pausedReviewOptions, getScanSnapshot }, file),
+});
+const observePausedEntries = async () => {
+  if (process.env.PAPER_AUTO_CONTINUITY_ENTER_ENABLED !== '0' || process.env.PAPER_AUTO_EXIT_MONITOR_ENABLED !== '1') return;
+  const source = (await underFiveSharedCachePromise)?.getLatest?.();
+  if (source?.marketClock?.isOpen !== true) return;
+  let rankings, snapshot;
+  const readRankings = () => rankings ??= readUnderFiveLiveRankings(source);
+  await reviewPausedEntries(source.sharedCache?.generatedAt ?? source.generatedAt,
+    () => captureReviewMarket(source, readRankings(), process.env.PAPER_AUTO_SCALE_RUNNER_ENABLED === '1'),
+    () => snapshot ??= buildContinuityScanSnapshot(source, readRankings()));
+};
 
 const PAPER_AUTO_EXECUTION_ASSURANCE_LEDGER_PATH = 'runs/paper_auto_execution_execution_assurance_incidents.jsonl';
 let paperAutoExecutionExecutionAssuranceLastReport = Object.freeze({
@@ -3308,6 +3332,7 @@ const runPaperAutoExecutionContinuityCycle = (source = 'runtime') => {
     }
     try {
       await paperAutoExecutionContinuityRuntime.runOnce();
+      void observePausedEntries().catch(error => console.error('[paused-entry-review]', error.message));
     } catch (error) {
       console.error('[paper-auto-execution-continuity] runtime cycle failed closed', {
         source,

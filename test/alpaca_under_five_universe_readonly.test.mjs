@@ -46,7 +46,7 @@ test("builds read-only under-five universe from active tradable US equities", as
       }
 
       return response(200, {
-        AAA: { latestTrade: { p: 4.25 }, dailyBar: { v: 500000 } },
+        AAA: { latestTrade: { p: 4.25 }, latestQuote: { bp: 4.24, ap: 4.26, t: '2026-11-13T16:00:00Z' }, dailyBar: { v: 500000 } },
         BBB: { latestTrade: { p: 7.5 }, dailyBar: { v: 900000 } },
       });
     },
@@ -65,6 +65,7 @@ test("builds read-only under-five universe from active tradable US equities", as
   assert.equal(result.candidateCount, 1);
   assert.equal(result.candidates[0].symbol, "AAA");
   assert.equal(result.candidates[0].price, 4.25);
+  assert.deepEqual(result.candidates[0].observedQuote, { bid: 4.24, ask: 4.26, at: '2026-11-13T16:00:00Z', feed: 'iex' });
   assert.equal(result.candidates[0].dailyVolume, 500000);
   assert.equal(result.candidates[0].dollarVolume, 2125000);
   assert.equal(calls.every((call) => call.options.method === "GET"), true);

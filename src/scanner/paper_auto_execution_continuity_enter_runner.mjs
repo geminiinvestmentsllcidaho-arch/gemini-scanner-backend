@@ -47,6 +47,31 @@ const isEligibleCandidate = (candidate, symbol) => upper(candidate?.symbol) === 
   && (!Array.isArray(candidate?.blockers) || candidate.blockers.length === 0)
 
 export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
+  return makeEnterRunner(options, null)
+}
+
+// Only the observation entry point can supply a review. The production runOnce API
+// cannot opt into preview behavior. A fresh runner also isolates diagnostics.
+export async function reviewPausedPaperEntry(options, lifecycleFile) {
+  const review = { evidence: null, quote: null }
+  const mode = options.degradedBrokerMode
+  const runner = makeEnterRunner({
+    ...options,
+    appendEntryValidation: () => null,
+    degradedBrokerMode: mode && { evaluateAction: input => mode.evaluateAction(input) },
+  }, review)
+  const result = await runner.runOnce({ lifecycleFile })
+  return {
+    status: result.lastStatus,
+    wouldSubmit: result.lastStatus === 'PAUSED_ENTRY_WOULD_SUBMIT',
+    quantity: result.lastStatus === 'PAUSED_ENTRY_WOULD_SUBMIT' ? result.lastSizing.quantity : null,
+    decisionAt: review.decisionAt ?? new Date(Number((options.now ?? Date.now)())).toISOString(),
+    evidence: review.evidence,
+    quote: review.quote,
+  }
+}
+
+function makeEnterRunner(options, review) {
   const env = options.env ?? process.env
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   const getLifecycleFile = options.getLifecycleFile ?? (() => clean(env.PAPER_AUTO_EXIT_MONITOR_LIFECYCLE_PATH ?? env.PAPER_AUTO_EXECUTION_LIFECYCLE_PATH))
@@ -203,6 +228,7 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     // An explicit pause blocks new buys, but must not strand previously submitted fills.
     const pausedReconciliation = clean(env.PAPER_AUTO_CONTINUITY_ENTER_ENABLED) === '0'
       && on(env, 'PAPER_AUTO_EXIT_MONITOR_ENABLED')
+    if (review && (entriesEnabled || !pausedReconciliation)) return fail('EXPLICIT_ENTRY_PAUSE_REQUIRED')
     if (!entriesEnabled && !pausedReconciliation) return fail('CONTINUITY_ENTER_DISABLED_BY_ENV')
     const lifecycleFile = clean(lifecycleFileOverride || await getLifecycleFile?.())
     lastLifecycleFile = lifecycleFile || null
@@ -212,7 +238,8 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
     let lifecycle = store.load()
     lastLifecycle = lifecycle
     if (!lifecycle) return fail('ACTIVE_LIFECYCLE_REQUIRED')
-    if (!entriesEnabled && !ENTER_RECONCILE_STATES.has(lifecycle.state)) {
+    if (review && lifecycle.state !== S.CANDIDATE_SELECTED) return fail('SELECTED_CANDIDATE_REQUIRED')
+    if (!review && !entriesEnabled && !ENTER_RECONCILE_STATES.has(lifecycle.state)) {
       return fail('CONTINUITY_ENTER_DISABLED_BY_ENV', lifecycle)
     }
     if ([S.MONITORING, S.POSITION_CONFIRMED, S.ROUND_TRIP_COMPLETED, S.FAILED_NEEDS_REVIEW, S.CANDIDATE_EXPIRED].includes(lifecycle.state)) {
@@ -247,18 +274,22 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
       if (!revalidatedCandidate) {
         return fail('CANDIDATE_REVALIDATION_FAILED', lifecycle)
       }
-      lifecycle = store.patchCandidateStrategyEvidence({
-        expectedLifecycleId: lifecycle.lifecycleId,
-        expectedSymbol: lifecycle.selectedSymbol,
-        strategyEvidence: {
-          enterRevalidation: buildPaperAutoExecutionStrategyEvidence({
-            phase: 'enter_revalidation',
-            candidate: revalidatedCandidate,
-            snapshotObservedAt: snapshot?.observedAt ?? null,
-            recordedAt: new Date(Number(now())).toISOString(),
-          }),
-        },
+      const enterRevalidation = buildPaperAutoExecutionStrategyEvidence({
+        phase: 'enter_revalidation',
+        candidate: revalidatedCandidate,
+        snapshotObservedAt: snapshot?.observedAt ?? null,
+        recordedAt: new Date(Number(now())).toISOString(),
       })
+      if (review) {
+        review.evidence = enterRevalidation
+        review.quote = revalidatedCandidate.observedQuote ?? null
+      } else {
+        lifecycle = store.patchCandidateStrategyEvidence({
+          expectedLifecycleId: lifecycle.lifecycleId,
+          expectedSymbol: lifecycle.selectedSymbol,
+          strategyEvidence: { enterRevalidation },
+        })
+      }
       lastLifecycle = lifecycle
       lastSameSymbolHardLossCooldown = await evaluateHardLossCooldown({
         lifecycleFile,
@@ -438,6 +469,17 @@ export function createPaperAutoExecutionContinuityEnterRunner(options = {}) {
         const preSubmitWindDown = await getPortfolioWindDownState()
         if (preSubmitWindDown?.resolved !== true) return fail('PRE_SUBMIT_PAPER_EXECUTION_OWNER_ACCOUNT_UNRESOLVED', lifecycle)
         if (preSubmitWindDown?.active === true) return fail('PRE_SUBMIT_PORTFOLIO_WIND_DOWN_ENTER_BLOCKED', lifecycle)
+      }
+      if (review) {
+        review.decisionAt = new Date(Number(now())).toISOString()
+        if (clean(env.PAPER_AUTO_CONTINUITY_ENTER_ENABLED) !== '0' || !on(env, 'PAPER_AUTO_EXIT_MONITOR_ENABLED')) {
+          return fail('EXPLICIT_ENTRY_PAUSE_REQUIRED', lifecycle)
+        }
+        const current = store.load()
+        if (current?.state !== S.CANDIDATE_SELECTED || current.lifecycleId !== lifecycle.lifecycleId) {
+          return fail('SELECTED_CANDIDATE_CHANGED', lifecycle)
+        }
+        return fail('PAUSED_ENTRY_WOULD_SUBMIT', lifecycle)
       }
       recordEntryValidation({
         eventType:'gate_snapshot',correlationId:correlationId(lifecycle),lifecycleId:lifecycle?.lifecycleId,

@@ -366,6 +366,12 @@ export async function fetchAlpacaUnderFiveUniverseReadonly({
         previousClose,
         changePct: percentChange(price, previousClose),
         spreadPct: spreadPct(snapshot),
+        observedQuote: {
+          bid: finite(snapshot?.latestQuote?.bp),
+          ask: finite(snapshot?.latestQuote?.ap),
+          at: snapshot?.latestQuote?.t ?? null,
+          feed: clean(env?.ALPACA_DATA_FEED) || "iex",
+        },
         dailyVolume,
         dollarVolume,
         relativeVolume: relativeVolume(snapshot),
