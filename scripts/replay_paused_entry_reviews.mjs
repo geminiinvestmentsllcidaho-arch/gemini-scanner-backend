@@ -7,20 +7,29 @@ import { fetchCustomerOwnedPositionMonitorSource } from '../src/scanner/customer
 import { buildAuthoritativePaperExitDecision } from '../src/scanner/paper_auto_execution_exit_decision.mjs'
 import { HARD_LOSS_EXIT_REASON, SAME_SYMBOL_HARD_LOSS_COOLDOWN_MS } from '../src/scanner/paper_auto_execution_same_symbol_hard_loss_cooldown.mjs'
 
-// Replay only. All prices and market inputs are taken from the recorder.
-export function createPausedReplay({ initialCash, estimatedFeePerSide }) {
+// The default replay is offline. Optional historical entry quotes never change a recorded decision.
+export function createPausedReplay({ initialCash, estimatedFeePerSide, recoverEntryQuote }) {
   if (!Number.isFinite(initialCash) || initialCash <= 0 || !Number.isFinite(estimatedFeePerSide) || estimatedFeePerSide < 0) throw Error('positive initial cash and explicit nonnegative fee estimate required')
   let cash = initialCash, fees = 0, fills = 0, closed = 0, gaps = 0, scanCount = 0, approved = 0
   let lastTick = null, lastEvent = -Infinity
   const positions = new Map(), attempted = new Set(), cooldown = new Map()
+  const historicalEntryQuotes = []
   const equity = () => cash + [...positions.values()].reduce((value, p) => value + p.qty * p.mark, 0)
-  function enter(d, at) {
-    if (!d.wouldSubmit || d.status !== 'PAUSED_ENTRY_WOULD_SUBMIT' || attempted.has(d.lifecycleId)) return
+  async function enter(d, at, market) {
+    if (d.wouldSubmit !== true || d.status !== 'PAUSED_ENTRY_WOULD_SUBMIT' || attempted.has(d.lifecycleId)) return
     if (!d.lifecycleId || !d.symbol || !Number.isSafeInteger(d.quantity) || d.quantity < 1) { gaps++; return }
     attempted.add(d.lifecycleId); approved++
     if (positions.has(d.symbol) || at < (cooldown.get(d.symbol) ?? 0)) return
-    const q = priceReviewedEntry(d.quote, d.decisionAt)
-    if (!q || d.evidence?.strategyAuthorization?.authorized !== true) { gaps++; return }
+    if (d.evidence?.strategyAuthorization?.authorized !== true) { gaps++; return }
+    let q = priceReviewedEntry(d.quote, d.decisionAt)
+    if (!q && recoverEntryQuote) {
+      const feed = d.quote?.feed ?? market.candidates.find(c => c.symbol === d.symbol)?.observedQuote?.feed ?? null
+      const request = { symbol: d.symbol, feed, decisionAt: d.decisionAt }
+      const historical = feed ? await recoverEntryQuote(request) : null
+      if (historical && historical.feed === feed) q = priceReviewedEntry(historical, d.decisionAt)
+      historicalEntryQuotes.push({ lifecycleId: d.lifecycleId, ...request, quote: q })
+    }
+    if (!q) { gaps++; return }
     const size = calculateAutomaticPositionSize({accountEquity: equity(), buyingPower: cash - estimatedFeePerSide, candidatePrice: q.ask, candidateScore: d.evidence.score})
     if (!size.ok) return
     const qty = Math.min(d.quantity, size.quantity)
@@ -63,23 +72,24 @@ export function createPausedReplay({ initialCash, estimatedFeePerSide }) {
     for (const r of records) {
       if (r.version!==1 || r.orderSubmitted!==false || !r.market || !Array.isArray(r.decisions)) throw Error('invalid review record')
       events.push({at:Date.parse(r.market.capturedAt),market:r.market})
-      for (const d of r.decisions) events.push({at:Date.parse(d.decisionAt),decision:d})
+      for (const d of r.decisions) events.push({at:Date.parse(d.decisionAt),decision:d,sourceMarket:r.market})
     }
     events.sort((a,b)=>a.at-b.at || Number(!!b.market)-Number(!!a.market))
     for (const e of events) {
       if (!Number.isFinite(e.at) || e.at<lastEvent) throw Error('invalid event order')
       lastEvent=e.at
-      if (e.market) await mark(e.market,e.at); else enter(e.decision,e.at)
+      if (e.market) await mark(e.market,e.at); else await enter(e.decision,e.at,e.sourceMarket)
     }
   }
-  const summary = () => ({scanCount,approvedLifecycles:approved,fills,completedRoundTrips:closed,openPositions:positions.size,coverageGaps:gaps,initialCash,cash,estimatedFeePerSide,estimatedFees:fees,estimatedNetVersusCash:closed && !gaps && !positions.size ? cash-initialCash:null})
+  const summary = () => ({scanCount,approvedLifecycles:approved,fills,completedRoundTrips:closed,openPositions:positions.size,coverageGaps:gaps,initialCash,cash,estimatedFeePerSide,estimatedFees:fees,estimatedNetVersusCash:closed && !gaps && !positions.size ? cash-initialCash:null,...(recoverEntryQuote ? {historicalEntryQuotes} : {})})
   return {session, summary}
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  const [directory, capital, fee] = process.argv.slice(2)
-  if (!directory || !capital || !fee) throw Error('usage: node scripts/replay_paused_entry_reviews.mjs DIRECTORY INITIAL_CASH ESTIMATED_FEE_PER_SIDE')
-  const replay = createPausedReplay({ initialCash:Number(capital), estimatedFeePerSide:Number(fee) })
+  const [directory, capital, fee, option, ...extra] = process.argv.slice(2)
+  if (!directory || !capital || !fee || extra.length || (option && option !== '--historical-entry-quotes')) throw Error('usage: node scripts/replay_paused_entry_reviews.mjs DIRECTORY INITIAL_CASH ESTIMATED_FEE_PER_SIDE [--historical-entry-quotes]')
+  const recoverEntryQuote = option ? (await import('./paused_entry_historical_quote.mjs')).historicalEntryQuote : undefined
+  const replay = createPausedReplay({ initialCash:Number(capital), estimatedFeePerSide:Number(fee), recoverEntryQuote })
   const days=(await fs.readdir(directory)).filter(d=>/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d)).sort()
   for (const day of days) {
     const folder=path.join(directory,day), records=[]

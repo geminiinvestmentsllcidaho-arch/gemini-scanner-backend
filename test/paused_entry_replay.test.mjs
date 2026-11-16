@@ -22,3 +22,32 @@ test('refuses scale-enabled sessions and never treats an empty sample as a zero 
   const r=createPausedReplay({initialCash:873.78,estimatedFeePerSide:0});assert.equal(r.summary().estimatedNetVersusCash,null)
   const m=row(0,1.99);m.market.scaleRunnerEnabled=true;await assert.rejects(r.session([m]),/scale runner disabled/)
 })
+
+test('recovers only the first authorized unpriced entry and preserves the original records', async () => {
+  const d = {...entry(), quote:null}
+  const records = [row(0,1.99,[{...d, status:'BLOCKED', wouldSubmit:false},d,d]), row(15000,1.9)]
+  const before = structuredClone(records), requests = []
+  const r = createPausedReplay({initialCash:873.78, estimatedFeePerSide:0.01, recoverEntryQuote:async request => {
+    requests.push(request); return quote(1.99,2,0)
+  }})
+  await r.session(records)
+  assert.deepEqual(requests,[{symbol:'ABC',feed:'iex',decisionAt:iso(1)}]); assert.deepEqual(records,before)
+  const s=r.summary()
+  assert.equal(s.approvedLifecycles,1); assert.equal(s.completedRoundTrips,1); assert.equal(s.coverageGaps,0)
+  assert.ok(Math.abs(s.estimatedNetVersusCash+1.02)<1e-9); assert.equal(s.historicalEntryQuotes[0].quote.ask,2)
+})
+
+test('uses the recorded quote first and never requests a price for an unauthorized decision', async () => {
+  const r = createPausedReplay({initialCash:873.78,estimatedFeePerSide:0,recoverEntryQuote:assert.fail})
+  await r.session([row(0,1.99,[{...entry('invalid'),quote:null,evidence:{}},entry()]),row(15000,1.9)])
+  const s=r.summary(); assert.deepEqual(s.historicalEntryQuotes,[]); assert.equal(s.completedRoundTrips,1)
+  assert.equal(s.coverageGaps,1); assert.equal(s.estimatedNetVersusCash,null)
+})
+
+test('missing, wrong-feed or future prices leave a coverage gap', async () => {
+  for (const historical of [null,{...quote(1.99,2,0),feed:'sip'},quote(1.99,2,2)]) {
+    const r=createPausedReplay({initialCash:873.78,estimatedFeePerSide:0,recoverEntryQuote:async()=>historical})
+    await r.session([row(0,1.99,[{...entry(),quote:null}])]); const s=r.summary()
+    assert.equal(s.historicalEntryQuotes[0].quote,null); assert.equal(s.coverageGaps,1); assert.equal(s.fills,0); assert.equal(s.estimatedNetVersusCash,null)
+  }
+})

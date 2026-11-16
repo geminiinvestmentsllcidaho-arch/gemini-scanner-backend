@@ -3,7 +3,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 const freshnessMs = 30000
-const quoteFreshnessMs = 15000
+export const quoteFreshnessMs = 15000
 
 // Only display an indicative fill when the exact quote has its own timestamp.
 export function priceReviewedEntry(quote, decisionAt) {
