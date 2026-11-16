@@ -257,10 +257,10 @@ export function createAlpacaPremarketSharedScanCache({
       } catch (error) {
         lastError = error?.message ?? String(error);
         throw error;
-      } finally {
-        inFlight = null;
       }
-    })();
+    })().finally(() => {
+      inFlight = null;
+    });
 
     return inFlight;
   };

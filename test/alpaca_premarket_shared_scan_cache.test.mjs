@@ -318,3 +318,33 @@ test("rejects malformed or wrong-session capital baseline without latching the E
     assert.notEqual(d.capitalBaselineError, null);
   }
 });
+
+test("wakes after an off-session start and collects the next session's baseline", async () => {
+  let now = Date.parse("2026-11-16T00:28:10Z");
+  let wake;
+  let baselineReads = 0;
+  let marketScans = 0;
+  const cache = createAlpacaPremarketSharedScanCache({
+    now: () => now,
+    setTimeoutImpl(callback) { wake = callback; return 1; },
+    clearTimeoutImpl() {},
+    fetchCapitalBaseline: async () => {
+      baselineReads++;
+      return { ok: true, paperOnly: true, readOnly: true, sessionDate: "2026-11-16" };
+    },
+    fetchScan: async () => {
+      marketScans++;
+      return { status: "connected_readonly", candidates: [] };
+    },
+  });
+  const sleeping = await cache.start();
+  assert.equal(sleeping.skippedCount, 1);
+  assert.equal(baselineReads, 0);
+  assert.equal(marketScans, 0);
+  now = Date.parse(sleeping.nextWakeAt);
+  await Promise.all([wake(), cache.refreshNow()]);
+  assert.equal(baselineReads, 1);
+  assert.equal(marketScans, 1);
+  assert.equal(cache.getDiagnostics().capitalBaselineDate, "2026-11-16");
+  cache.stop();
+});
