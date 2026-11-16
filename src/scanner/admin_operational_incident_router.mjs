@@ -174,6 +174,17 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
   const incident = normalizeAdminOperationalIncident(input, options);
   const previous = options.previousIncident ?? readLatestAdminOperationalIncident(options);
   const transition = buildAdminOperationalIncidentTransition(incident, previous, options);
+  // Both assurance monitors share a ledger. A healthy poll after recovery
+  // only produces new evidence when an authorized notification retry is due.
+  const alreadyRecovered = incident.category === "paper_execution_assurance" &&
+    incident.status === "recovered" && previous?.status === "recovered" &&
+    previous.fingerprint === incident.fingerprint;
+  if (alreadyRecovered && (!transition.shouldNotify || options.allowNotificationSend !== true)) {
+    return incidentResult(previous, Object.freeze({
+      appended: false, ledgerPath: path.resolve(options.ledgerPath ?? DEFAULT_LEDGER_PATH),
+      localJsonlOnly: true, containsSecrets: false, reason: "recovery_already_recorded",
+    }), options);
+  }
   const attemptAt = transition.shouldNotify ? new Date(options.now ?? incident.generatedAt ?? Date.now()).toISOString() : null;
 
   let delivery = transition.shouldNotify
@@ -255,11 +266,15 @@ export async function routeAdminOperationalIncident(input = {}, options = {}) {
   });
   const persistence = appendAdminOperationalIncident(finalIncident, options);
 
+  return incidentResult(finalIncident, persistence, options);
+}
+
+function incidentResult(incident, persistence, options) {
   return Object.freeze({
     version: VERSION,
-    incident: finalIncident,
+    incident,
     persistence,
-    delivery,
+    delivery: incident.delivery,
     notificationSendAuthorized: options.allowNotificationSend === true,
     remediationAllowed: false,
     brokerContactPerformed: false,

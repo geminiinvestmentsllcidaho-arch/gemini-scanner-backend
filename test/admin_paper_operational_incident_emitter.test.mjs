@@ -31,3 +31,28 @@ test("authorized PAPER incident uses injected Admin delivery without operational
     assert.equal(result.liveTradingActionPerformed, false);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('two assurance monitors record one recovery and still retry an authorized failed delivery', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-assurance-recovery-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const ledgerPath = path.join(dir, 'incident.jsonl');
+  const failure = { source: 'paper_execution', category: 'paper_execution_assurance', failureCodes: ['TEST_STALL'] };
+  let attempts = 0;
+  const opts = { ledgerPath, env: {}, retryCooldownMs: 1000, delivery: { send: async () => ({ delivered: ++attempts > 1 }) } };
+  const base = Date.parse('2026-11-16T18:00:00Z');
+  const emit = (seconds, severity, process, send = false) => emitAdminPaperOperationalIncident(
+    { ...failure, severity, process }, { ...opts, now: base + seconds * 1000, allowNotificationSend: send });
+  await emit(0, 'critical', 'watchdog');
+  assert.equal((await emit(1, 'recovery', 'scanner')).persistence.appended, true);
+  const previous = fs.readFileSync(ledgerPath, 'utf8');
+  assert.equal((await emit(10, 'recovery', 'watchdog')).persistence.appended, false);
+  assert.equal(fs.readFileSync(ledgerPath, 'utf8'), previous);
+  assert.equal(attempts, 0);
+  assert.equal((await emit(11, 'recovery', 'watchdog', true)).delivery.delivered, false);
+  assert.equal((await emit(11.5, 'recovery', 'scanner', true)).persistence.appended, false);
+  assert.equal((await emit(13, 'recovery', 'scanner', true)).delivery.delivered, true);
+  assert.equal((await emit(14, 'recovery', 'watchdog', true)).persistence.appended, false);
+  assert.equal(attempts, 2);
+  assert.equal((await emit(15, 'critical', 'scanner')).incident.open, true);
+  assert.equal((await emit(16, 'recovery', 'watchdog')).persistence.appended, true);
+});
