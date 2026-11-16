@@ -2894,10 +2894,11 @@ const getPaperAutoExecutionContinuityScanSnapshot = async () => {
   const wakeRefreshRequired = !current || current?.idleNoDemand === true;
   cache.noteDemand?.();
   const source = wakeRefreshRequired ? await cache.refreshNow() : current;
-  return buildContinuityScanSnapshot(source);
+  const rankingRoot = readUnderFiveLiveRankings(source);
+  return buildContinuityScanSnapshot(source, rankingRoot);
 };
 
-function buildContinuityScanSnapshot(source, rankingRoot = readUnderFiveLiveRankings(source)) {
+function buildContinuityScanSnapshot(source, rankingRoot) {
   const customerSource = bridgeCustomerZeroFreshRankings(
     source,
     rankingRoot,
